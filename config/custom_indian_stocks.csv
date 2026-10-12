@@ -1,0 +1,111 @@
+symbol,name,sector
+RELIANCE.NS,Reliance Industries,Energy
+TCS.NS,Tata Consultancy Services,Technology
+HDFCBANK.NS,HDFC Bank,Financial Services
+INFY.NS,Infosys,Technology
+ICICIBANK.NS,ICICI Bank,Financial Services
+HINDUNILVR.NS,Hindustan Unilever,Consumer Defensive
+ITC.NS,ITC Limited,Consumer Defensive
+SBIN.NS,State Bank of India,Financial Services
+BHARTIARTL.NS,Bharti Airtel,Communication Services
+LT.NS,Larsen & Toubro,Industrials
+KOTAKBANK.NS,Kotak Mahindra Bank,Financial Services
+AXISBANK.NS,Axis Bank,Financial Services
+HCLTECH.NS,HCL Technologies,Technology
+BAJFINANCE.NS,Bajaj Finance,Financial Services
+MARUTI.NS,Maruti Suzuki,Consumer Cyclical
+ASIANPAINT.NS,Asian Paints,Basic Materials
+SUNPHARMA.NS,Sun Pharmaceutical,Healthcare
+TITAN.NS,Titan Company,Consumer Cyclical
+TATAMOTORS.NS,Tata Motors,Consumer Cyclical
+ULTRACEMCO.NS,UltraTech Cement,Basic Materials
+ONGC.NS,Oil & Natural Gas Corp,Energy
+NTPC.NS,NTPC Limited,Utilities
+WIPRO.NS,Wipro,Technology
+POWERGRID.NS,Power Grid Corp,Utilities
+JSWSTEEL.NS,JSW Steel,Basic Materials
+M&M.NS,Mahindra & Mahindra,Consumer Cyclical
+ADANIENT.NS,Adani Enterprises,Industrials
+ADANIPORTS.NS,Adani Ports,Industrials
+LTIM.NS,LTIMindtree,Technology
+TATASTEEL.NS,Tata Steel,Basic Materials
+COALINDIA.NS,Coal India,Energy
+BAJAJFINSV.NS,Bajaj Finserv,Financial Services
+HDFCLIFE.NS,HDFC Life Insurance,Financial Services
+SBILIFE.NS,SBI Life Insurance,Financial Services
+GRASIM.NS,Grasim Industries,Basic Materials
+TECHM.NS,Tech Mahindra,Technology
+BRITANNIA.NS,Britannia Industries,Consumer Defensive
+INDUSINDBK.NS,IndusInd Bank,Financial Services
+HINDALCO.NS,Hindalco Industries,Basic Materials
+CIPLA.NS,Cipla,Healthcare
+EICHERMOT.NS,Eicher Motors,Consumer Cyclical
+DRREDDY.NS,Dr. Reddy's Laboratories,Healthcare
+TATACONSUM.NS,Tata Consumer Products,Consumer Defensive
+DIVISLAB.NS,Divi's Laboratories,Healthcare
+APOLLOHOSP.NS,Apollo Hospitals,Healthcare
+BAJAJ-AUTO.NS,Bajaj Auto,Consumer Cyclical
+HAL.NS,Hindustan Aeronautics,Industrials
+DLF.NS,DLF Limited,Real Estate
+VBL.NS,Varun Beverages,Consumer Defensive
+ZOMATO.NS,Zomato,Technology
+BEL.NS,Bharat Electronics,Industrials
+TRENT.NS,Trent,Consumer Cyclical
+VEDL.NS,Vedanta,Basic Materials
+PIDILITIND.NS,Pidilite Industries,Basic Materials
+SIEMENS.NS,Siemens,Industrials
+IOC.NS,Indian Oil Corp,Energy
+GAIL.NS,GAIL (India),Utilities
+AMBUJACEM.NS,Ambuja Cements,Basic Materials
+BANKBARODA.NS,Bank of Baroda,Financial Services
+TATAPOWER.NS,Tata Power,Utilities
+INDIGO.NS,InterGlobe Aviation,Industrials
+SHREECEM.NS,Shree Cement,Basic Materials
+TVSMOTOR.NS,TVS Motor Company,Consumer Cyclical
+HAVELLS.NS,Havells India,Industrials
+CHOLAFIN.NS,Cholamandalam Inv & Fin,Financial Services
+ABB.NS,ABB India,Industrials
+CANBK.NS,Canara Bank,Financial Services
+DABUR.NS,Dabur India,Consumer Defensive
+JINDALSTEL.NS,Jindal Steel & Power,Basic Materials
+GODREJCP.NS,Godrej Consumer Products,Consumer Defensive
+MARICO.NS,Marico,Consumer Defensive
+PNB.NS,Punjab National Bank,Financial Services
+NAUKRI.NS,Info Edge (India),Technology
+ICICIGI.NS,ICICI Lombard,Financial Services
+SRF.NS,SRF Limited,Basic Materials
+SBICARD.NS,SBI Cards & Payment,Financial Services
+BOSCHLTD.NS,Bosch,Consumer Cyclical
+COLPAL.NS,Colgate-Palmolive,Consumer Defensive
+MOTHERSON.NS,Samvardhana Motherson,Consumer Cyclical
+BERGEPAINT.NS,Berger Paints,Basic Materials
+MUTHOOTFIN.NS,Muthoot Finance,Financial Services
+ICICIPRULI.NS,ICICI Prudential Life,Financial Services
+LUPIN.NS,Lupin,Healthcare
+ALKEM.NS,Alkem Laboratories,Healthcare
+PIIND.NS,PI Industries,Basic Materials
+TORNTPHARM.NS,Torrent Pharmaceuticals,Healthcare
+PERSISTENT.NS,Persistent Systems,Technology
+CUMMINSIND.NS,Cummins India,Industrials
+MRF.NS,MRF Limited,Consumer Cyclical
+POLYCAB.NS,Polycab India,Industrials
+INDHOTEL.NS,Indian Hotels,Consumer Cyclical
+ASTRAL.NS,Astral,Basic Materials
+PETRONET.NS,Petronet LNG,Energy
+PAGEIND.NS,Page Industries,Consumer Cyclical
+ASHOKLEY.NS,Ashok Leyland,Consumer Cyclical
+JIOFIN.NS,Jio Financial Services,Financial Services
+RVNL.NS,Rail Vikas Nigam,Industrials
+IRFC.NS,Indian Railway Finance Corp,Financial Services
+MAZDOCK.NS,Mazagon Dock Shipbuilders,Industrials
+COCHINSHIP.NS,Cochin Shipyard,Industrials
+SUZLON.NS,Suzlon Energy,Energy
+BHEL.NS,Bharat Heavy Electricals,Industrials
+NHPC.NS,NHPC Limited,Utilities
+BSE.NS,BSE Limited,Financial Services
+CDSL.NS,Central Depository Services,Financial Services
+MCX.NS,Multi Commodity Exchange,Financial Services
+IEX.NS,Indian Energy Exchange,Utilities
+BGRENERGY.NS,BG Energy Systems Limited,Energy
+ADANIGREEN.NS,Adani Green Energy,Energy
+IRCTC.NS,Indian Railway Catering,Services

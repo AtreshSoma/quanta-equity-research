@@ -1,0 +1,13 @@
+{
+  "_note": "Synthetic test data for UI checks: the /api/dashboard market.quotes shape, dated to the same session as my_portfolio_view.json. Not real market data.",
+  "market": {
+    "market": "US",
+    "quotes": [
+      { "symbol": "SPY", "label": "S&P 500", "change_pct": -0.42, "price": 612.3, "quote_date": "2026-09-25", "as_of": "2026-09-25T16:00:00-04:00", "price_basis": "daily_bar" },
+      { "symbol": "QQQ", "label": "Nasdaq 100", "change_pct": -0.61, "price": 540.1, "quote_date": "2026-09-25", "as_of": "2026-09-25T16:00:00-04:00", "price_basis": "daily_bar" },
+      { "symbol": "DIA", "label": "Dow", "change_pct": -0.18, "price": 441.9, "quote_date": "2026-09-25", "as_of": "2026-09-25T16:00:00-04:00", "price_basis": "daily_bar" },
+      { "symbol": "IWM", "label": "Russell 2000", "change_pct": 0.12, "price": 228.4, "quote_date": "2026-09-25", "as_of": "2026-09-25T16:00:00-04:00", "price_basis": "daily_bar" },
+      { "symbol": "^VIX", "label": "VIX", "change_pct": 3.1, "price": 17.2, "quote_date": "2026-09-25", "as_of": "2026-09-25T16:00:00-04:00", "price_basis": "daily_bar" }
+    ]
+  }
+}

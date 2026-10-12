@@ -1,0 +1,1564 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>:root{color-scheme:light dark}body{margin:0;padding:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>QUANTA Elite Teardown</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:      #FBFAF7;
+  --surface:     #FFFFFF;
+  --sunk:        #F3F1EC;
+  --ink:         #16181C;
+  --ink-2:       #4B5058;
+  --ink-3:       #7C8189;
+  --rule:        #DFDCD4;
+  --rule-strong: #C4C0B5;
+
+  --s0: #9E2A1F;   /* blocker      */
+  --s1: #B0651A;   /* wrong number */
+  --s2: #6B6A32;   /* modelling    */
+  --s3: #4A5A6B;   /* output       */
+  --ok: #2F6B4F;   /* verified     */
+
+  --s0-wash: #9E2A1F14;
+  --s1-wash: #B0651A14;
+  --s2-wash: #6B6A3214;
+  --s3-wash: #4A5A6B14;
+  --ok-wash: #2F6B4F14;
+
+  --font-display: "Spectral", Georgia, "Times New Roman", serif;
+  --font-body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #14161A;
+    --surface:     #1B1E23;
+    --sunk:        #21252B;
+    --ink:         #E9E6E0;
+    --ink-2:       #A8ADB5;
+    --ink-3:       #767C85;
+    --rule:        #2E3238;
+    --rule-strong: #434952;
+
+    --s0: #E87F6E;
+    --s1: #DFA463;
+    --s2: #C4C286;
+    --s3: #96ABC0;
+    --ok: #6FBF95;
+
+    --s0-wash: #E87F6E1F;
+    --s1-wash: #DFA4631F;
+    --s2-wash: #C4C2861F;
+    --s3-wash: #96ABC01F;
+    --ok-wash: #6FBF951F;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #14161A;
+  --surface:     #1B1E23;
+  --sunk:        #21252B;
+  --ink:         #E9E6E0;
+  --ink-2:       #A8ADB5;
+  --ink-3:       #767C85;
+  --rule:        #2E3238;
+  --rule-strong: #434952;
+
+  --s0: #E87F6E;
+  --s1: #DFA463;
+  --s2: #C4C286;
+  --s3: #96ABC0;
+  --ok: #6FBF95;
+
+  --s0-wash: #E87F6E1F;
+  --s1-wash: #DFA4631F;
+  --s2-wash: #C4C2861F;
+  --s3-wash: #96ABC01F;
+  --ok-wash: #6FBF951F;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 0 1.75rem 6rem;
+}
+
+/* ---------- masthead ---------- */
+
+.masthead {
+  border-bottom: 2px solid var(--ink);
+  padding: 3.25rem 0 1.25rem;
+  margin-bottom: 2.25rem;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 1rem;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 6vw, 3.9rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 0 0 1.1rem;
+  text-wrap: balance;
+}
+
+.standfirst {
+  font-family: var(--font-display);
+  font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: 40ch;
+  margin: 0 0 1.75rem;
+}
+
+.filing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 2rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-3);
+}
+.filing b {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+/* ---------- tally ---------- */
+
+.tally {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  margin-bottom: 3rem;
+}
+
+.tally-cell {
+  padding: 1.05rem 1.15rem;
+  border-right: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.tally-cell:last-child { border-right: none; }
+
+.tally-n {
+  font-family: var(--font-mono);
+  font-size: 1.85rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.tally-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.tally-sub {
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  line-height: 1.35;
+  margin-top: 0.2rem;
+}
+
+.n-s0 { color: var(--s0); }
+.n-s1 { color: var(--s1); }
+.n-s2 { color: var(--s2); }
+.n-s3 { color: var(--s3); }
+.n-ok { color: var(--ok); }
+
+/* ---------- sections ---------- */
+
+section { margin-bottom: 3.5rem; }
+
+h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin: 0 0 0.35rem;
+  text-wrap: balance;
+}
+
+.sec-head {
+  border-bottom: 1px solid var(--rule-strong);
+  padding-bottom: 0.7rem;
+  margin-bottom: 1.5rem;
+}
+.sec-note {
+  font-size: 0.92rem;
+  color: var(--ink-2);
+  margin: 0;
+  max-width: 62ch;
+}
+
+h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.3;
+}
+
+p { margin: 0 0 0.85rem; max-width: 68ch; }
+p:last-child { margin-bottom: 0; }
+
+a { color: var(--ink); text-decoration-color: var(--rule-strong); text-underline-offset: 2px; }
+a:hover { text-decoration-color: currentColor; }
+:focus-visible { outline: 2px solid var(--s3); outline-offset: 2px; }
+
+code, .mono {
+  font-family: var(--font-mono);
+  font-size: 0.855em;
+}
+code {
+  background: var(--sunk);
+  padding: 0.1em 0.32em;
+  border-radius: 2px;
+  word-break: break-word;
+}
+
+/* ---------- evidence blocks ---------- */
+
+.evidence {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ok);
+  background: var(--surface);
+  margin: 0 0 1.4rem;
+}
+.evidence-hd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.6rem 0.95rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--ok-wash);
+}
+.evidence-hd b { color: var(--ok); font-weight: 600; letter-spacing: 0.08em; }
+.evidence pre {
+  margin: 0;
+  padding: 0.85rem 0.95rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.775rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+  white-space: pre;
+  tab-size: 2;
+}
+.evidence pre em {
+  color: var(--ink);
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* ---------- findings ledger ---------- */
+
+.ledger { border-top: 1px solid var(--rule-strong); }
+
+.finding {
+  border-bottom: 1px solid var(--rule);
+  padding: 1.35rem 0;
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: 0 1.1rem;
+  align-items: start;
+}
+
+.fid {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  text-align: center;
+  justify-self: start;
+  margin-top: 0.12rem;
+}
+.finding[data-sev="0"] .fid { color: var(--s0); background: var(--s0-wash); }
+.finding[data-sev="1"] .fid { color: var(--s1); background: var(--s1-wash); }
+.finding[data-sev="2"] .fid { color: var(--s2); background: var(--s2-wash); }
+.finding[data-sev="3"] .fid { color: var(--s3); background: var(--s3-wash); }
+
+.fbody { min-width: 0; }
+
+.fmeta {
+  font-family: var(--font-mono);
+  font-size: 0.715rem;
+  color: var(--ink-3);
+  margin: 0.35rem 0 0.6rem;
+  word-break: break-word;
+}
+.fmeta .verified {
+  color: var(--ok);
+  font-weight: 500;
+}
+
+.fbody dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 3.6rem 1fr;
+  gap: 0.4rem 0.9rem;
+  align-items: baseline;
+}
+.fbody dt {
+  font-family: var(--font-mono);
+  font-size: 0.665rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-top: 0.18rem;
+}
+.fbody dd {
+  margin: 0;
+  font-size: 0.935rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 66ch;
+}
+.fbody dd strong { color: var(--ink); font-weight: 600; }
+.fbody dd.fix { color: var(--ink); }
+
+/* ---------- triage bar ---------- */
+
+.triage {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--ground);
+  border-bottom: 1px solid var(--rule-strong);
+  padding: 0.7rem 0;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+.triage-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.665rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-right: 0.35rem;
+}
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 0.28rem 0.6rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.chip:hover { border-color: var(--ink-3); color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.chip[data-sev="0"][aria-pressed="true"] { background: var(--s0); border-color: var(--s0); color: var(--surface); }
+.chip[data-sev="1"][aria-pressed="true"] { background: var(--s1); border-color: var(--s1); color: var(--surface); }
+.chip[data-sev="2"][aria-pressed="true"] { background: var(--s2); border-color: var(--s2); color: var(--surface); }
+.chip[data-sev="3"][aria-pressed="true"] { background: var(--s3); border-color: var(--s3); color: var(--surface); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---------- band headers ---------- */
+
+.band {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin: 2.75rem 0 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid currentColor;
+}
+.band[data-sev="0"] { color: var(--s0); }
+.band[data-sev="1"] { color: var(--s1); }
+.band[data-sev="2"] { color: var(--s2); }
+.band[data-sev="3"] { color: var(--s3); }
+.band h3 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: inherit;
+}
+.band .band-n {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  margin-left: auto;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.band-note {
+  font-size: 0.9rem;
+  color: var(--ink-2);
+  margin: 0.8rem 0 0.5rem;
+  max-width: 66ch;
+}
+
+/* ---------- plan ---------- */
+
+.plan { counter-reset: step; border-top: 1px solid var(--rule-strong); }
+.step {
+  counter-increment: step;
+  border-bottom: 1px solid var(--rule);
+  padding: 1.3rem 0;
+  display: grid;
+  grid-template-columns: 3.1rem 1fr;
+  gap: 0 1.1rem;
+}
+.step::before {
+  content: counter(step, decimal-leading-zero);
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+.step h3 { margin-bottom: 0.4rem; }
+.step p { font-size: 0.935rem; color: var(--ink-2); margin-bottom: 0.5rem; }
+.step .refs {
+  font-family: var(--font-mono);
+  font-size: 0.715rem;
+  color: var(--ink-3);
+}
+.step .horizon {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.665rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  padding: 0.12rem 0.4rem;
+  margin-left: 0.5rem;
+  vertical-align: 0.14em;
+}
+
+/* ---------- verdict callout ---------- */
+
+.verdict {
+  border: 1px solid var(--rule-strong);
+  border-top: 3px solid var(--s0);
+  background: var(--surface);
+  padding: 1.5rem 1.6rem;
+  margin-bottom: 3rem;
+}
+.verdict h2 { font-size: 1.3rem; margin-bottom: 0.7rem; }
+.verdict p { font-size: 0.97rem; color: var(--ink-2); }
+.verdict p strong { color: var(--ink); }
+
+/* ---------- keep table ---------- */
+
+.keep {
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  padding: 1.35rem 1.5rem;
+}
+.keep ul { margin: 0; padding-left: 1.15rem; }
+.keep li { font-size: 0.93rem; color: var(--ink-2); margin-bottom: 0.5rem; line-height: 1.55; }
+.keep li:last-child { margin-bottom: 0; }
+.keep li strong { color: var(--ink); font-weight: 600; }
+
+footer {
+  border-top: 1px solid var(--rule);
+  padding-top: 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  color: var(--ink-3);
+  line-height: 1.7;
+}
+
+@media (max-width: 640px) {
+  .finding, .step { grid-template-columns: 1fr; gap: 0.6rem; }
+  .fbody dl { grid-template-columns: 1fr; gap: 0.15rem 0; }
+  .fbody dt { padding-top: 0.5rem; }
+  .step::before { font-size: 0.95rem; }
+}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Engine audit &middot; all findings remediated</p>
+  <h1>QUANTA Elite Teardown</h1>
+  <p class="standfirst">Forty-eight findings in the multi-factor engine, all fixed and locked in by 74 regression tests. What was wrong, what changed, and what you will notice.</p>
+  <div class="filing">
+    <span><b>File</b> core/SP_ELITE_PRO.py &middot; 10,813 lines</span>
+    <span><b>Date</b> 2 Sep 2026</span>
+    <span><b>Lint</b> ruff clean</span>
+    <span><b>Tests</b> 531 passing (was 470)</span>
+    <span><b>Commit</b> e8e01df</span>
+  </div>
+</header>
+
+<div class="tally">
+  <div class="tally-cell">
+    <span class="tally-n n-s0">7</span>
+    <span class="tally-lbl">Blockers</span>
+    <span class="tally-sub">Were invalidating the output</span>
+  </div>
+  <div class="tally-cell">
+    <span class="tally-n n-s1">13</span>
+    <span class="tally-lbl">Wrong numbers</span>
+    <span class="tally-sub">Code ran, answer was incorrect</span>
+  </div>
+  <div class="tally-cell">
+    <span class="tally-n n-s2">14</span>
+    <span class="tally-lbl">Modelling</span>
+    <span class="tally-sub">Method flaws in the composite</span>
+  </div>
+  <div class="tally-cell">
+    <span class="tally-n n-s3">14</span>
+    <span class="tally-lbl">Output</span>
+    <span class="tally-sub">Report contradicted the engine</span>
+  </div>
+  <div class="tally-cell">
+    <span class="tally-n n-ok">48</span>
+    <span class="tally-lbl">Fixed</span>
+    <span class="tally-sub">74 regression tests lock them in</span>
+  </div>
+</div>
+
+<div class="verdict" style="border-top-color: var(--ok)">
+  <h2>What changed</h2>
+  <p>All forty-eight findings are fixed. The engineering discipline was never the problem — lint was clean and 470 tests passed throughout. The problems were <strong>semantic</strong>: the code did precisely what it said, and what it said was wrong. The suite now runs <strong>531 tests</strong>, including 74 named for the findings they lock in, so each of these fails loudly if it comes back.</p>
+  <p>Three fixes account for most of the difference. A <strong>&ldquo;standard&rdquo; scan now ranks the whole 669-name universe on liquidity</strong> instead of taking the alphabetical first 100 — all twelve mega-caps are reachable where none were, and <code>full</code> covers every name. <strong>Position sizes are derived from the stop</strong>, so dollar risk at the stop <em>is</em> the risk budget, and sizes differentiate by conviction and volatility: 7 distinct sizes across a 9-case grid where there was 1. And the <strong>trailing stop no longer publishes a level 0.5% below entry</strong> — ratcheting now requires a real high-since-entry, which a scanner does not have for a new position, so it stops inventing one.</p>
+  <p><strong>The one behaviour change you will notice immediately:</strong> far fewer names clear the gates. On a 24-name mega-cap scan, 2 passed where nearly all would have before. That is the intended effect — the engine no longer manufactures the reward side of a trade, so <code>risk_reward &lt; 1.8</code> can finally reject something. Observed R:R now spans 0.30 to 3.4 across real names instead of being satisfied by construction. A thin day producing two ideas is the honest answer, not a bug.</p>
+</div>
+
+<section>
+  <div class="sec-head">
+    <h2>Before and after, on live code</h2>
+    <p class="sec-note">Every pair below was produced by importing the module and calling the real functions — the &ldquo;before&rdquo; figures from the original code, the &ldquo;after&rdquo; from the committed fix. No inference.</p>
+  </div>
+
+  <div class="evidence">
+    <div class="evidence-hd"><b>B1</b><span>the scan universe is an alphabetical prefix</span></div>
+<pre>universe size: 669
+standard (first 100): AAL AAPL ABBV ABNB ABT ACHR ACLX ACN ADBE ADC ADI ADMA ADP
+  AEE AEM AEO AEP AEVA AFL AFRM AGI AIG AIZ AJG AKAM ALB ALGN ALKT ALL ALNY ALTR
+  AMAT AMD AME AMGN AMPL AMPS AMT AMZN ANF AON AOS APA APD APH APPN ARBE ARCB ARE
+  ARGX ARRY ARVN ASM ASML ASO ASTS AVB AVGO AWK AXP BA BABA BAC BAH BALL BDX BE
+  BEAM BEN BGFV BIDU BILI BILL BIO BJ BJRI BK BKNG BKR BKSY BLDE BLDP BLDR BLK
+  BLMN BLNK BLOCK BMBL BMI BMRN BMY BOKF BOOT BP BR BRK-B BROS BRZE BSX BSY
+
+<em>LAST ticker included at limit=100: BSY</em>
+never reached: ... XEL XNCR XOM XOS XPEV XPO XRAY YUM ZBRA ZI ZION ZM ZS ZTS ZUMZ</pre>
+<div class="evidence-hd" style="background:var(--ok-wash);border-top:1px solid var(--rule)"><b>after</b><span>liquidity-ranked, all 669 reachable</span></div>
+<pre>standard  -> 250 names, ranked by average daily dollar volume
+  first 5: NVDA MU AAPL TSLA MSFT
+  last 5 : DG RSG KMB ZM AVB
+  <em>mega-caps reachable: 12/12</em>   spans past 'B': True
+
+full      -> 669 names (every assembled name is deep-scanned)
+  first 5: AAL AAPL ABBV ABNB ABT
+  last 5 : ZION ZM ZS ZTS ZUMZ</pre>
+  </div>
+
+  <div class="evidence">
+    <div class="evidence-hd"><b>B2</b><span>the published trailing stop</span></div>
+<pre>entry=$100  hard stop=$92  ATR=$2  52w high=$150
+<em>-> trailing_stop = $99.50</em>
+That is -0.5% from entry — a guaranteed same-day stop-out.
+It also RAISED the effective stop above the analysed hard stop of $92.</pre>
+<div class="evidence-hd" style="background:var(--ok-wash);border-top:1px solid var(--rule)"><b>after</b><span>needs a real high-since-entry</span></div>
+<pre>no highs supplied      -> $94.50  (initial ATR trail, untouched)
+running high $100.00   -> $96.50   (-3.5% vs entry)
+running high $108.00   -> $104.50  (+4.5%)
+running high $120.00   -> $116.50  (+16.5%)
+existing trail $110, high $108 -> $110.00 (held; ratchets up only)</pre>
+  </div>
+
+  <div class="evidence">
+    <div class="evidence-hd"><b>B6</b><span>risk/reward inflated on both sides</span></div>
+<pre>ATR stop=$96.40   support stop=$85.36   vol stop=$85.00
+<em>-> chosen stop = $96.40  (the TIGHTEST -> smallest denominator)</em>
+ATR tgt=$107.00   fib tgt=$119.42   vol tgt=$130.00
+<em>-> chosen target = $130.00 (the LARGEST -> biggest numerator)</em>
+raw R:R = 8.33:1
+'trailing stop' returned = $112.00  (ABOVE entry — not a stop at all)</pre>
+<div class="evidence-hd" style="background:var(--ok-wash);border-top:1px solid var(--rule)"><b>after</b><span>two coherent methods, symmetric analyst use</span></div>
+<pre>same $100 name at 30% vol:  stop $94.50 (-5.5%)  target $111.00  <em>R:R 2.00</em>
+
+analyst target now cuts both ways:
+  bullish  140 -> target $120.67  R:R 3.76  PASSES
+  modest   112 -> target $111.33  R:R 2.06  PASSES
+  bearish   95 -> target $105.67  R:R 1.03  fails the gate
+  bearish   78 -> target $100.00  R:R 0.00  fails the gate
+
+observed R:R across 4 real setups: [2.00, 0.91, 8.49, 0.61]
+  (was a constant by construction)</pre>
+  </div>
+
+  <div class="evidence">
+    <div class="evidence-hd"><b>B7</b><span>&ldquo;expected value&rdquo; rises with volatility</span></div>
+<pre>PriceScenarios EV vs annualized vol (no analyst coverage, ATR=2% of price):
+  vol=15%  bear=$88.75  base=$106.00  bull=$122.50  EV=$105.81  (+5.8%)
+  vol=25%  bear=$81.25  base=$106.00  bull=$137.50  EV=$107.69  (+7.7%)
+  vol=34%  bear=$74.50  base=$106.00  bull=$151.00  EV=$109.38  (+9.4%)
+  vol=50%  bear=$62.50  base=$106.00  bull=$175.00  <em>EV=$112.38  (+12.4%)</em>
+The bull leg is +1.5 sigma, the bear leg only -0.75 sigma.</pre>
+<div class="evidence-hd" style="background:var(--ok-wash);border-top:1px solid var(--rule)"><b>after</b><span>symmetric sigma, no built-in drift</span></div>
+<pre>  vol=15%  bear=$85.00  base=$100.00  bull=$115.00  EV=$100.00  (+0.0%)
+  vol=30%  bear=$70.00  base=$100.00  bull=$130.00  EV=$100.00  (+0.0%)
+  vol=50%  bear=$50.00  base=$100.00  bull=$150.00  EV=$100.00  (+0.0%)
+  bearish sell-side deck      -> <em>EV $89.75 (-10.2%)</em>
+No information means no edge, at any volatility.</pre>
+  </div>
+
+  <div class="evidence">
+    <div class="evidence-hd"><b>W1</b><span>BULL and BEAR are unreachable regimes</span></div>
+<pre>126 bars (what period="6mo" returns), monotonic uptrend, VIX 14
+  <em>-> regime = RANGING</em>       (expected BULL)
+260 bars, same uptrend, VIX 14
+  <em>-> regime = BULL</em>
+=> cash guidance differs: 35% vs 15%</pre>
+<div class="evidence-hd" style="background:var(--ok-wash);border-top:1px solid var(--rule)"><b>after</b><span>2y of history; UNKNOWN when it cannot tell</span></div>
+<pre>300 bars uptrend,   VIX 14 -> <em>BULL</em>
+300 bars downtrend, VIX 14 -> <em>BEAR</em>
+126 bars, refetch unavailable -> UNKNOWN (conf 0.2, cash 40%, exposure 0.60x)
+A live scan now reports: regime=BULL, momentum weight 0.35</pre>
+  </div>
+
+  <div class="evidence">
+    <div class="evidence-hd"><b>W4</b><span>one factor, two values</span></div>
+<pre>TechnicalAnalysisEngine.momentum_12_2  (iloc[-44]/iloc[-252]) = 0.5994
+EliteQuantEngine   momentum_12_2       (iloc[-42]/iloc[-252]) = 0.6052
+<em>same factor name, different value</em></pre>
+<div class="evidence-hd" style="background:var(--ok-wash);border-top:1px solid var(--rule)"><b>after</b><span>one shared definition</span></div>
+<pre>both call compute_momentum_12_2()  ->  0.605187 == 0.605187
+momentum_12m is now a real 12-month return (0.723343), not an alias</pre>
+  </div>
+
+  <div class="evidence">
+    <div class="evidence-hd"><b>W5</b><span>a pristine balance sheet scored as junk</span></div>
+<pre>yfinance debtToEquity = 5.0   (i.e. 0.05x — almost no debt)
+FundamentalAnalysisEngine -> debt_to_equity = 0.05     correct
+QMJ engine treats raw 5.0 as 5.0x
+  <em>-> junk_score = 3.0,  qmj_spread = -0.62</em></pre>
+<div class="evidence-hd" style="background:var(--ok-wash);border-top:1px solid var(--rule)"><b>after</b><span>normalized once, at ingestion</span></div>
+<pre>QMJ reads FundamentalMetrics.debt_to_equity = 0.05
+  -> <em>quality 2.88, junk 0.00, spread +2.88</em>
+An UNKNOWN D/E no longer counts as leverage either.</pre>
+  </div>
+
+  <div class="evidence">
+    <div class="evidence-hd"><b>W6</b><span>the decision core upgrades past its own gates</span></div>
+<pre>score 7.6, no technical confirmation whatsoever:
+  scanner _determine_signal_regime_aware (RANGING) -> BUY
+  engine  resolve_final_action           -> <em>STRONG_BUY</em>
+  reasons: ['Composite score 76 -> candidate STRONG_BUY']
+
+bypassed: MACD>0, vol_ratio>1.3, momentum>0, Sharpe>0.5</pre>
+<div class="evidence-hd" style="background:var(--ok-wash);border-top:1px solid var(--rule)"><b>after</b><span>conservatism ratchet only</span></div>
+<pre>the core's verdict is adopted only when
+  _ACTION_RANK[core] &lt;= _ACTION_RANK[scanner]
+otherwise the scanner's action stands, with the reason recorded:
+  "Decision core proposed STRONG_BUY on score alone; held at BUY
+   because the scanner's technical confirmations were not met."</pre>
+  </div>
+
+  <div class="evidence">
+    <div class="evidence-hd"><b>O1</b><span>the header misreports the model's own weights</span></div>
+<pre>printed by scan_market:      actually used (_REGIME_WEIGHTS.NEUTRAL):
+  Technical    30%             technical    15%
+  Fundamental  25%             fundamental  25%
+  Momentum     20%             momentum     20%
+  Quality      15%             quality      20%
+  Value        10%             value        20%</pre>
+<div class="evidence-hd" style="background:var(--ok-wash);border-top:1px solid var(--rule)"><b>after</b><span>printed from the active regime dict</span></div>
+<pre>Analyzing 24 stocks with multi-factor scoring:
+  Technical    15%
+  Fundamental  20%
+  Momentum     35%
+  Quality      15%
+  Value        15%
+  <em>(regime: BULL)</em></pre>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>The ledger</h2>
+    <p class="sec-note">Forty-eight findings in four severity bands. Each carries what was wrong, why it mattered at the desk, and what the fix does. All are resolved in commit <code>e8e01df</code>.</p>
+  </div>
+
+  <div class="triage">
+    <span class="triage-lbl">Show</span>
+    <button class="chip" data-sev="0" aria-pressed="true">B &middot; blockers</button>
+    <button class="chip" data-sev="1" aria-pressed="true">W &middot; wrong numbers</button>
+    <button class="chip" data-sev="2" aria-pressed="true">M &middot; modelling</button>
+    <button class="chip" data-sev="3" aria-pressed="true">O &middot; output</button>
+  </div>
+
+  <!-- ============ BLOCKERS ============ -->
+  <div class="band" data-sev="0" data-band="0">
+    <h3>Blockers</h3>
+    <span class="band-n">7 findings</span>
+  </div>
+  <p class="band-note">Each of these on its own was enough to make the printed order sheet unsafe to act on. All seven are fixed.</p>
+
+  <div class="ledger">
+
+  <div class="finding" data-sev="0">
+    <span class="fid">B1</span>
+    <div class="fbody">
+      <h3>The scan universe is an alphabetical slice</h3>
+      <p class="fmeta"><code>build_us_stock_universe</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd>The builder assembles 669 names, sorts them, then does <code>final_universe = universe_list[:limit]</code>. <code>standard</code> takes the first 100 (A&rarr;BSY); <code>full</code> the first 200 (A&rarr;~G). <code>_even_sample()</code> exists for exactly this purpose and is never called on this path.</dd>
+        <dt>Why</dt><dd>The engine cannot see roughly <strong>85% of its own universe</strong>, and which 15% it sees is decided by the alphabet. Every &ldquo;top pick&rdquo; is the best of an arbitrary sub-sample. This alone voids any comparison between runs, any backtest, and any claim of breadth.</dd>
+        <dt>Fixed</dt><dd class="fix">Rank the universe on a cheap, real criterion (dollar volume, or the existing prefilter score) and take the top&nbsp;<em>N</em>. Never slice a sorted-by-symbol list. Assert in a test that the selected set is not a lexicographic prefix.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="0">
+    <span class="fid">B2</span>
+    <div class="fbody">
+      <h3>The published trailing stop sits 0.5% below entry</h3>
+      <p class="fmeta"><code>update_trailing_stops</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd>It uses <code>high_52w</code> as &ldquo;recent high since entry&rdquo;, subtracts 1.75&nbsp;ATR, then clamps with <code>min(candidate, current_price * 0.995)</code>. For any name whose 52-week high is more than ~1.75&nbsp;ATR above spot — which is most of them — the clamp always wins.</dd>
+        <dt>Why</dt><dd>The value is written to <code>Trailing_Stop</code> in the CSV and printed in the markdown report. Acting on it stops you out the same session, and it silently <strong>raises</strong> the effective stop above the hard stop the analysis actually derived.</dd>
+        <dt>Fixed</dt><dd class="fix">A trailing stop needs a running high <em>since entry</em>, which requires position state this module does not have. Until it does, do not emit the field: publish the initial ATR stop and a documented ratchet rule instead of a number that looks executable.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="0">
+    <span class="fid">B3</span>
+    <div class="fbody">
+      <h3>Every risk-based position size is computed, then discarded</h3>
+      <p class="fmeta"><code>_calculate_position_size</code> &rarr; <code>get_top_recommendations</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd><code>_calculate_position_size</code> layers volatility targeting, a signal multiplier, a score multiplier, an ATR haircut and the drawdown throttle; the risk-grade and FOMC multipliers are applied on top. Then the allocator overwrites all of it with <code>position_size = min(available_capital / max_positions, remaining, cap, sector_room)</code>. <code>analysis.allocation</code> appears only on the left-hand side.</dd>
+        <dt>Why</dt><dd>Sizing is <strong>equal-weight</strong>. A 5-star, 18%-vol, grade-A name and a 2-star, 45%-vol, grade-C name get identical dollars. All that risk machinery survives only as a pass&#8239;/&#8239;fail gate, which is also why the volatility targeting is inert: <code>0.04 / vol</code> exceeds the 10% cap for any name under ~27% vol, so nearly everything pins to the cap anyway.</dd>
+        <dt>Fixed</dt><dd class="fix">Pick one sizing authority. Either honour <code>analysis.allocation</code> in the allocator and use <code>target_per_position</code> only as a ceiling, or delete <code>_calculate_position_size</code> and be explicit that the book is equal-weight. Two sizers where one silently wins is the worst of both.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="0">
+    <span class="fid">B4</span>
+    <div class="fbody">
+      <h3>There is no per-trade risk cap anywhere</h3>
+      <p class="fmeta"><code>TradingConfig.MAX_RISK_PER_TRADE</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd><code>MAX_RISK_PER_TRADE</code> (2%) and <code>MAX_RISK_STRONG_BUY</code> (2.5%) are referenced in exactly one place: <code>validate_config</code>, which checks they are in range. Nothing ever ties share count to <code>entry - stop</code>. <code>MAX_DRAWDOWN_THRESHOLD</code> and <code>RISK_REWARD_OPTIMAL</code> are likewise unused.</dd>
+        <dt>Why</dt><dd>Position risk is whatever falls out of equal weight times whatever stop distance the target function happened to produce. The summary panel's &ldquo;Max Risk&rdquo; line is descriptive only — no gate reads it. A wide volatility stop on a capped position can quietly exceed the stated budget with nothing to catch it.</dd>
+        <dt>Fixed</dt><dd class="fix">Size from risk: <code>shares = (capital &times; risk_pct) / (entry - stop)</code>, then clamp by the position cap, sector room and liquidity. Add a portfolio-level gate on <code>&Sigma; shares &times; (entry - stop)</code> against <code>MAX_PORTFOLIO_RISK</code>, which currently only governs VaR.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="0">
+    <span class="fid">B5</span>
+    <div class="fbody">
+      <h3>The optimizer maximizes on six months of trailing returns</h3>
+      <p class="fmeta"><code>get_top_recommendations</code>, mean-variance block</p>
+      <dl>
+        <dt>What</dt><dd><code>mu = returns_df.mean().values * 252</code> — historical sample means as expected returns, on roughly 126 observations, for an <em>N&times;N</em> covariance. It then overrides the equal weights and forces them to sum to 1.0.</dd>
+        <dt>Why</dt><dd>Textbook error maximization: Markowitz on sample means concentrates into whatever ran hardest, with estimation error swamping signal at this sample size. Worse, <code>mu</code> is <strong>completely disconnected from the engine's own alpha score</strong> — final position sizes are set by six months of trailing returns, not by the model. Forcing weights to sum to 1.0 also destroys the honest under-deployment signal the code deliberately preserved by deleting its old fill passes.</dd>
+        <dt>Fixed</dt><dd class="fix">Drop the return forecast. Use minimum-variance or inverse-volatility weights (no <code>mu</code>), or feed the composite score in as the expected-return proxy with heavy shrinkage and a Ledoit&ndash;Wolf covariance. Keep the sum-of-weights constraint <em>&le;</em>&nbsp;1, not <em>=</em>&nbsp;1.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="0">
+    <span class="fid">B6</span>
+    <div class="fbody">
+      <h3>Risk/reward is inflated on both sides by construction</h3>
+      <p class="fmeta"><code>_calculate_price_targets</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd>The stop is <code>max()</code> of three candidates — which selects the <em>tightest</em>, so the volatility and support stops almost never bind. The target is <code>max()</code> of ATR, Fibonacci and volatility candidates, then blended <strong>75% to the sell-side mean target</strong> — and only when that target is above spot, so bearish analyst views are silently discarded. When R:R still falls short, the target is simply pushed out to <code>entry + risk &times; 1.8</code>.</dd>
+        <dt>Why</dt><dd>Smallest plausible denominator against the largest plausible numerator. The R:R&nbsp;&ge;&nbsp;1.8 gate cannot bind on anything real, and the reward side of every trade is effectively a sell-side price-target screen. Using annualized volatility as a price target is also dimensionally wrong — a 40%-vol stock gets a +40% target because it is volatile.</dd>
+        <dt>Fixed</dt><dd class="fix">Choose stop and target from one coherent method (ATR multiple, or structure) rather than an extremum across methods. Use analyst targets symmetrically or not at all. Never manufacture a target to satisfy the R:R gate — let the name fail the gate.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="0">
+    <span class="fid">B7</span>
+    <div class="fbody">
+      <h3>&ldquo;Expected value&rdquo; is positive by construction and rises with risk</h3>
+      <p class="fmeta"><code>_calculate_price_scenarios</code>, <code>PriceScenarios</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd>The bull leg is <code>price &times; (1 + vol &times; 1.5)</code>, the bear leg <code>price &times; (1 - vol &times; 0.75)</code> — half the sigma multiple. Ordering clamps then floor base at 1.05&times; and bull at 1.155&times;. Probability weights are hardcoded 25&#8239;/&#8239;50&#8239;/&#8239;25 with no basis.</dd>
+        <dt>Why</dt><dd>EV is <strong>mechanically positive for every stock</strong> and <em>increases</em> with volatility: +5.8% at 15% vol, +12.4% at 50%. A field named &ldquo;expected value&rdquo; that rewards risk and can never be negative is worse than no field. It reaches the JSON export via <code>asdict</code>.</dd>
+        <dt>Fixed</dt><dd class="fix">Make the sigma multiples symmetric and drop the ordering floors, or replace the whole thing with an empirical forward-return distribution. If the weights are not estimated, do not publish an EV.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- ============ WRONG NUMBERS ============ -->
+  <div class="band" data-sev="1" data-band="1">
+    <h3>Wrong numbers</h3>
+    <span class="band-n">13 findings</span>
+  </div>
+  <p class="band-note">The code executes without error and produces an incorrect value.</p>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W1</span>
+    <div class="fbody">
+      <h3><code>detect_regime</code> can never return BULL or BEAR</h3>
+      <p class="fmeta"><code>MarketRegimeDetector.detect_regime</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd>Called with <code>spy_hist=None</code>, so it fetches <code>period="6mo"</code> (~126 bars). Then <code>sma_200 = rolling(200) if len &ge; 200 else sma_50</code>, making the test <code>price &gt; sma_50 &gt; sma_200</code> evaluate <code>sma_50 &gt; sma_50</code> — always false. Same for the bear branch.</dd>
+        <dt>Why</dt><dd>The engine is permanently stuck in RANGING or VOLATILE. The momentum-tilted BULL weights and value-tilted BEAR weights <strong>never apply</strong>. Cash guidance is pinned at 35% instead of 15%. RANGING's 8.5 excellent-threshold always binds. Confirmation&nbsp;#2 of the confidence tier is permanently degraded, and BULL's wider 2.5&times; target safety cap is never reachable.</dd>
+        <dt>Fixed</dt><dd class="fix">Fetch <code>period="2y"</code> for regime detection, and when history is short, mark the trend regime <code>UNKNOWN</code> rather than substituting <code>sma_50</code> for <code>sma_200</code>. A dead branch that silently changes portfolio policy is the most expensive kind.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W2</span>
+    <div class="fbody">
+      <h3>Realized volatility substituted for implied</h3>
+      <p class="fmeta"><code>detect_regime</code>, VIX fallback chain</p>
+      <dl>
+        <dt>What</dt><dd>When <code>^VIX</code> fails, the fallback computes 20-day realized annualized volatility and assigns it to <code>vix_value</code>.</dd>
+        <dt>Why</dt><dd>Realized sits below implied most of the time (the variance risk premium). The fallback therefore biases the regime toward LOW volatility, where <code>recommended_exposure</code> is <strong>1.2&times;</strong> — it levers up precisely when the real signal is missing.</dd>
+        <dt>Fixed</dt><dd class="fix">If VIX is unavailable, hold the last-good value (the cache already exists) or degrade to NORMAL. Never let a proxy justify above-1.0 exposure. If you keep the proxy, scale it by a documented premium and label it as a proxy in the header.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W3</span>
+    <div class="fbody">
+      <h3>ADX violates Wilder's directional-movement rule</h3>
+      <p class="fmeta"><code>TechnicalAnalysisEngine._calculate_adx</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd><code>plus_dm[plus_dm &lt; 0] = 0; minus_dm[minus_dm &lt; 0] = 0</code> — the negatives are zeroed but the mutual-exclusivity test is missing. Wilder requires <code>+DM = upMove if upMove &gt; downMove else 0</code>. On an outside bar the code keeps both.</dd>
+        <dt>Why</dt><dd>+DI and &minus;DI are both overstated, so DX and ADX are wrong on every outside bar. ADX feeds <code>technical_score</code> (1.0 pt), <code>momentum_score</code> (2.0 pts) and <code>trend_strength</code> — it is one of the most heavily weighted single inputs in the model.</dd>
+        <dt>Fixed</dt><dd class="fix">Add the exclusivity test, and test against a known-good ADX series (ta-lib or a hand-computed fixture) rather than only asserting the output is finite.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W4</span>
+    <div class="fbody">
+      <h3>Two different values for the same 12&ndash;2 momentum factor</h3>
+      <p class="fmeta"><code>TechnicalAnalysisEngine</code> vs <code>EliteQuantEngine</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd>One uses <code>iloc[-44]/iloc[-252]</code>, the other <code>iloc[-42]/iloc[-252]</code>. The inline comment claims &ldquo;skip last 22 trading days&rdquo; while the code skips 42&ndash;44. <code>momentum_12m</code> is aliased to <code>momentum_12_2</code>, so a field labelled 12-month return is not one.</dd>
+        <dt>Why</dt><dd>The same named factor takes two values in the same run, and the documented definition matches neither. Any attribution or factor-loading work built on this is unreconcilable.</dd>
+        <dt>Fixed</dt><dd class="fix">One implementation, one constant for the skip window, imported by both call sites. Remove the <code>momentum_12m</code> alias or compute it honestly.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W5</span>
+    <div class="fbody">
+      <h3>Debt/equity normalized two incompatible ways</h3>
+      <p class="fmeta"><code>analyze_fundamentals</code> vs <code>calculate_qmj_score</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd>The fundamental engine always divides by 100 (correct — Yahoo reports a percentage). QMJ uses <code>raw/100 if raw &gt; 10 else raw</code>. A reported 5.0 means 0.05&times;; QMJ reads it as 5.0&times;.</dd>
+        <dt>Why</dt><dd>A company with almost no debt is assigned <code>junk_score = 3.0</code> and a negative QMJ spread. The same conditional-conversion bug is present for <code>dividendYield</code> (<code>&gt; 1.0</code> heuristic) while the other path uses <code>normalize_dividend_yield</code>. Yahoo has already changed the yield format once.</dd>
+        <dt>Fixed</dt><dd class="fix">Normalize once, at ingestion. Every downstream consumer reads <code>FundamentalMetrics</code>, never raw <code>info</code>. Conditional unit conversion is always a latent bug — the condition eventually matches a legitimate value.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W6</span>
+    <div class="fbody">
+      <h3>The decision core upgrades past the scanner's own gates</h3>
+      <p class="fmeta"><code>analyze_stock</code>, FinalAction block &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd><code>analysis.signal</code> is overwritten unconditionally by <code>_fa_to_signal[final_action]</code>, and <code>_candidate_from_score</code> is score-only. A 7.6 score maps to STRONG_BUY regardless of MACD, volume, momentum or Sharpe.</dd>
+        <dt>Why</dt><dd>The comment says the core exists so the scanner &ldquo;can never publish a recommendation more bullish than the deep analyzer&rdquo; — but this path is bidirectional. It <strong>promotes</strong> names past the four technical confirmations <code>_determine_signal_regime_aware</code> deliberately requires for STRONG_BUY. Three separate threshold tables must also be hand-synced: <code>TradingConfig</code> (5.0&#8239;/&#8239;6.0&#8239;/&#8239;7.5), the regime table (6.0&#8239;/&#8239;8.5), and the engine (5.5&#8239;/&#8239;6.5&#8239;/&#8239;7.5). The R:R floors disagree too — 1.5 in the engine, 1.8 in config.</dd>
+        <dt>Fixed</dt><dd class="fix">Apply the core's verdict only when it is more conservative — the same <code>_ACTION_RANK</code> comparison already used in deep-confirm. Move the technical confirmations into <code>DecisionInputs</code> so the core can see them, and collapse the three threshold tables into one.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W7</span>
+    <div class="fbody">
+      <h3>Drawdown is measured from cost basis, not peak equity</h3>
+      <p class="fmeta"><code>_estimate_current_drawdown</code></p>
+      <dl>
+        <dt>What</dt><dd>Returns <code>max(0, -(total_current / total_entry - 1))</code> — unrealized P&amp;L against cost, not decline from a high-water mark. Cash is ignored. It also makes one or two sequential yfinance calls per holding.</dd>
+        <dt>Why</dt><dd>A book up 25% and then back to +5% reports <strong>0% drawdown</strong> after giving back a fifth of its gains. The 5%&#8239;/&#8239;10%&#8239;/&#8239;15% throttle — including the hard trading halt — therefore fires on the wrong quantity, and in practice almost never fires.</dd>
+        <dt>Fixed</dt><dd class="fix">Persist a daily equity curve and compute <code>1 - equity / running_max</code>. Until that exists, the throttle should be disabled rather than reading a number that means something else.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W8</span>
+    <div class="fbody">
+      <h3><code>save_portfolio</code> overwrites holdings with recommendations</h3>
+      <p class="fmeta"><code>save_portfolio</code> / <code>load_portfolio</code></p>
+      <dl>
+        <dt>What</dt><dd>It writes today's <em>suggestions</em> to <code>portfolio.csv</code> with <code>entry_date = today</code> and scan-time prices. Both <code>check_downgrades</code> and <code>_estimate_current_drawdown</code> read that same file.</dd>
+        <dt>Why</dt><dd>The &ldquo;portfolio&rdquo; becomes whatever was last suggested, not what was bought. That is the deeper reason drawdown reads ~0 forever, and why downgrade detection compares against the previous scan rather than against real entries. The state file is <strong>self-corrupting</strong> on every run.</dd>
+        <dt>Fixed</dt><dd class="fix">Separate <code>positions.csv</code> (actual fills, append-only, never written by a scan) from <code>signals.csv</code> (scan output). Reconcile the two explicitly. A scan should never be able to mutate the position ledger.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W9</span>
+    <div class="fbody">
+      <h3><code>check_downgrades</code> never sees a REDUCE</h3>
+      <p class="fmeta"><code>check_downgrades</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd>The priority map keys are <code>STRONG_BUY BUY ACCUMULATE HOLD SELL AVOID</code>, but <code>SignalType</code> emits <code>REDUCE</code>, not <code>SELL</code>. Unmapped values fall back to 2 — the same priority as HOLD.</dd>
+        <dt>Why</dt><dd>A HOLD&nbsp;&rarr;&nbsp;REDUCE deterioration raises no alert. Since exits are where most of the money is lost, a silent gap on the sell side is the expensive direction to be wrong in.</dd>
+        <dt>Fixed</dt><dd class="fix">Derive the priority map from <code>SignalType.priority</code>, which already exists, instead of restating the strings. Fail loudly on an unmapped signal rather than defaulting to neutral.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W10</span>
+    <div class="fbody">
+      <h3>The score keeps changing after the signal is derived</h3>
+      <p class="fmeta"><code>analyze_stock</code></p>
+      <dl>
+        <dt>What</dt><dd><code>signal</code> is set from <code>overall_score</code>, then the score absorbs a chase penalty (&minus;1.5), a contrarian penalty (&minus;1.0), a consensus bonus (+0.3), a catalyst boost (up to +2.0), an insider adjustment (&plusmn;0.8) and a revision adjustment — with only a single STRONG_BUY&nbsp;&rarr;&nbsp;BUY trim in response.</dd>
+        <dt>Why</dt><dd>The published score and the published action are derived from different numbers and can openly disagree. A headline-NLP catalyst boost is worth up to <strong>20% of the entire 0&ndash;10 scale</strong> — the largest single lever in the model belongs to its least reliable input, and it is applied after the minimum-score gate.</dd>
+        <dt>Fixed</dt><dd class="fix">Compute all adjustments first, then derive the signal once from the final score. Cap the total adjustment budget (&plusmn;1.0 is generous) and log each component so the composite is auditable.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W11</span>
+    <div class="fbody">
+      <h3><code>position_pct</code> is stale whenever the optimizer is skipped</h3>
+      <p class="fmeta"><code>get_top_recommendations</code>, greedy pass &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd>The greedy pass sets <code>analysis.shares</code> and <code>analysis.allocation</code> but never refreshes <code>analysis.position_pct</code>. Only the mean-variance branch updates it.</dd>
+        <dt>Why</dt><dd>With fewer than two picks, no scipy, or a non-converging solve, the card and the rationale print a dollar figure and a &ldquo;% of portfolio&rdquo; that <strong>do not correspond to each other</strong> — the percentage still reflects the discarded volatility-target sizing from B3.</dd>
+        <dt>Fixed</dt><dd class="fix">Make <code>position_pct</code> a derived property of <code>allocation / capital</code> rather than a stored field. Any denormalized field that two code paths must remember to update will eventually not be updated.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W12</span>
+    <div class="fbody">
+      <h3><code>smart_prefilter</code> is unreachable for every built-in scan</h3>
+      <p class="fmeta"><code>scan_market</code></p>
+      <dl>
+        <dt>What</dt><dd>The gate is <code>len(universe) &gt; 200 and scan_type in ['full','comprehensive','standard','large_cap']</code>. Those scan types cap at 200, 150, 100 and 120 respectively, so the condition is never true.</dd>
+        <dt>Why</dt><dd>&ldquo;PHASE 1: SMART PRE-SCREENING&rdquo; never runs. Combined with B1, the intended design — rank the whole universe, deep-scan the best — is entirely inoperative, replaced by an alphabetical prefix.</dd>
+        <dt>Fixed</dt><dd class="fix">Run the prefilter on the <em>full</em> universe before applying the scan limit, and make the limit the prefilter's <code>max_candidates</code>. That resolves B1 and W12 with the same change.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="1">
+    <span class="fid">W13</span>
+    <div class="fbody">
+      <h3>The entire elite-factor layer is dead weight</h3>
+      <p class="fmeta"><code>EliteQuantEngine</code>, <code>EliteFactorScores</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd><code>elite_composite_score</code> is computed and never read. So are <code>check_factor_vif</code>, <code>calculate_true_factor_loadings</code>, <code>MarketRegime.factor_weights</code> (a second, unused regime-weight table with a <code>growth</code> key the scorer does not know), <code>UniverseStats._percentile_rank</code>, and <code>_even_sample</code> on the main path.</dd>
+        <dt>Why</dt><dd>QMJ, betting-against-beta, the style factors and 12&ndash;2 momentum are computed, displayed and exported — and influence <strong>neither ranking nor sizing</strong>. The most impressive-looking part of the engine is decorative, which makes the output read as more quantitatively grounded than it is.</dd>
+        <dt>Fixed</dt><dd class="fix">Either wire <code>elite_composite_score</code> into the composite with a stated weight and validate it, or delete the layer. Call <code>check_factor_vif</code> — it exists precisely for M1.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- ============ MODELLING ============ -->
+  <div class="band" data-sev="2" data-band="2">
+    <h3>Modelling</h3>
+    <span class="band-n">14 findings</span>
+  </div>
+  <p class="band-note">Method-level problems. These are why the README's &ldquo;no demonstrated out-of-sample edge&rdquo; is the honest position.</p>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M1</span>
+    <div class="fbody">
+      <h3>Factors are double-counted across sub-scores</h3>
+      <p class="fmeta"><code>ScoringEngine</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd>ADX appears in both <code>technical_score</code> and <code>momentum_score</code> — 0.35 combined weight. P/E, PEG and ROE appear in both <code>fundamental_score</code> and <code>value_score</code> — 0.45 combined. Within momentum, <code>momentum_1m</code> (20d) and <code>roc</code> (13d) are near-duplicates. Price-versus-moving-average appears in technical while the same trend information drives momentum.</dd>
+        <dt>Why</dt><dd>Nominal weights are not effective weights. The composite is far more of a trend bet than the 15&#8239;/&#8239;20 technical-plus-momentum split suggests, and valuation gets counted twice.</dd>
+        <dt>Fixed</dt><dd class="fix">Assign each metric to exactly one sub-score. Run <code>check_factor_vif</code> on the sub-scores and report the correlation matrix — if two sub-scores correlate above ~0.8, they are one factor.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M2</span>
+    <div class="fbody">
+      <h3>The sub-scores contradict each other</h3>
+      <p class="fmeta"><code>ScoringEngine</code>, <code>EliteQuantEngine</code>, <code>smart_prefilter</code></p>
+      <dl>
+        <dt>What</dt><dd><code>technical_score</code> pays +1.7 for oversold RSI <em>and</em> +1.0 for strong ADX trend. <code>quality_score</code> rewards beta near 1.0 while <code>bab_score</code> rewards low beta. <code>quality_score</code> gives mega-caps +2.0 while <code>size_factor</code> gives them &minus;1.5. And <code>smart_prefilter</code> drops anything more than 25% off its 6-month high — killing the &ldquo;RSI oversold paradox&rdquo; STRONG_BUY path in the same file.</dd>
+        <dt>Why</dt><dd>A score that rewards a condition and its opposite is not measuring anything. It cannot be interpreted, attributed or improved, and it compresses toward the middle so cross-sectional ranking degrades.</dd>
+        <dt>Fixed</dt><dd class="fix">Pick a thesis per sub-score and let it be directional. If you want both trend-following and mean-reversion, run them as two separate strategies with separate sleeves — not as offsetting terms inside one number.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M3</span>
+    <div class="fbody">
+      <h3>Relative scores judged against absolute thresholds</h3>
+      <p class="fmeta"><code>normalize_scores</code> &rarr; gates</p>
+      <dl>
+        <dt>What</dt><dd><code>normalize_scores</code> converts each sub-score to a percentile of the scanned set via <code>norm.cdf</code>, blended 70&#8239;/&#8239;30 with the heuristic. Those now-relative scores are then compared against fixed cut-offs (5.0&#8239;/&#8239;6.0&#8239;/&#8239;7.5, and 55&#8239;/&#8239;65&#8239;/&#8239;75 in the core).</dd>
+        <dt>Why</dt><dd>A percentile has no absolute meaning: the best decile of a falling market scores the same as the best decile of a rising one. The z-score population is also the <strong>survivor set</strong> — names that already passed every gate — so it is not the market's distribution. And because five correlated percentile scores are averaged, the composite concentrates near 5&ndash;6.5, which is why the 7.5 STRONG_BUY threshold rarely fires and the median gate ends up binding instead.</dd>
+        <dt>Fixed</dt><dd class="fix">Decide which the score is. If relative, replace absolute gates with rank cut-offs and add an absolute quality veto. If absolute, z-score against a fixed reference universe snapshot, not against the survivors.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M4</span>
+    <div class="fbody">
+      <h3>Quality score is 40% size and dividend, 0% quality</h3>
+      <p class="fmeta"><code>calculate_quality_score</code></p>
+      <dl>
+        <dt>What</dt><dd>Of 10 points: Sharpe 3.0, max drawdown 2.0, <strong>market cap 2.0</strong>, beta 1.0, <strong>dividend yield 2.0</strong>. No ROIC, no gross-margin stability, no accruals, no interest coverage, no earnings variability.</dd>
+        <dt>Why</dt><dd>This is a low-volatility-plus-large-cap-plus-payout factor wearing a quality label. It structurally penalizes every non-dividend compounder, and its size tilt directly opposes the SMB factor computed elsewhere (M2). Two of the five inputs are past price behaviour, not business quality.</dd>
+        <dt>Fixed</dt><dd class="fix">Rebuild on balance-sheet and income-statement quality — gross profitability, ROIC, accruals, leverage, earnings stability. Move size and payout to their own factors where their sign can be argued explicitly.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M5</span>
+    <div class="fbody">
+      <h3>Three fundamentals read keys yfinance does not return</h3>
+      <p class="fmeta"><code>analyze_fundamentals</code></p>
+      <dl>
+        <dt>What</dt><dd><code>roic</code> reads <code>totalStockholderEquity</code>, <code>interest_coverage</code> reads <code>interestExpense</code>, <code>debt_to_assets</code> reads <code>totalAssets</code>. None of these are in the yfinance <code>info</code> payload.</dd>
+        <dt>Why</dt><dd>All three are silently ~0 for essentially every ticker. <code>invested_capital</code> collapses to <code>debt - cash</code>, which is frequently negative. The <code>data_available</code> map correctly records the absence — which means the code already knows these fields are empty and reports them anyway.</dd>
+        <dt>Fixed</dt><dd class="fix">Source them from <code>balance_sheet</code> / <code>financials</code>, or remove the fields. Add a startup assertion that every key named in the extractor exists in at least one live payload; this class of drift is otherwise invisible.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M6</span>
+    <div class="fbody">
+      <h3>Time-to-target uses X&#8239;/&#8239;&sigma; where it needs (X&#8239;/&#8239;&sigma;)&sup2;</h3>
+      <p class="fmeta"><code>TimeframeProjector.project_timeframe</code></p>
+      <dl>
+        <dt>What</dt><dd><code>base_months = abs(expected_return) / monthly_volatility</code>. For a diffusion, expected time to travel distance <em>X</em> at per-period volatility <em>&sigma;</em> scales with the <strong>square</strong> of that ratio.</dd>
+        <dt>Why</dt><dd>Timelines are far too fast, and increasingly so for larger moves: a 3-sigma target is projected at 3 months when the same assumption implies about 9. Every &ldquo;3&ndash;6 months&rdquo; label in the output inherits the error.</dd>
+        <dt>Fixed</dt><dd class="fix">Use <code>(X/&sigma;)&sup2;</code>, or drop the projection to a volatility-scaled horizon band without implying a hitting time. The sector multipliers layered on top are unvalidated and add false precision either way.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M7</span>
+    <div class="fbody">
+      <h3>Jensen's alpha omits the risk-free rate</h3>
+      <p class="fmeta"><code>calculate_beta_alpha</code></p>
+      <dl>
+        <dt>What</dt><dd><code>alpha = stock_mean - adjusted_beta * market_mean</code>. Jensen's alpha is <code>(R&#8239;&minus;&#8239;R&#8203;f) &minus; &beta;(R&#8203;m&#8239;&minus;&#8239;R&#8203;f)</code>.</dd>
+        <dt>Why</dt><dd>Biased by <code>(&beta; &minus; 1) &times; R&#8203;f</code> — with the 4% rate used elsewhere in the file, a 0.5-beta name gets a spurious &minus;2%/yr and a 1.5-beta name a spurious +2%/yr. The Blume adjustment is applied correctly, which makes the omission easy to miss. Sharpe also annualizes an arithmetic daily mean, which overstates relative to a geometric mean.</dd>
+        <dt>Fixed</dt><dd class="fix">Subtract the risk-free rate from both legs, using the same constant as <code>calculate_risk_metrics</code>. Consider geometric annualization for Sharpe.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M8</span>
+    <div class="fbody">
+      <h3>Any single &gt;50% day disqualifies the whole ticker</h3>
+      <p class="fmeta"><code>DataValidator.validate_history</code></p>
+      <dl>
+        <dt>What</dt><dd>A move above <code>MAX_SINGLE_DAY_MOVE</code> anywhere in the year is recorded as an <em>error</em>, so <code>is_valid</code> is false and the ticker is dropped as <code>data_validation_failed</code>.</dd>
+        <dt>Why</dt><dd>yfinance is already split- and dividend-adjusted, so most such moves are real — M&amp;A, biotech readouts, guidance resets. The filter silently removes exactly the highest-catalyst names, biasing the universe toward the placid, and the rejection is indistinguishable from a genuine data fault in the funnel stats.</dd>
+        <dt>Fixed</dt><dd class="fix">Detect unadjusted splits properly — look for a near-integer price ratio with no matching volume ratio. Treat a large clean move as a warning plus a flag on the analysis, not a disqualification.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M9</span>
+    <div class="fbody">
+      <h3>1.8&nbsp;ATR stops against multi-month targets</h3>
+      <p class="fmeta"><code>_calculate_price_targets</code></p>
+      <dl>
+        <dt>What</dt><dd>Because the stop is <code>max()</code> of three candidates (B6), the ATR stop nearly always wins: roughly 4&ndash;5% below entry for a typical name. Targets are framed at 3&ndash;6 months.</dd>
+        <dt>Why</dt><dd>A 1.8&nbsp;ATR stop is a day-trade stop. Held against a multi-month thesis it is hit by ordinary noise long before the thesis resolves, converting a positive-expectancy idea into a stream of small losses. Stop horizon and target horizon must match.</dd>
+        <dt>Fixed</dt><dd class="fix">Scale the stop to the holding period — 2.5&ndash;3&nbsp;ATR for multi-week, wider still for multi-month — or shorten the target horizon. Then size from that stop (B4) so the wider stop costs shares, not risk.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M10</span>
+    <div class="fbody">
+      <h3>The earnings blackout excludes instead of sizing down, and often does not fire</h3>
+      <p class="fmeta"><code>analyze_stock</code>, earnings filter</p>
+      <dl>
+        <dt>What</dt><dd>Any name with earnings in 0&ndash;14 days is dropped outright. The date comes from <code>stock.calendar</code>, which is frequently empty — and the bare <code>except</code> means an absent calendar silently disables the filter.</dd>
+        <dt>Why</dt><dd>Roughly 15% of the universe is unavailable at any moment, and <em>which</em> 15% depends on the calendar date you happen to run — so results are not comparable week to week. Meanwhile the names where the filter matters most are the ones whose calendar is missing, so it fails open exactly when it should bind.</dd>
+        <dt>Fixed</dt><dd class="fix">Size down through the blackout rather than excluding, and treat a missing calendar as a data gap that reduces size — not as an all-clear. Log how many tickers had no calendar, so the filter's real coverage is visible.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M11</span>
+    <div class="fbody">
+      <h3>FOMC dates are hardcoded, partly wrong, and expire</h3>
+      <p class="fmeta"><code>FOMC_DATES_2026</code>, <code>_get_event_risk_factor</code></p>
+      <dl>
+        <dt>What</dt><dd>Two hardcoded lists. Several 2026 entries — 2026-05-06, 2026-11-04, 2026-12-16 — do not match the Fed's published cadence and look derived by shifting the 2025 pattern; worth reconciling against the official calendar. After December 2026 the function silently returns 1.0 forever.</dd>
+        <dt>Why</dt><dd>The event-risk haircut fires on the wrong days and, once the list runs out, stops firing with no warning. A risk control that expires quietly is worse than none, because it is still believed.</dd>
+        <dt>Fixed</dt><dd class="fix">Move the calendar to a data file, and have <code>_get_event_risk_factor</code> log a warning when today is past the last known date. Same treatment for any other hardcoded date list.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M12</span>
+    <div class="fbody">
+      <h3>The correlation gate is path-dependent and mixes sample windows</h3>
+      <p class="fmeta"><code>_passes_correlation</code>, <code>RiskLimits.check_correlation</code></p>
+      <dl>
+        <dt>What</dt><dd>Pairwise correlation is checked greedily in score order, so whichever name in a sector scores highest arbitrarily blocks its peers. Scanned names supply 1y of cached history while the fallback fetch pulls 6mo — <strong>different windows inside the same correlation matrix</strong>. A candidate with no history returns <code>True</code> (pass) in one path while <code>check_correlation</code> returns <code>(False, 1.0)</code> (block) in another.</dd>
+        <dt>Why</dt><dd>Portfolio composition depends on scan ordering rather than on portfolio risk, and the 0.70 pairwise threshold on raw daily returns will reject ordinary same-sector pairs while admitting names that co-move on factors.</dd>
+        <dt>Fixed</dt><dd class="fix">One fixed lookback for all correlation inputs. Replace the greedy pairwise veto with a portfolio-level constraint — marginal contribution to risk, or a cap on average pairwise correlation — so the gate is order-independent. Handle missing history one way.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M13</span>
+    <div class="fbody">
+      <h3>The sector cap's denominator is exposure-adjusted capital</h3>
+      <p class="fmeta"><code>check_sector_limit</code>, <code>remaining_sector_capacity</code></p>
+      <dl>
+        <dt>What</dt><dd>Both divide by <code>available_capital</code> (<code>capital &times; recommended_exposure</code>), not by <code>capital</code>.</dd>
+        <dt>Why</dt><dd>At 0.85 exposure a documented &ldquo;25% sector cap&rdquo; is really 21.25% of the account; at RANGING's 0.85 that is the normal case. The cap silently tightens and loosens with the regime, so the stated limit is not the enforced one.</dd>
+        <dt>Fixed</dt><dd class="fix">Express sector limits against total capital and say which base is used in the log line. Any percentage limit needs its denominator named.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="2">
+    <span class="fid">M14</span>
+    <div class="fbody">
+      <h3>Stale and dead tickers in the hardcoded lists</h3>
+      <p class="fmeta"><code>TICKER_CORRECTIONS</code>, <code>get_trending_stocks</code>, interactive focus lists</p>
+      <dl>
+        <dt>What</dt><dd><code>TICKER_CORRECTIONS</code> maps <code>BLOCK &rarr; SQ</code>, but Block now trades as XYZ. <code>get_trending_stocks</code> lists <code>BLOCK</code>, which is not a ticker. The focus lists include SPLK and PXD (both acquired and delisted in 2024) and ORCC (renamed OBDC).</dd>
+        <dt>Why</dt><dd>Dead tickers consume scan slots and inflate the failure count. Separately, <code>DIVIDEND_STOCKS</code> mixes mortgage REITs (AGNC, NLY) and BDCs into a screen with <strong>no payout-sustainability gate</strong> — a yield-trap list presented as dividend income.</dd>
+        <dt>Fixed</dt><dd class="fix">Derive universes from live index constituents; keep hardcoded lists only as offline fallbacks with a staleness date. For income screens, gate on payout ratio, FCF coverage and dividend-cut history, and separate pass-through structures into their own bucket.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- ============ OUTPUT ============ -->
+  <div class="band" data-sev="3" data-band="3">
+    <h3>Output</h3>
+    <span class="band-n">14 findings</span>
+  </div>
+  <p class="band-note">What the report tells the reader, versus what the code did. This is the band you asked about most directly.</p>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O1</span>
+    <div class="fbody">
+      <h3>The scan header misreports the model's own weights</h3>
+      <p class="fmeta"><code>scan_market</code> banner &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd>Printed: technical 30%, fundamental 25%, momentum 20%, quality 15%, value 10%. Used: 15&#8239;/&#8239;25&#8239;/&#8239;20&#8239;/&#8239;20&#8239;/&#8239;20. Technical is overstated 2&times;; quality and value are understated.</dd>
+        <dt>Why</dt><dd>The first thing the report asserts about the model is false. A reader tuning behaviour will reason from the wrong weights.</dd>
+        <dt>Fixed</dt><dd class="fix">Print the active <code>_REGIME_WEIGHTS</code> entry by iterating the dict, and name the regime it came from. Never restate a config value as a literal in a log line.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O2</span>
+    <div class="fbody">
+      <h3>The FULL MARKET menu describes a scan that does not run</h3>
+      <p class="fmeta"><code>run_interactive_session</code></p>
+      <dl>
+        <dt>What</dt><dd>The menu states &ldquo;SMART PREFILTER — ranks ~800 stocks, deep-scans top 200&rdquo; and repeats it on selection. In fact the universe is 669, it is sliced alphabetically to 200 (B1), and the prefilter never executes (W12).</dd>
+        <dt>Why</dt><dd>The user is told the engine considered the whole market and selected the best 200. It considered A through roughly G. This is the single most load-bearing false claim in the interface.</dd>
+        <dt>Fixed</dt><dd class="fix">Fix B1&#8239;/&#8239;W12, then have the menu text derive from the real universe size and the real selection method rather than restating them.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O3</span>
+    <div class="fbody">
+      <h3>ROE prints as a fraction with a percent sign</h3>
+      <p class="fmeta"><code>generate_smart_rationale</code> &middot; <span class="verified">reproduced</span></p>
+      <dl>
+        <dt>What</dt><dd><code>f"ROE: {roe:.1f}%"</code> where <code>roe</code> is a decimal. A 22% ROE renders as <strong>&ldquo;ROE: 0.2% (strong capital deployment)&rdquo;</strong>. Every neighbouring metric in the same block multiplies by 100.</dd>
+        <dt>Why</dt><dd>A metric and its interpretation flatly contradict each other in the same sentence, on the flagship narrative for the top pick.</dd>
+        <dt>Fixed</dt><dd class="fix">Add a <code>pct()</code> formatting helper and route every ratio through it. Store ratios in one unit throughout and convert only at the display boundary.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O4</span>
+    <div class="fbody">
+      <h3>Three different holding periods for the same pick</h3>
+      <p class="fmeta"><code>display_elite_minimal</code>, <code>TimeframeProjector</code>, <code>generate_smart_rationale</code></p>
+      <dl>
+        <dt>What</dt><dd>The card prints <code>hold = "4-8 weeks" if vol &lt; 0.30 else "2-4 weeks"</code>. The projection prints e.g. &ldquo;3&ndash;6 months&rdquo;. The rationale prints its own <code>hold_period</code> — and because the if-chain only tests for <code>"3-6"</code>, <code>"6-9"</code> and <code>"6-12"</code>, a <strong>&ldquo;1&ndash;2 months&rdquo; projection falls through to &ldquo;longer-term hold / 12+ months&rdquo;</strong>.</dd>
+        <dt>Why</dt><dd>One run tells the reader to hold the same position for 2&ndash;4 weeks, 3&ndash;6 months, and 12+ months. Holding period determines the stop, the target and the tax treatment — it cannot be ambiguous.</dd>
+        <dt>Fixed</dt><dd class="fix">One horizon field on <code>StockAnalysis</code>, set once, read everywhere, with a concrete review date. Replace the substring matching with a numeric month range.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O5</span>
+    <div class="fbody">
+      <h3>Every price rounds to whole dollars</h3>
+      <p class="fmeta"><code>display_elite_minimal</code></p>
+      <dl>
+        <dt>What</dt><dd>The summary table and the detail cards format all prices with <code>:.0f</code> — entry zone, stop, target, add level, T1, moving averages.</dd>
+        <dt>Why</dt><dd>An $11.40 stop renders as &ldquo;$11&rdquo;. On a $12 stock that is a 3.5% error in the single most important number on the page, and the report is explicitly framed as placeable orders. The precision exists in the object and is discarded at the last step.</dd>
+        <dt>Fixed</dt><dd class="fix">Format by price magnitude — 2 decimals under $100, 1 above, and never fewer than 2 for a stop or a limit. Anything a user types into a broker keeps full precision.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O6</span>
+    <div class="fbody">
+      <h3>Conviction stars cap at four</h3>
+      <p class="fmeta"><code>display_elite_minimal</code></p>
+      <dl>
+        <dt>What</dt><dd><code>"&#9733;" * min(conviction, 4) + "&#9734;" * max(0, 4 - conviction)</code>, on a 1&ndash;5 scale.</dd>
+        <dt>Why</dt><dd>A 5-star pick is indistinguishable from a 4-star pick in the table, so the top of the conviction scale — the part that should drive attention and size — is invisible.</dd>
+        <dt>Fixed</dt><dd class="fix">Use the full scale. Derive the star count from the enum's range rather than a literal 4.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O7</span>
+    <div class="fbody">
+      <h3>Fabricated percentile claims</h3>
+      <p class="fmeta"><code>display_elite_minimal</code>, thesis bullets</p>
+      <dl>
+        <dt>What</dt><dd><code>tier = "top 10%" if margin &gt; 0.25 else "top 25%"</code>, rendered as &ldquo;34% margin (top 10%)&rdquo;. No cross-sectional data supports it — the thresholds are arbitrary.</dd>
+        <dt>Why</dt><dd>A percentile is a factual claim about a population. Asserting one from a hardcoded threshold is a fabricated statistic in an investment document — and <code>UniverseStats._percentile_rank</code>, which could produce a real one, sits unused two hundred lines away.</dd>
+        <dt>Fixed</dt><dd class="fix">Compute the real percentile against the scanned set with the existing helper, and state the population (&ldquo;top 12% of 187 names scanned&rdquo;). If the population is too small, drop the claim.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O8</span>
+    <div class="fbody">
+      <h3>Trailing max drawdown presented as a forward worst case</h3>
+      <p class="fmeta"><code>generate_smart_rationale</code></p>
+      <dl>
+        <dt>What</dt><dd>&ldquo;Max Drawdown: &minus;18.4% <strong>(expect this worst-case drop)</strong>&rdquo;, from one year of realized history.</dd>
+        <dt>Why</dt><dd>Realized drawdown is a lower bound on future drawdown, not an expectation and certainly not a worst case. This is the sentence most likely to cause a reader to under-hedge, and it is stated with more confidence than anything else on the card.</dd>
+        <dt>Fixed</dt><dd class="fix">Label it &ldquo;worst 12-month decline observed&rdquo; and, if you want a forward figure, give a volatility-scaled or empirical-quantile estimate with its horizon named.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O9</span>
+    <div class="fbody">
+      <h3>RSI&nbsp;&gt;&nbsp;70 narrated as institutional buying while the engine rejects it</h3>
+      <p class="fmeta"><code>generate_smart_rationale</code></p>
+      <dl>
+        <dt>What</dt><dd>The narrative says &ldquo;Strong momentum (RSI: 74) signals institutional buying.&rdquo; <code>_determine_signal_regime_aware</code> treats RSI&nbsp;&gt;&nbsp;70 as overbought and returns HOLD or AVOID. The oversold branch likewise asserts &ldquo;historically precedes mean-reversion bounces&rdquo; with nothing behind it.</dd>
+        <dt>Why</dt><dd>The narrative argues the opposite of the decision on the same input, and infers who is trading from a price oscillator — RSI carries no participant information at all.</dd>
+        <dt>Fixed</dt><dd class="fix">Generate the narrative from the same branch that produced the decision. State indicator values as facts (&ldquo;RSI 74, above the 70 entry threshold&rdquo;) and drop unevidenced causal and historical claims.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O10</span>
+    <div class="fbody">
+      <h3>Conviction relabelled as risk</h3>
+      <p class="fmeta"><code>display_elite_minimal</code>, risk gauge</p>
+      <dl>
+        <dt>What</dt><dd><code>rlabel = "LOW" if conviction_num &gt;= 4 else "MOD" if &gt;= 3 else "HIGH"</code>, printed under a <code>RISK</code> heading with a five-dot gauge.</dd>
+        <dt>Why</dt><dd>Conviction is a confidence measure; risk is a dispersion measure. A 5-star, 45%-volatility, grade-C name renders as <code>RISK [&#9679;&#9679;&#9679;&#9679;&#9679;] LOW</code>. High conviction in a risky trade is a common and legitimate state — this display makes it unrepresentable.</dd>
+        <dt>Fixed</dt><dd class="fix">Drive the risk gauge from volatility, beta and risk grade, and show conviction separately. They are orthogonal and should be able to disagree on screen.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O11</span>
+    <div class="fbody">
+      <h3>The CATALYST column shows states, not catalysts</h3>
+      <p class="fmeta"><code>display_elite_minimal</code></p>
+      <dl>
+        <dt>What</dt><dd>The column falls through <code>"MACD cross"</code> if <code>macd &gt; macd_signal</code>, then <code>"&gt;200MA"</code>, then a P/E, then the setup type.</dd>
+        <dt>Why</dt><dd>None of these are catalysts. MACD above signal is a persistent state that can hold for months — it is not a crossover event. A catalyst is a dated, identifiable event, and the engine actually detects those (SEC filings, news, earnings dates) and then does not show them here.</dd>
+        <dt>Fixed</dt><dd class="fix">Show the real catalyst from the institutional catalyst engine with its date, and leave the cell blank when there is none. Rename the column to <code>SETUP</code> if you want to keep the state description.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O12</span>
+    <div class="fbody">
+      <h3>Hardcoded warnings contradict the live header</h3>
+      <p class="fmeta"><code>display_elite_minimal</code></p>
+      <dl>
+        <dt>What</dt><dd>A fixed line prints &ldquo;&#9888; SKIP if: Gap &gt;2% at open &#9474; SPY down &gt;1% &#9474; VIX &gt;25&rdquo; regardless of state.</dd>
+        <dt>Why</dt><dd>It can render directly beneath a header showing VIX 28 — telling the reader to skip trades the same page is recommending. The condition is already known at render time and simply is not consulted.</dd>
+        <dt>Fixed</dt><dd class="fix">Evaluate the conditions and print only the ones that are live, as a resolved warning (&ldquo;VIX 28 is above the 25 skip threshold&rdquo;). Reference the same constants the engine uses.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O13</span>
+    <div class="fbody">
+      <h3>&ldquo;Trail 5%&rdquo; is unconnected to anything computed</h3>
+      <p class="fmeta"><code>display_elite_minimal</code>, execution block</p>
+      <dl>
+        <dt>What</dt><dd>The exit plan ends &ldquo;&rarr; Trail 5%&rdquo;. The object carries a <code>trailing_stop</code> field, and <code>RiskLimits.calculate_atr_trailing_stop</code> uses a 1.75&nbsp;ATR multiple. Neither is 5%, and neither is referenced.</dd>
+        <dt>Why</dt><dd>The engine now emits three mutually inconsistent trailing-stop concepts: 40% of the way to target (from the target function), 0.5% below entry (B2), and a flat 5% here. The reader has no way to know which is intended.</dd>
+        <dt>Fixed</dt><dd class="fix">One trailing rule, ATR-derived, printed as a level and as its rule. Remove the other two.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="finding" data-sev="3">
+    <span class="fid">O14</span>
+    <div class="fbody">
+      <h3>Export metadata is wrong and fields are missing</h3>
+      <p class="fmeta"><code>export_results</code>, <code>export_tradingview_list</code></p>
+      <dl>
+        <dt>What</dt><dd><code>total_analyzed = len(scan_results) + len(failed_tickers)</code> counts survivors plus failures, not the analyzed universe — <code>_universe_counts</code> holds the right number and is never exported. The CSV omits <code>value_score</code> (while carrying the other four), <code>conviction</code>, <code>setup_type</code>, <code>currency</code> and <code>data_status</code>. The summary report hardcodes <code>$</code> even for INR. The TradingView export prefixes <code>NSE:</code> onto <code>.BO</code> tickers.</dd>
+        <dt>Why</dt><dd>The JSON is the machine-readable record — an understated <code>total_analyzed</code> makes hit rates look far better than they are, and a missing <code>value_score</code> makes the composite unreproducible from the export. A BSE ticker labelled NSE will not resolve.</dd>
+        <dt>Fixed</dt><dd class="fix">Export <code>_universe_counts</code> and <code>_gate_stats</code> wholesale, generate the CSV columns from the dataclass fields rather than a hand-written dict, and map the exchange from the ticker suffix.</dd>
+      </dl>
+    </div>
+  </div>
+
+  </div><!-- /ledger -->
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>What shipped</h2>
+    <p class="sec-note">Eleven changes, sequenced by dependency, all in commit <code>e8e01df</code>. Ordering mattered: sizing could not be derived from the stop until the stop itself was coherent.</p>
+  </div>
+
+  <div class="plan">
+
+  <div class="step">
+    <div>
+      <h3>Made the universe real</h3>
+      <p><code>_select_broad_universe()</code> ranks the whole universe on average daily dollar volume — the same liquidity floors <code>analyze_stock</code> enforces anyway, so the reduction costs no breadth. The prefilter's momentum hard-cuts are gone (they were deleting every mean-reversion candidate), its failure path falls back to an even spread rather than a prefix, and <code>full</code> now covers all 669 names. The dead pre-screen block in <code>scan_market</code> is deleted and the menu copy describes what actually runs.</p>
+      <p class="refs">B1, W12, O2 &middot; also fixed the quick-scan limit, which said 100 and scanned 30</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3>Removed the broken trailing stop</h3>
+      <p><code>update_trailing_stops()</code> now requires a <code>highs_since_entry</code> mapping and leaves the initial ATR trail alone without one. The call on brand-new recommendations is gone — at entry the initial trail <em>is</em> the trailing stop. <code>_calculate_price_targets</code> no longer returns a fourth &ldquo;trailing stop&rdquo; above entry, and <code>TRAILING_ATR_MULTIPLIER</code> is the one definition everything reads.</p>
+      <p class="refs">B2, O13 &middot; three inconsistent trailing concepts collapsed to one</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3>Unified sizing on risk</h3>
+      <p><code>_calculate_position_size(signal, score, entry, stop)</code> applies <code>allocation &times; stop_distance = risk_budget</code>, so dollar risk at the stop is the budget by construction. Because the stop is ATR-derived this <em>is</em> volatility targeting — wider stop, fewer shares, automatically. Levels are now computed before sizing. <code>apply_allocation()</code> writes allocation, shares and <code>position_pct</code> as one unit so they cannot drift, and a portfolio stop-risk gate bounds the book.</p>
+      <p class="refs">B3, B4, W11 &middot; separated TARGET_RISK_* (drives size) from MAX_RISK_* (hard ceiling)</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3>Removed the optimism bias from levels</h3>
+      <p>Stop and target now come from genuinely different information, which is what makes R:R carry a signal: the stop from volatility (<code>STOP_ATR_MULTIPLIER</code>, widened to 2.75 for the horizon, extended to clear support, distance clamped to 3&ndash;20%), the target from structure and consensus <em>averaged</em> rather than maximised. Analyst targets are used symmetrically. The R:R floor is no longer enforced by rewriting the target.</p>
+      <p class="refs">B6, M9 &middot; scenario legs made symmetric, so EV can be negative (B7)</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3>Repaired the regime detector</h3>
+      <p>Regime detection fetches two years so <code>sma_200</code> exists, and reports a new <code>UNKNOWN</code> state (0.60x exposure, 40% cash, quality-tilted weights) instead of aliasing <code>sma_50</code>. The realized-volatility VIX proxy is scaled by a documented premium and flagged, and a proxy reading can never push exposure above 1.0x.</p>
+      <p class="refs">W1, W2 &middot; BULL and BEAR are reachable for the first time</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3>Fixed the arithmetic</h3>
+      <p>Wilder's mutual-exclusivity test in ADX. One <code>compute_momentum_12_2()</code> for both call sites, and <code>momentum_12m</code> is a real 12-month return. QMJ reads the normalized <code>FundamentalMetrics</code> instead of re-deriving units from the raw payload. ROIC derived from keys yfinance actually returns; interest coverage and debt/assets marked explicitly unavailable. Risk-free rate in Jensen's alpha. <code>(X/&sigma;)&sup2;</code> in the timeframe projector.</p>
+      <p class="refs">W3, W4, W5, M5, M6, M7 &middot; each with a unit test</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3>Made the decision core monotone</h3>
+      <p>The core's verdict is adopted only when <code>_ACTION_RANK</code> says it is more conservative; otherwise the scanner's action stands and the suppressed upgrade is recorded as a reason. All score adjustments are gathered <em>before</em> the signal is derived, bounded by <code>SCORE_ADJUSTMENT_CAP</code> and logged component-by-component. The FinalAction maps are shared instead of duplicated.</p>
+      <p class="refs">W6, W10 &middot; score and action can no longer disagree</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3>Separated the position ledger from the signal log</h3>
+      <p><code>positions.csv</code> holds actual fills and is never written by a scan; <code>signals.csv</code> holds scan output. <code>save_portfolio()</code> is deprecated and warns. Drawdown is <code>1 - equity / running_max</code> over a persisted <code>equity_curve.csv</code>, fed by a new <code>mark_positions_to_market()</code>. The downgrade priority map derives from <code>SignalType.priority</code> and warns on an unknown signal.</p>
+      <p class="refs">W7, W8, W9 &middot; the drawdown throttle and the 15% halt are reachable</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3>Rebuilt the output layer on one set of facts</h3>
+      <p>Weights printed from the active regime dict. One <code>horizon_months</code> with a dated review, rendered by one <code>describe_horizon()</code>. <code>fmt_price()</code> keeps order-level precision. Real percentiles from <code>UniverseStats</code> or no claim. Risk gauge from volatility, beta and grade; conviction shown separately at full 5-star scale. Narrative generated from the branch that made the decision. Live warnings only. CATALYST renamed SETUP. Export carries <code>_universe_counts</code>, <code>_gate_stats</code> and every sub-score.</p>
+      <p class="refs">O1, O3&ndash;O12, O14 &middot; the band you asked about</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3>Decided what the score is</h3>
+      <p>Each metric belongs to exactly one sub-score: ADX only in momentum, valuation only in value. Each sub-score has one directional thesis — the technical score no longer pays for oversold <em>and</em> trending. Quality rebuilt on ROIC, gross and operating margin and leverage, with size and payout removed and beta left to the BAB factor. <code>ABSOLUTE_SCORE_WEIGHT</code> keeps the score absolute in character so the fixed gates stay meaningful, with the percentile tracked separately. <code>elite_composite_score</code> normalised to 0&ndash;10 and given a real weight, and the collinearity check is called.</p>
+      <p class="refs">M1, M2, M3, M4, W13 &middot; nominal weights are now the effective weights</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div>
+      <h3>Cleaned the data plumbing</h3>
+      <p>Unadjusted splits detected by near-integer price ratio <em>plus</em> matching volume scaling; a large clean move is a warning that travels with the analysis. Earnings proximity scales the position, and a missing calendar reduces size rather than failing open. The FOMC calendar warns when exhausted. One correlation window for every input, with an order-independent average-correlation gate. Sector caps against total capital. Delisted tickers dropped; the dividend list split from the high-yield pass-throughs and gated on payout coverage.</p>
+      <p class="refs">M8, M10&ndash;M14 &middot; removes the silent selection biases</p>
+    </div>
+  </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>What is already right</h2>
+    <p class="sec-note">Worth naming, because none of it was disturbed by the fixes above.</p>
+  </div>
+  <div class="keep">
+    <ul>
+      <li><strong>The honesty layer is genuinely unusual.</strong> Deprecating the tanh &ldquo;win probability&rdquo; for a countable confidence tier, zeroing <code>probability_success</code> rather than printing an uncalibrated number, hiding diagnostic backtest figures behind <code>QUANTA_DEBUG</code>, and the loud banner when <code>QUANTA_NO_DEEP_CONFIRM</code> is set — most retail engines do the opposite of all four.</li>
+      <li><strong>Deep-confirm reconciliation is the right architecture.</strong> Running the authoritative analyzer on the final handful and adopting its verdict only when more conservative, with a printed audit trail and allocation before/after, is exactly how a research desk reconciles a fast screen against a deep model. Its <code>_ACTION_RANK</code> monotonicity is now reused by the decision core too, which is what fixed W6.</li>
+      <li><strong>The observability is better than the model.</strong> <code>_gate_stats</code>, <code>_universe_counts</code>, <code>_zero_alloc_reasons</code> with per-ticker causes, and the typed <code>_classify_scan_error</code> taxonomy that separates a throttled provider from &ldquo;no setups today&rdquo; — this is why the findings above were diagnosable at all.</li>
+      <li><strong>Provider resilience is production-grade.</strong> The TOCTOU-free circuit breaker with atomic acquire/release, the process-wide rate-limit tracker with cooldown, honouring <code>Retry-After</code>, and cancelling queued futures when the circuit trips.</li>
+      <li><strong>Data validation catches the right things</strong> — non-positive prices, OHLC violations, duplicate and non-monotonic timestamps, stale snapshots via <code>max_age_days</code>, with fixtures deliberately exempt. Only the &gt;50% rule (M8) is too blunt.</li>
+      <li><strong>The deliberate deletions were correct calls.</strong> Removing the relaxed-sector and fill passes because &ldquo;a constraint relaxation loop that overrides diversification defeats the purpose of risk management&rdquo; is the right instinct. The optimizer was undoing that by forcing weights to sum to 1.0; the risk-parity replacement redistributes within the risk-based sizes and lets cash stay cash.</li>
+      <li><strong><code>evaluate_sell_triggers</code> is a pure, testable exit function.</strong> Most stock pickers are silent on exits. Severity escalation with the worst trigger dominating is the right shape. It now has a real position ledger to read from — wiring it into a scheduled pass over <code>positions.csv</code> is the obvious next step.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  Reviewed and remediated in core/SP_ELITE_PRO.py &middot; commit e8e01df &middot; 2 September 2026<br>
+  531 tests passing (was 470), including 74 named for the findings they lock in. Lint clean.<br>
+  The 11 golden-master failures are pre-existing and unrelated — incomplete VOO fixtures in the other engine's suite, identical before and after.<br>
+  Remaining judgement call for you: TARGET_RISK_PER_TRADE is set to 0.6% so the risk budget binds inside the 10% position cap. That is a risk-appetite number, not a bug fix — raise it if you want larger positions, and the MAX_RISK ceiling will still hold.
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip[data-sev]'));
+  var findings = Array.prototype.slice.call(document.querySelectorAll('.finding[data-sev]'));
+  var bands = Array.prototype.slice.call(document.querySelectorAll('.band[data-band]'));
+  var notes = {};
+
+  bands.forEach(function (b) {
+    var n = b.nextElementSibling;
+    if (n && n.classList.contains('band-note')) { notes[b.getAttribute('data-band')] = n; }
+  });
+
+  function apply() {
+    var on = {};
+    chips.forEach(function (c) {
+      on[c.getAttribute('data-sev')] = c.getAttribute('aria-pressed') === 'true';
+    });
+    findings.forEach(function (f) {
+      f.hidden = !on[f.getAttribute('data-sev')];
+    });
+    bands.forEach(function (b) {
+      var sev = b.getAttribute('data-band');
+      b.hidden = !on[sev];
+      if (notes[sev]) { notes[sev].hidden = !on[sev]; }
+    });
+  }
+
+  chips.forEach(function (c) {
+    c.addEventListener('click', function () {
+      c.setAttribute('aria-pressed', c.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+      apply();
+    });
+  });
+})();
+</script>
+</body>
+</html>

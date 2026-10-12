@@ -1,0 +1,59 @@
+# Windows executable for the SP_ELITE_PRO scanner.
+#
+# This workflow had never succeeded. Four faults, all fixed here:
+#   1. `SP_ELITE_PRO` was passed to PyInstaller without `.py`, and without the
+#      `core/` directory it lives in.
+#   2. `pip install -r requirements.txt` referenced a file that does not exist
+#      anywhere in the repository. Dependencies now come from
+#      pyproject.toml.
+#   3. Python 3.9, while the engine needs 3.11+ (it uses `X | Y` annotations).
+#   4. It ran on every push to main, so it failed on every push to main. Now
+#      filtered to changes that could actually affect the binary.
+
+name: Build Windows Executable
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "core/**"
+      - "modules/**"
+      - "pyproject.toml"
+      - ".github/workflows/build_exe.yml"
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e "."
+
+      - name: Build Windows executable
+        # `core` and `modules` go on the path explicitly: the engine resolves
+        # sibling imports (`engine`, `polygon_provider`) by mutating sys.path at
+        # runtime, which PyInstaller cannot infer by static analysis.
+        run: |
+          pyinstaller --onefile --name "QuantaElite" --icon=NONE `
+            --paths core --paths modules `
+            --collect-submodules ta `
+            core/SP_ELITE_PRO.py
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuantaElite-Windows
+          path: dist/QuantaElite.exe
+          retention-days: 90

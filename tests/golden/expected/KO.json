@@ -1,0 +1,804 @@
+{
+  "account_size": 100000.0,
+  "recorded_at": "2026-08-27",
+  "result": {
+    "action_items": [
+      "Do not open a new position while the blocking conditions remain",
+      "Re-run the Decision after the primary blocker clears"
+    ],
+    "action_plan_note": "These targets are for existing holders, not new entry recommendations.",
+    "action_plan_title": "EXISTING HOLDER PROFIT PLAN",
+    "adjustment_status": "split_dividend_adjusted",
+    "after_hours_change_pct": 0.2695,
+    "after_hours_price": 89.3,
+    "analysis_timestamp": "<volatile>",
+    "asset_type": "common_stock",
+    "beginner_guidance": {
+      "aggressive_buyer": "Do not add until the final decision changes",
+      "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
+      "breakout_entry": 92.49,
+      "buy_now": "NO",
+      "candlestick_timing": "HOLD WITH STOP",
+      "confidence": 83.6564,
+      "data_quality": "PASS",
+      "entry_quality": "Moderate",
+      "existing_holder": "Hold with trailing stop",
+      "existing_holder_stop": 84.8034,
+      "long_term_holder_stop": 84.8034,
+      "long_tf": "Review before adding",
+      "main_reason": "Risk/reward of 0.28:1 is below the 1.50:1 minimum.",
+      "mid_tf": "Hold existing / wait",
+      "new_buyer": "Wait; no new position",
+      "pullback_basis": "20-day MA",
+      "pullback_entry": 88.3725,
+      "pullback_is_deep": false,
+      "pullback_stop": 86.8318,
+      "recommendation_label": "WATCHLIST",
+      "risk_conflict_warning": "",
+      "risk_grade": "A",
+      "rr_label": "Unfavorable, 0.28:1",
+      "short_tf": "Wait",
+      "signal": "HOLD",
+      "tactical_stop": 87.9306,
+      "tactical_stop_basis": "below 20-day MA",
+      "volume_requirement": ">= 1.5x avg on entry day",
+      "warnings": []
+    },
+    "business_summary": "The Coca-Cola Company, a beverage company, manufactures and sells various nonalcoholic beverages in the United States and internationally. The company provides Trademark Coca-Cola, sparkling soft drinks and flavors; water, sports, coffee, and tea; juice, value-added dairy, and plant-based beverages; and emerging beverages. It also offers beverage concentrates and syrups, as well as fountain syrups to fountain retailers comprising restaurants and convenience stores. The company sells its products under the Coca-Cola, Diet Coke/Coca-Cola Light, Coca-Cola Zero Sugar, caffeine free Diet Coke, Cherry Coke, Fanta, Sprite, Simply, Fanta Orange, Fanta Zero Orange, Fanta Zero Sugar, Fanta Apple, Sprite Zero Sugar, Simply Orange, Simply Apple, Simply Grapefruit, Fresca, Schweppes, Thums Up, Aquarius, Ayataka, BODYARMOR, Ciel, Costa, Crystal, Dasani, Fuze Tea, Georgia, glac\u00e9au smartwater, glac\u00e9au vitaminwater, Gold Peak, I LOHAS, Powerade, Topo Chico, Core Power, Del Valle, fairlife, innocent, Maaza, Minute Maid, Minute Maid Pulpy, Santa Clara, and dogadan brands. It operates through a network of independent bottling partners, distributors, wholesalers, and retailers, as well as through bottling and distribution operators. The Coca-Cola Company was founded in 1886 and is headquartered in Atlanta, Georgia.",
+    "catalysts": {
+      "catalyst_score": 3,
+      "days_to_earnings": 54,
+      "dividend_yield": 0.0238,
+      "earnings_date": "2026-10-20",
+      "ex_dividend_date": "2026-09-14",
+      "last_earnings_result": "Unknown",
+      "last_earnings_surprise_pct": 0.0,
+      "near_term_catalyst": false
+    },
+    "company_name": "Coca-Cola Company (The)",
+    "confidence_level": "VERY_HIGH",
+    "confidence_score": 83.6564,
+    "conviction_label": "",
+    "country": "United States",
+    "currency": "USD",
+    "currency_symbol": "$",
+    "current_price": 89.06,
+    "data_provider": "yfinance",
+    "data_quality_status": "ok",
+    "day_change": -1.02,
+    "day_change_pct": -1.1323,
+    "decision": {
+      "action": "WATCHLIST",
+      "as_of": "<volatile>",
+      "blockers": [
+        {
+          "category": "reward_risk",
+          "code": "LOW_REWARD_RISK",
+          "remedy": "Research reward/risk of at least 1.50:1 (a better entry or a higher target)",
+          "text": "Research reward/risk to the horizon target is below the 1.50:1 minimum"
+        }
+      ],
+      "blocking": [
+        "R/R 0.28 below min 1.50 \u2192 WATCHLIST"
+      ],
+      "blocking_codes": [
+        "LOW_REWARD_RISK"
+      ],
+      "caveat": "",
+      "conflicts": [],
+      "engine": "elite",
+      "event_check": {
+        "agreement_date": null,
+        "avoid": false,
+        "checked_at": "<volatile>",
+        "code": "",
+        "cvr": false,
+        "cvr_non_transferable": false,
+        "deal_price": null,
+        "filed": null,
+        "note": "not recorded (offline replay)",
+        "registrant": "",
+        "source": "",
+        "spread_pct": null,
+        "status": "clear",
+        "stock": false,
+        "text": "",
+        "url": null
+      },
+      "evidence": {
+        "caveats": [
+          "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+        ],
+        "generated_utc": null,
+        "lineage": [
+          {
+            "change": "risk leg removed from the ranking composite",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.alpha_only.v1",
+            "summary": "Never tested.",
+            "tested_through": null
+          },
+          {
+            "change": "original composite",
+            "status": "NO_EDGE",
+            "status_text": "Tested out of sample \u2014 no demonstrated edge",
+            "strategy": "elite.composite",
+            "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+            "tested_through": "2026-08-25"
+          }
+        ],
+        "metrics": {},
+        "permits_recommendation": false,
+        "scope": "",
+        "status": "UNTESTED",
+        "status_text": "Never validated",
+        "strategy": "elite.research.v2",
+        "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+        "tested_through": null
+      },
+      "factor_scores": {
+        "fundamental": 73,
+        "quality": 84.2593,
+        "sentiment": 55,
+        "technical": 80,
+        "valuation": 50.0
+      },
+      "freshness": {
+        "lag_sessions": 0,
+        "last_bar": "2026-08-27",
+        "notes": [],
+        "status": "fresh"
+      },
+      "generated_at": "<volatile>",
+      "holder_action": "HOLD",
+      "holdings_known": false,
+      "horizon": {
+        "key": "position",
+        "label": "Position (~3 months)",
+        "trading_days": 63
+      },
+      "interpretation": null,
+      "invalidation": [],
+      "label": "WATCHLIST",
+      "levels": {
+        "entry": 89.2381,
+        "reference_price": 89.06,
+        "reward_risk": 0.279342,
+        "stop": 84.8034,
+        "target": 90.6025,
+        "target_basis": "63-session target, pro-rated from the 12-month valuation target",
+        "target_horizon_days": 63,
+        "valuation_target": 94.6957,
+        "valuation_target_horizon_days": 252
+      },
+      "model_stance": "BULLISH",
+      "new_money": "WATCH",
+      "primary_blocker": {
+        "category": "reward_risk",
+        "code": "LOW_REWARD_RISK",
+        "remedy": "Research reward/risk of at least 1.50:1 (a better entry or a higher target)",
+        "text": "Research reward/risk to the horizon target is below the 1.50:1 minimum"
+      },
+      "qualifier": "",
+      "reasons": [
+        "Composite score 70.7 \u2192 candidate BUY",
+        "R/R 0.28 below min 1.50 \u2192 WATCHLIST"
+      ],
+      "risk_grade": "A",
+      "risk_grade_drivers": [
+        {
+          "detail": "18% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 0
+        },
+        {
+          "detail": "-0.28 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 0
+        },
+        {
+          "detail": "-16% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 0
+        },
+        {
+          "detail": "50/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 0
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "risk_grade_lookback_days": 500,
+      "risk_metrics": {
+        "beta": -0.282849,
+        "risk_score": 70,
+        "volatility": 0.179762
+      },
+      "risks": [],
+      "scenarios": [
+        {
+          "method": "range of analyst consensus (lowest)",
+          "name": "low_method",
+          "price": 94.6957,
+          "return_pct": 6.32793,
+          "source_ids": [
+            "analyst_consensus"
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "score": 70.6564,
+      "score_basis": "Research composite (alpha factors only), 0-100",
+      "sizing": {
+        "dollar_risk": 0,
+        "portfolio_weight": 0,
+        "position_value": 0,
+        "recommended_shares": 0,
+        "shares": 0
+      },
+      "sizing_basis": "none",
+      "sources": [
+        {
+          "as_of": "<volatile>",
+          "id": "px",
+          "kind": "price",
+          "provider": "yfinance",
+          "retrieved_at": "<volatile>",
+          "title": "",
+          "url": ""
+        }
+      ],
+      "stance": "NEUTRAL",
+      "ticker": "KO",
+      "transitions": [
+        {
+          "codes": [
+            "LOW_REWARD_RISK"
+          ],
+          "from": "BUY",
+          "to": "WATCHLIST"
+        }
+      ]
+    },
+    "evidence": {
+      "caveats": [
+        "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+      ],
+      "generated_utc": null,
+      "lineage": [
+        {
+          "change": "risk leg removed from the ranking composite",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.alpha_only.v1",
+          "summary": "Never tested.",
+          "tested_through": null
+        },
+        {
+          "change": "original composite",
+          "status": "NO_EDGE",
+          "status_text": "Tested out of sample \u2014 no demonstrated edge",
+          "strategy": "elite.composite",
+          "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+          "tested_through": "2026-08-25"
+        }
+      ],
+      "metrics": {},
+      "permits_recommendation": false,
+      "scope": "",
+      "status": "UNTESTED",
+      "status_text": "Never validated",
+      "strategy": "elite.research.v2",
+      "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+      "tested_through": null
+    },
+    "exchange": "NYQ",
+    "expense_ratio": 0.0,
+    "fast_mode": false,
+    "final_action": "WATCHLIST",
+    "first_bar_date": "2024-08-28",
+    "fundamental": {
+      "altman_z_score": 5.4578,
+      "altman_z_status": "ok",
+      "altman_z_variant": "public",
+      "current_ratio": 1.305,
+      "debt_to_equity": 1.1552,
+      "dividend_yield": 0.0238,
+      "eps_growth_yoy": 16.9,
+      "ev_ebitda": 24.569,
+      "fcf_yield": 1.3619,
+      "forward_pe": 25.2554,
+      "free_cash_flow": 5218750000.0,
+      "gross_margin": 61.888,
+      "is_etf": false,
+      "net_margin": 28.558,
+      "operating_margin": 34.873,
+      "pb_ratio": 10.6011,
+      "pe_ratio": 26.7447,
+      "peg_ratio": 1.5825,
+      "piotroski_components_available": 9,
+      "piotroski_f_score": 7,
+      "quality_score": 84.2593,
+      "reported_inputs": {
+        "current_ratio": true,
+        "debt_to_equity": true,
+        "net_margin": true,
+        "revenue_growth": true,
+        "roe": true
+      },
+      "revenue_growth_yoy": 6.7,
+      "roa": 9.401,
+      "roe": 42.054,
+      "roic": 25.7275
+    },
+    "has_existing_position": false,
+    "history_bars": 501,
+    "industry": "Beverages - Non-Alcoholic",
+    "insider": {
+      "context_missing": false,
+      "data_status": "measured",
+      "display_label": "BEARISH",
+      "insider_sentiment": "BEARISH",
+      "key_transactions": [
+        "QUAN NANCY W sold 50,000 shares @ $90.39 on 2026-08-19 ($4,519,260)",
+        "ORTEGA LUISA sold 55,755 shares @ $86.59 on 2026-08-06 ($4,827,894)",
+        "MURPHY JOHN sold 152,483 shares @ $87.31 on 2026-07-31 ($13,313,580)",
+        "QUINCEY JAMES R. sold 527,087 shares @ $90.06 on 2026-07-29 ($47,468,615)",
+        "PIETRACCI BRUNO sold 75,727 shares @ $89.65 on 2026-07-28 ($6,788,624)"
+      ],
+      "net_flow": -138484000.0,
+      "recent_buys": 0,
+      "recent_sells": 10
+    },
+    "is_adr": false,
+    "is_etf": false,
+    "is_financial": false,
+    "is_high_volatility": false,
+    "is_invalid": false,
+    "key_insights": [
+      "\u23f8\ufe0f HOLD signal with 84% confidence",
+      "\ud83d\udcaa Strong ROE of 42.1% - excellent profitability",
+      "\u2b50 High Piotroski F-Score (7/9) - strong fundamentals",
+      "\ud83d\udcca Monte Carlo: 64% chance of profit in 30 days"
+    ],
+    "last_bar_date": "2026-08-27",
+    "market_cap": 383185000000.0,
+    "market_intel": {
+      "analyst_count": 23,
+      "analyst_rating": "BUY",
+      "buy_ratings": 0,
+      "hold_ratings": 0,
+      "implied_upside": 6.3279,
+      "next_earnings_date": "2026-10-20",
+      "sell_ratings": 0,
+      "target_high": 104.0,
+      "target_low": 75.0,
+      "target_mean": 94.6957,
+      "target_median": 96.0
+    },
+    "market_regime": "BULL_TRENDING",
+    "market_state": "POST",
+    "market_timestamp": "<volatile>",
+    "mc_model_note": "",
+    "model_action": "WATCHLIST",
+    "monte_carlo": {
+      "days_simulated": 30,
+      "expected_return": 2.1861,
+      "expected_return_basis": "mean",
+      "mean_price": 91.0069,
+      "median_price": 90.8804,
+      "percentile_25": 87.1901,
+      "percentile_5": 81.9709,
+      "percentile_75": 94.713,
+      "percentile_95": 100.279,
+      "probability_10pct_gain": 0.1087,
+      "probability_10pct_loss": 0.0223,
+      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only \u2014 not the chance of touching a target, and not target-vs-stop.",
+      "probability_profit": 0.6363,
+      "simulations_run": 3000,
+      "var_95": -7.9599
+    },
+    "net_assets": 0.0,
+    "peer_comparison": {
+      "overall_assessment": "Sector not mapped",
+      "pb_sector_avg": 0.0,
+      "pb_stock": 0.0,
+      "pb_vs_sector": 0.0,
+      "pe_sector_avg": 0.0,
+      "pe_stock": 0.0,
+      "pe_vs_sector": 0.0,
+      "roe_sector_avg": 0.0,
+      "roe_stock": 0.0,
+      "roe_vs_sector": 0.0,
+      "sector": "Consumer Defensive",
+      "sector_rank": 0,
+      "sector_total": 0
+    },
+    "portfolio_outlook": {
+      "bottom_line": "Existing holders can hold with a strict stop. New buyers should wait for pullback or breakout confirmation.",
+      "reason": "Risk/reward of 0.28:1 is below the 1.50:1 minimum.",
+      "recommendation": "WATCHLIST"
+    },
+    "portfolio_risk_check": {
+      "adjustments": {},
+      "approved": true,
+      "correlation_risk": 0.0,
+      "holdings_known": false,
+      "sector_exposure": {
+        "Consumer Defensive": 0.0999
+      },
+      "warnings": []
+    },
+    "position_sizing": {
+      "is_viable": false,
+      "kelly_optimal": 0.0,
+      "portfolio_weight": 0.0,
+      "position_value": 0.0,
+      "recommended_shares": 0,
+      "sizing_method": "RISK_ADJUSTED"
+    },
+    "pre_market_change_pct": 0.0,
+    "pre_market_price": 0.0,
+    "previous_close": 90.08,
+    "quote_type": "EQUITY",
+    "recommendation_caveat": "",
+    "recommendation_label": "WATCHLIST",
+    "recommendation_qualifier": "",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 84% | Score: 71/100 | Risk: A",
+    "relative_performance": {
+      "basis": "total return, dividend-adjusted closes",
+      "benchmark": "SPY",
+      "rows": [
+        {
+          "benchmark_pct": 5.71,
+          "excess_pct": -5.73,
+          "sessions": 21,
+          "stock_pct": -0.02,
+          "window": "1M"
+        },
+        {
+          "benchmark_pct": 2.45,
+          "excess_pct": 9.02,
+          "sessions": 63,
+          "stock_pct": 11.47,
+          "window": "3M"
+        },
+        {
+          "benchmark_pct": 12.46,
+          "excess_pct": -0.35,
+          "sessions": 126,
+          "stock_pct": 12.11,
+          "window": "6M"
+        },
+        {
+          "benchmark_pct": null,
+          "excess_pct": null,
+          "sessions": 252,
+          "stock_pct": 33.25,
+          "window": "1Y"
+        }
+      ]
+    },
+    "requested_symbol": "KO",
+    "retrieval_timestamp": "<volatile>",
+    "risk": {
+      "annualized_volatility": 0.1798,
+      "beta": -0.2828,
+      "beta_benchmark": "SPY",
+      "beta_observations": 250,
+      "beta_status": "measured",
+      "cvar_95": -0.0215,
+      "grade_drivers": [
+        {
+          "detail": "18% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 0
+        },
+        {
+          "detail": "-0.28 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 0
+        },
+        {
+          "detail": "-16% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 0
+        },
+        {
+          "detail": "50/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 0
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "liquidity_score": 10.0,
+      "max_drawdown": -0.155,
+      "overall_risk_score": 3,
+      "risk_grade": "A",
+      "risk_points": 3,
+      "sharpe_ratio": 0.6043,
+      "sortino_ratio": 0.9394,
+      "var_95_daily": -0.0157
+    },
+    "risk_warnings": [],
+    "scores": {
+      "component_details": {},
+      "composite_score": 70.6564,
+      "data_quality_note": "MODERATE - Some data sources missing",
+      "fundamental_score": 73,
+      "quality_score": 84.2593,
+      "risk_score": 70,
+      "score_confidence_margin": 0.0,
+      "sentiment_score": 55,
+      "technical_score": 80,
+      "valuation_score": 50.0,
+      "weights": {
+        "fundamental": 0.2222,
+        "quality": 0.0889,
+        "sentiment": 0.1667,
+        "technical": 0.3889,
+        "valuation": 0.1333
+      }
+    },
+    "sector": "Consumer Defensive",
+    "sentiment": {
+      "key_headline_sources": [
+        "Zacks",
+        "Motley Fool",
+        "Zacks",
+        "TheStreet",
+        "Zacks"
+      ],
+      "key_headlines": [
+        "Coca-Cola (KO) Upgraded to Buy: Here's What You Should Know",
+        "Greg Abel Has Kept 60% of Berkshire's $359 Billion Stock Portfolio in Just 5 Companies, Even After E",
+        "Coca-Cola (KO) Up 1.1% Since Last Earnings Report: Can It Continue?",
+        "Beverage giant wants to take over Halloween in bold new plan",
+        "Coca-Cola (KO) Declines More Than Market: Some Information for Investors"
+      ],
+      "last_news_timestamp": "<volatile>",
+      "measured": true,
+      "negative_articles": 2,
+      "news_relevance": {
+        "direct_count": 6,
+        "direct_headlines": [
+          "Coca-Cola (KO) Upgraded to Buy: Here's What You Should Know",
+          "Coca-Cola (KO) Up 1.1% Since Last Earnings Report: Can It Continue?",
+          "Coca-Cola (KO) Declines More Than Market: Some Information for Investors",
+          "Coca-Cola\u2019s stock splits: history (& prospects) explained",
+          "Coca-Cola vs. Pepsi: The Gap Is Getting Bigger"
+        ],
+        "direct_sentiment_label": "POSITIVE",
+        "direct_sentiment_score": 0.519,
+        "has_direct_news": true,
+        "macro_count": 4,
+        "macro_headlines": [
+          "Greg Abel Has Kept 60% of Berkshire's $359 Billion Stock Portfolio in Just 5 Companies, Even After Eliminating 16 Other Positions in His First Quarter. Is That Concentration a Risk for Shareholders?",
+          "Beverage giant wants to take over Halloween in bold new plan",
+          "Dividends vs. an Annuity: Which Turns $840,000 Into More Monthly Income for Life?",
+          "How Much Do You Need Invested by 55 to Retire on Dividends at 65?"
+        ],
+        "peer_count": 0,
+        "peer_headlines": [],
+        "peer_sentiment_score": 0.0,
+        "weighted_sentiment_label": "POSITIVE",
+        "weighted_sentiment_score": 0.519
+      },
+      "news_volume": 10,
+      "positive_articles": 6,
+      "sentiment_label": "POSITIVE",
+      "sentiment_score": 0.3094,
+      "sentiment_trend": "STABLE",
+      "sources_attempted": 5,
+      "sources_succeeded": 1,
+      "status": "PARTIAL"
+    },
+    "signal": "HOLD",
+    "signal_explanation": {
+      "composite_score": 70.6564,
+      "overrides_triggered": [],
+      "primary_reason": "Composite score 71 meets BUY threshold",
+      "risk_factors": [],
+      "supporting_factors": [
+        "Technical score 80 (bullish)",
+        "Fundamental score 73 (strong)",
+        "5 bullish confirmations"
+      ]
+    },
+    "sizing_basis": "none",
+    "stage_timings": [
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "price_history",
+        "status": "ok"
+      },
+      {
+        "cached": true,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "company_info",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "parallel_analysis",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "monte_carlo",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "valuation_targets",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "signal_generation",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "trade_setup",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "position_sizing",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "decision_core",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "narrative",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "record_signal",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "-",
+        "stage": "TOTAL",
+        "status": "ok"
+      }
+    ],
+    "stance": "NEUTRAL",
+    "symbol_note": "",
+    "technical": {
+      "adx": 29.1241,
+      "atr": 1.5526,
+      "atr_percent": 1.7434,
+      "bollinger_signal": "NEUTRAL",
+      "candlestick_bias": "NEUTRAL",
+      "candlestick_patterns": [],
+      "candlestick_score": 50.0,
+      "death_cross": false,
+      "golden_cross": false,
+      "macd_signal": "BULLISH",
+      "momentum_score": 49.8105,
+      "prior_trend": "UP",
+      "resistance_level": 90.92,
+      "rsi": 56.034,
+      "squeeze_detected": false,
+      "support_level": 85.66,
+      "trend_direction": "UP",
+      "trend_score": 74.708,
+      "trend_strength": "MODERATE",
+      "volatility_score": 60,
+      "volume_ratio": 0.6189,
+      "week_52_basis": "provider-reported traded range",
+      "week_52_high": 92.49,
+      "week_52_low": 65.35
+    },
+    "thesis": {
+      "bear_case": [
+        "Net insider selling in the last 90 days (small relative to company size)"
+      ],
+      "bull_case": [
+        "Strong profitability with 42.1% ROE",
+        "Strong uptrend with momentum confirmation",
+        "Positive news sentiment supporting price action"
+      ],
+      "catalysts": [],
+      "risks": [],
+      "summary": "Coca-Cola Company (The) (KO) should be held at current levels with a 84% confidence score. Composite score of 71/100."
+    },
+    "ticker": "KO",
+    "trade_setup": {
+      "entry_price": 89.2381,
+      "entry_type": "REFERENCE",
+      "has_long_reward": true,
+      "is_actionable_entry": false,
+      "levels_available": true,
+      "risk_reward_ratio": 0.2793,
+      "setup_basis": "limit at a slight premium to spot; stop below support; 63-session target pro-rated from the 12-month valuation target $94.70; Target 1 is a tactical partial exit",
+      "stop_loss": 84.8034,
+      "target_aggressive": 94.6957,
+      "target_base": 94.6957,
+      "target_conservative": 90.6025,
+      "time_horizon": "POSITION",
+      "trailing_stop": 0.0,
+      "trailing_stop_pct": 3.5,
+      "win_probability": 0.0
+    },
+    "valuation": {
+      "dcf_fair_value": 0.0,
+      "dcf_method": "fcf_based:sanity_rejected",
+      "dcf_status": "unavailable",
+      "dcf_upside": 0.0,
+      "fair_value_sources": [],
+      "graham_number": 0.0,
+      "graham_status": "rejected",
+      "target_aggressive": 94.6957,
+      "target_agreement_pct": null,
+      "target_base": 94.6957,
+      "target_components": [
+        {
+          "source": "analyst_consensus",
+          "value": 94.6957,
+          "weight": 1.0
+        }
+      ],
+      "target_confidence": 0.0,
+      "target_conservative": 94.6957,
+      "target_probability": 0.0,
+      "target_source_count": 1,
+      "target_sources": [
+        "analyst_consensus"
+      ],
+      "valuation_label": "UNAVAILABLE",
+      "valuation_score": 50.0,
+      "valuation_status": "unavailable"
+    }
+  },
+  "ticker": "KO"
+}

@@ -1,0 +1,91 @@
+# QUANTA CI
+#
+# Three jobs, deliberately separated by cost:
+#
+#   python      ~1m, runs on every push. Dependency ranges from pyproject.toml,
+#               so it also acts as an early warning when an upstream release
+#               breaks us. Covers the engine and the Flask web app.
+#   javascript  ~30s. The web app's node:test + jsdom unit suite.
+#   golden      ~3m, replays recorded fixtures. Pinned to the exact environment
+#               the fixtures were recorded in, because they contain pickled
+#               DataFrames and pickle is not a stable cross-version format.
+#
+# No job touches the network: the unit suites are mocked and the golden suite
+# replays fixtures with all HTTP blocked.
+
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  python:
+    name: python suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          # The webapp extra is required because the web-app tests import the
+          # Flask app.
+          pip install -e ".[dev,webapp]"
+
+      - name: Lint (errors only)
+        run: ruff check .
+
+      - name: Test
+        # The golden suite is excluded here and run in its own pinned job.
+        run: pytest -m "not golden" -q
+
+  javascript:
+    name: web app unit suite
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webapp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+  golden:
+    name: golden master
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pinned recording environment
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r tests/golden/requirements-lock.txt
+          pip install flask
+
+      - name: Replay fixtures
+        # A failure here means engine output changed. That is not automatically
+        # a bug -- see the workflow in tests/test_golden_master.py -- but it
+        # must be acknowledged by re-freezing the snapshot in the same commit.
+        run: pytest -m golden -q

@@ -1,0 +1,29 @@
+# QUANTA Elite — web dashboard runtime dependencies
+# ---------------------------------------------------------------------------
+# This is the COMPLETE set the Flask app needs to run, not just Flask itself.
+#
+# app.py serves /api/analyze and /api/stock-picks by importing the analysis
+# engines (core/TradingAnalysis_ELITE.py, core/SP_ELITE_PRO.py) in-process.
+# Those modules import numpy / pandas / yfinance / vaderSentiment / ta / scipy
+# / rich / dateutil at module load with no fallback, so a Flask-only install
+# boots the server but every analysis request fails with "No module named ...".
+#
+# Versions are kept in lockstep with pyproject.toml [project]
+# dependencies (the engine's own declaration). When you change one, change the
+# other — start.ps1 hashes this file AND pyproject.toml to decide whether to
+# reinstall, so a drift between them forces a clean resolve on next launch.
+# ---------------------------------------------------------------------------
+
+# Web server
+flask>=3.0
+
+# Engine hard dependencies (mirror of pyproject.toml [project].dependencies)
+numpy>=1.26
+pandas>=2.1
+requests>=2.31
+rich>=13.0
+ta>=0.11
+yfinance>=0.2.40
+vaderSentiment>=3.3
+python-dateutil>=2.8
+scipy>=1.11

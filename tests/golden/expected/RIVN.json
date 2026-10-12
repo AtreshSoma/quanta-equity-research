@@ -1,0 +1,809 @@
+{
+  "account_size": 100000.0,
+  "recorded_at": "2026-08-27",
+  "result": {
+    "action_items": [
+      "Do not open a new position while the blocking conditions remain",
+      "Re-run the Decision after the primary blocker clears"
+    ],
+    "action_plan_note": "These targets are for existing holders, not new entry recommendations.",
+    "action_plan_title": "EXISTING HOLDER PROFIT PLAN",
+    "adjustment_status": "split_dividend_adjusted",
+    "after_hours_change_pct": -1.3095,
+    "after_hours_price": 16.58,
+    "analysis_timestamp": "<volatile>",
+    "asset_type": "common_stock",
+    "beginner_guidance": {
+      "aggressive_buyer": "Do not add until the final decision changes",
+      "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
+      "breakout_entry": 22.69,
+      "buy_now": "NO",
+      "candlestick_timing": "HOLD WITH STOP",
+      "confidence": 40.5312,
+      "data_quality": "PASS",
+      "entry_quality": "Moderate",
+      "existing_holder": "Hold with trailing stop",
+      "existing_holder_stop": 15.6374,
+      "long_term_holder_stop": 15.6374,
+      "long_tf": "Review before adding",
+      "main_reason": "Strong fundamentals, but poor risk/reward and high volatility make new entry unattractive.",
+      "mid_tf": "Hold existing / wait",
+      "new_buyer": "Wait; no new position",
+      "pullback_basis": "support zone",
+      "pullback_entry": 16.49,
+      "pullback_is_deep": false,
+      "pullback_stop": 15.7292,
+      "recommendation_label": "WATCHLIST",
+      "risk_conflict_warning": "",
+      "risk_grade": "F",
+      "rr_label": "Unfavorable, 0.50:1",
+      "short_tf": "Wait",
+      "signal": "HOLD",
+      "tactical_stop": 16.4075,
+      "tactical_stop_basis": "below recent swing low",
+      "volume_requirement": ">= 1.5x avg on entry day",
+      "warnings": []
+    },
+    "business_summary": "Rivian Automotive, Inc., together with its subsidiaries, develops, manufactures, and sells category-defining electric vehicles. It operates through two segments, Automotive, and Software and Services. The company offers consumer vehicles, including a two-row, five-passenger pickup truck under the R1T brand; and a three-row, seven-passenger sport utility vehicle under the R1S name. It also provides software and services, such as vehicle electrical architecture and software development, as well as Autonomy+, remarketing, vehicle repair and maintenance services, software subscriptions, vehicle accessories, financing, insurance, and other services. In addition, the company designs, develops, and manufactures the Rivian Adventure Network Direct Current fast chargers; and FleetOS, a proprietary, end-to-end centralized fleet management subscription platform. Further, it offers Rivian Commercial Van platform for Electric Delivery Van with collaboration with Amazon.com, Inc. Rivian Automotive, Inc. was founded in 2009 and is based in Irvine, California.",
+    "catalysts": {
+      "catalyst_score": 0,
+      "days_to_earnings": 68,
+      "dividend_yield": 0.0,
+      "earnings_date": "2026-11-03",
+      "ex_dividend_date": "Unknown",
+      "last_earnings_result": "Unknown",
+      "last_earnings_surprise_pct": 0.0,
+      "near_term_catalyst": false
+    },
+    "company_name": "Rivian Automotive, Inc.",
+    "confidence_level": "LOW",
+    "confidence_score": 40.5312,
+    "conviction_label": "LOW-CONVICTION",
+    "country": "United States",
+    "currency": "USD",
+    "currency_symbol": "$",
+    "current_price": 16.8,
+    "data_provider": "yfinance",
+    "data_quality_status": "ok",
+    "day_change": 0.47,
+    "day_change_pct": 2.8781,
+    "decision": {
+      "action": "WATCHLIST",
+      "as_of": "<volatile>",
+      "blockers": [
+        {
+          "category": "score",
+          "code": "HOLD_NOT_OWNED",
+          "remedy": "Overall score reaching 55 or higher",
+          "text": "Overall score is in the neutral band (45\u201355)"
+        },
+        {
+          "category": "risk",
+          "code": "RISK_GRADE_F",
+          "remedy": "Risk grade improving to D or better",
+          "text": "Risk grade F (very high volatility/drawdown) allows no new money"
+        }
+      ],
+      "blocking": [
+        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+      ],
+      "blocking_codes": [
+        "HOLD_NOT_OWNED",
+        "RISK_GRADE_F"
+      ],
+      "caveat": "",
+      "conflicts": [],
+      "engine": "elite",
+      "event_check": {
+        "agreement_date": null,
+        "avoid": false,
+        "checked_at": "<volatile>",
+        "code": "",
+        "cvr": false,
+        "cvr_non_transferable": false,
+        "deal_price": null,
+        "filed": null,
+        "note": "not recorded (offline replay)",
+        "registrant": "",
+        "source": "",
+        "spread_pct": null,
+        "status": "clear",
+        "stock": false,
+        "text": "",
+        "url": null
+      },
+      "evidence": {
+        "caveats": [
+          "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+        ],
+        "generated_utc": null,
+        "lineage": [
+          {
+            "change": "risk leg removed from the ranking composite",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.alpha_only.v1",
+            "summary": "Never tested.",
+            "tested_through": null
+          },
+          {
+            "change": "original composite",
+            "status": "NO_EDGE",
+            "status_text": "Tested out of sample \u2014 no demonstrated edge",
+            "strategy": "elite.composite",
+            "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+            "tested_through": "2026-08-25"
+          }
+        ],
+        "metrics": {},
+        "permits_recommendation": false,
+        "scope": "",
+        "status": "UNTESTED",
+        "status_text": "Never validated",
+        "strategy": "elite.research.v2",
+        "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+        "tested_through": null
+      },
+      "factor_scores": {
+        "fundamental": 35,
+        "quality": 26.25,
+        "sentiment": 70,
+        "technical": 68,
+        "valuation": 50.0
+      },
+      "freshness": {
+        "lag_sessions": 0,
+        "last_bar": "2026-08-27",
+        "notes": [],
+        "status": "fresh"
+      },
+      "generated_at": "<volatile>",
+      "holder_action": "TRIM",
+      "holdings_known": false,
+      "horizon": {
+        "key": "position",
+        "label": "Position (~3 months)",
+        "trading_days": 63
+      },
+      "interpretation": null,
+      "invalidation": [],
+      "label": "WATCHLIST",
+      "levels": {
+        "entry": 16.8,
+        "reference_price": 16.8,
+        "reward_risk": 0.498866,
+        "stop": 15.6374,
+        "target": 17.4077,
+        "target_basis": "63-session target, pro-rated from the 12-month valuation target",
+        "target_horizon_days": 63,
+        "valuation_target": 19.2308,
+        "valuation_target_horizon_days": 252
+      },
+      "model_stance": "NEUTRAL",
+      "new_money": "WATCH",
+      "primary_blocker": {
+        "category": "risk",
+        "code": "RISK_GRADE_F",
+        "remedy": "Risk grade improving to D or better",
+        "text": "Risk grade F (very high volatility/drawdown) allows no new money"
+      },
+      "qualifier": "",
+      "reasons": [
+        "Composite score 50.5 \u2192 candidate HOLD_EXISTING",
+        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+      ],
+      "risk_grade": "F",
+      "risk_grade_drivers": [
+        {
+          "detail": "67% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 3
+        },
+        {
+          "detail": "1.99 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 2
+        },
+        {
+          "detail": "-43% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 2
+        },
+        {
+          "detail": "50/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 0
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "risk_grade_lookback_days": 500,
+      "risk_metrics": {
+        "beta": 1.98538,
+        "risk_score": 20,
+        "volatility": 0.674045
+      },
+      "risks": [],
+      "scenarios": [
+        {
+          "method": "range of analyst consensus (lowest)",
+          "name": "low_method",
+          "price": 19.2308,
+          "return_pct": 14.4689,
+          "source_ids": [
+            "analyst_consensus"
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "score": 50.5312,
+      "score_basis": "Research composite (alpha factors only), 0-100",
+      "sizing": {
+        "dollar_risk": 0,
+        "portfolio_weight": 0,
+        "position_value": 0,
+        "recommended_shares": 0,
+        "shares": 0
+      },
+      "sizing_basis": "none",
+      "sources": [
+        {
+          "as_of": "<volatile>",
+          "id": "px",
+          "kind": "price",
+          "provider": "yfinance",
+          "retrieved_at": "<volatile>",
+          "title": "",
+          "url": ""
+        }
+      ],
+      "stance": "NEUTRAL",
+      "ticker": "RIVN",
+      "transitions": []
+    },
+    "evidence": {
+      "caveats": [
+        "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+      ],
+      "generated_utc": null,
+      "lineage": [
+        {
+          "change": "risk leg removed from the ranking composite",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.alpha_only.v1",
+          "summary": "Never tested.",
+          "tested_through": null
+        },
+        {
+          "change": "original composite",
+          "status": "NO_EDGE",
+          "status_text": "Tested out of sample \u2014 no demonstrated edge",
+          "strategy": "elite.composite",
+          "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+          "tested_through": "2026-08-25"
+        }
+      ],
+      "metrics": {},
+      "permits_recommendation": false,
+      "scope": "",
+      "status": "UNTESTED",
+      "status_text": "Never validated",
+      "strategy": "elite.research.v2",
+      "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+      "tested_through": null
+    },
+    "exchange": "NMS",
+    "expense_ratio": 0.0,
+    "fast_mode": false,
+    "final_action": "WATCHLIST",
+    "first_bar_date": "2024-08-28",
+    "fundamental": {
+      "altman_z_score": -1.1023,
+      "altman_z_status": "ok",
+      "altman_z_variant": "public",
+      "current_ratio": 2.104,
+      "debt_to_equity": 1.0441,
+      "dividend_yield": 0.0,
+      "eps_growth_yoy": 0,
+      "ev_ebitda": -8.735,
+      "fcf_yield": -6.3286,
+      "forward_pe": -9.4029,
+      "free_cash_flow": -1539370000.0,
+      "gross_margin": 7.513,
+      "is_etf": false,
+      "net_margin": -54.955,
+      "operating_margin": -50.422,
+      "pb_ratio": 4.4812,
+      "pe_ratio": 0,
+      "peg_ratio": 0.0,
+      "piotroski_components_available": 8,
+      "piotroski_f_score": 3,
+      "quality_score": 26.25,
+      "reported_inputs": {
+        "current_ratio": true,
+        "debt_to_equity": true,
+        "net_margin": true,
+        "revenue_growth": true,
+        "roe": true
+      },
+      "revenue_growth_yoy": 27.2,
+      "roa": -14.368,
+      "roe": -57.523,
+      "roic": 0.0
+    },
+    "has_existing_position": false,
+    "history_bars": 501,
+    "industry": "Auto Manufacturers",
+    "insider": {
+      "context_missing": false,
+      "data_status": "measured",
+      "display_label": "NEUTRAL",
+      "insider_sentiment": "NEUTRAL",
+      "key_transactions": [
+        "MCDONOUGH CLAIRE sold 8,023 shares @ $16.00 on 2026-08-20 ($128,368)",
+        "MCDONOUGH CLAIRE sold 13,144 shares @ $14.50 on 2026-08-18 ($190,650)",
+        "BOONE KAREN sold 20,000 shares @ $20.00 on 2026-07-06 ($400,000)",
+        "MCDONOUGH CLAIRE sold 8,022 shares @ $18.00 on 2026-06-03 ($144,396)",
+        "MCDONOUGH CLAIRE sold 8,023 shares @ $16.00 on 2026-05-29 ($128,368)"
+      ],
+      "net_flow": -991782.0,
+      "recent_buys": 0,
+      "recent_sells": 5
+    },
+    "is_adr": false,
+    "is_etf": false,
+    "is_financial": false,
+    "is_high_volatility": true,
+    "is_invalid": false,
+    "key_insights": [
+      "\u23f8\ufe0f HOLD signal with 41% confidence"
+    ],
+    "last_bar_date": "2026-08-27",
+    "market_cap": 24324100000.0,
+    "market_intel": {
+      "analyst_count": 26,
+      "analyst_rating": "HOLD",
+      "buy_ratings": 0,
+      "hold_ratings": 0,
+      "implied_upside": 14.4689,
+      "next_earnings_date": "2026-11-03",
+      "sell_ratings": 0,
+      "target_high": 25.0,
+      "target_low": 13.0,
+      "target_mean": 19.2308,
+      "target_median": 18.5
+    },
+    "market_regime": "HIGH_VOLATILITY",
+    "market_state": "POST",
+    "market_timestamp": "<volatile>",
+    "mc_model_note": "",
+    "model_action": "WATCHLIST",
+    "monte_carlo": {
+      "days_simulated": 30,
+      "expected_return": 3.0358,
+      "expected_return_basis": "mean",
+      "mean_price": 17.31,
+      "median_price": 16.7572,
+      "percentile_25": 14.2976,
+      "percentile_5": 11.4964,
+      "percentile_75": 19.78,
+      "percentile_95": 24.8067,
+      "probability_10pct_gain": 0.3513,
+      "probability_10pct_loss": 0.3277,
+      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only \u2014 not the chance of touching a target, and not target-vs-stop.",
+      "probability_profit": 0.4953,
+      "simulations_run": 3000,
+      "var_95": -31.5691
+    },
+    "net_assets": 0.0,
+    "peer_comparison": {
+      "overall_assessment": "Sector not mapped",
+      "pb_sector_avg": 0.0,
+      "pb_stock": 0.0,
+      "pb_vs_sector": 0.0,
+      "pe_sector_avg": 0.0,
+      "pe_stock": 0.0,
+      "pe_vs_sector": 0.0,
+      "roe_sector_avg": 0.0,
+      "roe_stock": 0.0,
+      "roe_vs_sector": 0.0,
+      "sector": "Consumer Cyclical",
+      "sector_rank": 0,
+      "sector_total": 0
+    },
+    "portfolio_outlook": {
+      "bottom_line": "Existing holders can hold with a strict stop. New buyers should wait for pullback or breakout confirmation.",
+      "reason": "Strong fundamentals, but poor risk/reward and high volatility make new entry unattractive.",
+      "recommendation": "WATCHLIST"
+    },
+    "portfolio_risk_check": {
+      "adjustments": {},
+      "approved": true,
+      "correlation_risk": 0.0,
+      "holdings_known": false,
+      "sector_exposure": {
+        "Consumer Cyclical": 0.0
+      },
+      "warnings": []
+    },
+    "position_sizing": {
+      "is_viable": false,
+      "kelly_optimal": 0.0,
+      "portfolio_weight": 0.0,
+      "position_value": 0.0,
+      "recommended_shares": 0,
+      "sizing_method": "RISK_PARITY"
+    },
+    "pre_market_change_pct": 0.0,
+    "pre_market_price": 0.0,
+    "previous_close": 16.33,
+    "quote_type": "EQUITY",
+    "recommendation_caveat": "",
+    "recommendation_label": "WATCHLIST",
+    "recommendation_qualifier": "",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 41% | Score: 51/100 | Risk: F",
+    "relative_performance": {
+      "basis": "total return, dividend-adjusted closes",
+      "benchmark": "SPY",
+      "rows": [
+        {
+          "benchmark_pct": 5.71,
+          "excess_pct": -2.83,
+          "sessions": 21,
+          "stock_pct": 2.88,
+          "window": "1M"
+        },
+        {
+          "benchmark_pct": 2.45,
+          "excess_pct": 8.08,
+          "sessions": 63,
+          "stock_pct": 10.53,
+          "window": "3M"
+        },
+        {
+          "benchmark_pct": 12.46,
+          "excess_pct": -4.84,
+          "sessions": 126,
+          "stock_pct": 7.62,
+          "window": "6M"
+        },
+        {
+          "benchmark_pct": null,
+          "excess_pct": null,
+          "sessions": 252,
+          "stock_pct": 27.18,
+          "window": "1Y"
+        }
+      ]
+    },
+    "requested_symbol": "RIVN",
+    "retrieval_timestamp": "<volatile>",
+    "risk": {
+      "annualized_volatility": 0.674,
+      "beta": 1.9854,
+      "beta_benchmark": "SPY",
+      "beta_observations": 250,
+      "beta_status": "measured",
+      "cvar_95": -0.0849,
+      "grade_drivers": [
+        {
+          "detail": "67% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 3
+        },
+        {
+          "detail": "1.99 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 2
+        },
+        {
+          "detail": "-43% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 2
+        },
+        {
+          "detail": "50/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 0
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "liquidity_score": 10.0,
+      "max_drawdown": -0.4254,
+      "overall_risk_score": 10,
+      "risk_grade": "F",
+      "risk_points": 10,
+      "sharpe_ratio": 0.4064,
+      "sortino_ratio": 0.6501,
+      "var_95_daily": -0.0596
+    },
+    "risk_warnings": [
+      "\u26a0\ufe0f HIGH VOLATILITY: 67% annual vol",
+      "\u26a0\ufe0f SEVERE DRAWDOWN HISTORY: -43%",
+      "\ud83d\udea8 HIGH RISK SCORE: 10/10"
+    ],
+    "scores": {
+      "component_details": {},
+      "composite_score": 50.5312,
+      "data_quality_note": "MODERATE - Some data sources missing",
+      "fundamental_score": 35,
+      "quality_score": 26.25,
+      "risk_score": 20,
+      "score_confidence_margin": 0.0,
+      "sentiment_score": 70,
+      "technical_score": 68,
+      "valuation_score": 50.0,
+      "weights": {
+        "fundamental": 0.275,
+        "quality": 0.125,
+        "sentiment": 0.1,
+        "technical": 0.3125,
+        "valuation": 0.1875
+      }
+    },
+    "sector": "Consumer Cyclical",
+    "sentiment": {
+      "key_headline_sources": [
+        "Reuters",
+        "24/7 Wall St.",
+        "24/7 Wall St.",
+        "Trefis",
+        "Motley Fool"
+      ],
+      "key_headlines": [
+        "Rivian's finance chief steps down amid affordable EV rollout",
+        "Lucid Jumps 7%, Rivian Edges Higher: Is the EV Selloff Finally Exhausted?",
+        "Wall Street Moves on MAA, Rivian and Design Therapeutics: One Upgrade, One Target Trim and a Biotech",
+        "The Demand Signal Underneath Tesla Stock's Cash-Burn Debate",
+        "Rivian Automotive vs. Tesla: Which Electric Vehicle Stock Is a Better Investment in 2026?"
+      ],
+      "last_news_timestamp": "<volatile>",
+      "measured": true,
+      "negative_articles": 4,
+      "news_relevance": {
+        "direct_count": 8,
+        "direct_headlines": [
+          "Rivian's finance chief steps down amid affordable EV rollout",
+          "Lucid Jumps 7%, Rivian Edges Higher: Is the EV Selloff Finally Exhausted?",
+          "Wall Street Moves on MAA, Rivian and Design Therapeutics: One Upgrade, One Target Trim and a Biotech on Watch",
+          "Rivian Automotive vs. Tesla: Which Electric Vehicle Stock Is a Better Investment in 2026?",
+          "Rivian Automotive (RIVN) Is Catching Up to Tesla (TSLA)\u2019s Self-Driving Tech, But Tesla Still Leads"
+        ],
+        "direct_sentiment_label": "POSITIVE",
+        "direct_sentiment_score": 0.351,
+        "has_direct_news": true,
+        "macro_count": 2,
+        "macro_headlines": [
+          "The Demand Signal Underneath Tesla Stock's Cash-Burn Debate",
+          "PSNY Stock Loses August Race To Chinese EV Rivals \u2014 Unexplained US Ban Deals Polestar A Fresh Blow"
+        ],
+        "peer_count": 0,
+        "peer_headlines": [],
+        "peer_sentiment_score": 0.0,
+        "weighted_sentiment_label": "POSITIVE",
+        "weighted_sentiment_score": 0.351
+      },
+      "news_volume": 10,
+      "positive_articles": 6,
+      "sentiment_label": "POSITIVE",
+      "sentiment_score": 0.2591,
+      "sentiment_trend": "STABLE",
+      "sources_attempted": 5,
+      "sources_succeeded": 1,
+      "status": "PARTIAL"
+    },
+    "signal": "HOLD",
+    "signal_explanation": {
+      "composite_score": 50.5312,
+      "overrides_triggered": [],
+      "primary_reason": "Composite score 51 in HOLD range",
+      "risk_factors": [
+        "Risk grade F: volatility 67% annualised, beta 1.99 vs its benchmark, max drawdown -43% peak to trough"
+      ],
+      "supporting_factors": [
+        "Technical score 68 (bullish)",
+        "Sentiment score 70 (positive)"
+      ]
+    },
+    "sizing_basis": "none",
+    "stage_timings": [
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "price_history",
+        "status": "ok"
+      },
+      {
+        "cached": true,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "company_info",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "parallel_analysis",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "monte_carlo",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "valuation_targets",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "signal_generation",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "trade_setup",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "position_sizing",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "decision_core",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "narrative",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "record_signal",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "-",
+        "stage": "TOTAL",
+        "status": "ok"
+      }
+    ],
+    "stance": "NEUTRAL",
+    "symbol_note": "",
+    "technical": {
+      "adx": 10.5036,
+      "atr": 0.7751,
+      "atr_percent": 4.6136,
+      "bollinger_signal": "NEUTRAL",
+      "candlestick_bias": "NEUTRAL",
+      "candlestick_patterns": [],
+      "candlestick_score": 50.0,
+      "death_cross": false,
+      "golden_cross": false,
+      "macd_signal": "BULLISH",
+      "momentum_score": 54.4241,
+      "prior_trend": "UP",
+      "resistance_level": 17.095,
+      "rsi": 54.7992,
+      "squeeze_detected": false,
+      "support_level": 16.49,
+      "trend_direction": "SIDEWAYS",
+      "trend_score": 56.6667,
+      "trend_strength": "WEAK",
+      "volatility_score": 60,
+      "volume_ratio": 0.6735,
+      "week_52_basis": "provider-reported traded range",
+      "week_52_high": 22.69,
+      "week_52_low": 12.39
+    },
+    "thesis": {
+      "bear_case": [
+        "History of significant drawdowns (-42.5%)",
+        "High volatility (67.4%) increases risk"
+      ],
+      "bull_case": [
+        "Growing revenues at 27.2% YoY",
+        "Positive news sentiment supporting price action"
+      ],
+      "catalysts": [
+        "Analyst target implies 14.5% upside"
+      ],
+      "risks": [
+        "\u26a0\ufe0f HIGH VOLATILITY: 67% annual vol",
+        "\u26a0\ufe0f SEVERE DRAWDOWN HISTORY: -43%",
+        "\ud83d\udea8 HIGH RISK SCORE: 10/10"
+      ],
+      "summary": "Rivian Automotive, Inc. (RIVN) should be held at current levels with a 41% confidence score. Composite score of 51/100."
+    },
+    "ticker": "RIVN",
+    "trade_setup": {
+      "entry_price": 16.8,
+      "entry_type": "REFERENCE",
+      "has_long_reward": true,
+      "is_actionable_entry": false,
+      "levels_available": true,
+      "risk_reward_ratio": 0.4989,
+      "setup_basis": "spot (reference only, not an order); stop below support (widened to 1.5xATR); 63-session target pro-rated from the 12-month valuation target $19.23; Target 1 is a tactical partial exit",
+      "stop_loss": 15.6374,
+      "target_aggressive": 19.2308,
+      "target_base": 19.2308,
+      "target_conservative": 17.095,
+      "time_horizon": "POSITION",
+      "trailing_stop": 0.0,
+      "trailing_stop_pct": 9.2,
+      "win_probability": 0.0
+    },
+    "valuation": {
+      "dcf_fair_value": 0.0,
+      "dcf_method": "no_positive_cash_flow",
+      "dcf_status": "unavailable",
+      "dcf_upside": 0.0,
+      "fair_value_sources": [],
+      "graham_number": 0.0,
+      "graham_status": "unavailable",
+      "target_aggressive": 19.2308,
+      "target_agreement_pct": null,
+      "target_base": 19.2308,
+      "target_components": [
+        {
+          "source": "analyst_consensus",
+          "value": 19.2308,
+          "weight": 1.0
+        }
+      ],
+      "target_confidence": 0.0,
+      "target_conservative": 19.2308,
+      "target_probability": 0.0,
+      "target_source_count": 1,
+      "target_sources": [
+        "analyst_consensus"
+      ],
+      "valuation_label": "UNAVAILABLE",
+      "valuation_score": 50.0,
+      "valuation_status": "unavailable"
+    }
+  },
+  "ticker": "RIVN"
+}

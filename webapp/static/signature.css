@@ -1,0 +1,66 @@
+/* ============================================================================
+   QUANTA — FOOTER + MAKER'S MARK
+   ----------------------------------------------------------------------------
+   One quiet footer row: secondary links on the left, the maker's credit on the
+   right, and the legal line closing the page beneath a hairline. The credit
+   keeps the display serif so it reads as part of the product's typography, but
+   carries no gradient or sheen — it is a colophon, not a feature.
+   Contrast is held above 4.5:1 in both themes.
+   ========================================================================== */
+.footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px var(--sp-5, 20px);
+  max-width: var(--page-max, 1760px);
+  margin: 0 auto;
+  text-align: left;
+}
+
+.footer-links { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.footer-links a { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+.footer-links a:hover { color: var(--text-primary); }
+.footer-links a[aria-current="page"] { color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; }
+
+.signature {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.signature-kicker {
+  font: 500 11px/1 var(--font-sans);
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
+.signature-name {
+  font-family: var(--font-display, var(--font-serif, Georgia, serif));
+  font-size: 15px;
+  font-weight: 600;
+  font-style: italic;
+  letter-spacing: 0.01em;
+  color: var(--text-secondary);
+}
+
+/* The legal line sits below a full-width hairline so it reads as a footnote to
+   the page, not as a caption to the credit above it. */
+.footer-disclaimer-text {
+  flex: 1 0 100%;
+  display: block;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .footer-inner { flex-direction: column; align-items: flex-start; }
+}
+
+@media (forced-colors: active) {
+  .signature-name { color: CanvasText; }
+}

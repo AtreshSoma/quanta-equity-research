@@ -1,0 +1,231 @@
+/* ============================================================================
+   QUANTA ELITE — QUOTE BOARD
+   ----------------------------------------------------------------------------
+   Exchange-style session line (Open / High / Low / Prev Close / LTP) plus the
+   range meter that gives those five numbers context.
+
+   One component, two homes: the Key Market Moves rows on the dashboard and the
+   Deep-Dive tear-sheet hero. Loaded after liquid-glass.css so it inherits the
+   same tokens (--bg-elev-*, --border-soft, --bull/--bear, --font-mono) and can
+   refine the mover row without duplicating it.
+
+   Rules this file holds to:
+     · Values are tabular monospace so columns align down a stack of rows.
+     · Colour encodes direction only — never decoration.
+     · Every cell keeps its slot when data is missing, so rows stay aligned.
+   ========================================================================== */
+
+.quote-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--border-soft);      /* shows through the gaps as a hairline grid */
+  font-variant-numeric: tabular-nums;
+}
+
+.qb-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 7px 9px;
+  background: var(--bg-elev-1);
+}
+
+.qb-label {
+  font: 700 12px/1.1 var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qb-value {
+  font: 600 12.5px/1.15 var(--font-mono);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qb-na { color: var(--text-faint); font-weight: 500; }
+.qb-cell.is-high .qb-value { color: var(--bull-bright); }
+.qb-cell.is-low  .qb-value { color: var(--bear-bright); }
+
+/* Terminal LTP cell — tinted plate, heavier weight, delta beneath.
+   It is the number the trader acts on, so it is the one that carries weight. */
+.qb-ltp { background: var(--bg-elev-3); }
+.qb-ltp .qb-label { color: var(--text-secondary); }
+.qb-ltp .qb-value { font-weight: 800; font-size: 13px; }
+
+.qb-delta {
+  font: 600 12px/1.1 var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qb-ltp.up { background: var(--bull-dim); }
+.qb-ltp.up .qb-value,
+.qb-ltp.up .qb-delta { color: var(--bull-bright); }
+.qb-ltp.dn { background: var(--bear-dim); }
+.qb-ltp.dn .qb-value,
+.qb-ltp.dn .qb-delta { color: var(--bear-bright); }
+
+.quote-board.is-compact .qb-cell { padding: 6px 8px; }
+.quote-board.is-compact .qb-value { font-size: 12px; }
+.quote-board.is-compact .qb-ltp .qb-value { font-size: 12.5px; }
+
+/* ============================== RANGE METER ==============================
+   Where the last print sits inside a low/high band. Track = the band,
+   fill = the traversed portion, thumb = the print. */
+.range-meter {
+  display: grid;
+  grid-template-columns: auto auto minmax(48px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.rm-label {
+  font: 700 12px/1.1 var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.rm-edge {
+  font: 500 12px/1.1 var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.rm-track {
+  position: relative;
+  height: 4px;
+  min-width: 0;
+  border-radius: 999px;
+  background: var(--bg-elev-3);
+  border: 1px solid var(--border-soft);
+}
+
+.rm-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.28), rgba(148, 163, 184, 0.55));
+}
+.rm-fill.hot  { background: linear-gradient(90deg, rgba(34, 197, 94, 0.25), var(--bull)); }
+.rm-fill.cold { background: linear-gradient(90deg, rgba(239, 68, 68, 0.25), var(--bear)); }
+.rm-fill.mid  { background: linear-gradient(90deg, rgba(148, 163, 184, 0.25), var(--text-muted)); }
+
+.rm-thumb {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-elev-1);
+  border: 2px solid var(--text-muted);
+  box-shadow: var(--shadow-xs);
+}
+.rm-thumb.hot  { border-color: var(--bull); }
+.rm-thumb.cold { border-color: var(--bear); }
+
+/* ================= SECURITY MONITOR — board integration =====================
+   The board now lives inside an expanded table row (.q-detail), one column of
+   a responsive detail grid. Capping it keeps the five cells at a readable
+   density instead of stretching each to ~280px, which would drift the numbers
+   away from their labels. */
+.q-detail .quote-board { max-width: 560px; }
+.q-detail .range-meter { margin-top: 8px; max-width: 560px; }
+/* Inside a detail column each cell is ~100px, which clips the LTP delta on one
+   line. Let it wrap onto two short lines rather than ellipsize the number the
+   trader is actually reading. */
+.q-detail .qb-delta { white-space: normal; overflow: visible; line-height: 1.3; }
+
+/* ============ DEEP DIVE — Session Quote inside the decision hero ============
+   Sits under the hero's quick-metrics strip: same card, same rhythm, separated
+   by a hairline instead of a second card — so "what is it trading at" is never
+   a disconnected table further down the page. */
+.decision-session {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ds-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+
+.ds-kicker {
+  font: 700 12px/1.1 var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ds-note { font: 500 12px/1.2 var(--font-mono); color: var(--text-faint); }
+
+.ds-stale {
+  margin-left: auto;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font: 700 12px/1.1 var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--warn-dim);
+  color: var(--warn-bright);
+  border: 1px solid currentColor;
+}
+
+.decision-session .qb-cell { padding: 9px 12px; }
+.decision-session .qb-value { font-size: 13.5px; }
+.decision-session .qb-ltp .qb-value { font-size: 15px; }
+
+.ds-meters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px 22px;
+}
+
+/* ================================ RESPONSIVE ================================ */
+/* Inside an expanded monitor row the board shares its width with two sibling
+   detail columns, so below 1080px it steps to 3 columns (O/H/L, then Prev
+   Close beside a double-width LTP) — the densest layout that stays legible.
+   These selectors are deliberately more specific than the standalone rules
+   below so they win at every width. */
+@media (max-width: 1080px) {
+  .q-detail .quote-board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .q-detail .qb-ltp { grid-column: span 2; }
+}
+
+/* The standalone board (Deep-Dive hero) has the full content width to work
+   with, so it steps down more gradually. */
+@media (max-width: 720px) {
+  .quote-board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .qb-ltp { grid-column: span 2; }
+  .ds-meters { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 420px) {
+  .quote-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .qb-ltp { grid-column: span 2; }
+  /* The meter label takes its own line so the two price edges keep the width. */
+  .range-meter { grid-template-columns: auto minmax(40px, 1fr) auto; }
+  .rm-label { grid-column: 1 / -1; }
+}
+
+/* Theme-specific overrides are no longer needed: every colour above is a
+   token that quanta.css re-defines per theme. */

@@ -1,0 +1,821 @@
+{
+  "account_size": 100000.0,
+  "recorded_at": "2026-08-27",
+  "result": {
+    "action_items": [
+      "Do not open a new position while the blocking conditions remain",
+      "Re-run the Decision after the primary blocker clears"
+    ],
+    "action_plan_note": "These targets are for existing holders, not new entry recommendations.",
+    "action_plan_title": "EXISTING HOLDER PROFIT PLAN",
+    "adjustment_status": "split_dividend_adjusted",
+    "after_hours_change_pct": 0.0,
+    "after_hours_price": 0.0,
+    "analysis_timestamp": "<volatile>",
+    "asset_type": "financial",
+    "beginner_guidance": {
+      "aggressive_buyer": "Do not add until the final decision changes",
+      "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
+      "breakout_entry": 806103.0,
+      "buy_now": "NO",
+      "candlestick_timing": "WAIT / NO CLEAR EDGE",
+      "confidence": 61.4938,
+      "data_quality": "PASS",
+      "entry_quality": "Weak",
+      "existing_holder": "Hold",
+      "existing_holder_stop": 728083.0,
+      "long_term_holder_stop": 728083.0,
+      "long_tf": "Review before adding",
+      "main_reason": "Risk/reward of 0.44:1 is below the 1.50:1 minimum.",
+      "mid_tf": "Hold existing / wait",
+      "new_buyer": "Wait; no new position",
+      "pullback_basis": "50-day MA",
+      "pullback_entry": 751872.0,
+      "pullback_is_deep": false,
+      "pullback_stop": 740594.0,
+      "recommendation_label": "WATCHLIST",
+      "risk_conflict_warning": "",
+      "risk_grade": "A",
+      "rr_label": "Unfavorable, 0.44:1",
+      "short_tf": "Wait",
+      "signal": "HOLD",
+      "tactical_stop": 740824.0,
+      "tactical_stop_basis": "~1x ATR",
+      "volume_requirement": ">= 1.5x avg on entry day",
+      "warnings": []
+    },
+    "business_summary": "Berkshire Hathaway Inc., together with its subsidiaries, engages in the insurance, freight rail transportation, and utility businesses. The company provides property, casualty, life, accident, and health insurance and reinsurance; operates railroad systems in North America; generates, transmits, stores, and distributes electricity from natural gas, coal, wind, solar, hydroelectric, nuclear, and geothermal sources; operates natural gas distribution and storage facilities, interstate pipelines, liquefied natural gas facilities, and compressor and meter stations; and holds interest in coal mining assets. It manufactures boxed chocolates and other confectionery products; specialty chemicals, metal cutting tools, and components for aerospace and power generation applications; prefabricated and site-built residential homes, flooring products; insulation, roofing, and engineered products; building and engineered components; paints and coatings; and bricks and masonry products, as well as offers manufactured and site-built home construction, and related lending and financial services. In addition, the company provides recreational vehicles, apparel, footwear, toys, jewelry, custom picture framing products, alkaline batteries, logistics services, and professional aviation training and shared aircraft ownership programs; castings, forgings, fasteners/fastener systems, aerostructures, and precision components; and cobalt, nickel, and titanium alloys. Further, it distributes televisions and information, and grocery and non-food consumer products; franchises and services quick service restaurants; and distributes electronic components. Additionally, it retails automobiles; furniture, bedding, and accessories; household appliances, electronics, and floor coverings; watches, home decor and repair services; sells kitchenware; and motorcycle clothing and equipment. The company was incorporated in 1998 and is headquartered in Omaha, Nebraska.",
+    "catalysts": {
+      "catalyst_score": 0,
+      "days_to_earnings": 72,
+      "dividend_yield": 0.0,
+      "earnings_date": "2026-11-07",
+      "ex_dividend_date": "Unknown",
+      "last_earnings_result": "Unknown",
+      "last_earnings_surprise_pct": 0.0,
+      "near_term_catalyst": false
+    },
+    "company_name": "Berkshire Hathaway Inc.",
+    "confidence_level": "MEDIUM",
+    "confidence_score": 61.4938,
+    "conviction_label": "MODERATE-CONVICTION",
+    "country": "United States",
+    "currency": "USD",
+    "currency_symbol": "$",
+    "current_price": 755943.0,
+    "data_provider": "yfinance",
+    "data_quality_status": "ok",
+    "day_change": -984.875,
+    "day_change_pct": -0.1301,
+    "decision": {
+      "action": "WATCHLIST",
+      "as_of": "<volatile>",
+      "blockers": [
+        {
+          "category": "reward_risk",
+          "code": "LOW_REWARD_RISK",
+          "remedy": "Research reward/risk of at least 1.50:1 (a better entry or a higher target)",
+          "text": "Research reward/risk to the horizon target is below the 1.50:1 minimum"
+        }
+      ],
+      "blocking": [
+        "R/R 0.44 below min 1.50 \u2192 WATCHLIST"
+      ],
+      "blocking_codes": [
+        "LOW_REWARD_RISK"
+      ],
+      "caveat": "",
+      "conflicts": [],
+      "engine": "elite",
+      "event_check": {
+        "agreement_date": null,
+        "avoid": false,
+        "checked_at": "<volatile>",
+        "code": "",
+        "cvr": false,
+        "cvr_non_transferable": false,
+        "deal_price": null,
+        "filed": null,
+        "note": "not recorded (offline replay)",
+        "registrant": "",
+        "source": "",
+        "spread_pct": null,
+        "status": "clear",
+        "stock": false,
+        "text": "",
+        "url": null
+      },
+      "evidence": {
+        "caveats": [
+          "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+        ],
+        "generated_utc": null,
+        "lineage": [
+          {
+            "change": "risk leg removed from the ranking composite",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.alpha_only.v1",
+            "summary": "Never tested.",
+            "tested_through": null
+          },
+          {
+            "change": "original composite",
+            "status": "NO_EDGE",
+            "status_text": "Tested out of sample \u2014 no demonstrated edge",
+            "strategy": "elite.composite",
+            "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+            "tested_through": "2026-08-25"
+          }
+        ],
+        "metrics": {},
+        "permits_recommendation": false,
+        "scope": "",
+        "status": "UNTESTED",
+        "status_text": "Never validated",
+        "strategy": "elite.research.v2",
+        "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+        "tested_through": null
+      },
+      "factor_scores": {
+        "fundamental": 71,
+        "quality": 71.9444,
+        "sentiment": 70,
+        "technical": 48,
+        "valuation": 60.0
+      },
+      "freshness": {
+        "lag_sessions": 0,
+        "last_bar": "2026-08-27",
+        "notes": [],
+        "status": "fresh"
+      },
+      "generated_at": "<volatile>",
+      "holder_action": "HOLD",
+      "holdings_known": false,
+      "horizon": {
+        "key": "position",
+        "label": "Position (~3 months)",
+        "trading_days": 63
+      },
+      "interpretation": null,
+      "invalidation": [],
+      "label": "WATCHLIST",
+      "levels": {
+        "entry": 757455.0,
+        "reference_price": 755943.0,
+        "reward_risk": 0.43733,
+        "stop": 728083.0,
+        "target": 771498.0,
+        "target_basis": "63-session target, pro-rated from the 12-month valuation target",
+        "target_horizon_days": 63,
+        "valuation_target": 813626.0,
+        "valuation_target_horizon_days": 252
+      },
+      "model_stance": "BULLISH",
+      "new_money": "WATCH",
+      "primary_blocker": {
+        "category": "reward_risk",
+        "code": "LOW_REWARD_RISK",
+        "remedy": "Research reward/risk of at least 1.50:1 (a better entry or a higher target)",
+        "text": "Research reward/risk to the horizon target is below the 1.50:1 minimum"
+      },
+      "qualifier": "",
+      "reasons": [
+        "Composite score 61.5 \u2192 candidate ACCUMULATE",
+        "R/R 0.44 below min 1.50 \u2192 WATCHLIST"
+      ],
+      "risk_grade": "A",
+      "risk_grade_drivers": [
+        {
+          "detail": "17% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 0
+        },
+        {
+          "detail": "0.03 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 0
+        },
+        {
+          "detail": "-14% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 0
+        },
+        {
+          "detail": "50/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 0
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "risk_grade_lookback_days": 500,
+      "risk_metrics": {
+        "beta": 0.0274019,
+        "risk_score": 70,
+        "volatility": 0.169634
+      },
+      "risks": [],
+      "scenarios": [
+        {
+          "method": "range of analyst consensus, intrinsic value (lowest)",
+          "name": "low_method",
+          "price": 799503.0,
+          "return_pct": 5.76229,
+          "source_ids": [
+            "analyst_consensus",
+            "intrinsic_value"
+          ]
+        },
+        {
+          "method": "weighted blend of analyst consensus, intrinsic value",
+          "name": "weighted",
+          "price": 813626.0,
+          "return_pct": 7.63057,
+          "source_ids": [
+            "analyst_consensus",
+            "intrinsic_value"
+          ]
+        },
+        {
+          "method": "range of analyst consensus, intrinsic value (highest)",
+          "name": "high_method",
+          "price": 837164.0,
+          "return_pct": 10.7444,
+          "source_ids": [
+            "analyst_consensus",
+            "intrinsic_value"
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "score": 61.4938,
+      "score_basis": "Research composite (alpha factors only), 0-100",
+      "sizing": {
+        "dollar_risk": 0,
+        "portfolio_weight": 0,
+        "position_value": 0,
+        "recommended_shares": 0,
+        "shares": 0
+      },
+      "sizing_basis": "none",
+      "sources": [
+        {
+          "as_of": "<volatile>",
+          "id": "px",
+          "kind": "price",
+          "provider": "yfinance",
+          "retrieved_at": "<volatile>",
+          "title": "",
+          "url": ""
+        }
+      ],
+      "stance": "NEUTRAL",
+      "ticker": "BRK-A",
+      "transitions": [
+        {
+          "codes": [
+            "LOW_REWARD_RISK"
+          ],
+          "from": "ACCUMULATE",
+          "to": "WATCHLIST"
+        }
+      ]
+    },
+    "evidence": {
+      "caveats": [
+        "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+      ],
+      "generated_utc": null,
+      "lineage": [
+        {
+          "change": "risk leg removed from the ranking composite",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.alpha_only.v1",
+          "summary": "Never tested.",
+          "tested_through": null
+        },
+        {
+          "change": "original composite",
+          "status": "NO_EDGE",
+          "status_text": "Tested out of sample \u2014 no demonstrated edge",
+          "strategy": "elite.composite",
+          "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+          "tested_through": "2026-08-25"
+        }
+      ],
+      "metrics": {},
+      "permits_recommendation": false,
+      "scope": "",
+      "status": "UNTESTED",
+      "status_text": "Never validated",
+      "strategy": "elite.research.v2",
+      "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+      "tested_through": null
+    },
+    "exchange": "NYQ",
+    "expense_ratio": 0.0,
+    "fast_mode": false,
+    "final_action": "WATCHLIST",
+    "first_bar_date": "2024-08-28",
+    "fundamental": {
+      "altman_z_score": null,
+      "altman_z_status": "not_applicable",
+      "altman_z_variant": "",
+      "current_ratio": 2.891,
+      "debt_to_equity": 0.1714,
+      "dividend_yield": 0.0,
+      "eps_growth_yoy": 107.8,
+      "ev_ebitda": 6.471,
+      "fcf_yield": 6.6716,
+      "forward_pe": 22.5482,
+      "free_cash_flow": 71975200000.0,
+      "gross_margin": 30.332,
+      "is_etf": false,
+      "net_margin": 22.296,
+      "operating_margin": 32.561,
+      "pb_ratio": 1.4475,
+      "pe_ratio": 12.6738,
+      "peg_ratio": 0.1176,
+      "piotroski_components_available": 9,
+      "piotroski_f_score": 8,
+      "quality_score": 71.9444,
+      "reported_inputs": {
+        "current_ratio": true,
+        "debt_to_equity": true,
+        "net_margin": true,
+        "revenue_growth": true,
+        "roe": true
+      },
+      "revenue_growth_yoy": 10.0,
+      "roa": 6.01,
+      "roe": 12.12,
+      "roic": 9.065
+    },
+    "has_existing_position": false,
+    "history_bars": 501,
+    "industry": "Insurance - Diversified",
+    "insider": {
+      "context_missing": false,
+      "data_status": "measured",
+      "display_label": "NEUTRAL",
+      "insider_sentiment": "NEUTRAL",
+      "key_transactions": [],
+      "net_flow": 0.0,
+      "recent_buys": 0,
+      "recent_sells": 0
+    },
+    "is_adr": false,
+    "is_etf": false,
+    "is_financial": true,
+    "is_high_volatility": false,
+    "is_invalid": false,
+    "key_insights": [
+      "\u23f8\ufe0f HOLD signal with 61% confidence",
+      "\u2b50 High Piotroski F-Score (8/9) - strong fundamentals"
+    ],
+    "last_bar_date": "2026-08-27",
+    "market_cap": 1078840000000.0,
+    "market_intel": {
+      "analyst_count": 4,
+      "analyst_rating": "HOLD",
+      "buy_ratings": 0,
+      "hold_ratings": 0,
+      "implied_upside": 5.7623,
+      "next_earnings_date": "2026-11-07",
+      "sell_ratings": 0,
+      "target_high": 906011.0,
+      "target_low": 735000.0,
+      "target_mean": 799503.0,
+      "target_median": 778500.0
+    },
+    "market_regime": "SIDEWAYS",
+    "market_state": "POST",
+    "market_timestamp": "<volatile>",
+    "mc_model_note": "",
+    "model_action": "WATCHLIST",
+    "monte_carlo": {
+      "days_simulated": 30,
+      "expected_return": 0.772,
+      "expected_return_basis": "mean",
+      "mean_price": 761779.0,
+      "median_price": 760664.0,
+      "percentile_25": 730850.0,
+      "percentile_5": 689369.0,
+      "percentile_75": 790510.0,
+      "percentile_95": 837049.0,
+      "probability_10pct_gain": 0.0643,
+      "probability_10pct_loss": 0.0323,
+      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only \u2014 not the chance of touching a target, and not target-vs-stop.",
+      "probability_profit": 0.5433,
+      "simulations_run": 3000,
+      "var_95": -8.8068
+    },
+    "net_assets": 0.0,
+    "peer_comparison": {
+      "overall_assessment": "Sector not mapped",
+      "pb_sector_avg": 0.0,
+      "pb_stock": 0.0,
+      "pb_vs_sector": 0.0,
+      "pe_sector_avg": 0.0,
+      "pe_stock": 0.0,
+      "pe_vs_sector": 0.0,
+      "roe_sector_avg": 0.0,
+      "roe_stock": 0.0,
+      "roe_vs_sector": 0.0,
+      "sector": "Financial Services",
+      "sector_rank": 0,
+      "sector_total": 0
+    },
+    "portfolio_outlook": {
+      "bottom_line": "Existing holders can hold with a strict stop. New buyers should wait for pullback or breakout confirmation.",
+      "reason": "Risk/reward of 0.44:1 is below the 1.50:1 minimum.",
+      "recommendation": "WATCHLIST"
+    },
+    "portfolio_risk_check": {
+      "adjustments": {},
+      "approved": true,
+      "correlation_risk": 0.0,
+      "holdings_known": false,
+      "sector_exposure": {
+        "Financial Services": 0.0
+      },
+      "warnings": []
+    },
+    "position_sizing": {
+      "is_viable": false,
+      "kelly_optimal": 0.0,
+      "portfolio_weight": 0.0,
+      "position_value": 0.0,
+      "recommended_shares": 0,
+      "sizing_method": "RISK_PARITY"
+    },
+    "pre_market_change_pct": 0.0,
+    "pre_market_price": 0.0,
+    "previous_close": 756928.0,
+    "quote_type": "EQUITY",
+    "recommendation_caveat": "",
+    "recommendation_label": "WATCHLIST",
+    "recommendation_qualifier": "",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 61% | Score: 61/100 | Risk: A",
+    "relative_performance": {
+      "basis": "total return, dividend-adjusted closes",
+      "benchmark": "SPY",
+      "rows": [
+        {
+          "benchmark_pct": 5.71,
+          "excess_pct": -6.66,
+          "sessions": 21,
+          "stock_pct": -0.95,
+          "window": "1M"
+        },
+        {
+          "benchmark_pct": 2.45,
+          "excess_pct": 3.18,
+          "sessions": 63,
+          "stock_pct": 5.63,
+          "window": "3M"
+        },
+        {
+          "benchmark_pct": 12.46,
+          "excess_pct": -12.1,
+          "sessions": 126,
+          "stock_pct": 0.36,
+          "window": "6M"
+        },
+        {
+          "benchmark_pct": null,
+          "excess_pct": null,
+          "sessions": 252,
+          "stock_pct": 2.55,
+          "window": "1Y"
+        }
+      ]
+    },
+    "requested_symbol": "BRK-A",
+    "retrieval_timestamp": "<volatile>",
+    "risk": {
+      "annualized_volatility": 0.1696,
+      "beta": 0.0274,
+      "beta_benchmark": "SPY",
+      "beta_observations": 250,
+      "beta_status": "measured",
+      "cvar_95": -0.024,
+      "grade_drivers": [
+        {
+          "detail": "17% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 0
+        },
+        {
+          "detail": "0.03 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 0
+        },
+        {
+          "detail": "-14% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 0
+        },
+        {
+          "detail": "50/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 0
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "liquidity_score": 10.0,
+      "max_drawdown": -0.1443,
+      "overall_risk_score": 3,
+      "risk_grade": "A",
+      "risk_points": 3,
+      "sharpe_ratio": 0.0629,
+      "sortino_ratio": 0.0883,
+      "var_95_daily": -0.0143
+    },
+    "risk_warnings": [],
+    "scores": {
+      "component_details": {},
+      "composite_score": 61.4938,
+      "data_quality_note": "HIGH - All data sources available",
+      "fundamental_score": 71,
+      "quality_score": 71.9444,
+      "risk_score": 70,
+      "score_confidence_margin": 0.0,
+      "sentiment_score": 70,
+      "technical_score": 48,
+      "valuation_score": 60.0,
+      "weights": {
+        "fundamental": 0.2778,
+        "quality": 0.1111,
+        "sentiment": 0.1111,
+        "technical": 0.3333,
+        "valuation": 0.1667
+      }
+    },
+    "sector": "Financial Services",
+    "sentiment": {
+      "key_headline_sources": [
+        "Motley Fool",
+        "TheStreet",
+        "Motley Fool",
+        "Motley Fool",
+        "Insider Monkey"
+      ],
+      "key_headlines": [
+        "Warren Buffett and Greg Abel Quietly Hold a Bigger Percentage of This Company Than Any Other in Berk",
+        "Credit card giant pays Buffett's Berkshire $576M in annual dividends",
+        "Greg Abel Has Kept 60% of Berkshire's $359 Billion Stock Portfolio in Just 5 Companies, Even After E",
+        "Greg Abel Raised Berkshire's Delta Stake 44% to 8.7%, Reversing the Airline Exit Buffett Made in 202",
+        "Warren Buffett \u201cBlew It\u201d on Alphabet (GOOGL) And Made It Berkshire\u2019s Third-Biggest Bet"
+      ],
+      "last_news_timestamp": "<volatile>",
+      "measured": true,
+      "negative_articles": 1,
+      "news_relevance": {
+        "direct_count": 8,
+        "direct_headlines": [
+          "Warren Buffett and Greg Abel Quietly Hold a Bigger Percentage of This Company Than Any Other in Berkshire's Portfolio (Hint: It's Not Apple or American Express)",
+          "Credit card giant pays Buffett's Berkshire $576M in annual dividends",
+          "Greg Abel Has Kept 60% of Berkshire's $359 Billion Stock Portfolio in Just 5 Companies, Even After Eliminating 16 Other Positions in His First Quarter. Is That Concentration a Risk for Shareholders?",
+          "Greg Abel Raised Berkshire's Delta Stake 44% to 8.7%, Reversing the Airline Exit Buffett Made in 2020",
+          "Warren Buffett \u201cBlew It\u201d on Alphabet (GOOGL) And Made It Berkshire\u2019s Third-Biggest Bet"
+        ],
+        "direct_sentiment_label": "POSITIVE",
+        "direct_sentiment_score": 0.249,
+        "has_direct_news": true,
+        "macro_count": 2,
+        "macro_headlines": [
+          "Warren Buffett Says Peter Thiel Can Quit Giving Pledge If It\u2019s Too \u2018Woke\u2019 for Him \u2014 \u2018A Lot of Reasons Why Rich People Don\u2019t Like Other Rich People\u2019",
+          "Alphabet's $84.75 Billion Raise Carries a $40 Billion Asterisk"
+        ],
+        "peer_count": 0,
+        "peer_headlines": [],
+        "peer_sentiment_score": 0.0,
+        "weighted_sentiment_label": "POSITIVE",
+        "weighted_sentiment_score": 0.249
+      },
+      "news_volume": 10,
+      "positive_articles": 6,
+      "sentiment_label": "POSITIVE",
+      "sentiment_score": 0.2941,
+      "sentiment_trend": "STABLE",
+      "sources_attempted": 5,
+      "sources_succeeded": 1,
+      "status": "PARTIAL"
+    },
+    "signal": "HOLD",
+    "signal_explanation": {
+      "composite_score": 61.4938,
+      "overrides_triggered": [],
+      "primary_reason": "Composite score 61 meets ACCUMULATE threshold",
+      "risk_factors": [],
+      "supporting_factors": [
+        "Fundamental score 71 (strong)",
+        "Sentiment score 70 (positive)",
+        "4 bullish confirmations"
+      ]
+    },
+    "sizing_basis": "none",
+    "stage_timings": [
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "price_history",
+        "status": "ok"
+      },
+      {
+        "cached": true,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "company_info",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "parallel_analysis",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "monte_carlo",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "valuation_targets",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "signal_generation",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "trade_setup",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "position_sizing",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "decision_core",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "narrative",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "record_signal",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "-",
+        "stage": "TOTAL",
+        "status": "ok"
+      }
+    ],
+    "stance": "NEUTRAL",
+    "symbol_note": "",
+    "technical": {
+      "adx": 21.1514,
+      "atr": 9790.59,
+      "atr_percent": 1.2951,
+      "bollinger_signal": "NEUTRAL",
+      "candlestick_bias": "NEUTRAL",
+      "candlestick_patterns": [],
+      "candlestick_score": 50.0,
+      "death_cross": false,
+      "golden_cross": false,
+      "macd_signal": "BEARISH",
+      "momentum_score": 42.5042,
+      "prior_trend": "SIDEWAYS",
+      "resistance_level": 768061.0,
+      "rsi": 49.9881,
+      "squeeze_detected": false,
+      "support_level": 730314.0,
+      "trend_direction": "UP",
+      "trend_score": 53.3333,
+      "trend_strength": "MODERATE",
+      "volatility_score": 60,
+      "volume_ratio": 1.2176,
+      "week_52_basis": "provider-reported traded range",
+      "week_52_high": 806103.0,
+      "week_52_low": 698000.0
+    },
+    "thesis": {
+      "bear_case": [
+        "Trend up but MACD turning bearish - momentum fading"
+      ],
+      "bull_case": [
+        "Positive news sentiment supporting price action"
+      ],
+      "catalysts": [],
+      "risks": [],
+      "summary": "Berkshire Hathaway Inc. (BRK-A) should be held at current levels with a 61% confidence score. Composite score of 61/100."
+    },
+    "ticker": "BRK-A",
+    "trade_setup": {
+      "entry_price": 757455.0,
+      "entry_type": "REFERENCE",
+      "has_long_reward": true,
+      "is_actionable_entry": false,
+      "levels_available": true,
+      "risk_reward_ratio": 0.4373,
+      "setup_basis": "limit at a slight premium to spot; stop below support (capped at 3xATR); 63-session target pro-rated from the 12-month valuation target $813,625.90; Target 1 is a tactical partial exit",
+      "stop_loss": 728083.0,
+      "target_aggressive": 837164.0,
+      "target_base": 813626.0,
+      "target_conservative": 768061.0,
+      "time_horizon": "POSITION",
+      "trailing_stop": 0.0,
+      "trailing_stop_pct": 2.6,
+      "win_probability": 0.0
+    },
+    "valuation": {
+      "dcf_fair_value": 0.0,
+      "dcf_method": "not_applicable_financial",
+      "dcf_status": "not_applicable",
+      "dcf_upside": 0.0,
+      "fair_value_sources": [
+        "graham"
+      ],
+      "graham_number": 837164.0,
+      "graham_status": "measured",
+      "target_aggressive": 837164.0,
+      "target_agreement_pct": 95.4,
+      "target_base": 813626.0,
+      "target_components": [
+        {
+          "source": "analyst_consensus",
+          "value": 799503.0,
+          "weight": 0.625
+        },
+        {
+          "source": "intrinsic_value",
+          "value": 837164.0,
+          "weight": 0.375
+        }
+      ],
+      "target_confidence": 95.4,
+      "target_conservative": 799503.0,
+      "target_probability": 0.0,
+      "target_source_count": 2,
+      "target_sources": [
+        "analyst_consensus",
+        "intrinsic_value"
+      ],
+      "valuation_label": "SLIGHTLY_UNDERVALUED",
+      "valuation_score": 60,
+      "valuation_status": "measured"
+    }
+  },
+  "ticker": "BRK-A"
+}

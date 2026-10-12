@@ -1,0 +1,32 @@
+{
+  "factors": {},
+  "strategies": {
+    "elite.composite": {
+      "caveats": [
+        "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+        "Walk-forward trade simulation (2017-2026): CAGR 0.76% vs SPY 11.41%."
+      ],
+      "generated_utc": "2026-08-27T19:41:39+00:00",
+      "metrics": {
+        "21d": {
+          "decile_spread": -0.005753117487055447,
+          "mean_ic": -0.022507066622156555,
+          "n_independent_dates": 157,
+          "t_stat": -1.4069292268763927
+        },
+        "63d": {
+          "decile_spread": -0.011533199600171223,
+          "mean_ic": -0.03390208397026178,
+          "n_independent_dates": 56,
+          "t_stat": -0.962742970416615
+        }
+      },
+      "scope": "Technical + risk components only (40% of composite weight); fundamentals have no point-in-time source.",
+      "source": "apex_quant/_reports/elite_oos.json",
+      "status": "NO_EDGE",
+      "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+      "tested_through": "2026-08-25"
+    }
+  },
+  "updated_utc": "2026-09-24T15:27:02.922192+00:00"
+}

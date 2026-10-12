@@ -1,0 +1,46 @@
+panel: 32,825 rows, 2010-12-30..2026-08-25
+grid[0] EliteParams(min_composite=48.0, atr_stop_mult=1.5, atr_target_mult=3.0, min_dollar_vol=50000000.0, require_crossing=True): 4326 raw signals
+grid[1] EliteParams(min_composite=48.0, atr_stop_mult=1.5, atr_target_mult=4.0, min_dollar_vol=50000000.0, require_crossing=True): 4326 raw signals
+grid[2] EliteParams(min_composite=48.0, atr_stop_mult=2.0, atr_target_mult=3.0, min_dollar_vol=50000000.0, require_crossing=True): 4326 raw signals
+grid[3] EliteParams(min_composite=48.0, atr_stop_mult=2.0, atr_target_mult=4.0, min_dollar_vol=50000000.0, require_crossing=True): 4326 raw signals
+grid[4] EliteParams(min_composite=50.0, atr_stop_mult=1.5, atr_target_mult=3.0, min_dollar_vol=50000000.0, require_crossing=True): 3346 raw signals
+grid[5] EliteParams(min_composite=50.0, atr_stop_mult=1.5, atr_target_mult=4.0, min_dollar_vol=50000000.0, require_crossing=True): 3346 raw signals
+grid[6] EliteParams(min_composite=50.0, atr_stop_mult=2.0, atr_target_mult=3.0, min_dollar_vol=50000000.0, require_crossing=True): 3346 raw signals
+grid[7] EliteParams(min_composite=50.0, atr_stop_mult=2.0, atr_target_mult=4.0, min_dollar_vol=50000000.0, require_crossing=True): 3346 raw signals
+grid[8] EliteParams(min_composite=52.0, atr_stop_mult=1.5, atr_target_mult=3.0, min_dollar_vol=50000000.0, require_crossing=True): 1795 raw signals
+grid[9] EliteParams(min_composite=52.0, atr_stop_mult=1.5, atr_target_mult=4.0, min_dollar_vol=50000000.0, require_crossing=True): 1795 raw signals
+grid[10] EliteParams(min_composite=52.0, atr_stop_mult=2.0, atr_target_mult=3.0, min_dollar_vol=50000000.0, require_crossing=True): 1795 raw signals
+grid[11] EliteParams(min_composite=52.0, atr_stop_mult=2.0, atr_target_mult=4.0, min_dollar_vol=50000000.0, require_crossing=True): 1795 raw signals
+fold 2017-01-01..2018-01-01: params=min_composite=50.0/atr_stop_mult=2.0/atr_target_mult=3.0 train_sharpe=0.55 oos_trades=123
+fold 2018-01-01..2019-01-01: params=min_composite=48.0/atr_stop_mult=1.5/atr_target_mult=4.0 train_sharpe=1.10 oos_trades=120
+fold 2019-01-01..2020-01-01: params=min_composite=52.0/atr_stop_mult=1.5/atr_target_mult=3.0 train_sharpe=1.04 oos_trades=91
+fold 2020-01-01..2021-01-01: params=min_composite=50.0/atr_stop_mult=1.5/atr_target_mult=4.0 train_sharpe=1.25 oos_trades=113
+fold 2021-01-01..2022-01-01: params=min_composite=48.0/atr_stop_mult=1.5/atr_target_mult=4.0 train_sharpe=0.97 oos_trades=141
+fold 2022-01-01..2023-01-01: params=min_composite=48.0/atr_stop_mult=1.5/atr_target_mult=4.0 train_sharpe=1.33 oos_trades=109
+fold 2023-01-01..2024-01-01: params=min_composite=48.0/atr_stop_mult=1.5/atr_target_mult=4.0 train_sharpe=0.45 oos_trades=123
+fold 2024-01-01..2025-01-01: params=min_composite=50.0/atr_stop_mult=1.5/atr_target_mult=4.0 train_sharpe=0.67 oos_trades=107
+fold 2025-01-01..2026-01-01: params=min_composite=50.0/atr_stop_mult=1.5/atr_target_mult=4.0 train_sharpe=0.29 oos_trades=87
+
+==========================================================================
+ELITE COMPOSITE - WALK-FORWARD TRADE SIMULATION
+==========================================================================
+OOS window   2017-01-01 .. 2026-01-01
+folds        9
+data hash    0351a7c3a15d30277d80c824724f2592...
+
+                   CAGR%  Sharpe Sortino  MaxDD% trades   hit% expect%    PF  alpha%
+------------------------------------------------------------------------------------
+strategy            0.76    0.12    0.16   24.43   1014   37.5   0.034  1.02   -2.56
+buy&hold SPY       11.41    0.66    0.79   34.10   1760   54.7   0.050  1.14   -0.01
+random entry       -0.15   -0.02   -0.02   10.21    130   30.8  -0.029  0.99   -0.38
+random exit         4.70    0.43    0.55   21.08   1034   46.3   0.246  1.13    1.86
+
+A strategy must beat ALL THREE baselines on a risk-adjusted basis to
+claim an edge. Beating only buy-and-hold is not evidence of skill:
+random-entry tests whether entry timing mattered, random-exit whether
+the exit rule mattered.
+
+param stability across folds:
+  min_composite        [50.0, 48.0, 52.0, 50.0, 48.0, 48.0, 48.0, 50.0, 50.0]
+  atr_stop_mult        [2.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5]
+  atr_target_mult      [3.0, 4.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]

@@ -1,0 +1,1082 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>QUANTA Alpha: Technical Audit and System Design</title><style>
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#fff;color:#202124;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65;font-size:16px}
+.layout{display:grid;grid-template-columns:240px minmax(0,1000px);gap:44px;max-width:1370px;margin:auto;padding:40px 32px}nav{position:sticky;top:24px;align-self:start;font-size:13px;max-height:94vh;overflow:auto}nav ol{padding-left:18px}nav li{margin:10px 0}nav a{color:#555;text-decoration:none}nav a:hover{text-decoration:underline;color:#111}main{min-width:0}h1{font-size:35px;line-height:1.2;letter-spacing:-.8px;font-weight:700;margin:0 0 28px}h2{font-size:26px;line-height:1.3;margin:52px 0 20px;padding-top:18px;border-top:1px solid #b9bec4;scroll-margin-top:20px}h3{font-size:20px;line-height:1.4;margin:34px 0 15px}p{margin:0 0 18px}a{color:#1d4b70;text-underline-offset:3px}sup{font-size:11px;margin-left:3px}sup a{text-decoration:none}table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.5;margin:22px 0 30px;overflow-wrap:anywhere}th{text-align:left;background:#eceff1;font-weight:650}th,td{padding:11px 12px;border:1px solid #d0d4d8;vertical-align:top}tbody tr:nth-child(even){background:#fafafa}pre{font-size:12px;line-height:1.6;white-space:pre;overflow:auto;padding:18px;border:1px solid #cdd2d7;background:#f6f7f8}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em}pre code{font-size:inherit}li{margin:8px 0}ol,ul{padding-left:26px}.sources{font-size:13px}.sources li{margin:14px 0;scroll-margin-top:20px}
+@media(max-width:1000px){.layout{display:block;padding:24px;max-width:1000px}nav{position:static;max-height:none;margin-bottom:30px}nav ol{columns:2}h1{font-size:30px}table{font-size:12px}th,td{padding:8px}pre{font-size:11px}}
+@media(max-width:600px){body{font-size:15px}.layout{padding:18px}nav ol{columns:1}h1{font-size:27px}h2{font-size:23px}table{display:block;overflow-x:auto;overflow-wrap:normal}th,td{min-width:145px}pre{font-size:10px}}
+@media print{@page{size:A4;margin:15mm}nav{display:none}.layout{display:block;padding:0;max-width:none}body{font-size:10pt;line-height:1.5}h1{font-size:24pt}h2{font-size:18pt;break-before:page;border:0;margin-top:0}h3{font-size:13pt;break-after:avoid}table{font-size:8pt}thead{display:table-header-group}tr{break-inside:avoid}pre{font-size:7pt;white-space:pre-wrap}a{color:#222}sup a{text-decoration:none}}
+</style></head><body><div class="layout"><nav aria-label="Report contents"><strong>Contents</strong><ol><li><a href="#audit-scope-and-evidence">Audit scope and evidence</a></li><li><a href="#1-quanta-elite-gap-analysis">1. QUANTA Elite gap analysis</a></li><li><a href="#2-target-quanta-alpha-architecture">2. Target QUANTA Alpha architecture</a></li><li><a href="#3-recommended-algorithms-and-models">3. Recommended algorithms and models</a></li><li><a href="#4-proprietary-quanta-alpha-scoring-methodology">4. Proprietary QUANTA Alpha scoring methodology</a></li><li><a href="#5-data-and-feature-architecture">5. Data and feature architecture</a></li><li><a href="#6-backtesting-and-validation-framework">6. Backtesting and validation framework</a></li><li><a href="#7-top-10-highest-value-innovations">7. Top 10 highest-value innovations</a></li><li><a href="#8-what-not-to-build">8. What NOT to build</a></li><li><a href="#9-prioritized-implementation-roadmap">9. Prioritized implementation roadmap</a></li><li><a href="#10-exact-repository-level-migration-map">10. Exact repository-level migration map</a></li><li><a href="#sources-and-reproducibility-notes">Sources and reproducibility notes</a></li></ol></nav><main><h1>QUANTA Alpha: Technical Audit and System Design</h1>
+<p><strong>QUANTA Elite has useful research infrastructure, but it does not yet demonstrate a validated investment edge. QUANTA Alpha should be built around evidence provenance, realistic decision evaluation, and an immutable forecast record—not a larger collection of indicators or a more persuasive AI narrator.</strong></p>
+<p>This design assumes a self-hosted, primarily free-data platform for U.S. listed equities, initially long-only, with 21-, 63-, and 126-trading-session research horizons. The product should support market-wide discovery while clearly distinguishing the listed universe, the data-covered universe, and the investable universe. It should never imply that an unobserved stock was evaluated and rejected.</p>
+<p>The strongest achievable differentiation is <strong>explainable change detection plus portfolio-aware opportunity selection with a visible record of successes, failures, and uncertainty</strong>. Institutional quality describes controls and measurement discipline; it does not imply institutional data completeness or guaranteed alpha.</p>
+<h2 id="audit-scope-and-evidence">Audit scope and evidence</h2>
+<p>The reviewed default-branch snapshot is commit <code>7bb6386d176ca98764641031bab327ad0ab1d647</code>, committed September 9, 2026. Source references below are pinned to that commit. The repository tree was inventoried, 191 relevant text files were retrieved, and the main execution paths, scoring functions, data adapters, validation harnesses, UI source, tests, and existing recalibration plan were examined. This was a targeted technical audit, not a claim that every line of every file received equal scrutiny.</p>
+<p>The GitHub CI run for this commit completed successfully. Locally, <strong>160 targeted existing tests passed</strong>, covering execution semantics, leakage guards, reproducibility, validation identity, decisions, earnings-surprise units, scorer reconstruction, target confidence, and portfolio limits. Four additional isolated offline probes reproduced the outcome-tracking defects, an optimizer fallback cap violation, and the absence of a validation-artifact gate in the shared action resolver. The probes exercise real extracted classes/functions with synthetic inputs; they are not live portfolio simulations.<sup><a href="#source-2" aria-label="Source 2">2</a></sup></p>
+<p>The full golden-fixture suite, browser rendering, live provider availability, historical return panels, and a new market-wide backtest were not rerun. UI findings concern source-defined behavior and architecture. No repository code was changed, no GitHub review was posted, and no strategy performance is asserted by this report. Existing audit documents were treated as leads and checked against current code, not accepted as ground truth.</p>
+<h2 id="1-quanta-elite-gap-analysis">1. QUANTA Elite gap analysis</h2>
+<h3>1.1 What already works</h3>
+<p>Elite is more substantial than a ticker lookup dashboard. It contains four independent engines, a Flask dashboard, a Streamlit research interface, MCP access, provider fallbacks, risk checks, and multiple historical evaluation paths.<sup><a href="#source-1" aria-label="Source 1">1</a></sup></p>
+<table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>Actual implemented behavior</th>
+<th>Consequence for Alpha</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Elite Pro scanner</td>
+<td>Builds U.S./India universes, fetches histories and current company data, computes technical/fundamental/momentum/quality/value scores, applies regime tables and cross-sectional normalization, ranks and sizes candidates, then deep-confirms selected picks</td>
+<td>Preserve useful acquisition and scan diagnostics; replace the fragmented scoring and final decision flow</td>
+</tr>
+<tr>
+<td>Short-term scanner</td>
+<td>Universe screening, technical patterns, momentum, fundamentals, quality, sentiment-like inputs, SPY/VIX regime, ATR-related levels, portfolio gates, and trade reports</td>
+<td>Keep as a separately identified swing-strategy baseline, not the definition of a 1–6 month alpha model</td>
+</tr>
+<tr>
+<td>Trading Analysis Elite</td>
+<td>Single-name technicals, fundamentals, risk, VADER sentiment, analyst/insider data, catalysts, DCF, Monte Carlo scenarios, trade setups, position sizing, and narrative explanations</td>
+<td>Extract pure features and verified controls; do not preserve every transformation or label</td>
+</tr>
+<tr>
+<td>Alpha Picks</td>
+<td>Weighted analyst, quantitative, sentiment, technical, and earnings-revision scores; high-score filters; price targets and thesis strings</td>
+<td>Treat as another legacy hypothesis, not an independently validated ensemble member</td>
+</tr>
+<tr>
+<td>Shared decision core</td>
+<td>Canonical actions, ownership-aware HOLD/WATCHLIST mapping, data validation, risk overrides, and consistency helpers</td>
+<td>Extend into one policy boundary with an immutable decision object</td>
+</tr>
+<tr>
+<td>APEX harness</td>
+<td>Chronological walk-forward tuning, corrected next-session execution, costs, randomized baselines, feature causality tests, strategy identity, coverage checks</td>
+<td>Best foundation for consolidated evaluation, after broadening data and statistical controls</td>
+</tr>
+<tr>
+<td>Web product</td>
+<td>Dashboard, Stock Picks, Analyze, market regimes/news, security monitor, progressive jobs, SSE/polling, data-status handling</td>
+<td>Retain working presentation components; introduce research-history and portfolio-decision workflows</td>
+</tr>
+</tbody>
+</table>
+<p>The README explicitly states that no strategy has a demonstrated out-of-sample edge. That is an honest starting point. Elite Pro also deliberately deprecates some uncalibrated probability fields, labels heuristic confidence, retains undeployed cash, and documents diagnostic backtests as unvalidated. The audit does not attribute already-removed behavior to those paths.<sup><a href="#source-1" aria-label="Source 1">1</a></sup><sup><a href="#source-3" aria-label="Source 3">3</a></sup><sup><a href="#source-24" aria-label="Source 24">24</a></sup></p>
+<h3>1.2 Current decision flow</h3>
+<pre><code class="language-text">Current constituent lists / curated lists / custom tickers
+    → per-name provider acquisition and indicator calculations
+    → engine-specific score + regime rules + heuristic adjustments
+    → scan-relative normalization and eligibility filters
+    → greedy portfolio selection and risk checks
+    → inverse-volatility allocation refinement
+    → selected-name deep analysis and reconciliation
+    → API serialization, cards, narrative, exports
+
+Separate research path:
+Cached historical prices → partial ELITE reconstruction
+    → forward-return IC diagnostics / APEX walk-forward simulation
+    → validation artifact / CLI status
+</code></pre>
+<p>The critical separation is between the live product and its research evaluation. Reusing some analyzers does not mean that the complete live selection, missing-data handling, regime, sizing, and deep-confirmation policy has been validated.<sup><a href="#source-8" aria-label="Source 8">8</a></sup><sup><a href="#source-10" aria-label="Source 10">10</a></sup><sup><a href="#source-19" aria-label="Source 19">19</a></sup><sup><a href="#source-20" aria-label="Source 20">20</a></sup></p>
+<h3>1.3 Priority findings</h3>
+<p><strong>A01 — Critical: historical performance artifacts cannot establish current edge.</strong> The committed <code>INVALIDATED.md</code> says execution chronology, entry-bar exits, gap fills, terminal positions, and the first day's P&amp;L were wrong in the old simulator. Its trade statistics must be regenerated, not adjusted. The corrected simulator and tests are valuable; their existence is not a successful validation run. The existing recalibration document still contains earlier numerical results, so those must not be promoted as current evidence.<sup><a href="#source-9" aria-label="Source 9">9</a></sup><sup><a href="#source-29" aria-label="Source 29">29</a></sup><sup><a href="#source-41" aria-label="Source 41">41</a></sup></p>
+<p><strong>A02 — Critical: only a partial model is historically reconstructed.</strong> <code>elite_scorer.py</code> pins unavailable components and reconstructs the technical/risk portion, representing 40% of the SIDEWAYS composite weight. It does not validate current fundamentals, sentiment, insider flows, valuation, every regime, Elite Pro's final ranking, or the complete portfolio policy. Its own empty fundamental input scores 40 because default ROE is penalized. “Point-in-time” price slicing is also weaker than preserving historical provider vintages and corporate-action semantics.<sup><a href="#source-8" aria-label="Source 8">8</a></sup><sup><a href="#source-26" aria-label="Source 26">26</a></sup></p>
+<p><strong>A03 — Critical: outcome tracking corrupts horizon and accuracy semantics.</strong> <code>SignalTracker.update_outcomes()</code> uses a current quote when it eventually runs, rather than the quote at the intended horizon. The ten-day branch can reuse <code>price_5d</code>. <code>get_statistics()</code> includes unresolved actionable signals in its denominator and mixes five- and ten-day outcomes. An offline probe with a stored five-day price of 105 and an available quote of 120 recorded 105 as the ten-day price without fetching. One resolved winner plus one pending signal produced a reported 50% win rate. These statistics cannot calibrate forecasts.<sup><a href="#source-11" aria-label="Source 11">11</a></sup></p>
+<p><strong>A04 — Critical: validation authorization is not a product-wide boundary.</strong> APEX has a fingerprinted, time-limited validation artifact, but the shared action resolver and normal scanner/deep-analysis sizing paths do not consume it. The resolver can emit allocation-eligible STRONG_BUY from score/levels/risk inputs alone. The harness also writes separate generic and Elite artifacts, while its status command reads the generic artifact. Alpha needs an explicit model-status contract, not the implication that one CLI check validates all engines.<sup><a href="#source-7" aria-label="Source 7">7</a></sup><sup><a href="#source-10" aria-label="Source 10">10</a></sup><sup><a href="#source-19" aria-label="Source 19">19</a></sup></p>
+<p><strong>A05 — High: scenario generation is being asked to do forecasting.</strong> Trading Analysis seeds a Student-t log-return simulation with an annualized trailing sample mean, adds fixed regime drift, and uses a generic 5% daily jump chance when a catalyst exists. It reports terminal probabilities and calls median-price return “expected return.” The scenarios are reproducible but not calibrated predictions of future outcomes. Monte Carlo sampling reduces simulation noise; it cannot establish the correctness of the assumed process.<sup><a href="#source-12" aria-label="Source 12">12</a></sup></p>
+<p>There is a deeper mathematical problem: for a non-degenerate untruncated Student-t log return X, E[exp(X)] is infinite because its polynomial positive tail cannot offset exponential growth. Thus the modeled price distribution has no finite population mean even when X has finite variance. A finite simulated mean will still print, but it is not a stable estimate of a finite expected price. The Gaussian −σ²/2 drift correction does not repair this. This is an analytical consequence of the implementation and the Student-t density, not a claim that a particular small simulation must overflow.<sup><a href="#source-12" aria-label="Source 12">12</a></sup><sup><a href="#source-40" aria-label="Source 40">40</a></sup></p>
+<p><strong>A06 — High: “calibrated” win probabilities are hand-set.</strong> Trading Analysis builds win probability from confidence, a short signal-tracker history, technical bonuses, and a 70% Monte Carlo blend, then clamps it to 35–65%. Literature-inspired constants are not system-specific calibration, and a blanket assertion that no strategy can reliably win more than 65% confuses payoff structure with profitability. Kelly is computed and exposed as a diagnostic; the actual recommended share count follows risk sizing, not this Kelly value. Separately, the enhanced price-target module emits hand-set target-hit probabilities such as 75/50/25 with volatility adjustments. Elite Pro's improved heuristic labeling does not repair these other paths.<sup><a href="#source-13" aria-label="Source 13">13</a></sup><sup><a href="#source-14" aria-label="Source 14">14</a></sup></p>
+<p><strong>A07 — High: valuation partly confirms its own anchor.</strong> The deep analyzer replaces extreme DCF outputs with spot, blends moderate high-P/E DCFs 40% with current price, and blends very high-P/E DCFs 60% with analyst targets. It substitutes positive growth assumptions when revenue growth is nonpositive. These choices may stabilize a display but obscure independent valuation information. The separate advanced target calculator also approximates enterprise value as equity value. A single “DCF fair value” label conceals materially different economic models and fallback behavior.<sup><a href="#source-15" aria-label="Source 15">15</a></sup><sup><a href="#source-14" aria-label="Source 14">14</a></sup></p>
+<p><strong>A08 — High: dynamic weighting means lookup tables, not learned conditional alpha.</strong> Elite Pro's regime weight tables are explicit policy choices. Base scores are largely threshold heuristics, with a 65% absolute/35% cross-sectional blend where normalization is available, a 15% elite-factor blend when positive, and additive adjustments. Momentum, technical alignment, QMJ-like measures, quality, and valuation reuse related information. An additional factor display is not an independent source of evidence. The short-term and Alpha Picks weights differ again.<sup><a href="#source-3" aria-label="Source 3">3</a></sup><sup><a href="#source-4" aria-label="Source 4">4</a></sup><sup><a href="#source-5" aria-label="Source 5">5</a></sup></p>
+<p><strong>A09 — High: discovery is broad scanning but not a historically complete market universe.</strong> Current index lists, expanded curated groups, fallback lists, scan limits, and successful provider responses define the population. The APEX research universe is a fixed present-day list. Delisted firms, ticker changes, IPO seasoning, security classes, failed acquisitions, and historical eligibility are not represented by an authoritative security master. Survivorship bias can alter relative comparisons too; using the same surviving names does not make strategy-versus-baseline comparisons automatically unbiased.<sup><a href="#source-1" aria-label="Source 1">1</a></sup><sup><a href="#source-26" aria-label="Source 26">26</a></sup></p>
+<p><strong>A10 — High: risk can change after the checks.</strong> Elite Pro checks sector exposure, covariance-based VaR, and aggregate stop risk during greedy admission, then redistributes allocations through an inverse-volatility step. That step caps individual notional but does not reapply all preceding portfolio constraints. Deep confirmation may reduce positions, but it is not a complete final portfolio constraint solver. A final post-transformation invariant check is needed before publishing any book. Separately, a projected VaR path can compute on the available subset of return histories, and its exception branch permits the candidate; missing risk data can therefore reduce measured risk.<sup><a href="#source-19" aria-label="Source 19">19</a></sup></p>
+<p><strong>A11 — High, disconnected code: “robust” optimizer can violate its cap.</strong> No active application caller of <code>core/quant/RobustOptimizer</code> or <code>FactorExposureModel</code> was found beyond package exports. Do not describe them as live platform capabilities. The optimizer automatically relaxes position caps and its fallback clips then renormalizes, which can exceed the same cap. A four-asset offline probe requested a 40% cap and returned a 75.9% weight while reporting a 40% cap. Its inverse-volatility fallback is not generally equal-risk-contribution allocation.<sup><a href="#source-17" aria-label="Source 17">17</a></sup><sup><a href="#source-18" aria-label="Source 18">18</a></sup></p>
+<p><strong>A12 — High: disconnected factor regression is mislabeled.</strong> The ETF model is not the Fama–French five-factor model: USMV is not CMA, QUAL is not RMW, and value-minus-market is not HML. SHY total return has duration/price risk and is not a risk-free accrual series. Ordinary OLS errors and a 1.96 t cutoff across many names do not establish predictive alpha. Trailing regression intercepts are descriptions conditional on the chosen risk model, not forward alpha forecasts.<sup><a href="#source-17" aria-label="Source 17">17</a></sup><sup><a href="#source-33" aria-label="Source 33">33</a></sup></p>
+<p><strong>A13 — High: earnings revisions exist but are not a historical revision database.</strong> The module uses current provider estimate snapshots, raw net analyst counts saturated at ±3, estimate changes saturated at ±5%, and surprise history in a fixed 45/40/15 mixture. Analyst coverage is not normalized. A 90-day fallback is labeled as a 30-day trend. Near-zero EPS denominators remain problematic. One fetch exception can neutralize the entire result. Alpha Picks also turns a valid zero revision score into neutral through <code>or 5.0</code>. These are both feature-definition and missingness problems.<sup><a href="#source-16" aria-label="Source 16">16</a></sup><sup><a href="#source-5" aria-label="Source 5">5</a></sup></p>
+<p><strong>A14 — High: catalyst “intelligence” includes assertions and stubs.</strong> Historical catalyst returns/completion rates are dictionary constants, not a fitted event study. Entry, stop, target, and holding-period rules are hand-set. Entity confidence is assigned by regex rules. FDA approval acquisition is a placeholder. M&amp;A targets and acquirers require different models; a generic event label cannot justify an immediate BUY or a fixed gain target. The live scanner can use these catalyst signals as score adjustments, so this is not merely a naming concern.<sup><a href="#source-23" aria-label="Source 23">23</a></sup></p>
+<p><strong>A15 — Medium–high: sentiment conflates tone, novelty, and investable surprise.</strong> The deep analyzer averages VADER scores and uses topic keywords; a field named <code>sentiment_7d_avg</code> actually uses the recent 48-hour subset. Positive text may repeat old news or describe a result below expectations. Separate source/provenance handling has improved, but headline polarity is not calibrated return information. Multiple republications should not count as independent confirmations.<sup><a href="#source-6" aria-label="Source 6">6</a></sup></p>
+<p><strong>A16 — High: parallel backtest implementations make evidence ambiguous.</strong> <code>modules/backtest_engine.py</code> calls itself walk-forward but the inspected main path replays simplified technical signals and enters at the same close used to calculate them. The robust engine also passes the current full bar to the strategy before filling at that close; its cross-validation routine runs on concatenated train-plus-test data and reports that combined result. Its walk-forward routine evaluates fixed supplied parameters in overlapping windows rather than learning them. These paths should not compete with the corrected APEX simulator for authority. Elite Pro already suppresses their diagnostic figures in ordinary output.<sup><a href="#source-24" aria-label="Source 24">24</a></sup><sup><a href="#source-25" aria-label="Source 25">25</a></sup></p>
+<p><strong>A17 — Medium–high: engineering scale and auditability are constrained by mutable process state.</strong> The main engines have approximately 13,767, 14,624, and 6,566 lines; Flask has 5,840 and its main JavaScript file 6,174. The package configuration intentionally installs no importable packages. Flask monkey-patches provider behavior, stores jobs in a process-local dictionary, and starts daemon threads. A timed-out worker can remain alive after its job slot is released. JSON/CSV tracking and process-local locks do not provide durable, multi-process transactional behavior. Local-only hosting protection is a useful existing safeguard.<sup><a href="#source-20" aria-label="Source 20">20</a></sup><sup><a href="#source-21" aria-label="Source 21">21</a></sup></p>
+<p><strong>A18 — Product gap: explanations exist, but longitudinal conviction accounting does not.</strong> Current thesis generators, downgrade checks, signal records, and market-regime history provide useful fragments. They do not reconstruct a stock's score change from versioned facts, frozen model parameters, universe changes, calibration changes, and portfolio changes. The current interface lacks a unified, immutable forecast-outcome ledger and a full model-performance workflow.<sup><a href="#source-11" aria-label="Source 11">11</a></sup><sup><a href="#source-22" aria-label="Source 22">22</a></sup><sup><a href="#source-28" aria-label="Source 28">28</a></sup></p>
+<h3>1.4 What to preserve</h3>
+<p>Preserve the tests, corrected execution semantics, ownership-aware action vocabulary, provenance/status distinctions, provider throttling and circuit breakers, market session handling, scan-health diagnostics, feature computation that passes causal tests, and existing useful UI components. Retire misleading labels and duplicate decision authority. Migration should preserve intentional behavior while documenting every deliberate mathematical change.</p>
+<h2 id="2-target-quanta-alpha-architecture">2. Target QUANTA Alpha architecture</h2>
+<h3>2.1 The architectural recommendation</h3>
+<p><strong>Current state →</strong> independent engines recalculate and reconcile decisions, largely on user request. <strong>Problem →</strong> repeated I/O, inconsistent model definitions, incomplete historical replay, and non-durable decision state. <strong>Proposed design →</strong> one importable Python domain package, a scheduled research worker, a durable metadata/portfolio database, immutable analytical datasets, and thin API/UI/MCP adapters. <strong>Algorithm/model →</strong> deterministic dependency graph from snapshot to features to forecasts to portfolio policy. <strong>Required data →</strong> timestamped source records, security identity, calendars, position ledger, and model artifacts. <strong>Expected benefit →</strong> the same inputs and versions reproduce the same forecast and decision across every surface. <strong>Risks/limitations →</strong> migration needs explicit compatibility tests; introducing many distributed services immediately would make self-hosting worse.</p>
+<pre><code class="language-text">SEC / exchange directories / price sources / macro vintages / news
+                             │
+                 Source adapters and quality checks
+                             │
+         Immutable raw snapshots + security/corporate-action master
+                             │
+             As-of fact tables → versioned feature panels
+                             │
+        Alpha models + market scenarios + covariance/risk models
+                             │
+            Calibrated distribution + eligibility/evidence state
+                             │
+      Market opportunity ranking ─── Portfolio incremental utility
+                             │
+              One decision policy + final constraint checks
+                             │
+             Immutable forecast / decision / thesis-change ledger
+                             │
+                  API → web / CLI / MCP → Astra
+
+Matured returns and paper fills → evaluation → model registry / alerts
+Astra reads evidence and requests approved computations; it cannot alter scores.
+</code></pre>
+<h3>2.2 Minimal self-hosted deployment</h3>
+<p>Use a <strong>modular monolith with separate processes</strong>, not a microservice estate. Keep Flask initially; a framework rewrite does not improve alpha. Run an API process, a worker process, and one scheduler. Use PostgreSQL for portfolios, source metadata, durable jobs, model registry, and ledgers; store large raw files and columnar panels on local disk as content-addressed files and Parquet. DuckDB is appropriate for local analytical queries. A single-user prototype can use SQLite with one writer, but choose one transactional store for the actual deployment.</p>
+<p>Use a PostgreSQL-backed job table with leases, bounded retries, idempotency keys, cancellation state, heartbeat, and worker fencing tokens. A worker that loses its lease must not publish results. Publish a universe snapshot atomically only after quality checks. A completed partial scan is a distinct state from a complete healthy scan. Redis, Kafka, a feature-store service, and Kubernetes are unnecessary initially.</p>
+<p>The architecture separates <strong>instrument facts</strong> from <strong>account-specific decisions</strong>. Cache forecasts by security ID, as-of time, feature snapshot, model version, and horizon; cache decisions additionally by portfolio snapshot and mandate. Never reuse a $100,000 account's sizing result for a different account. Never let an LLM explanation cache outlive the quantitative decision it describes.</p>
+<p>Suggested operating targets, to measure rather than claim: serve the last completed opportunity snapshot in under one second locally; complete a normal end-of-day update inside a configurable overnight window; preserve the last valid snapshot during provider failures; recover durable job state after a process restart. Provider throughput, not web-serving technology, will usually constrain broad daily research.</p>
+<h3>2.3 Astra's contract</h3>
+<p><strong>Current state →</strong> MCP wrappers and deterministic narrative generators exist; no Astra-specific, versioned reasoning layer was found. <strong>Problem →</strong> adding an unconstrained analyst agent could turn weak quantitative inputs into convincing unsupported claims. <strong>Proposed design →</strong> Astra is an evidence reader, research assistant, and orchestrator over approved domain tools. <strong>Algorithm/model →</strong> retrieve a typed evidence packet, request permitted scenario/portfolio computations, generate a cited explanation, then validate every numeric/action claim against the packet. <strong>Required data →</strong> forecast and decision IDs, source spans, feature definitions, uncertainty, historical evaluation, and portfolio constraints. <strong>Expected benefit →</strong> useful synthesis without delegating numerical truth to a language model. <strong>Risks/limitations →</strong> retrieval errors, prompt injection in news, model updates, and narrative hallucination still require controls and evaluation.</p>
+<p>Expose tools such as <code>get_opportunities</code>, <code>get_forecast</code>, <code>explain_change</code>, <code>compare_candidates</code>, <code>simulate_portfolio_delta</code>, <code>get_model_evidence</code>, and <code>fetch_source_excerpt</code>. Read-only tools are the default. Astra may propose a research experiment or a hypothetical mandate change; it cannot change the production model, overwrite a forecast, turn WATCHLIST into BUY, or authorize an order. A second LLM is not a quantitative verifier.</p>
+<p>Use deterministic templates for routine summaries and the language model only when synthesis adds value. Self-hosting the platform does not require self-hosting a large model. Keep the reasoning provider optional and interchangeable; forecasts, rankings, and monitoring must work when it is unavailable. Sensitive portfolio information should be sent to an external reasoning provider only under an explicit deployment policy.</p>
+<h3>2.4 Professional product workflows</h3>
+<p><strong>Current state →</strong> Dashboard, Picks, and Analyze organize current scans and individual names. <strong>Problem →</strong> users can see an answer without a reliable view of its opportunity cost, historical validity, or evolution. <strong>Proposed design →</strong> six connected research views sharing the same immutable records. <strong>Algorithm/model →</strong> view-specific projections of the forecast, evidence, change, and portfolio ledgers. <strong>Required data →</strong> timestamped forecasts and actual outcomes, comparable universes, mandate, and risk attribution. <strong>Expected benefit →</strong> faster, better-grounded decisions with less interpretive ambiguity. <strong>Risks/limitations →</strong> too many scores can recreate dashboard clutter; progressive disclosure and clear primary decisions are essential.</p>
+<table>
+<thead>
+<tr>
+<th>View</th>
+<th>Primary question</th>
+<th>Required information and interaction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Best Opportunities</td>
+<td>What deserves research or capital now?</td>
+<td>Horizon, expected benchmark-relative return, downside range, evidence status, data age, rank stability, next catalyst, and portfolio fit; allow “no suitable opportunities”</td>
+</tr>
+<tr>
+<td>Rankings</td>
+<td>Why is A ahead of B?</td>
+<td>Frozen universe and coverage denominator, global/sector ranks, factor families, comparable model coverage, and rank interval under resampling; distinguish movement in stock data from movement in peers</td>
+</tr>
+<tr>
+<td>Forecasts</td>
+<td>What outcomes are plausible?</td>
+<td>1M/3M/6M distributions, mean and median, prediction intervals, P(outperform), P(loss beyond mandate threshold), calibration history, and scenario assumptions; avoid a lone price target</td>
+</tr>
+<tr>
+<td>Thesis Changes</td>
+<td>What changed and what would invalidate the thesis?</td>
+<td>Before/after evidence, fact revisions, price reaction, model-version contribution, action consequence, and source links; group repeated publications of the same event</td>
+</tr>
+<tr>
+<td>Portfolio Intelligence</td>
+<td>What is the best next change to this book?</td>
+<td>Existing holdings, cash, factor/sector/issuer exposure, marginal risk, proposed additions/reductions, alternatives, transaction costs, and binding constraints</td>
+</tr>
+<tr>
+<td>Model Performance</td>
+<td>Does the system deserve trust?</td>
+<td>Locked forecast vintages, matured versus pending counts, net benchmark comparison, calibration/coverage, factor attribution, trial history, ablations, and failures</td>
+</tr>
+</tbody>
+</table>
+<p>An opportunity row must distinguish “top 5% of covered stocks,” “estimated 56% chance of outperforming,” and “limited evidence.” Those are different statements. Illustrative numbers in design mockups must remain labeled as examples. Missing and stale data are visible states, not neutral gray scores that silently enter rankings.</p>
+<h2 id="3-recommended-algorithms-and-models">3. Recommended algorithms and models</h2>
+<h3>3.1 Market-wide discovery</h3>
+<p><strong>Current state →</strong> current constituent/curated lists and successful scan responses define coverage. <strong>Problem →</strong> popularity, provider availability, and scan mode influence which opportunities can appear. <strong>Proposed design →</strong> a dated security master and daily eligible universe, followed by broad cheap feature computation and selective expensive evidence collection. <strong>Algorithm/model →</strong> versioned deterministic eligibility; cross-sectional ranking over every covered eligible name; a stratified exploration sample for enrichment. <strong>Required data →</strong> exchange directories, issuer/security mappings, security type, price/volume history, listing changes, and corporate actions. <strong>Expected benefit →</strong> repeatable coverage and discovery beyond familiar names. <strong>Risks/limitations →</strong> current free listings cannot reconstruct all historical delisted securities; incomplete coverage must remain explicit.<sup><a href="#source-31" aria-label="Source 31">31</a></sup></p>
+<p>Start with common shares satisfying configurable liquidity, price, and history rules. As an initial operating hypothesis, use median 60-session dollar volume of at least $10 million, price at least $5, and sufficient history for each feature family. These are capacity/risk policies, not optimized alpha thresholds. Keep ETFs, ADRs, banks, insurers, REITs, recent IPOs, and pre-revenue biotech in separate model cohorts where accounting or payoff structure differs. Do not call excluded securities “bad investments.”</p>
+<p>Do not fetch rich fundamentals only for yesterday's winners. That creates a self-reinforcing coverage bias. Enrich a rotating random sample stratified by sector, size, and coverage in addition to the leading candidates. Log the sampling probability. Discovery quality includes what the platform failed to observe.</p>
+<h3>3.2 Cross-sectional alpha and factor families</h3>
+<p><strong>Current state →</strong> hand-weighted, partly duplicated score families. <strong>Problem →</strong> correlated confirmations, scale discontinuities, and no measured marginal value. <strong>Proposed design →</strong> a small, versioned feature library with economically distinct families and horizon-specific pooled models. <strong>Algorithm/model →</strong> equal-family rank baseline, regularized linear model, then shallow gradient-boosted tree challenger; shrink sector deviations toward a pooled model. <strong>Required data →</strong> as-of features and matured forward returns across securities and dates. <strong>Expected benefit →</strong> measurable nonlinear improvement while preserving a simple comparison model. <strong>Risks/limitations →</strong> low signal-to-noise, correlated observations, missing coverage, and model-selection overfit.</p>
+<p>Academic evidence supports testing nonlinear interactions, but it does not establish that QUANTA's smaller free-data panel will reproduce published results. Start with ridge/elastic net or a regularized additive model. Add one shallow boosted-tree family only after the baseline is reproducible. Avoid dozens of algorithms searching the same small sample.<sup><a href="#source-35" aria-label="Source 35">35</a></sup></p>
+<p>Use grouped ablations: price momentum/trend, fundamental quality, valuation, operating improvement, revisions/surprise, event information, ownership, and risk. If RSI, MACD, moving-average alignment, and trend all represent the same latent exposure, measure their incremental contribution after the price family is present. Do not award four independent confidence points for four transformations of the same price series.</p>
+<h3>3.3 Dynamic weighting and regime context</h3>
+<p><strong>Current state →</strong> SPY/VIX rules select fixed factor weights; several parts of the system have different regime definitions. <strong>Problem →</strong> abrupt switches, noisy state estimates, and repeated application of the same market information. <strong>Proposed design →</strong> one market-state object; conservative, slowly changing conditional effects. <strong>Algorithm/model →</strong> continuous volatility, trend, breadth, credit, and rate features interacting with the pooled alpha model; regularize regime interactions toward zero. <strong>Required data →</strong> contemporaneously available market series, macro vintages, and sufficient matured observations per state. <strong>Expected benefit →</strong> adaptation without pretending a regime label is a known truth. <strong>Risks/limitations →</strong> few independent crises and delayed 6M outcomes make aggressive online learning unreliable.</p>
+<p>A regime model should first affect risk budgets and uncertainty, where volatility and correlation are more estimable, before it controls expected return. An HMM with filtered state probabilities is a later challenger; using full-sample smoothed states in historical forecasts leaks future information. State labels such as “crisis” are interpretations, not latent-state ground truth.</p>
+<p>For an ensemble, update expert weights only from <strong>matured out-of-sample losses</strong>. Use nonnegative weights summing to one, a penalty for departure from equal weights, and a penalty for rapid turnover in weights. Cap any regime tilt unless it has robust incremental evidence. A six-month expert cannot be judged from the last week's price moves. More frequent reweighting is not inherently more adaptive.</p>
+<h3>3.4 Probabilistic 1M/3M/6M forecasts</h3>
+<p><strong>Current state →</strong> analyst/scenario targets, heuristic target timing, and Monte Carlo probabilities. <strong>Problem →</strong> model assumptions are presented too close to empirical forecasting confidence. <strong>Proposed design →</strong> forecast return distributions with explicit benchmark, start time, horizon, and calibration history. <strong>Algorithm/model →</strong> a pooled regularized mean model plus conditional quantile models or a carefully specified distributional model; out-of-time calibration and benchmark-aware scenario composition. <strong>Required data →</strong> forward total returns, execution convention, feature snapshots, and outcome vintages. <strong>Expected benefit →</strong> decisions reflect downside and uncertainty rather than a falsely precise target. <strong>Risks/limitations →</strong> tail probabilities are data-hungry; conformal coverage is not a guarantee for every stock or regime.<sup><a href="#source-37" aria-label="Source 37">37</a></sup><sup><a href="#source-38" aria-label="Source 38">38</a></sup></p>
+<p>Define the research target as the total return from a specified executable reference price—initially the next session's open—through 21, 63, or 126 sessions. Include dividends and corporate actions. Define benchmark-relative return against a disclosed broad-market total-return benchmark over the same window. For alpha attribution, also retain sector-relative and factor-residual targets. Benchmark-relative return and factor alpha are not interchangeable.</p>
+<p>Train separate horizon heads. A six-month forecast is not six times the one-month mean, and its interval is not automatically √6 times the one-month interval. Return horizon intervals need not be nested in every conditional setting; do not cosmetically force coherence that the model cannot support. For jointly simulated paths, ensure the same path generator produces all horizons and test their dependence.</p>
+<p>Publish a mean, median, 10th/90th percentiles, P(benchmark-relative return &gt; 0), and P(total return below the mandate's loss threshold). These probabilities should derive from one coherent estimated distribution where feasible. If a separate classifier materially improves an event forecast, version it separately and disclose any inconsistency rather than quietly blending outputs. Never claim that two quantiles alone identify the full CDF or its mean.</p>
+<p>For the first distributional baseline, use a regularized location estimate with empirically resampled, volatility-scaled residual blocks from training data. This is a finite empirical scenario distribution; test tail sensitivity and explicitly acknowledge unobserved extreme events. Compare shallow quantile boosting later. Prevent quantile crossing by ordered parameterization or documented rearrangement, then evaluate the resulting distributions.</p>
+<p>Fit calibration only on a chronologically later calibration block whose labels are already known. Use sigmoid calibration for sparse binary events, isotonic only with enough independent evidence. Track Brier/log loss and reliability separately: a lower Brier score alone does not prove better calibration. For intervals use pinball loss, empirical coverage, and interval width. Adaptive conformal methods can help monitor and adjust marginal coverage under changing conditions; delayed labels, selection into the top-ranked set, and cross-sectional dependence limit guarantees.<sup><a href="#source-37" aria-label="Source 37">37</a></sup><sup><a href="#source-38" aria-label="Source 38">38</a></sup></p>
+<p>The endpoint return distribution is <strong>not</strong> a target-before-stop probability. A stock may finish up after first crossing a stop. First-passage decisions need a separately validated path model or observed bar-by-bar policy replay.</p>
+<h3>3.5 Valuation and event interpretation</h3>
+<p><strong>Current state →</strong> DCF/analyst blends and event-type lookup returns. <strong>Problem →</strong> targets inherit anchors, and event occurrence is confused with unpriced surprise. <strong>Proposed design →</strong> separate valuation scenarios from return forecasts; model event novelty and the market's response. <strong>Algorithm/model →</strong> peer-relative valuation, reverse DCF, event-study residual returns, and eventually pooled event hazard/impact models. <strong>Required data →</strong> as-filed financials, enterprise/equity bridge, filing/publication timestamps, event type, and price reaction. <strong>Expected benefit →</strong> exposes what must be true for a valuation and whether new information remains unpriced. <strong>Risks/limitations →</strong> sector accounting differs; reliable consensus surprises and event histories are sparse on free feeds.</p>
+<p>Reverse DCF is especially useful: solve for the revenue growth, margins, reinvestment, or discount rate needed to justify today's enterprise value. It uses price as the question rather than hiding price inside the answer. Display the assumptions, sensitivity range, and missing accounting inputs. Do not treat its implied growth as a return forecast.</p>
+<p>For earnings, distinguish reported operating improvement from analyst surprise. Without a reliable contemporaneous consensus, compute year-over-year seasonally comparable earnings/revenue changes, margin changes, accruals, and cash-flow confirmation. Label these as accounting change signals. For ownership, prioritize well-parsed Form 4 transactions and delayed 13F crowding context; do not call either real-time institutional order flow. Form 13F is generally filed up to 45 days after quarter-end and does not reveal the complete current portfolio.<sup><a href="#source-39" aria-label="Source 39">39</a></sup></p>
+<h3>3.6 Entry, accumulation, hold, reduce, exit, and invalidation</h3>
+<p><strong>Current state →</strong> ATR/support levels, threshold actions, fixed catalyst pullbacks, and heuristic targets. <strong>Problem →</strong> these combine investment attractiveness, timing, ownership, and risk into labels that do not measure the best available action. <strong>Proposed design →</strong> select an action by expected incremental utility conditional on the existing position. <strong>Algorithm/model →</strong> discrete candidate position changes evaluated under forecast scenarios, costs, covariance, and hard constraints; add entry-policy models only after separate replay. <strong>Required data →</strong> current holdings, cash, forecast distributions, liquidity/cost assumptions, events, and prices. <strong>Expected benefit →</strong> a good stock can correctly be HOLD or REDUCE when already overweight. <strong>Risks/limitations →</strong> estimated utilities are uncertain and gap losses can exceed stop-based budgets.</p>
+<p>Start with the simplest executable policy: evaluate after completed daily data, rebalance weekly at the next eligible open, and compare with monthly rebalancing. Add risk/event-triggered reviews between scheduled rebalances. No universal pullback or profit-taking ladder should be presumed to improve this baseline.</p>
+<p>Define actions operationally:</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Quantitative meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enter</td>
+<td>A positive first position improves conservative expected portfolio utility and passes evidence/data gates</td>
+</tr>
+<tr>
+<td>Accumulate</td>
+<td>Increase an existing or staged position toward a target, subject to remaining exposure and event limits</td>
+</tr>
+<tr>
+<td>Hold</td>
+<td>The current position lies within a transaction-cost-aware no-trade band</td>
+</tr>
+<tr>
+<td>Reduce</td>
+<td>A smaller position improves utility or cures a risk violation</td>
+</tr>
+<tr>
+<td>Exit</td>
+<td>Target weight becomes zero, a hard invalidation is confirmed, or risk constraints require liquidation</td>
+</tr>
+<tr>
+<td>Watch / abstain</td>
+<td>Evidence, data, or incremental utility does not justify a change</td>
+</tr>
+</tbody>
+</table>
+<p>An <strong>entry zone</strong> is a range of hypothetical fill prices over which the proposed order still clears utility and loss constraints, holding non-price evidence fixed. It expires on new material information. At each price recalculate return-to-entry, valuation inputs affected by price, costs, size, and downside. A limit order needs a fill model and adverse-selection analysis; an attractive conditional payoff given a fill does not prove waiting is superior to entering now.</p>
+<p>Keep three independent invalidations: factual thesis failure, portfolio-risk breach, and a chosen price-based protective exit. Stops are execution instructions, not guaranteed maximum losses. Test fixed-horizon holding, thesis exits, volatility stops, and time stops as separate policies. ATR is a volatility measure, not a learned optimal stop distance. Reward/risk geometry is useful context but does not establish positive expectancy.</p>
+<h3>3.7 Portfolio optimization</h3>
+<p><strong>Current state →</strong> risk-first sizing, sector/correlation checks, and an inverse-volatility refinement. <strong>Problem →</strong> selected-name rankings do not evaluate the best change to the existing book; exposure constraints can be altered by subsequent transformations. <strong>Proposed design →</strong> optimize all proposed changes jointly, preserve cash, and validate final rounded positions. <strong>Algorithm/model →</strong> shrinkage/factor covariance, conservative expected-return utility, transaction-cost penalties, exposure constraints, and stress scenarios. <strong>Required data →</strong> actual positions and cash, correlated return history, issuer/sector/factor exposures, and liquidity. <strong>Expected benefit →</strong> capital goes to diversifying incremental opportunities, not simply the highest standalone scores. <strong>Risks/limitations →</strong> return-estimation error dominates; all fallbacks must preserve hard constraints.<sup><a href="#source-19" aria-label="Source 19">19</a></sup><sup><a href="#source-18" aria-label="Source 18">18</a></sup></p>
+<p>Use a factor covariance model Σ = BΩBᵀ + D for a large universe, with stable broad-factor exposures and shrunk idiosyncratic variances. For a small selected book, a tested shrinkage covariance estimator is a simpler first implementation. Stress correlation concentration rather than assuming past diversification survives a crisis. Shrinkage addresses estimation noise; it does not make an inaccurate return forecast accurate.<sup><a href="#source-33" aria-label="Source 33">33</a></sup><sup><a href="#source-36" aria-label="Source 36">36</a></sup></p>
+<p>Never auto-relax a user risk limit to obtain a feasible solution. Cash makes long-only feasibility possible; if existing holdings violate constraints, return a staged remediation proposal and its remaining violations. Whole-share rounding, locked positions, and minimum orders need a final feasibility pass. A failed optimizer should produce a feasible conservative alternative or abstention, not unconstrained normalized weights.</p>
+<h2 id="4-proprietary-quanta-alpha-scoring-methodology">4. Proprietary QUANTA Alpha scoring methodology</h2>
+<h3>4.1 What “proprietary” should mean</h3>
+<p>The defensible intellectual property is the reproducible data history, validated feature definitions, calibrated models, decision ledger, and learning process. Renaming a weighted indicator sum is not a moat. The following methodology is a <strong>proposed research specification</strong>, not an already validated proprietary alpha formula.</p>
+<p><strong>Current state →</strong> score, stars, signal strength, confidence, risk grade, and action partially overlap. <strong>Problem →</strong> one number is being used for several incompatible questions. <strong>Proposed design →</strong> separate investment signal, uncertainty, evidence, and portfolio fit. <strong>Algorithm/model →</strong> conditional return distribution plus a conservative utility-based rank; descriptive scores remain display mappings. <strong>Required data →</strong> common-universe predictions, risk scenarios, data quality, calibration, and a portfolio snapshot. <strong>Expected benefit →</strong> each published number has a falsifiable interpretation. <strong>Risks/limitations →</strong> utility parameters encode the mandate; no scoring formula can eliminate model uncertainty.</p>
+<h3>4.2 Feature and model construction</h3>
+<p>For security i, date t, horizon h, feature j:</p>
+<ol>
+<li>Resolve the feature strictly as available at the decision cutoff.</li>
+<li>Flag missing, stale, restated, and economically inapplicable values separately.</li>
+<li>Normalize using robust cross-sectional ranks or median/MAD transforms within the relevant cohort. Sector normalization is appropriate for some accounting ratios; retain separate sector-allocation information rather than neutralizing all sector effects automatically.</li>
+<li>Fit imputation, clipping parameters, feature selection, and any learned transformations only within training data. Same-date ranking across an observable eligible universe is permissible; ranking across future dates is not.</li>
+<li>Reduce duplicate signals through grouped regularization and incremental ablation, not arbitrary bonuses for indicator agreement.</li>
+</ol>
+<p>A transparent baseline forecasts benchmark-relative return:</p>
+<pre><code class="language-text">mu(i,t,h) = intercept(h) + sector_effect(i,h)
+            + sum_j beta(j,h) * feature(i,t,j)
+            + sum_j,k gamma(j,k,h) * feature(i,t,j) * market_state(t,k)
+</code></pre>
+<p>Penalize both beta and gamma; shrink sector effects toward zero. Market state is a small vector of continuous variables, not a claim of certainty about tomorrow's regime. Estimate on date-balanced panels so that one date with more covered stocks does not dominate the fit. Compare to a price-only model and simple factor rank model.</p>
+<p>For model experts m, form a mixture distribution rather than averaging arbitrary scores:</p>
+<pre><code class="language-text">F_mix(r | x,t,h) = sum_m omega(m,t,h) * F_m(r | x,t,h)
+omega &gt;= 0; sum_m omega = 1
+</code></pre>
+<p>The weights minimize past matured out-of-sample proper loss with shrinkage toward equal weighting and a temporal stability penalty. Quantiles of a mixture are obtained from its combined CDF, not by averaging expert quantiles. Evaluate and, where justified, recalibrate the final ensemble on a separate matured calibration set; individually calibrated experts do not automatically make their mixture calibrated for a newly selected population. Model diversity is measured by prediction-error correlation and incremental performance, not model names.</p>
+<h3>4.3 The QUANTA Opportunity Score</h3>
+<p>Use a transparent reference mandate for market rankings and the actual mandate for portfolio recommendations. Fix a reference incremental weight δ, such as 1% of NAV, for comparable standalone risk calculations; this is a display/reference convention, not an automatic order size.</p>
+<p>Define reference utility per unit of incremental weight:</p>
+<pre><code class="language-text">u_ref(i,h) = mu_excess(i,h)
+             - kappa(h) * se_mu(i,h)
+             - 0.5 * lambda(h) * delta * variance(i,h)
+             - eta(h) * downside_expected_shortfall(i,h)
+             - estimated_round_trip_cost(i,delta,h)
+</code></pre>
+<p>All quantities are horizon-consistent returns; uncertainty is estimation uncertainty in the mean, not the stock's raw volatility. Estimate <code>se_mu</code> with date-block resampling and model refitting, preserving cross-sectional dependence. Downside expected shortfall is a positive loss measure under the forecast distribution. Lambda, eta, and kappa represent a documented reference mandate and conservatism; avoid fitting a large set of these coefficients on the final test period. Tail and variance penalties may overlap, so compare simpler nested utility forms.</p>
+<p>Set <strong>Opportunity Score = 100 × empirical percentile of u_ref among comparable, eligible, covered securities for that horizon and snapshot</strong>. Round for display. Ties should share a rank or use a disclosed deterministic rule. Publish the raw expected return and uncertainty beside the percentile.</p>
+<p>A score of 95 means a top-five-percent position in that covered reference universe. It does <strong>not</strong> mean a 95% success probability, a positive expected return, or a mandate to buy. If all utilities are negative, the highest percentile still does not clear the absolute action hurdle. Keep 1M, 3M, and 6M ranks separate; use a chosen mandate horizon rather than averaging correlated horizons into a false consensus.</p>
+<h3>4.4 Portfolio Fit and actions</h3>
+<p>For current weights w and candidate changes d, solve or enumerate a constrained approximation to:</p>
+<pre><code class="language-text">maximize_d  mu_total' d - kappa * uncertainty_penalty(d)
+            - lambda/2 * [(w+d)' Sigma_h (w+d) - w' Sigma_h w]
+            - costs(d) - eta * incremental_stress_loss(w,d)
+
+subject to w+d &gt;= 0, sum(w+d) &lt;= 1,
+           issuer / sector / factor / liquidity / turnover / event limits,
+           actual cash and locked-position constraints.
+</code></pre>
+<p>Include cash return explicitly when comparing total-return alternatives. If optimizing active returns relative to a benchmark, use a coherent active-risk objective; do not subtract benchmark return and then silently optimize a different risk definition. Transaction costs refer to actual current-to-target turnover, not every holding's hypothetical round trip.</p>
+<p>Portfolio Fit is the predicted incremental utility of the feasible change, with the binding constraints shown. A standalone top-ranked semiconductor may have negative Portfolio Fit in an already semiconductor-heavy book. A moderately ranked diversifier may be more useful. This is the central difference between stock selection and investment decision quality.</p>
+<h3>4.5 Evidence and confidence</h3>
+<p>Publish four separate dimensions:</p>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Meaning</th>
+<th>Forbidden interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Forecast probability</td>
+<td>Calibrated probability of a precisely defined outcome</td>
+<td>Probability that the whole thesis is true</td>
+</tr>
+<tr>
+<td>Forecast uncertainty</td>
+<td>Outcome range and estimation uncertainty</td>
+<td>A single confidence percentage derived from score</td>
+</tr>
+<tr>
+<td>Evidence state</td>
+<td>Experimental, shadow, validated within scope, degraded, or retired</td>
+<td>Universal authorization across all universes/horizons</td>
+</tr>
+<tr>
+<td>Data quality</td>
+<td>Coverage, source freshness, semantic validity, and conflicts</td>
+<td>A positive or negative opinion about the business</td>
+</tr>
+</tbody>
+</table>
+<p>A missing-data model is a separately evaluated model, not ad hoc reweighting. Maintain explicit core-price, core-plus-financials, and enriched-event model tiers only if each has enough data to validate. Compare tiers in their shared population before merging ranks; otherwise show coverage-qualified rankings. Downgrade evidence or abstain when the present input mix is outside the validated domain.</p>
+<h3>4.6 Exact thesis-change accounting</h3>
+<p><strong>Current state →</strong> textual thesis and signal/downgrade history. <strong>Problem →</strong> a lower score may reflect a price change, vendor outage, peer movement, or model update rather than business deterioration. <strong>Proposed design →</strong> store an additive change decomposition before generating prose. <strong>Algorithm/model →</strong> replay frozen old/new inputs and model versions, with explicit attribution groups; use group Shapley decomposition where order independence is worth the computational cost. <strong>Required data →</strong> immutable old/new feature snapshots, model/calibration versions, ranking population, and portfolios. <strong>Expected benefit →</strong> every conviction change is auditable. <strong>Risks/limitations →</strong> attribution explains model behavior, not causal economic truth; correlated inputs make allocation of interaction effects convention-dependent.</p>
+<p>For a raw utility change, use a documented telescoping chain:</p>
+<pre><code class="language-text">old result
+ + changed company facts under old prices/model/context
+ + changed prices under old model/context
+ + changed macro/event context under old model
+ + changed model and calibration
+ = new raw utility
+
+Then separately reconcile:
+ + universe/peer movement → percentile-rank change
+ + portfolio/mandate change → action and sizing change
+</code></pre>
+<p>The sequential decomposition sums exactly but is order-dependent. Freeze and disclose the ordering or compute group Shapley values over feasible block replacements. Log source corrections separately from newly released economic information. Use the appropriate output scale: linear coefficients are additive in their native prediction scale; logistic coefficients add in log odds, not probability points. Do not reproduce the older plan's suggestion that fitted coefficients automatically yield probability-point attribution.<sup><a href="#source-29" aria-label="Source 29">29</a></sup></p>
+<p>An illustrative alert: “3M expected excess return fell 1.2 percentage points: margin revision −0.5, price appreciation −0.4, market context −0.2, model update −0.1. Rank fell from 92 to 78; portfolio recommendation remains HOLD because transaction costs exceed the benefit of trimming.” These numbers are a design example, not a QUANTA forecast.</p>
+<h2 id="5-data-and-feature-architecture">5. Data and feature architecture</h2>
+<h3>5.1 A realistic free-data strategy</h3>
+<p><strong>Current state →</strong> yfinance-centered acquisition with optional provider adapters, current fundamental snapshots, SEC catalyst metadata, and separate caches.<sup><a href="#source-26" aria-label="Source 26">26</a></sup><sup><a href="#source-27" aria-label="Source 27">27</a></sup> <strong>Problem →</strong> inconsistent availability/units, no complete historical feature vintage, and repeated requests in expensive analysis paths. <strong>Proposed design →</strong> source-specific adapters feeding immutable snapshots and normalized as-of facts; start collecting forward history immediately. <strong>Algorithm/model →</strong> deterministic validation, deduplication, security resolution, and as-of joins, with separate live and reconstructed-research clocks. <strong>Required data →</strong> prices/actions, filings, listings, macro vintages, and optional estimate/news snapshots. <strong>Expected benefit →</strong> reproducible research with visible coverage limitations. <strong>Risks/limitations →</strong> mostly free sources cannot be assumed to deliver complete delisted histories, historical consensus, full news archives, or production-grade redistribution rights.</p>
+<table>
+<thead>
+<tr>
+<th>Data family</th>
+<th>Practical first source</th>
+<th>What it supports</th>
+<th>Limit that must stay visible</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Listed security inventory</td>
+<td>Nasdaq Trader symbol directories, reconciled with issuer metadata</td>
+<td>Current broad universe, ETF/test-issue filtering, daily listing snapshots</td>
+<td>Current directory is not a survivorship-free historical master; security-type resolution still needs work</td>
+</tr>
+<tr>
+<td>Daily prices and actions</td>
+<td>Existing yfinance adapter; a separately validated fallback</td>
+<td>EOD price factors, corporate-action checks, forward collection</td>
+<td>Preserve raw and adjusted semantics; no assumed completeness or service guarantee; classify gaps rather than silently switching series</td>
+</tr>
+<tr>
+<td>Company financials</td>
+<td>SEC submissions, Company Facts, original filings</td>
+<td>As-filed accounting features and amendments</td>
+<td>Company Facts does not normalize all custom tags or segmented contexts; fiscal periods and units require accounting-aware resolution</td>
+</tr>
+<tr>
+<td>Corporate events</td>
+<td>SEC 8-K/10-Q/10-K and issuer releases</td>
+<td>Material event evidence and publication timestamps</td>
+<td>Filing date is not always the earliest release of the economic fact</td>
+</tr>
+<tr>
+<td>Macro</td>
+<td>FRED/ALFRED series and vintages</td>
+<td>Rates, credit, inflation/activity context</td>
+<td>Latest revised values must not be inserted into earlier feature rows</td>
+</tr>
+<tr>
+<td>Risk-factor returns</td>
+<td>Kenneth French research factors</td>
+<td>Ex-post attribution, stable baseline comparisons</td>
+<td>Research factor returns are not directly tradeable; record dataset version and publication availability for any predictive use</td>
+</tr>
+<tr>
+<td>Earnings estimates</td>
+<td>Current provider estimate fields, archived prospectively</td>
+<td>Revision experiments from recorded snapshots</td>
+<td>No historical consensus backfill claim; preserve fiscal period identity and provider availability</td>
+</tr>
+<tr>
+<td>Ownership</td>
+<td>SEC Form 4, later 13F</td>
+<td>Insider transaction context, lagged holdings/crowding</td>
+<td>Transactions need type/role/amendment handling; 13F is delayed and incomplete</td>
+</tr>
+<tr>
+<td>News</td>
+<td>Available provider/issuer feeds, stored within permitted use</td>
+<td>Forward event novelty and evidence summaries</td>
+<td>Missing history, duplicate syndication, source bias, and access rights</td>
+</tr>
+</tbody>
+</table>
+<p>SEC offers unauthenticated submissions and XBRL APIs plus nightly bulk archives; use bulk ingestion to seed the store and incremental requests thereafter. This supports a capable free-data foundation, but it is not a turnkey point-in-time financial database. Nasdaq's directory documents current security fields. ALFRED supports historical information vintages. The yfinance project itself distinguishes its open-source software from rights to the underlying Yahoo data and describes personal-use limitations; self-hosting does not grant redistribution rights.<sup><a href="#source-30" aria-label="Source 30">30</a></sup><sup><a href="#source-31" aria-label="Source 31">31</a></sup><sup><a href="#source-32" aria-label="Source 32">32</a></sup><sup><a href="#source-34" aria-label="Source 34">34</a></sup></p>
+<p>Buy data only against a measured bottleneck. The first likely high-value purchase is delisting/corporate-action and historical membership coverage if broad historical alpha validation is the objective. Historical earnings-estimate revisions become worthwhile only after a forward experiment shows incremental value. Premium headlines, options flow, and many redundant feeds should not precede these essentials. Provider choice and entitlements require a fresh evaluation at purchase time.</p>
+<h3>5.2 Canonical data contracts</h3>
+<p>Every raw observation needs <code>source</code>, <code>source_record_id</code>, <code>schema_version</code>, <code>payload_hash</code>, <code>received_at</code>, and a link or raw-object reference. Every market fact needs economic time, public-availability time where known, and operational acquisition time. Timestamps are UTC with exchange-calendar interpretation stored explicitly.</p>
+<table>
+<thead>
+<tr>
+<th>Table / dataset</th>
+<th>Essential fields and constraints</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>issuers</code> / <code>securities</code></td>
+<td>Internal immutable IDs, issuer ID, share class, listing venue, currency, security type; CIK is an issuer identifier, not a sufficient security ID</td>
+</tr>
+<tr>
+<td><code>symbol_history</code> / <code>universe_membership</code></td>
+<td>Symbol, security ID, effective interval, source, first observed time, eligibility reason; no ticker-string joins across the whole history</td>
+</tr>
+<tr>
+<td><code>corporate_actions</code></td>
+<td>Split/dividend/merger/delisting terms, ex/effective/payment dates, announcement/availability times, source revision</td>
+</tr>
+<tr>
+<td><code>raw_objects</code></td>
+<td>Immutable payload location and checksum, retrieval timestamps, adapter version, rights/retention metadata</td>
+</tr>
+<tr>
+<td><code>daily_bars</code></td>
+<td>Security/session, raw OHLCV, adjustment basis, source/vintage, exchange calendar, completion state, quality flags</td>
+</tr>
+<tr>
+<td><code>fundamental_facts</code></td>
+<td>Accession, taxonomy/tag, units, duration/instant, fiscal period, statement context, publication/acceptance time, amendment linkage, original and normalized values</td>
+</tr>
+<tr>
+<td><code>estimate_snapshots</code></td>
+<td>Security, estimate metric, fiscal-period end, analyst coverage, estimate value, observation/availability timestamps, provider field meaning</td>
+</tr>
+<tr>
+<td><code>events</code> / <code>event_evidence</code></td>
+<td>Event ID, issuer roles, event type, first publication, source spans, novelty cluster, extraction/model version, confidence in extraction</td>
+</tr>
+<tr>
+<td><code>macro_vintages</code></td>
+<td>Series, observation period, vintage date, release time, value, source revision</td>
+</tr>
+<tr>
+<td><code>feature_values</code></td>
+<td>Security, decision cutoff, feature definition/version, value, missingness/status, source lineage, eligible-universe ID</td>
+</tr>
+<tr>
+<td><code>forecast_runs</code> / <code>forecasts</code></td>
+<td>Model/calibrator/data/code hashes, train/calibration cutoffs, forecast timestamp, reference execution rule, horizon, full distribution representation and derived statistics</td>
+</tr>
+<tr>
+<td><code>decisions</code> / <code>decision_changes</code></td>
+<td>Forecast ID, portfolio/mandate snapshot, action, target weight, constraints, reason codes, evidence state, immutable before/after attribution</td>
+</tr>
+<tr>
+<td><code>positions</code> / <code>transactions</code></td>
+<td>Actual holdings, lots if needed, cash, trades, fees, corporate-action adjustments, reconciliation status</td>
+</tr>
+<tr>
+<td><code>outcomes</code> / <code>evaluations</code></td>
+<td>Forecast ID, exact start/end sessions, maturity time, total/benchmark return, realized loss/coverage, source vintage, correction record</td>
+</tr>
+<tr>
+<td><code>experiments</code> / <code>model_registry</code></td>
+<td>Hypothesis, all tried variants, selection rules, artifacts, scope, promotion evidence, status, supersession</td>
+</tr>
+</tbody>
+</table>
+<p>Never overwrite an old forecast or label correction. Append a superseding record, retain the originally reported version, and permit both “as reported” and corrected analyses. Keep production-generated forecasts distinct from retrospective reconstruction. A historical filing acquired today may support a reconstructed observable-information backtest if its original availability can be established; it cannot be represented as a forecast that the platform actually issued then.</p>
+<p>Price adjustment deserves its own contract. Back-adjustment by future splits can preserve some scale-invariant return features yet leak into nominal-price eligibility thresholds, per-share accounting joins, and simulated fills. Use period-correct price/share units for those operations. Distinguish price return from total return, split adjustment from dividend reinvestment, and provider fallback from equivalent data.</p>
+<h3>5.3 Feature library</h3>
+<p>Start with roughly 25–40 well-defined candidate features, not hundreds of indicators. The count is a scope guideline, not a statistical threshold.</p>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>First features</th>
+<th>Definition safeguards</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Momentum / trend</td>
+<td>12-month momentum excluding the latest month, 6M momentum, sector-relative momentum, short-term reversal, trend persistence</td>
+<td>Explicit session endpoints; distinguish residual momentum from market beta; keep reversal a separate hypothesis</td>
+</tr>
+<tr>
+<td>Operating quality</td>
+<td>Gross/operating profitability, operating cash flow to assets, accruals, margin stability</td>
+<td>Use contemporaneously available statements; do not use ROE naively when equity is negative or distorted by buybacks</td>
+</tr>
+<tr>
+<td>Improvement</td>
+<td>Change in margins, cash conversion, revenue growth acceleration, dilution trend</td>
+<td>Compare like fiscal periods; derive quarters from YTD only with compatible vintages/context</td>
+</tr>
+<tr>
+<td>Valuation</td>
+<td>Earnings/FCF yield, enterprise-value ratios, sector-relative valuation, reverse-DCF implied assumptions</td>
+<td>Separate nonpositive denominators; distinguish equity and enterprise cash flows; industry-specific templates</td>
+</tr>
+<tr>
+<td>Revisions / surprise</td>
+<td>Coverage-normalized revision breadth, price-scaled EPS revisions, operating surprise versus a seasonal baseline</td>
+<td>Same fiscal period across snapshots; estimate changes are not surprises; no false 30-day labels for 90-day fallbacks</td>
+</tr>
+<tr>
+<td>Risk / tradability</td>
+<td>Realized/downside volatility, beta, residual volatility, drawdown, turnover, liquidity, event proximity</td>
+<td>Dates/currencies aligned; missing covariance cannot become zero risk</td>
+</tr>
+<tr>
+<td>Macro sensitivity</td>
+<td>Rate/credit sensitivity, market breadth context, volatility state</td>
+<td>Use available vintages; keep slow exposures distinct from fast scenario shocks</td>
+</tr>
+<tr>
+<td>Event / sentiment</td>
+<td>New material disclosure, numeric guidance change, source-normalized novelty, price-response divergence</td>
+<td>Validate entity roles, deduplicate common stories, record text model versions and source spans</td>
+</tr>
+<tr>
+<td>Ownership</td>
+<td>Open-market insider purchase intensity, issuer-level insider clusters, lagged institutional crowding</td>
+<td>Separate purchases from grants/options/tax sales; source delays and incomplete coverage are inputs</td>
+</tr>
+</tbody>
+</table>
+<p>Technical indicators earn admission through ablation after the baseline price features. Fundamental models for financial institutions and REITs need their own accounting templates. Avoid penalizing firms simply because a generic industrial-company ratio is inapplicable.</p>
+<h3>5.4 Scheduling, caching, and observability</h3>
+<p>Use the exchange calendar, not a fixed UTC “market close.” After each completed session: ingest bars/actions, validate, resolve eligible securities, update changed facts, build features, generate forecasts, calculate portfolio deltas, atomically publish the snapshot, then queue explanations. Outcomes mature by their exact trading-session schedule. Poll filing/event sources at a rate compatible with their rules and the research horizon; a 1–6 month model does not need a real-time tick architecture.</p>
+<p>Retrain initially monthly or quarterly depending on horizon and data volume; calibrate only as outcomes mature. Material data corrections trigger a new computation with a correction reason, not silent history edits. Cache raw data, normalized facts, features, forecasts, and explanations separately, each with version-aware keys and dataset-specific freshness.</p>
+<p>Observe coverage by source/sector/model tier, stale-feature share, provider errors and circuit state, corporate-action discrepancies, job duration/retries, missing predictions, model drift, forecast maturity lag, constraint violations, and publication failures. Add structured run/trace IDs across API, worker, and ledger. Test restart recovery and backup restoration. For wider access, add authenticated access control, stable secret management, and account isolation before exposing the current local-only app.</p>
+<h2 id="6-backtesting-and-validation-framework">6. Backtesting and validation framework</h2>
+<h3>6.1 One evaluator, three kinds of evidence</h3>
+<p><strong>Current state →</strong> corrected APEX execution exists alongside simplified and statistically misleading backtest paths. <strong>Problem →</strong> a good-looking metric may measure a different strategy, universe, or timing convention from the live decision. <strong>Proposed design →</strong> consolidate on one execution/evaluation kernel and explicitly distinguish retrospective diagnostics, validated historical experiments, and forward shadow results. <strong>Algorithm/model →</strong> nested chronological selection, purged label intervals, a locked test, realistic portfolio replay, dependence-aware uncertainty, and forward evaluation. <strong>Required data →</strong> historical membership/actions, as-of features, source vintages, costs, benchmark, and complete forecast records. <strong>Expected benefit →</strong> performance claims refer to the actual executable policy. <strong>Risks/limitations →</strong> incomplete historical data remains incomplete after any statistical correction.</p>
+<p><strong>Tier A: engineering diagnostics.</strong> Synthetic fixtures and causal tests verify math, chronology, action consistency, and constraint preservation. The current 160-test pass belongs here. Golden tests protect behavior but can also preserve a bad algorithm; they do not establish economic validity.</p>
+<p><strong>Tier B: retrospective research.</strong> Use reconstructible price/accounting features and document membership, delisting, availability, and corporate-action limits. Historical evaluation with missing delistings remains coverage-limited even if train/test chronology is perfect. The current technical/risk reconstruction is a baseline hypothesis, not authorization for every live feature.</p>
+<p><strong>Tier C: prospective shadow record.</strong> Save forecasts for the full evaluated population before outcomes, including rejected and abstained names. Evaluate every vintage by a fixed maturity rule. This is essential for free-data estimate/news features that lack a reliable archive. Six months of operation cannot prove six-month forecasting skill across regimes: the newest 6M outcomes will barely have matured and successive vintages will overlap heavily.</p>
+<h3>6.2 Splits and leakage prevention</h3>
+<p>Use date-grouped outer walk-forward folds. An illustrative mature-data configuration is five years of training, one year of calibration, and the next year of testing, rolled forward yearly, with inner chronological selection inside the training period. This is a starting research design, not a promise that the repository has adequate data. Shorter history supports simpler models and weaker claims, not more aggressive fitting.</p>
+<p>For each horizon, purge any training row whose outcome interval reaches into a later calibration/test boundary or whose label would not yet be observable at the fit cutoff. Calibration rows also require matured labels before the test starts. Split all securities by common dates; do not scatter rows from the same day between training and testing. A generic row-wise <code>TimeSeriesSplit</code> gap is not enough for a stock panel with variable label intervals.</p>
+<p>Use embargo where fold construction allows observations after a held-out interval to enter training, and choose dependence buffers through a documented policy. A purely expanding past-only split chiefly needs label maturity and boundary purging; a ritual fixed embargo does not cure stale vintages, current constituents, or future restatements.</p>
+<p>Freeze transforms, feature selection, parameters, calibrators, ensemble weights, risk model estimation, universe rules, and action policy before each outer test. Precomputed causal rolling features can be reused; precomputed full-sample fitted transforms cannot. Keep a registry of all experiments and manual changes informed by previous test results. A small parameter grid alone does not account for repeated human inspection or research iteration. Deflated Sharpe and related selection-bias diagnostics are useful supplements, not substitutes for a genuinely untouched test and a prospective record.<sup><a href="#source-42" aria-label="Source 42">42</a></sup></p>
+<h3>6.3 Execution and capital accounting</h3>
+<p>Retain the corrected APEX semantics and broaden them into an event-based portfolio replay. A close-derived signal is first executable at the next specified tradable time. Entry sizing cannot use the later day's high, low, volume, or closing equity. Stops are active from entry when the policy says so; gap-through stops fill at an executable price, not at the stop. If daily OHLC touches both stop and target and order is unknown, use a conservative tie rule and show sensitivity to alternatives.<sup><a href="#source-41" aria-label="Source 41">41</a></sup></p>
+<p>Include cash, dividends, splits, mergers, delistings, halted trading, stale marks, fees, slippage, partial fills, capacity, and residual holdings at the end. Do not omit unclosed losers from trade statistics. Do not zero out illiquid positions because a quote is missing. Isolate adjusted research returns from actual share-and-cash accounting to avoid counting dividends twice.</p>
+<p>Use liquidity-bucket spread/impact assumptions and multiple cost scenarios. A simple initial cost function may combine half-spread, commission, and impact proportional to volatility × square root of participation; calibrate when actual execution evidence is available. With only daily volume, use a conservative lagged liquidity estimate for admission, not future realized daily volume. Run at baseline, doubled, and more severe stressed costs. These multipliers are sensitivity scenarios, not measured execution costs.</p>
+<p>Carry portfolio state continuously across model refreshes. If research folds liquidate at boundaries, explicitly include liquidation costs and identify that as a different policy. Never concatenate overlapping test-window returns as if they were a single investable equity curve.</p>
+<h3>6.4 Benchmarks and ablations</h3>
+<p>Compare against broad-market total return, cash, the eligible-universe equal-weight portfolio, a sector/size-matched baseline, simple momentum/quality/value rules, and a price-only model. For a discretionary long-only product, use both absolute risk-adjusted performance and benchmark-relative performance. A strategy holding large cash balances should not claim stock-selection alpha merely from lower volatility in a falling market.</p>
+<p>Random-entry and random-exit baselines are diagnostics, not a complete validation standard. Run multiple seeds with matched exposure, liquidity, entry counts, holding periods, and costs; a single lucky or unlucky random path is not a hurdle. Equal-universe baselines help diagnose selection effects but do not remove survivorship bias.</p>
+<p>Required ablations: remove each feature family; static versus dynamic weights; pooled versus regime-conditioned models; mean model versus quantile challenger; with/without event enrichment; rank-only versus portfolio-aware selection; next-open versus pullback entry; hold-to-horizon versus stop/thesis exits; normal versus degraded data coverage. Report turnover and complexity costs with every claimed gain.</p>
+<h3>6.5 Metrics and uncertainty</h3>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Metrics</th>
+<th>Statistical treatment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Are stocks ranked well?</td>
+<td>Per-date Spearman IC, top-minus-bottom spread, top-k benchmark-relative return, precision among actionable outcomes</td>
+<td>Block resample common dates and retain cross-sectional dependence; evaluate liquidity/sector cohorts</td>
+</tr>
+<tr>
+<td>Are return forecasts useful?</td>
+<td>Out-of-sample R² versus a disclosed baseline, MAE/RMSE, pinball loss, CRPS where a full CDF exists</td>
+<td>Retain magnitude errors and tail errors; do not rely solely on direction accuracy</td>
+</tr>
+<tr>
+<td>Are probabilities calibrated?</td>
+<td>Brier/log loss, reliability curves with counts, calibration slope/intercept</td>
+<td>Separate calibration from discrimination; evaluate the selected opportunity population too</td>
+</tr>
+<tr>
+<td>Are intervals honest?</td>
+<td>50/80/90% empirical coverage, width, conditional slices</td>
+<td>Show uncertainty and effective observation count; wide intervals can cover well while offering little decision value</td>
+</tr>
+<tr>
+<td>Does the portfolio work?</td>
+<td>Net CAGR, excess-return Sharpe, Sortino, max drawdown, drawdown duration, Calmar, information ratio, turnover, capacity</td>
+<td>Use the actual daily equity curve; compare aligned benchmarks and account for serial dependence</td>
+</tr>
+<tr>
+<td>Is there alpha?</td>
+<td>Factor-adjusted intercept and uncertainty, active return, beta/style exposures</td>
+<td>Distinguish realized attribution from forecast alpha; sensitivity to factor specification</td>
+</tr>
+<tr>
+<td>Do trade rules help?</td>
+<td>Net expectancy, payoff ratio, hit rate, MAE/MFE, realized stop slippage, fill rate, opportunity cost</td>
+<td>Define a trade and horizon precisely; count only matured outcomes in accuracy denominators</td>
+</tr>
+<tr>
+<td>Is the model degrading?</td>
+<td>Rolling proper loss, IC, calibration, coverage, drift, missingness, realized utility</td>
+<td>Distinguish data failures from predictive failure; use matured labels and avoid repeated uncorrected significance tests</td>
+</tr>
+</tbody>
+</table>
+<p>For overlapping 126-session forecasts, thousands of stock-date rows are not thousands of independent observations. Use common date blocks at least comparable to the horizon as a starting point, examine sensitivity to block length, and report conservative uncertainty. Non-overlapping subsampling helps but does not automatically remove regime persistence. The 1M and 3M outcomes of the same names are not independent confirmations.</p>
+<h3>6.6 Promotion, degradation, and retirement</h3>
+<p>A model progresses through <code>experimental → shadow → validated_in_scope → degraded/retired</code>. Every state change cites the universe, horizons, feature availability, execution policy, dataset/model/code hashes, and evidence. A new model version cannot inherit an old model's record invisibly.</p>
+<p>Require: no known leakage/accounting defects; reproducible runs; acceptable coverage for its declared scope; comparison with predeclared simple baselines; net economic improvement under reasonable cost sensitivity; calibrated outputs within predeclared tolerances; and stable behavior outside a single favorable cohort. Statistical thresholds and economic hurdles should be specified before evaluation. No universal Sharpe number proves a model is institutional grade. Failure to demonstrate improvement means retain the simpler model or remain a research screener.</p>
+<p>For degradation, first test source freshness and semantic changes. If coverage is broken, stop affected new recommendations immediately. If predictive losses worsen on enough matured vintages, widen uncertainty, reduce the model's influence, revert to the validated baseline, or abstain. Do not mechanically retrain on every drawdown; that can chase noise and erase accountability. Preserve the failed model and its forecast record for diagnosis.</p>
+<h2 id="7-top-10-highest-value-innovations">7. Top 10 highest-value innovations</h2>
+<p>These are ranked by expected decision value under the free-data constraint, not by novelty of the algorithm. Their benefits are hypotheses to measure.</p>
+<table>
+<thead>
+<tr>
+<th>Rank</th>
+<th>Innovation</th>
+<th>Current state → proposed implementation</th>
+<th>Benefit and principal limitation</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Immutable prediction accountability</td>
+<td>Mutable signal histories → every issued forecast linked to exact horizon, data, model, and matured outcome</td>
+<td>Makes honest model improvement possible; evidence takes calendar time to accumulate</td>
+<td>P0</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Portfolio opportunity cost</td>
+<td>Top-stock list → compare each feasible change with keeping cash, holding, trimming, and buying alternatives</td>
+<td>Finds the best next action for the actual book; utility remains sensitive to estimated returns and risk</td>
+<td>P1</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Exact thesis-change accounting</td>
+<td>Narrative/downgrade fragments → frozen counterfactual recomputation and reconciled contribution ledger</td>
+<td>Explains why conviction changed and whether it matters; decomposition is not causal proof</td>
+<td>P1</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Coverage-aware discovery with exploration</td>
+<td>Scanned/successful names → broad inventory, explicit coverage denominator, stratified random enrichment</td>
+<td>Reduces popularity and provider-selection bias; cannot recover unknown historical delistings</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Abstention as a modeled outcome</td>
+<td>Always-present relative ranks → positive utility hurdle plus evidence/domain checks</td>
+<td>Avoids forced trades in weak or unobservable conditions; may reduce activity more than users expect</td>
+<td>P1</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Decision stability under perturbation</td>
+<td>Exact rank display → rank/selection frequency across date-block model refits and plausible cost/data variations</td>
+<td>Exposes fragile winners and score cliffs; stability can still belong to a consistently biased model</td>
+<td>P1</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Event versus price-response divergence</td>
+<td>Headline sentiment → novel disclosure paired with abnormal market reaction</td>
+<td>Tests whether favorable information is already priced or being ignored; requires event timestamps and matched controls</td>
+<td>P2</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Shadow alternatives and regret accounting</td>
+<td>Outcomes only for viewed/funded names → evaluate all eligible candidates and predefined alternative actions</td>
+<td>Separates discovery, selection, sizing, and exit errors; avoid hindsight-optimal counterfactual policies</td>
+<td>P1/P2</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Value of additional information</td>
+<td>Fetch everything or just top names → prioritize enrichment where plausible new evidence could change the decision</td>
+<td>Saves provider requests and research time; information-value estimates themselves need validation</td>
+<td>P2</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Fragility and common-thesis exposure</td>
+<td>Sector/pairwise correlation checks → factor exposures plus evidence-backed customer/product/theme concentration</td>
+<td>Detects portfolios that are different tickers but one economic bet; inferred links must not replace measured risk</td>
+<td>P2/Future</td>
+</tr>
+</tbody>
+</table>
+<p>The last three should begin as deterministic, inspectable research tools. Event divergence can use a residual event-window return conditional on sector/beta and lagged momentum. Information value can initially be the difference between decisions under bounded plausible missing-feature scenarios, before attempting a learned acquisition policy. Common-thesis exposure can begin with verified filing relationships and manually reviewed tags; a graph neural network is not required.</p>
+<p>For every innovation, use the relevant data/model contracts in Sections 3–6, add a predeclared evaluation, and retain an ordinary baseline. A new product feature may be useful by saving research time or revealing risk even if it adds no return alpha. Measure that benefit separately rather than forcing every tool to claim stock-picking skill.</p>
+<h2 id="8-what-not-to-build">8. What NOT to build</h2>
+<ol>
+<li><strong>An LLM price predictor or investment committee whose confidence determines scores.</strong> Narrative sophistication cannot create predictive evidence. Astra orchestrates and explains.</li>
+<li><strong>A universal 0–100 “chance of success.”</strong> Relative rank, direction probability, evidence reliability, and portfolio suitability are different quantities.</li>
+<li><strong>A 100-factor score before validating a compact baseline.</strong> Correlated features and research degrees of freedom can rise faster than information.</li>
+<li><strong>Per-ticker deep neural networks on a few years of daily data.</strong> Pooled cross-sectional learning is the sensible initial unit. More complex models must earn their cost.</li>
+<li><strong>A historical earnings-revision or sentiment backtest built from today's snapshots.</strong> Begin prospective collection or acquire reliable historical data.</li>
+<li><strong>A “survivorship corrected” switch backed only by current ticker lists.</strong> No adjustment factor restores missing dead companies and their returns.</li>
+<li><strong>Intraday order-flow, options-flow, high-frequency, or real-time institutional-flow products on EOD/free data.</strong> The information and execution requirements are different.</li>
+<li><strong>Universal Kelly sizing from heuristic or Monte Carlo win rates.</strong> A calibrated distribution still needs uncertainty-aware portfolio constraints; approximate binary win/loss payoffs are often the wrong model.</li>
+<li><strong>An optimizer that must fully invest or relax caps when infeasible.</strong> Cash and explicit abstention are valid outputs.</li>
+<li><strong>Generic precise entry ladders and stop/target dates for every stock.</strong> Test each execution policy; do not turn ATR multiples into forecasts.</li>
+<li><strong>Automatic online retraining in response to recent losses.</strong> Distinguish ordinary risk, data failures, and model deterioration using matured evidence.</li>
+<li><strong>A complete framework/UI rewrite before fixing records and contracts.</strong> Preserve useful Flask, CLI, and UI components. Build a new frontend only where the research workflows demand it.</li>
+<li><strong>A microservice, Kafka, Kubernetes, vector-database, or graph-model estate from day one.</strong> Modular boundaries and reliable local persistence solve the initial scale problem.</li>
+<li><strong>A single generic fundamental formula for industrials, banks, REITs, ETFs, and pre-revenue firms.</strong> Inapplicable data must not masquerade as weak fundamentals.</li>
+<li><strong>A retrospective explanation that silently rewrites the original thesis.</strong> Store what the system actually believed, including mistakes and missing evidence.</li>
+</ol>
+<h2 id="9-prioritized-implementation-roadmap">9. Prioritized implementation roadmap</h2>
+<p>Implementation order follows evidence dependencies. Calendar estimates would be misleading without knowing available engineering time and deployment hardware. Forward 3M/6M evidence has an irreducible waiting period, even if all engineering is completed quickly.</p>
+<h3>P0 — Make outputs and records trustworthy</h3>
+<p><strong>Current state →</strong> green tests coexist with broken horizon records, fragmented policies, and unvalidated outputs. <strong>Problem →</strong> more models would compound an untrustworthy measurement loop. <strong>Proposed design →</strong> repair outcome semantics, freeze current models as named baselines, establish immutable records, and add final constraint/evidence checks. <strong>Algorithm/model →</strong> exact session-maturity labels, deterministic policy adapter, invariant validation, durable snapshots/jobs. <strong>Required data →</strong> existing sources plus prospective snapshots; no new paid feed required. <strong>Expected benefit →</strong> an honest baseline and a forward record begin immediately. <strong>Risks/limitations →</strong> the platform may initially make fewer recommendations and show more unavailable states.</p>
+<p>Deliver in this order:</p>
+<ol>
+<li>Version and quarantine invalidated performance artifacts. Label model scope and unvalidated outputs consistently in CLI, API, MCP, and UI.</li>
+<li>Fix <code>SignalTracker</code>: trading-session horizons, historical target-session prices, matured-only denominators, no mixed horizons, and immutable correction records.</li>
+<li>Add a single serializable <code>Forecast</code>/<code>Decision</code> contract and versioned legacy adapters. Preserve old model scores under explicit legacy IDs.</li>
+<li>Add final book invariants after all deep confirmation, allocation refinement, mandate scaling, and rounding. Eliminate fail-open unknown risk and prevent missing assets from disappearing from covariance risk.</li>
+<li>Create source/feature snapshot persistence and a broad current security inventory. Begin archiving all eligible forecasts, estimate snapshots, and material disclosures prospectively.</li>
+<li>Make the Python domain importable. Extract provider I/O and job persistence from Flask without changing the frontend framework.</li>
+<li>Add a minimal Model Performance page showing evidence status, coverage, pending/matured counts, and the original forecast record.</li>
+</ol>
+<p><strong>P0 acceptance:</strong> a stopped/restarted process loses no forecast or job identity; a forecast replays from its exact inputs; unresolved observations cannot lower hit rate; all final books obey cash/exposure rules; unvalidated models cannot masquerade as validated advice; data outages have visible status. Manual position-risk calculations can remain available, clearly separated from model-endorsed allocations.</p>
+<h3>P1 — Deliver a credible daily research engine</h3>
+<p><strong>Current state →</strong> partial research harness and heuristic market scans. <strong>Problem →</strong> no coherent market-wide probabilistic/portfolio workflow. <strong>Proposed design →</strong> daily features, pooled baseline models, calibrated forecast records, portfolio deltas, and thesis changes. <strong>Algorithm/model →</strong> price-only and accounting-augmented regularized models, conservative empirical distributions, shrinkage risk, and cost-aware target weights. <strong>Required data →</strong> validated historical subset plus continuing forward data. <strong>Expected benefit →</strong> a useful market discovery and investment-decision platform with measured scope. <strong>Risks/limitations →</strong> historical coverage may keep a model in shadow despite useful software.</p>
+<p>Build eligibility/coverage snapshots, one feature registry, exact return labels, the consolidated APEX evaluator, simple benchmark portfolios, one linear model, and one optional shallow tree challenger. Ship Best Opportunities, Rankings, Forecasts, Thesis Changes, and Portfolio Intelligence on the shared API. Add the Astra evidence interface and numeric/action verification after the deterministic outputs exist.</p>
+<p><strong>P1 acceptance:</strong> complete daily snapshots over the declared covered universe; frozen train/calibration/test artifacts; next-open policy replay; all benchmark and ablation results retained; probability and interval metrics available by horizon; stock rank and portfolio action can be traced independently. Promote only models that meet their predeclared criteria; lack of edge is an acceptable research conclusion.</p>
+<h3>P2 — Add differentiated information and controlled adaptation</h3>
+<p><strong>Current state →</strong> event/revision heuristics and a growing forward archive. <strong>Problem →</strong> costly enrichment and adaptation remain untested. <strong>Proposed design →</strong> admit enriched signals by measured incremental value. <strong>Algorithm/model →</strong> revision normalization, event novelty/response models, Form 4 parsing, lagged ownership context, rank stability, and slowly adaptive expert weights. <strong>Required data →</strong> sufficient timestamped event/estimate histories and audited labels. <strong>Expected benefit →</strong> differentiation beyond standard price/fundamental screens. <strong>Risks/limitations →</strong> selection effects, sparse events, extraction errors, and insufficient independent regimes.</p>
+<p>Prioritize event/change evidence, model degradation controls, shadow alternatives, and information-value scheduling. Compare regime interactions with static models before adding an HMM. Test entry/exit policies separately. Add cost and data perturbation stress tests and an optional data-budget decision based on observed gaps.</p>
+<p><strong>P2 acceptance:</strong> each enriched family improves predefined predictive, decision, or research-efficiency metrics without unacceptable cost/fragility; factor weighting changes are attributable; model retirement and rollback are exercised; no enriched feature claims a historical record it does not have.</p>
+<h3>Future — Conditional expansion</h3>
+<p>Consider licensed survivorship-complete histories and consensus vintages, international markets with currency/accounting models, tax-aware lot decisions, deeper event specialization, options-implied scenarios, or human-approved execution integration. Each requires a separate data and validation case. Neither multi-asset support nor trading automation is necessary to deliver the core QUANTA Alpha intelligence product.</p>
+<h2 id="10-exact-repository-level-migration-map">10. Exact repository-level migration map</h2>
+<p>New paths below are proposed; they do not exist in the reviewed repository. “Replace” means migrate callers and tests, then retire the old implementation—not delete it before parity and deliberate behavior changes are understood.</p>
+<h3>10.1 Existing files to retain, refactor, or retire</h3>
+<table>
+<thead>
+<tr>
+<th>Existing repository path</th>
+<th>Action</th>
+<th>Exact responsibility after migration</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>core/SP_ELITE_PRO.py</code></td>
+<td>Refactor, then legacy adapter</td>
+<td>Extract acquisition, feature calculations, universe selection, ranking, and sizing; replace duplicated decision authority with domain services</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td><code>core/TradingAnalysis_ELITE.py</code></td>
+<td>Refactor</td>
+<td>Extract pure technical/accounting/risk features; replace MC forecasting, signal tracking, heuristic probability, and valuation blending; make presentation consume a Decision object</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td><code>core/SP_ShortTerm.py</code></td>
+<td>Isolate</td>
+<td>Preserve as <code>legacy_shortterm</code> strategy with its own horizon/execution/evidence scope; reuse verified indicators</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><code>core/Alpha_Picks_Engine.py</code></td>
+<td>Retire independent scorer after baseline capture</td>
+<td>Preserve a legacy strategy configuration for comparison; remove autonomous target/probability authority</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><code>core/engine/types.py</code></td>
+<td>Replace with typed domain contracts</td>
+<td>One Forecast, Decision, EvidenceState, DataStatus, PortfolioSnapshot, and reason-code vocabulary</td>
+<td>P0</td>
+</tr>
+<tr>
+<td><code>core/engine/decision_engine.py</code></td>
+<td>Refactor</td>
+<td>Policy resolver over forecast, ownership, evidence state, and portfolio delta, rather than composite thresholds alone</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td><code>core/engine/risk_overrides.py</code></td>
+<td>Refactor</td>
+<td>Separate hard safety constraints from empirical signal effects; preserve auditable reasons</td>
+<td>P0</td>
+</tr>
+<tr>
+<td><code>core/engine/allocation.py</code>, allocation helpers in <code>SP_ELITE_PRO.py</code></td>
+<td>Consolidate</td>
+<td>Atomic position updates followed by complete final-book invariant checks</td>
+<td>P0</td>
+</tr>
+<tr>
+<td><code>core/engine/data_validator.py</code>, <code>modules/data_validator.py</code>, <code>modules/data_quality_validator.py</code>, <code>core/quant/data_quality.py</code></td>
+<td>Consolidate</td>
+<td>One semantic quality contract with source-specific validators; keep verified checks, remove duplicated scoring meanings</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td><code>core/engine/dividend.py</code>, <code>core/engine/data_status.py</code>, <code>core/engine/consistency_validator.py</code></td>
+<td>Retain and adapt</td>
+<td>Verified normalization, status distinctions, and serialized-output consistency checks</td>
+<td>P0</td>
+</tr>
+<tr>
+<td><code>core/apex_quant/simulator.py</code>, <code>costs.py</code>, <code>labeling.py</code>, <code>indicators.py</code></td>
+<td>Retain corrected core and extend</td>
+<td>Canonical chronology, costs, horizon/path labels, and shared causal indicators</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><code>core/apex_quant/data_provider.py</code>, <code>universe.py</code></td>
+<td>Replace internals behind interfaces</td>
+<td>Versioned as-of queries over persisted data and historical eligibility; eliminate static-universe assumptions</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td><code>core/apex_quant/elite_scorer.py</code>, <code>elite_strategy.py</code>, <code>strategy.py</code></td>
+<td>Preserve as explicit baselines</td>
+<td>Clearly named partial/legacy strategies; new models use the same evaluation kernel</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><code>core/apex_quant/walkforward.py</code>, <code>elite_oos.py</code>, <code>metrics.py</code>, <code>baselines.py</code></td>
+<td>Refactor/extend</td>
+<td>Date-grouped purging, model/calibrator fitting, trial registry, dependence-aware intervals, matched baselines, coherent OOS portfolio state</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><code>core/apex_quant/validation.py</code>, <code>run.py</code></td>
+<td>Extend and wire to product</td>
+<td>Evidence state and identity gate for the specific model/portfolio policy being invoked; one unambiguous artifact lookup</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td><code>core/apex_quant/_reports/*</code>, <code>docs/RECALIBRATION_PLAN.md</code></td>
+<td>Quarantine/relabel</td>
+<td>Historical invalidated outputs retained for audit; no old metrics promoted as current strategy evidence</td>
+<td>P0</td>
+</tr>
+<tr>
+<td><code>modules/backtest_engine.py</code>, <code>modules/robust_backtesting_engine.py</code></td>
+<td>Retire as authoritative evaluators</td>
+<td>Migrate needed analytics to canonical evaluation; retain explicit legacy diagnostic adapters only if required</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><code>core/sp_shortterm_backtest.py</code></td>
+<td>Adapt</td>
+<td>Short-term policy replay on canonical simulator and label contracts</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><code>core/quant/factor_model.py</code></td>
+<td>Replace/rename</td>
+<td>Real factor attribution or honestly named ETF exposure regression; HAC/robust inference and versioned inputs</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><code>core/quant/risk_model.py</code></td>
+<td>Replace before wiring</td>
+<td>Tested covariance estimation and constraint-preserving optimization; no automatic cap relaxation</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td><code>modules/portfolio_risk_manager.py</code>, <code>PortfolioExposureManager</code> and <code>PositionSizer</code> in <code>TradingAnalysis_ELITE.py</code></td>
+<td>Consolidate</td>
+<td>Portfolio state, covariance/stress risk, mandate constraints, and feasible target weights</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td><code>modules/price_target_calculator.py</code></td>
+<td>Replace</td>
+<td>Separate valuation scenarios and probabilistic return forecasts; remove heuristic target-hit probabilities</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td><code>modules/entry_optimizer.py</code></td>
+<td>Refactor after baseline</td>
+<td>Explicit, separately tested next-open/limit/staged-entry policies with expiry and fill assumptions</td>
+<td>P2</td>
+</tr>
+<tr>
+<td><code>modules/earnings_revision_scoring.py</code></td>
+<td>Refactor</td>
+<td>Timestamped fiscal-period-aligned raw revision features, coverage normalization, missingness, and unit semantics</td>
+<td>P0/P2</td>
+</tr>
+<tr>
+<td><code>modules/sec_edgar_parser.py</code></td>
+<td>Retain transport controls; extend ingestion</td>
+<td>Filing metadata and original-source ingestion into persistent accession-linked evidence; add accounting pipeline separately</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td><code>modules/catalyst_intelligence_engine.py</code>, <code>catalyst_scanner.py</code>, <code>catalyst_validator.py</code>, <code>realtime_catalyst_integration.py</code>, <code>realtime_news_monitor.py</code></td>
+<td>Consolidate</td>
+<td>One event store, extraction/novelty pipeline, and tested event features; remove unsupported historical-pattern return dictionaries</td>
+<td>P2</td>
+</tr>
+<tr>
+<td><code>modules/api_manager.py</code>, <code>polygon_provider.py</code>, <code>polymarket_provider.py</code></td>
+<td>Adapter boundary</td>
+<td>Shared typed provenance/status/rate-limit interface; Polymarket remains optional context with a separate evidence case</td>
+<td>P1/P2</td>
+</tr>
+<tr>
+<td><code>modules/TechnicalSignalGenerator.py</code>, <code>core/enhanced_technical_indicators.py</code>, <code>core/enhanced_analyzer.py</code></td>
+<td>Deduplicate/legacy adapters</td>
+<td>Use canonical feature definitions and decision outputs; prevent fallback routes from restoring fake precision</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><code>webapp/app.py</code></td>
+<td>Thin transport adapter</td>
+<td>Routes, authentication if needed, serialization, durable job dispatch, and snapshot serving; remove provider monkey patches and domain scoring</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td><code>webapp/static/app.js</code>, <code>elite-pro.js</code>, <code>templates/index.html</code></td>
+<td>Incremental workflow refactor</td>
+<td>Six research views over the same APIs; frontend cannot recalculate action or confidence</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><code>core/streamlit_app.py</code>, <code>streamlit_support.py</code>, <code>rich_display.py</code>, <code>rich_market.py</code></td>
+<td>Thin presentation adapters</td>
+<td>Reuse shared API/domain contracts; no alternative investment policy</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><code>mcp_server/quanta_mcp_server.py</code>, <code>quanta_mcp_client.py</code>, embedded MCP in <code>TradingAnalysis_ELITE.py</code></td>
+<td>Consolidate</td>
+<td>One read-only tool contract over domain services; Astra uses immutable evidence IDs</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><code>pyproject.toml</code>, <code>.github/workflows/ci.yml</code></td>
+<td>Refactor</td>
+<td>Importable package, locked reproducible environment, existing tests plus semantic/accounting/ledger checks</td>
+<td>P0</td>
+</tr>
+</tbody>
+</table>
+<h3>10.2 Proposed package and service structure</h3>
+<pre><code class="language-text">src/quanta/
+  domain/
+    security.py             # issuer/security identity and histories
+    observation.py          # provenance, units, effective/available/received time
+    forecast.py             # distributions, horizons, evidence status
+    decision.py             # action, target weights, reasons, immutable IDs
+    portfolio.py            # holdings, cash, mandate, snapshots
+  data/
+    adapters/{base,yahoo,sec,nasdaq,fred,news}.py
+    security_master.py
+    corporate_actions.py
+    raw_store.py
+    asof_repository.py
+    financials.py           # accession/context/fiscal-period normalization
+    quality.py
+  universe/{eligibility,coverage,enrichment}.py
+  features/{registry,prices,fundamentals,revisions,events,ownership,macro}.py
+  models/
+    baselines.py
+    linear_alpha.py
+    quantile_alpha.py
+    distributions.py
+    ensemble.py
+    regime.py
+    calibration.py
+    registry.py
+  risk/{covariance,factor_exposures,stress,constraints}.py
+  portfolio/{ledger,optimizer,rounding,final_checks}.py
+  decisions/{policy,entry,exits,valuation_scenarios}.py
+  thesis/{evidence,diff,attribution}.py
+  evaluation/
+    labels.py
+    splits.py
+    simulator.py
+    costs.py
+    benchmarks.py
+    metrics.py
+    uncertainty.py
+    experiments.py
+    promotion.py
+  monitoring/{data_health,model_health,outcome_resolver}.py
+  orchestration/{jobs,scheduler,worker,publish}.py
+  astra/{tools,evidence_packet,narrative,claim_validator}.py
+  adapters/{flask_api,cli,mcp,legacy_elite,legacy_shortterm}.py
+
+config/{universe,features,mandates,models,data_policies}.yaml
+migrations/                  # transactional DB schema changes
+tests/{unit,integration,causality,accounting,forecasting,policy}/
+webapp/static/views/         # opportunity/ranking/forecast/change/portfolio/performance
+deploy/compose.yaml         # API, worker, scheduler, PostgreSQL; local volumes
+</code></pre>
+<p>These are logical boundaries; do not turn each file into a network service. Start with the contracts and the smallest vertical slice. Defer unused modules until their feature is implemented. Raw data and generated run artifacts belong in configured storage, not source control; retain only deliberate test fixtures and manifests in Git.</p>
+<h3>10.3 API contracts</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /api/v1/opportunities?as_of=&amp;horizon=&amp;universe=</code></td>
+<td>Completed snapshot, coverage, model evidence state, common-mandate ranks; never launches thousands of provider requests implicitly</td>
+</tr>
+<tr>
+<td><code>GET /api/v1/securities/{id}/forecasts</code></td>
+<td>Immutable forecast vintages, distributions, horizons, reference price rules, and outcome maturity</td>
+</tr>
+<tr>
+<td><code>GET /api/v1/securities/{id}/thesis-changes</code></td>
+<td>Reconciled input/model/universe changes and supporting source references</td>
+</tr>
+<tr>
+<td><code>POST /api/v1/portfolios/{id}/proposals</code></td>
+<td>Hypothetical target book from an explicit portfolio/mandate snapshot; idempotency key and full constraints</td>
+</tr>
+<tr>
+<td><code>GET /api/v1/models/{version}/performance</code></td>
+<td>Scope, tests, benchmarks, calibration, pending/matured counts, trial lineage, and current status</td>
+</tr>
+<tr>
+<td><code>POST /api/v1/research-runs</code></td>
+<td>Explicit asynchronous research/enrichment request with resource budget</td>
+</tr>
+<tr>
+<td><code>GET /api/v1/jobs/{id}</code></td>
+<td>Durable state and progress; retries/cancellation do not create duplicate published results</td>
+</tr>
+<tr>
+<td><code>GET /api/v1/evidence/{id}</code></td>
+<td>Frozen source/evidence packet used by humans and Astra</td>
+</tr>
+</tbody>
+</table>
+<h3>10.4 Required new tests</h3>
+<p>Add <code>test_outcome_session_maturity.py</code>, <code>test_pending_outcomes_excluded.py</code>, <code>test_no_reuse_of_horizon_price.py</code>, <code>test_forecast_immutability.py</code>, <code>test_asof_filing_revisions.py</code>, <code>test_security_symbol_changes.py</code>, <code>test_corporate_action_accounting.py</code>, <code>test_label_interval_purge.py</code>, <code>test_training_transform_boundaries.py</code>, <code>test_quantile_ordering.py</code>, <code>test_distribution_probability_consistency.py</code>, <code>test_final_portfolio_invariants.py</code>, <code>test_missing_asset_risk.py</code>, <code>test_job_lease_fencing.py</code>, <code>test_model_scope_authorization.py</code>, and <code>test_astra_numeric_grounding.py</code>.</p>
+<p>Keep statistical validation in reproducible research runs with stored outputs, not fragile unit tests asserting that one sample must achieve Sharpe &gt; X. Unit tests establish contracts and arithmetic. Research evaluates predictive and economic hypotheses.</p>
+<h3>10.5 The first complete vertical slice</h3>
+<p>Build <strong>one daily covered-universe snapshot → one price/fundamental baseline → one 3M forecast record → one portfolio proposal → one exact thesis-change explanation → one matured-outcome evaluation</strong>. Generate the other requested horizons through the same contracts, but do not delay the accountability loop until every signal family exists.</p>
+<p>This slice exposes the platform's hard problems: identity, timing, coverage, uncertainty, accounting, and action consistency. Solving them produces a credible foundation even if the first model fails to beat a simple benchmark. Adding more indicators before solving them produces a more elaborate assertion engine.</p>
+<h2 id="sources-and-reproducibility-notes">Sources and reproducibility notes</h2>
+<p>Repository citations refer to the pinned commit above and may require access to the private repository. External sources are primary documentation or original research checked for this audit. Model and product designs are recommendations, not performance claims from those sources.</p>
+<p>The companion evidence file records the targeted test command, CI URL, and synthetic probe outputs. Historical performance artifacts were deliberately not used as valid current performance evidence. No live-data or backtest result was invented to fill the gap.</p>
+<ol class="sources"><li id="source-1" value="1">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/README.md#L17">README: scope, limitations, and engine inventory (from line 17)</a></li><li id="source-2" value="2">GitHub Actions. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/actions/runs/34356189592">Successful CI run for reviewed commit</a>. Local targeted tests are documented in the companion evidence file.</li><li id="source-3" value="3">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/SP_ELITE_PRO.py#L5787">Scoring, normalization, and elite-factor blend (from line 5787)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/SP_ELITE_PRO.py#L6177">Regime weight tables (from line 6177)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/SP_ELITE_PRO.py#L3104">Heuristic confidence labeling (from line 3104)</a></li><li id="source-4" value="4">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/SP_ShortTerm.py#L2659">Short-term component scoring and gates (from line 2659)</a></li><li id="source-5" value="5">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/Alpha_Picks_Engine.py#L594">Alpha Picks scoring, revision fallback, and price targets (from line 594)</a></li><li id="source-6" value="6">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/TradingAnalysis_ELITE.py#L3743">Sentiment processing (from line 3743)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/TradingAnalysis_ELITE.py#L5494">Component scoring (from line 5494)</a></li><li id="source-7" value="7">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/engine/decision_engine.py#L1">Shared action resolver (from line 1)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/engine/risk_overrides.py#L1">Risk overrides (from line 1)</a></li><li id="source-8" value="8">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/apex_quant/elite_scorer.py#L1">Partial point-in-time ELITE reconstruction (from line 1)</a></li><li id="source-9" value="9">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/apex_quant/_reports/INVALIDATED.md#L1">Invalidated historical reports (from line 1)</a></li><li id="source-10" value="10">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/apex_quant/validation.py#L1">Validation identity and gate (from line 1)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/apex_quant/walkforward.py#L62">Benchmark passing criterion (from line 62)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/apex_quant/run.py#L179">Artifact writing and status lookup (from line 179)</a></li><li id="source-11" value="11">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/TradingAnalysis_ELITE.py#L7131">SignalTracker storage, outcomes, and statistics (from line 7131)</a></li><li id="source-12" value="12">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/TradingAnalysis_ELITE.py#L3241">Historical mean stored as expected return (from line 3241)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/TradingAnalysis_ELITE.py#L4842">Monte Carlo simulation (from line 4842)</a></li><li id="source-13" value="13">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/TradingAnalysis_ELITE.py#L6041">PositionSizer and heuristic win probability (from line 6041)</a></li><li id="source-14" value="14">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/modules/price_target_calculator.py#L50">Valuation assumptions (from line 50)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/modules/price_target_calculator.py#L250">Target probabilities (from line 250)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/enhanced_analyzer.py#L1802">Target-calculator caller (from line 1802)</a></li><li id="source-15" value="15">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/TradingAnalysis_ELITE.py#L4595">DCF assumptions, fallbacks, and anchoring (from line 4595)</a></li><li id="source-16" value="16">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/modules/earnings_revision_scoring.py#L133">Revision fields and estimate-period fallback (from line 133)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/modules/earnings_revision_scoring.py#L242">Revision combination and missingness (from line 242)</a></li><li id="source-17" value="17">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/quant/factor_model.py#L1">ETF exposure regression (from line 1)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/quant/__init__.py#L1">Package exports (from line 1)</a></li><li id="source-18" value="18">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/quant/risk_model.py#L109">RobustOptimizer constraints and fallback (from line 109)</a></li><li id="source-19" value="19">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/SP_ELITE_PRO.py#L11380">Portfolio VaR and stop-risk checks (from line 11380)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/SP_ELITE_PRO.py#L11666">Subsequent allocation refinement and deep confirmation (from line 11666)</a></li><li id="source-20" value="20">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/webapp/app.py#L115">Provider patching (from line 115)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/webapp/app.py#L416">Process-local jobs (from line 416)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/webapp/app.py#L4660">Scan, selection, and deep-confirmation consumption (from line 4660)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/webapp/app.py#L5816">Local hosting guard (from line 5816)</a></li><li id="source-21" value="21">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/pyproject.toml#L1">Packaging and dependency configuration (from line 1)</a></li><li id="source-22" value="22">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/webapp/templates/index.html#L51">Primary views (from line 51)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/webapp/templates/index.html#L269">Security monitor (from line 269)</a></li><li id="source-23" value="23">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/modules/catalyst_intelligence_engine.py#L78">FDA placeholder (from line 78)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/modules/catalyst_intelligence_engine.py#L157">Entity heuristics (from line 157)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/modules/catalyst_intelligence_engine.py#L405">Historical patterns and signal rules (from line 405)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/SP_ELITE_PRO.py#L9206">Catalyst score adjustment (from line 9206)</a></li><li id="source-24" value="24">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/modules/backtest_engine.py#L94">Simplified historical replay (from line 94)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/SP_ELITE_PRO.py#L10512">Diagnostic-output suppression (from line 10512)</a></li><li id="source-25" value="25">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/modules/robust_backtesting_engine.py#L425">Current-bar signal and close execution (from line 425)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/modules/robust_backtesting_engine.py#L828">Walk-forward windows (from line 828)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/modules/robust_backtesting_engine.py#L1035">Combined train-plus-test metrics (from line 1035)</a></li><li id="source-26" value="26">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/apex_quant/data_provider.py#L1">Historical data interface and unimplemented PIT fundamentals (from line 1)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/apex_quant/universe.py#L1">Static-universe caveat (from line 1)</a></li><li id="source-27" value="27">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/modules/sec_edgar_parser.py#L75">SEC transport, metadata, and rate limits (from line 75)</a></li><li id="source-28" value="28">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/TradingAnalysis_ELITE.py#L7027">ThesisGenerator (from line 7027)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/SP_ELITE_PRO.py#L6993">Downgrade checking (from line 6993)</a></li><li id="source-29" value="29">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/docs/RECALIBRATION_PLAN.md#L1">Existing recalibration plan (from line 1)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/docs/RECALIBRATION_PLAN.md#L617">Proposed fitting and attribution approach (from line 617)</a></li><li id="source-30" value="30">U.S. Securities and Exchange Commission. <a href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces">EDGAR Application Programming Interfaces</a>, last reviewed April 8, 2025.</li><li id="source-31" value="31">Nasdaq Trader. <a href="https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs">Symbol Directory Definitions</a>.</li><li id="source-32" value="32">Federal Reserve Bank of St. Louis. <a href="https://fred.stlouisfed.org/docs/api/fred/realtime_period.html">FRED API Real-Time Periods</a>.</li><li id="source-33" value="33">Kenneth R. French. <a href="https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html">Data Library</a>, including current research-factor dataset-format notes.</li><li id="source-34" value="34">Ran Aroussi / yfinance project. <a href="https://ranaroussi.github.io/yfinance/">Official documentation and data-use notice</a>.</li><li id="source-35" value="35">Shihao Gu, Bryan Kelly, and Dacheng Xiu. <a href="https://dachxiu.chicagobooth.edu/download/ML_BKP.pdf">Empirical Asset Pricing via Machine Learning</a>, September 13, 2019 version, published in Review of Financial Studies (2020).</li><li id="source-36" value="36">Olivier Ledoit and Michael Wolf. <a href="https://ledoit.net/honey.pdf">Honey, I Shrunk the Sample Covariance Matrix</a>, Journal of Portfolio Management 30(4), 2004. Author-hosted paper; recommendation is shrinkage as an estimation tool, not evidence of QUANTA returns.</li><li id="source-37" value="37">Isaac Gibbs and Emmanuel Candès. <a href="https://arxiv.org/abs/2106.00170">Adaptive Conformal Inference Under Distribution Shift</a>, 2021.</li><li id="source-38" value="38">scikit-learn developers. <a href="https://scikit-learn.org/stable/modules/calibration.html">Probability Calibration</a>, official documentation.</li><li id="source-39" value="39">U.S. Securities and Exchange Commission. <a href="https://www.sec.gov/rules-regulations/staff-guidance/division-investment-management-frequently-asked-questions/frequently-asked-questions-about-form-13f">Frequently Asked Questions About Form 13F</a>.</li><li id="source-40" value="40">SciPy developers. <a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.t.html">Student-t distribution density</a>. The infinite exponential-moment conclusion in this report is an analytical deduction from the documented polynomial tail.</li><li id="source-41" value="41">QUANTA repository. <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/apex_quant/simulator.py#L1">Corrected execution simulator (from line 1)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/apex_quant/tests/test_execution_semantics.py#L1">Execution-semantics regression tests (from line 1)</a>; <a href="https://github.com/AtreshSoma/quanta-stock-analysis/blob/7bb6386d176ca98764641031bab327ad0ab1d647/core/apex_quant/costs.py#L1">Cost model (from line 1)</a></li><li id="source-42" value="42">David H. Bailey and Marcos López de Prado. <a href="https://www.davidhbailey.com/dhbpapers/deflated-sharpe.pdf">The Deflated Sharpe Ratio: Correcting for Selection Bias, Backtest Overfitting and Non-Normality</a>, 2014.</li></ol></main></div></body></html>

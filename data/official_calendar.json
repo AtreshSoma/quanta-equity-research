@@ -1,0 +1,14 @@
+{
+  "retrieved_on": "2026-09-29",
+  "note": "Dates transcribed from the publishers' own schedule pages on the retrieved_on date. Agencies can reschedule; the source link is the authority. Refresh this file each year.",
+  "events": [
+    {"kind": "fomc", "title": "FOMC meeting concludes (rate decision)", "date": "2026-10-28", "time": "14:00", "tz": "America/New_York", "days": "Oct 27-28", "source": "Federal Reserve Board", "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm", "detail": "No Summary of Economic Projections at this meeting."},
+    {"kind": "fomc", "title": "FOMC meeting concludes (rate decision)", "date": "2026-12-09", "time": "14:00", "tz": "America/New_York", "days": "Dec 8-9", "source": "Federal Reserve Board", "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm", "detail": "Includes a Summary of Economic Projections."},
+    {"kind": "jobs", "title": "Employment Situation (September data)", "date": "2026-10-02", "time": "08:30", "tz": "America/New_York", "source": "U.S. Bureau of Labor Statistics", "url": "https://www.bls.gov/schedule/news_release/empsit.htm"},
+    {"kind": "jobs", "title": "Employment Situation (October data)", "date": "2026-11-06", "time": "08:30", "tz": "America/New_York", "source": "U.S. Bureau of Labor Statistics", "url": "https://www.bls.gov/schedule/news_release/empsit.htm"},
+    {"kind": "jobs", "title": "Employment Situation (November data)", "date": "2026-12-04", "time": "08:30", "tz": "America/New_York", "source": "U.S. Bureau of Labor Statistics", "url": "https://www.bls.gov/schedule/news_release/empsit.htm"},
+    {"kind": "cpi", "title": "Consumer Price Index (September data)", "date": "2026-10-14", "time": "08:30", "tz": "America/New_York", "source": "U.S. Bureau of Labor Statistics", "url": "https://www.bls.gov/schedule/news_release/cpi.htm"},
+    {"kind": "cpi", "title": "Consumer Price Index (October data)", "date": "2026-11-10", "time": "08:30", "tz": "America/New_York", "source": "U.S. Bureau of Labor Statistics", "url": "https://www.bls.gov/schedule/news_release/cpi.htm"},
+    {"kind": "cpi", "title": "Consumer Price Index (November data)", "date": "2026-12-10", "time": "08:30", "tz": "America/New_York", "source": "U.S. Bureau of Labor Statistics", "url": "https://www.bls.gov/schedule/news_release/cpi.htm"}
+  ]
+}

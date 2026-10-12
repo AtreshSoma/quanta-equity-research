@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+
+# Secrets - NEVER commit
+.polygon_key
+*.key
+.env
+.env.*
+
+# Exports & logs
+exports/
+logs/
+*.log
+
+# Cache (yfinance disk cache, etc.)
+data/cache/
+*.pkl.tmp
+
+# IDE
+.idea/
+.vscode/
+*.swp
+# Research price cache: regenerable, multi-MB, and must stay separate from the
+# 13 committed fixture parquets in core/apex_quant/_cache/.
+core/apex_quant/_cache_research/
+
+# Generated price cache. The 13 parquets already TRACKED in
+# core/apex_quant/_cache/ are committed test fixtures frozen at 2023-12-29
+# (tests/test_recommendation_trace.py depends on them) and stay tracked --
+# .gitignore does not affect already-tracked files. This rule only stops the
+# other ~30 generated files from cluttering `git status`.
+core/apex_quant/_cache/*.parquet
+
+# Signal ledger (production track record) - local state, never committed
+data/ledger/
+
+# Web app (webapp/): Node, browser-test artifacts and local runtime data
+node_modules/
+playwright-report/
+test-results/
+.playwright-mcp/
+.pytest_cache/
+webapp/data/
+!.env.example
+*.tsbuildinfo
+.regime_history.json
+.signal_history.json
+.quanta_reqs_hash
+*.spec
+*.pem
+apex_setups_*.csv
+apex_setups_*.json
+apex_quant_reports/
+backtest_reports/
+.claude/
+.code-review-graph/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Downloaded market data (provider terms restrict redistribution)
+core/apex_quant/_cache/
+
+# Local-only files
+core/SP_ELITE_PRO_Main.py
+.impeccable/

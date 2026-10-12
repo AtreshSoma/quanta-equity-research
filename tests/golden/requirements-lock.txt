@@ -1,0 +1,40 @@
+# Exact environment the golden-master fixtures were recorded in.
+#
+# WHY THIS IS PINNED
+# ------------------
+# The fixtures in `fixtures/` are gzipped pickles containing pandas DataFrames.
+# Pickle is not a stable cross-version format: a pandas or numpy major-version
+# change can make an existing fixture fail to load, or -- worse -- load with
+# subtly different dtypes and shift a score.
+#
+# So the golden job installs these exact versions. The fast unit suite does not
+# need them and runs against the ranges in pyproject.toml.
+#
+# WHEN YOU UPGRADE pandas OR numpy
+# --------------------------------
+#   1. Bump the pin here.
+#   2. Re-record from the network:  python tests/golden/record.py priority
+#   3. Review the resulting snapshot diff as a real behavioural change, because
+#      that is what it is -- a dependency upgrade that moves a score is exactly
+#      the kind of drift this harness exists to surface.
+#
+# Do NOT quietly regenerate the expected/*.json without reading the diff.
+
+# Recorded with CPython 3.12.4 (the CI golden job pins the same minor version).
+
+pandas==3.0.3
+numpy==2.4.6
+scipy==1.17.1
+yfinance==1.4.1
+ta==0.11.0
+vaderSentiment==3.3.2
+python-dateutil>=2.8
+requests>=2.31
+rich>=13.0
+# Unguarded module-scope import in core/SP_ShortTerm.py; the replay
+# collects that module, so the pinned env needs it too.
+tabulate>=0.9
+
+# Test-only
+pytest==9.1.1
+freezegun==1.5.5

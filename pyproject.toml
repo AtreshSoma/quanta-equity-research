@@ -1,0 +1,168 @@
+# QUANTA Elite — project metadata, dependencies and tool configuration.
+# ---------------------------------------------------------------------------
+# NOTE ON PACKAGING (Phase 0 intentional intermediate state)
+#
+# The tree is not yet laid out as an importable package: `core/` holds
+# top-level modules that import each other with bare names, and both `core/`
+# and `modules/` are put on `sys.path` at runtime. Restructuring that is
+# Phase 1 work.
+#
+# So this file deliberately declares NO packages. `pip install -e .` installs
+# the dependency set and nothing else; imports continue to resolve through the
+# `pythonpath` entries in [tool.pytest.ini_options] (for tests) and the
+# existing runtime `sys.path` inserts (for the CLI). That keeps the dependency
+# declaration honest without pretending the layout is fixed.
+# ---------------------------------------------------------------------------
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []
+py-modules = []
+
+[project]
+name = "quanta-elite"
+version = "0.1.0"
+description = "QUANTA Elite — multi-factor equity analysis and decision engine"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Atresh Somayajula" }]
+
+# Hard requirements: `core/TradingAnalysis_ELITE.py` imports these at module
+# level with no try/except, so the engine cannot import without them.
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    # Live index constituents and sector metadata use pandas.read_html.
+    "lxml>=4.9",
+    "requests>=2.31",
+    "rich>=13.0",
+    "ta>=0.11",
+    "yfinance>=0.2.40",
+    # Guarded at the import site but exercised on the default path.
+    "vaderSentiment>=3.3",
+    "python-dateutil>=2.8",
+    # Used by SP_ELITE_PRO, the risk analyzer and apex_quant.
+    "scipy>=1.11",
+    # core/SP_ShortTerm.py imports this at module scope with no guard, so the
+    # scanner cannot even be collected without it. It was filed under the
+    # `providers` extra, whose contract is "optional and import-guarded" -- a
+    # promise this import does not keep. CI installs [dev,webapp,ui] and not
+    # providers, so both Python jobs failed at collection.
+    "tabulate>=0.9",
+]
+
+[project.optional-dependencies]
+# Test + lint toolchain.
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    # `tests/test_recommendation_trace.py` replays the cached Parquet panel in
+    # core/apex_quant/_cache. Without an engine that test used to fail as if
+    # the trace were broken, rather than reporting a missing dependency.
+    "pyarrow>=15.0",
+    # tests/test_evidence_decision.py freezes the clock.
+    "freezegun>=1.4",
+]
+# Flask web app under webapp/.
+webapp = [
+    "flask>=3.0",
+]
+# Streamlit research desk (core/streamlit_app.py).
+ui = [
+    "streamlit>=1.40",
+]
+# MCP server mode (`--mcp`). Guarded by HAS_MCP.
+mcp = [
+    "mcp[cli]>=1.0",
+]
+# Optional data providers and analyzers, all import-guarded.
+providers = [
+    "polygon-api-client>=1.14",
+    "pandas-datareader>=0.10",
+    "textblob>=0.18",
+]
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+# `pythonpath` replaces the per-file `sys.path.insert` bootstrapping that all
+# 24 test files currently repeat. Entries resolve relative to rootdir
+# (this directory). `core` must precede `modules`: the engine's own runtime
+# ordering puts core first, and `modules/config.py` shadows the `config/`
+# data directory if reached the other way round.
+[tool.pytest.ini_options]
+minversion = "8.0"
+# core/apex_quant/tests holds the leakage, cost-model and reproducibility
+# guards for the walk-forward harness. They were never run by CI because
+# discovery started at tests/ only -- which matters more now that Phase 2 made
+# that harness load-bearing for validating the engine.
+testpaths = ["tests", "core/apex_quant/tests"]
+pythonpath = [
+    "core",
+    "modules",
+    "webapp",
+]
+addopts = "-ra --strict-markers --strict-config"
+# `uat_*.py` and `verify_*.py` in tests/ are manual HTTP drivers against a
+# running server, not unit tests. They are excluded by the default
+# `test_*.py` discovery pattern; named here so that stays deliberate.
+python_files = ["test_*.py"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+markers = [
+    "network: hits a live external API; deselect with -m 'not network'",
+    "slow: takes more than a few seconds",
+    "golden: golden-master regression against recorded fixtures",
+    # Needs the `ui` extra (Streamlit). Skipped, not failed, when absent — a
+    # missing optional dependency is an install problem, not a regression.
+    "streamlit: exercises the Streamlit research desk; needs .[ui]",
+    # The corporate-event gate (audit F1) asks SEC EDGAR. Unit tests stub the
+    # shared checker as all-clear; a test that exercises the gate opts in.
+    "real_event_gate: do not stub the scanner's corporate-event checker",
+]
+
+# ---------------------------------------------------------------------------
+# ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "archive",
+    ".venv",
+    "core/apex_quant/_cache",
+    # NOT importable modules -- they are source fragments that
+    # core/update_display.py and core/update_market.py splice into
+    # TradingAnalysis_ELITE.py, so they reference names (AnalysisResult,
+    # format_currency, HAS_CATALYST) that only exist in the destination file.
+    # Ruff reports 6 undefined names here; all 6 are artifacts of that pattern,
+    # not bugs. Phase 1 extracts their logic into core/engine/trade_levels.py
+    # and deletes all four files, at which point these exclusions go too.
+    "core/rich_display.py",
+    "core/rich_market.py",
+    "core/update_display.py",
+    "core/update_market.py",
+]
+
+[tool.ruff.lint]
+# The CI gate is errors only: syntax errors, broken comparisons, misplaced
+# control flow, and undefined names. These are things that are always wrong.
+#
+# KNOWN DEBT, deliberately not gated yet: 107 F401 (unused import) findings
+# across core/ (49), modules/ (39), mcp_server/ (13) and tests/ (6). They are
+# real cruft, but removing 107 imports is a reviewable change of its own and
+# some are re-exports or imported for side effects. Phase 1 clears them as part
+# of the decomposition, with the golden master to prove nothing moved. Until
+# then, see the current list with:
+#     ruff check . --select F401
+select = ["E9", "F63", "F7", "F82"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test modules must bootstrap sys.path before importing engine code, so their
+# imports are legitimately not at the top of the file.
+"tests/*" = ["E402"]

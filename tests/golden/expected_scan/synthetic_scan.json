@@ -1,0 +1,215 @@
+{
+ "accounting": {
+  "book_stages": [
+   {
+    "entered": 2,
+    "evaluated": true,
+    "key": "actionable",
+    "passed": 2
+   },
+   {
+    "avoided": {
+     "count": 0,
+     "tickers": []
+    },
+    "entered": 2,
+    "evaluated": true,
+    "held": {
+     "count": 0,
+     "tickers": []
+    },
+    "key": "event",
+    "passed": 2
+   },
+   {
+    "entered": 2,
+    "evaluated": true,
+    "key": "risk_grade",
+    "passed": 2,
+    "threshold": {
+     "configured": [
+      "F"
+     ],
+     "unit": "excluded grades",
+     "value": null
+    }
+   },
+   {
+    "entered": 2,
+    "evaluated": true,
+    "key": "score",
+    "passed": 2,
+    "threshold": {
+     "configured": 5.5,
+     "relaxed_to_floor": true,
+     "unit": "score /10",
+     "value": 5.5
+    }
+   },
+   {
+    "entered": 2,
+    "evaluated": true,
+    "key": "risk_reward",
+    "passed": 2,
+    "threshold": {
+     "configured": 1.8,
+     "unit": "net R:R",
+     "value": 1.8
+    }
+   },
+   {
+    "entered": 2,
+    "evaluated": true,
+    "key": "conviction",
+    "passed": 2,
+    "threshold": {
+     "configured": 2,
+     "configured_large_pool": 3,
+     "large_pool": 20,
+     "relaxed": false,
+     "unit": "conviction /5",
+     "value": 2
+    }
+   },
+   {
+    "entered": 2,
+    "evaluated": true,
+    "key": "cost",
+    "passed": 2,
+    "threshold": {
+     "configured": 2.0,
+     "unit": "x round-trip cost",
+     "value": 2.0
+    }
+   },
+   {
+    "entered": 2,
+    "evaluated": true,
+    "key": "selection",
+    "passed": 2,
+    "same_issuer": {
+     "as": {},
+     "count": 0,
+     "tickers": []
+    }
+   },
+   {
+    "entered": 2,
+    "evaluated": true,
+    "key": "final_review",
+    "passed": 1
+   },
+   {
+    "entered": 1,
+    "evaluated": true,
+    "key": "mandate",
+    "passed": 1
+   }
+  ],
+  "could_not_analyse": {
+   "by_reason": {
+    "analysis_exception": 1,
+    "info_unavailable": 1,
+    "insufficient_data": 1
+   },
+   "count": 3,
+   "tickers": {
+    "analysis_exception": [
+     "SYNH"
+    ],
+    "info_unavailable": [
+     "SYNG"
+    ],
+    "insufficient_data": [
+     "SYND"
+    ]
+   }
+  },
+  "funded": 1,
+  "funded_over_cap": 0,
+  "max_watch_rows": 10,
+  "not_analysed": 0,
+  "not_analysed_detail": {
+   "not_reached": 0,
+   "other": 0
+  },
+  "published": 2,
+  "reached_book": 2,
+  "rule_rejected": {
+   "by_reason": {
+    "low_volume": 1,
+    "market_cap_too_low": 1,
+    "risk_reward_low": 1,
+    "signal_not_actionable": 1
+   },
+   "count": 4,
+   "tickers": {
+    "low_volume": [
+     "SYNE"
+    ],
+    "market_cap_too_low": [
+     "SYNF"
+    ],
+    "risk_reward_low": [
+     "SYNB"
+    ],
+    "signal_not_actionable": [
+     "SYNJ"
+    ]
+   }
+  },
+  "universe": 9,
+  "version": 1,
+  "warnings": {
+   "earnings_calendar_missing": 1
+  },
+  "watch": 1,
+  "watch_published": 1,
+  "watch_total": 1
+ },
+ "bar_session": "2026-10-02",
+ "chase_alerts": [
+  {
+   "bar_date": "2026-10-02",
+   "distance_from_20dma": 0.025,
+   "move_pct": 7.2,
+   "session_date": "2026-10-02",
+   "threshold_pct": 3.0,
+   "ticker": "SYNJ",
+   "trigger": "gap"
+  }
+ ],
+ "funded_count": 1,
+ "recommendations": [
+  {
+   "allocation": 798.14,
+   "entry_price": 114.02,
+   "final_action": "ACCUMULATE",
+   "is_funded": true,
+   "price_target": 145.67,
+   "risk_reward_ratio": 3.41,
+   "shares": 7.0,
+   "stop_loss": 105.17,
+   "ticker": "SYNC"
+  },
+  {
+   "allocation": 0.0,
+   "entry_price": 109.35,
+   "final_action": "WATCHLIST",
+   "is_funded": false,
+   "price_target": 127.7,
+   "risk_reward_ratio": 2.01,
+   "shares": 0.0,
+   "stop_loss": 100.69,
+   "ticker": "SYNA"
+  }
+ ],
+ "rejected": [],
+ "scan_status": "partial_with_picks",
+ "universe_selection": {
+  "candidates": 9,
+  "method": "custom_list",
+  "selected": 9
+ },
+ "watch_count": 1
+}

@@ -1,0 +1,811 @@
+{
+  "account_size": 100000.0,
+  "recorded_at": "2026-08-27",
+  "result": {
+    "action_items": [
+      "Do not open a new position while the blocking conditions remain",
+      "Re-run the Decision after the primary blocker clears"
+    ],
+    "action_plan_note": "These targets are for existing holders, not new entry recommendations.",
+    "action_plan_title": "EXISTING HOLDER PROFIT PLAN",
+    "adjustment_status": "split_dividend_adjusted",
+    "after_hours_change_pct": -0.0146,
+    "after_hours_price": 137.38,
+    "analysis_timestamp": "<volatile>",
+    "asset_type": "common_stock",
+    "beginner_guidance": {
+      "aggressive_buyer": "Do not add until the final decision changes",
+      "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
+      "breakout_entry": 365.21,
+      "buy_now": "NO",
+      "candlestick_timing": "HOLD WITH STOP",
+      "confidence": 42.5,
+      "data_quality": "PASS",
+      "entry_quality": "Moderate",
+      "existing_holder": "Hold with trailing stop",
+      "existing_holder_stop": 114.169,
+      "long_term_holder_stop": 114.169,
+      "long_tf": "Review before adding",
+      "main_reason": "Strong fundamentals, but poor risk/reward and high volatility make new entry unattractive.",
+      "mid_tf": "Hold existing / wait",
+      "new_buyer": "Wait; no new position",
+      "pullback_basis": "support zone",
+      "pullback_entry": 113.27,
+      "pullback_is_deep": false,
+      "pullback_stop": 107.606,
+      "recommendation_label": "WATCHLIST",
+      "risk_conflict_warning": "",
+      "risk_grade": "F",
+      "rr_label": "Unfavorable, 0.93:1",
+      "short_tf": "Wait",
+      "signal": "HOLD",
+      "tactical_stop": 129.656,
+      "tactical_stop_basis": "~1x ATR",
+      "volume_requirement": ">= 1.5x avg on entry day",
+      "warnings": []
+    },
+    "business_summary": "Strategy Inc, together with its subsidiaries, operates as a bitcoin treasury company in the United States, Europe, the Middle East, Africa, and internationally. It offers investors varying degrees of economic exposure to Bitcoin by offering a range of securities, including equity and fixed income instruments. The company also provides AI-powered enterprise analytics software, including Strategy One, which provides non-technical users with the ability to directly access novel and actionable insights for decision-making. In addition, the company provides Strategy Mosaic, a universal intelligence layer that offers enterprises with consistent definitions and governance across data sources, regardless of where that data resides or which tools access it. The company was formerly known as MicroStrategy Incorporated and changed its name to Strategy Inc in August 2025. The company was incorporated in 1989 and is headquartered in Tysons Corner, Virginia.",
+    "catalysts": {
+      "catalyst_score": 0,
+      "days_to_earnings": 63,
+      "dividend_yield": 0.0,
+      "earnings_date": "2026-10-29",
+      "ex_dividend_date": "Unknown",
+      "last_earnings_result": "Unknown",
+      "last_earnings_surprise_pct": 0.0,
+      "near_term_catalyst": false
+    },
+    "company_name": "Strategy Inc",
+    "confidence_level": "LOW",
+    "confidence_score": 42.5,
+    "conviction_label": "LOW-CONVICTION",
+    "country": "United States",
+    "currency": "USD",
+    "currency_symbol": "$",
+    "current_price": 137.4,
+    "data_provider": "yfinance",
+    "data_quality_status": "ok",
+    "day_change": 14.21,
+    "day_change_pct": 11.535,
+    "decision": {
+      "action": "WATCHLIST",
+      "as_of": "<volatile>",
+      "blockers": [
+        {
+          "category": "score",
+          "code": "HOLD_NOT_OWNED",
+          "remedy": "Overall score reaching 55 or higher",
+          "text": "Overall score is in the neutral band (45\u201355)"
+        },
+        {
+          "category": "risk",
+          "code": "RISK_GRADE_F",
+          "remedy": "Risk grade improving to D or better",
+          "text": "Risk grade F (very high volatility/drawdown) allows no new money"
+        }
+      ],
+      "blocking": [
+        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+      ],
+      "blocking_codes": [
+        "HOLD_NOT_OWNED",
+        "RISK_GRADE_F"
+      ],
+      "caveat": "",
+      "conflicts": [],
+      "engine": "elite",
+      "event_check": {
+        "agreement_date": null,
+        "avoid": false,
+        "checked_at": "<volatile>",
+        "code": "",
+        "cvr": false,
+        "cvr_non_transferable": false,
+        "deal_price": null,
+        "filed": null,
+        "note": "not recorded (offline replay)",
+        "registrant": "",
+        "source": "",
+        "spread_pct": null,
+        "status": "clear",
+        "stock": false,
+        "text": "",
+        "url": null
+      },
+      "evidence": {
+        "caveats": [
+          "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+        ],
+        "generated_utc": null,
+        "lineage": [
+          {
+            "change": "risk leg removed from the ranking composite",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.alpha_only.v1",
+            "summary": "Never tested.",
+            "tested_through": null
+          },
+          {
+            "change": "original composite",
+            "status": "NO_EDGE",
+            "status_text": "Tested out of sample \u2014 no demonstrated edge",
+            "strategy": "elite.composite",
+            "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+            "tested_through": "2026-08-25"
+          }
+        ],
+        "metrics": {},
+        "permits_recommendation": false,
+        "scope": "",
+        "status": "UNTESTED",
+        "status_text": "Never validated",
+        "strategy": "elite.research.v2",
+        "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+        "tested_through": null
+      },
+      "factor_scores": {
+        "fundamental": 48,
+        "quality": 58.75,
+        "sentiment": 35,
+        "technical": 62,
+        "valuation": 50.0
+      },
+      "freshness": {
+        "lag_sessions": 0,
+        "last_bar": "2026-08-27",
+        "notes": [],
+        "status": "fresh"
+      },
+      "generated_at": "<volatile>",
+      "holder_action": "TRIM",
+      "holdings_known": false,
+      "horizon": {
+        "key": "position",
+        "label": "Position (~3 months)",
+        "trading_days": 63
+      },
+      "interpretation": null,
+      "invalidation": [],
+      "label": "WATCHLIST",
+      "levels": {
+        "entry": 137.4,
+        "reference_price": 137.4,
+        "reward_risk": 0.931685,
+        "stop": 114.169,
+        "target": 159.336,
+        "target_basis": "63-session target, pro-rated from the 12-month valuation target",
+        "target_horizon_days": 63,
+        "valuation_target": 225.143,
+        "valuation_target_horizon_days": 252
+      },
+      "model_stance": "NEUTRAL",
+      "new_money": "WATCH",
+      "primary_blocker": {
+        "category": "risk",
+        "code": "RISK_GRADE_F",
+        "remedy": "Risk grade improving to D or better",
+        "text": "Risk grade F (very high volatility/drawdown) allows no new money"
+      },
+      "qualifier": "",
+      "reasons": [
+        "Composite score 52.5 \u2192 candidate HOLD_EXISTING",
+        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+      ],
+      "risk_grade": "F",
+      "risk_grade_drivers": [
+        {
+          "detail": "85% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 3
+        },
+        {
+          "detail": "2.90 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 2
+        },
+        {
+          "detail": "-83% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 2
+        },
+        {
+          "detail": "50/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 0
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "risk_grade_lookback_days": 500,
+      "risk_metrics": {
+        "beta": 2.89824,
+        "risk_score": 20,
+        "volatility": 0.852186
+      },
+      "risks": [],
+      "scenarios": [
+        {
+          "method": "range of analyst consensus (lowest)",
+          "name": "low_method",
+          "price": 225.143,
+          "return_pct": 63.8594,
+          "source_ids": [
+            "analyst_consensus"
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "score": 52.5,
+      "score_basis": "Research composite (alpha factors only), 0-100",
+      "sizing": {
+        "dollar_risk": 0,
+        "portfolio_weight": 0,
+        "position_value": 0,
+        "recommended_shares": 0,
+        "shares": 0
+      },
+      "sizing_basis": "none",
+      "sources": [
+        {
+          "as_of": "<volatile>",
+          "id": "px",
+          "kind": "price",
+          "provider": "yfinance",
+          "retrieved_at": "<volatile>",
+          "title": "",
+          "url": ""
+        }
+      ],
+      "stance": "NEUTRAL",
+      "ticker": "MSTR",
+      "transitions": []
+    },
+    "evidence": {
+      "caveats": [
+        "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+      ],
+      "generated_utc": null,
+      "lineage": [
+        {
+          "change": "risk leg removed from the ranking composite",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.alpha_only.v1",
+          "summary": "Never tested.",
+          "tested_through": null
+        },
+        {
+          "change": "original composite",
+          "status": "NO_EDGE",
+          "status_text": "Tested out of sample \u2014 no demonstrated edge",
+          "strategy": "elite.composite",
+          "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+          "tested_through": "2026-08-25"
+        }
+      ],
+      "metrics": {},
+      "permits_recommendation": false,
+      "scope": "",
+      "status": "UNTESTED",
+      "status_text": "Never validated",
+      "strategy": "elite.research.v2",
+      "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+      "tested_through": null
+    },
+    "exchange": "NMS",
+    "expense_ratio": 0.0,
+    "fast_mode": false,
+    "final_action": "WATCHLIST",
+    "first_bar_date": "2024-08-28",
+    "fundamental": {
+      "altman_z_score": 2.9903,
+      "altman_z_status": "ok",
+      "altman_z_variant": "public",
+      "current_ratio": 5.39,
+      "debt_to_equity": 0.1494,
+      "dividend_yield": 0.0,
+      "eps_growth_yoy": 0,
+      "ev_ebitda": -1.818,
+      "fcf_yield": -41.3793,
+      "forward_pe": 2.7763,
+      "free_cash_flow": -22587500000.0,
+      "gross_margin": 67.601,
+      "is_etf": false,
+      "net_margin": 0.0,
+      "operating_margin": -6808.11,
+      "pb_ratio": 1.6531,
+      "pe_ratio": 0,
+      "peg_ratio": 0.0,
+      "piotroski_components_available": 8,
+      "piotroski_f_score": 5,
+      "quality_score": 58.75,
+      "reported_inputs": {
+        "current_ratio": true,
+        "debt_to_equity": true,
+        "net_margin": true,
+        "revenue_growth": true,
+        "roe": true
+      },
+      "revenue_growth_yoy": 6.9,
+      "roa": -38.731,
+      "roe": -63.562,
+      "roic": 0.0
+    },
+    "has_existing_position": false,
+    "history_bars": 501,
+    "industry": "Software - Application",
+    "insider": {
+      "context_missing": false,
+      "data_status": "measured",
+      "display_label": "BEARISH",
+      "insider_sentiment": "BEARISH",
+      "key_transactions": [
+        "PATTEN JARROD MICHAEL sold 3,700 shares @ $124.58 on 2026-08-25 ($460,964)",
+        "PATTEN JARROD MICHAEL sold 3,800 shares @ $102.41 on 2026-08-07 ($389,146)",
+        "PATTEN JARROD MICHAEL sold 3,900 shares @ $95.47 on 2026-07-27 ($372,323)",
+        "PATTEN JARROD MICHAEL sold 1,250 shares @ $100.00 on 2026-07-22 ($125,000)",
+        "PATTEN JARROD MICHAEL sold 1,500 shares @ $106.08 on 2026-06-23 ($159,120)"
+      ],
+      "net_flow": -21316000.0,
+      "recent_buys": 0,
+      "recent_sells": 13
+    },
+    "is_adr": false,
+    "is_etf": false,
+    "is_financial": false,
+    "is_high_volatility": true,
+    "is_invalid": false,
+    "key_insights": [
+      "\u23f8\ufe0f HOLD signal with 42% confidence",
+      "\ud83d\udcc8 RSI at 73 - overbought, watch for pullback"
+    ],
+    "last_bar_date": "2026-08-27",
+    "market_cap": 54586500000.0,
+    "market_intel": {
+      "analyst_count": 14,
+      "analyst_rating": "STRONG_BUY",
+      "buy_ratings": 0,
+      "hold_ratings": 0,
+      "implied_upside": 63.8594,
+      "next_earnings_date": "2026-10-29",
+      "sell_ratings": 0,
+      "target_high": 435.0,
+      "target_low": 125.0,
+      "target_mean": 225.143,
+      "target_median": 193.0
+    },
+    "market_regime": "BULL_VOLATILE",
+    "market_state": "POST",
+    "market_timestamp": "<volatile>",
+    "mc_model_note": "",
+    "model_action": "WATCHLIST",
+    "monte_carlo": {
+      "days_simulated": 30,
+      "expected_return": 3.4678,
+      "expected_return_basis": "mean",
+      "mean_price": 142.165,
+      "median_price": 136.252,
+      "percentile_25": 111.234,
+      "percentile_5": 83.2352,
+      "percentile_75": 166.279,
+      "percentile_95": 219.101,
+      "probability_10pct_gain": 0.3697,
+      "probability_10pct_loss": 0.3703,
+      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only \u2014 not the chance of touching a target, and not target-vs-stop.",
+      "probability_profit": 0.491,
+      "simulations_run": 3000,
+      "var_95": -39.4212
+    },
+    "net_assets": 0.0,
+    "peer_comparison": {
+      "overall_assessment": "Bottom Quartile - Underperforming",
+      "pb_sector_avg": 17.1038,
+      "pb_stock": 1.6531,
+      "pb_vs_sector": -90.3348,
+      "pe_sector_avg": 43.4552,
+      "pe_stock": 0,
+      "pe_vs_sector": 0.0,
+      "roe_sector_avg": 59.7241,
+      "roe_stock": -63.562,
+      "roe_vs_sector": 0.0,
+      "sector": "Technology",
+      "sector_rank": 9,
+      "sector_total": 9
+    },
+    "portfolio_outlook": {
+      "bottom_line": "Existing holders can hold with a strict stop. New buyers should wait for pullback or breakout confirmation.",
+      "reason": "Strong fundamentals, but poor risk/reward and high volatility make new entry unattractive.",
+      "recommendation": "WATCHLIST"
+    },
+    "portfolio_risk_check": {
+      "adjustments": {},
+      "approved": true,
+      "correlation_risk": 0.0,
+      "holdings_known": false,
+      "sector_exposure": {
+        "Technology": 0.0
+      },
+      "warnings": []
+    },
+    "position_sizing": {
+      "is_viable": false,
+      "kelly_optimal": 0.0,
+      "portfolio_weight": 0.0,
+      "position_value": 0.0,
+      "recommended_shares": 0,
+      "sizing_method": "RISK_PARITY"
+    },
+    "pre_market_change_pct": 0.0,
+    "pre_market_price": 0.0,
+    "previous_close": 123.19,
+    "quote_type": "EQUITY",
+    "recommendation_caveat": "",
+    "recommendation_label": "WATCHLIST",
+    "recommendation_qualifier": "",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 42% | Score: 52/100 | Risk: F",
+    "relative_performance": {
+      "basis": "total return, dividend-adjusted closes",
+      "benchmark": "SPY",
+      "rows": [
+        {
+          "benchmark_pct": 5.71,
+          "excess_pct": 41.51,
+          "sessions": 21,
+          "stock_pct": 47.22,
+          "window": "1M"
+        },
+        {
+          "benchmark_pct": 2.45,
+          "excess_pct": -11.84,
+          "sessions": 63,
+          "stock_pct": -9.39,
+          "window": "3M"
+        },
+        {
+          "benchmark_pct": 12.46,
+          "excess_pct": -9.46,
+          "sessions": 126,
+          "stock_pct": 3.0,
+          "window": "6M"
+        },
+        {
+          "benchmark_pct": null,
+          "excess_pct": null,
+          "sessions": 252,
+          "stock_pct": -60.89,
+          "window": "1Y"
+        }
+      ]
+    },
+    "requested_symbol": "MSTR",
+    "retrieval_timestamp": "<volatile>",
+    "risk": {
+      "annualized_volatility": 0.8522,
+      "beta": 2.8982,
+      "beta_benchmark": "SPY",
+      "beta_observations": 250,
+      "beta_status": "measured",
+      "cvar_95": -0.1026,
+      "grade_drivers": [
+        {
+          "detail": "85% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 3
+        },
+        {
+          "detail": "2.90 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 2
+        },
+        {
+          "detail": "-83% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 2
+        },
+        {
+          "detail": "50/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 0
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "liquidity_score": 10.0,
+      "max_drawdown": -0.8263,
+      "overall_risk_score": 10,
+      "risk_grade": "F",
+      "risk_points": 10,
+      "sharpe_ratio": 0.3875,
+      "sortino_ratio": 0.6064,
+      "var_95_daily": -0.0777
+    },
+    "risk_warnings": [
+      "\u26a0\ufe0f HIGH VOLATILITY: 85% annual vol",
+      "\u26a0\ufe0f SEVERE DRAWDOWN HISTORY: -83%",
+      "\ud83d\udea8 HIGH RISK SCORE: 10/10"
+    ],
+    "scores": {
+      "component_details": {},
+      "composite_score": 52.5,
+      "data_quality_note": "MODERATE - Some data sources missing",
+      "fundamental_score": 48,
+      "quality_score": 58.75,
+      "risk_score": 20,
+      "score_confidence_margin": 0.0,
+      "sentiment_score": 35,
+      "technical_score": 62,
+      "valuation_score": 50.0,
+      "weights": {
+        "fundamental": 0.2222,
+        "quality": 0.0889,
+        "sentiment": 0.1667,
+        "technical": 0.3889,
+        "valuation": 0.1333
+      }
+    },
+    "sector": "Technology",
+    "sentiment": {
+      "key_headline_sources": [
+        "24/7 Wall St.",
+        "Stocktwits",
+        "BeInCrypto",
+        "Insider Monkey",
+        "Motley Fool"
+      ],
+      "key_headlines": [
+        "Coinbase Just Rallied 14% in a Month: Take Profits, or Buy More?",
+        "MSTR Stock Hits 2-Month High With Bitcoin Back Above $80K Ahead Of Kevin Warsh\u2019s Jackson Hole Speech",
+        "MicroStrategy Won't Need to Sell Bitcoin Anymore? MSTR Stock Rallies 12%",
+        "Weatherford International\u2019s (WFRD) Remarkable Recovery",
+        "Michael Saylor Predicted This Month That Bitcoin Will Appreciate 30% Annually for the Next 20 Years."
+      ],
+      "last_news_timestamp": "<volatile>",
+      "measured": true,
+      "negative_articles": 1,
+      "news_relevance": {
+        "direct_count": 3,
+        "direct_headlines": [
+          "MSTR Stock Hits 2-Month High With Bitcoin Back Above $80K Ahead Of Kevin Warsh\u2019s Jackson Hole Speech",
+          "MicroStrategy Won't Need to Sell Bitcoin Anymore? MSTR Stock Rallies 12%",
+          "Michael Saylor Predicted This Month That Bitcoin Will Appreciate 30% Annually for the Next 20 Years. Does the Math Behind That Call Hold Up for Strategy Investors?"
+        ],
+        "direct_sentiment_label": "NEUTRAL",
+        "direct_sentiment_score": -0.019,
+        "has_direct_news": true,
+        "macro_count": 7,
+        "macro_headlines": [
+          "Coinbase Just Rallied 14% in a Month: Take Profits, or Buy More?",
+          "Weatherford International\u2019s (WFRD) Remarkable Recovery",
+          "Greenlight Capital Exits Victoria\u2019s Secret (VSXY) After Remarkable Turnaround",
+          "Is\u00a0Versigent\u00a0(VGNT) Undervalued\u00a0With\u00a0Margin Expansion and Buyback Potential Ahead?",
+          "Is PayPal (PYPL) a Turnaround Opportunity After the CEO Transition?"
+        ],
+        "peer_count": 0,
+        "peer_headlines": [],
+        "peer_sentiment_score": 0.0,
+        "weighted_sentiment_label": "NEUTRAL",
+        "weighted_sentiment_score": -0.019
+      },
+      "news_volume": 10,
+      "positive_articles": 8,
+      "sentiment_label": "POSITIVE",
+      "sentiment_score": 0.5634,
+      "sentiment_trend": "STABLE",
+      "sources_attempted": 5,
+      "sources_succeeded": 1,
+      "status": "PARTIAL"
+    },
+    "signal": "HOLD",
+    "signal_explanation": {
+      "composite_score": 52.5,
+      "overrides_triggered": [],
+      "primary_reason": "Composite score 52 in HOLD range",
+      "risk_factors": [
+        "Risk grade F: volatility 85% annualised, beta 2.90 vs its benchmark, max drawdown -83% peak to trough"
+      ],
+      "supporting_factors": [
+        "Technical score 62 (bullish)"
+      ]
+    },
+    "sizing_basis": "none",
+    "stage_timings": [
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "price_history",
+        "status": "ok"
+      },
+      {
+        "cached": true,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "company_info",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "parallel_analysis",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "monte_carlo",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "valuation_targets",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "signal_generation",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "trade_setup",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "position_sizing",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "decision_core",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "narrative",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "record_signal",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "-",
+        "stage": "TOTAL",
+        "status": "ok"
+      }
+    ],
+    "stance": "NEUTRAL",
+    "symbol_note": "",
+    "technical": {
+      "adx": 25.6159,
+      "atr": 7.7436,
+      "atr_percent": 5.6358,
+      "bollinger_signal": "OVERBOUGHT",
+      "candlestick_bias": "NEUTRAL",
+      "candlestick_patterns": [],
+      "candlestick_score": 50.0,
+      "death_cross": false,
+      "golden_cross": false,
+      "macd_signal": "BULLISH",
+      "momentum_score": 38.0025,
+      "prior_trend": "UP",
+      "resistance_level": 0.0,
+      "rsi": 72.8535,
+      "squeeze_detected": false,
+      "support_level": 113.27,
+      "trend_direction": "UP",
+      "trend_score": 63.5386,
+      "trend_strength": "MODERATE",
+      "volatility_score": 60,
+      "volume_ratio": 1.7756,
+      "week_52_basis": "provider-reported traded range",
+      "week_52_high": 365.21,
+      "week_52_low": 81.81
+    },
+    "thesis": {
+      "bear_case": [
+        "History of significant drawdowns (-82.6%)",
+        "High volatility (85.2%) increases risk",
+        "Net insider selling in the last 90 days (small relative to company size)"
+      ],
+      "bull_case": [
+        "Strong uptrend with momentum confirmation",
+        "Positive news sentiment supporting price action"
+      ],
+      "catalysts": [
+        "Analyst target implies 63.9% upside"
+      ],
+      "risks": [
+        "\u26a0\ufe0f HIGH VOLATILITY: 85% annual vol",
+        "\u26a0\ufe0f SEVERE DRAWDOWN HISTORY: -83%",
+        "\ud83d\udea8 HIGH RISK SCORE: 10/10"
+      ],
+      "summary": "Strategy Inc (MSTR) should be held at current levels with a 42% confidence score. Composite score of 52/100."
+    },
+    "ticker": "MSTR",
+    "trade_setup": {
+      "entry_price": 137.4,
+      "entry_type": "REFERENCE",
+      "has_long_reward": true,
+      "is_actionable_entry": false,
+      "levels_available": true,
+      "risk_reward_ratio": 0.9317,
+      "setup_basis": "spot (reference only, not an order); stop below support (capped at 3xATR); 63-session target pro-rated from the 12-month valuation target $225.14; Target 1 is a tactical partial exit",
+      "stop_loss": 114.169,
+      "target_aggressive": 225.143,
+      "target_base": 225.143,
+      "target_conservative": 159.336,
+      "time_horizon": "POSITION",
+      "trailing_stop": 0.0,
+      "trailing_stop_pct": 11.3,
+      "win_probability": 0.0
+    },
+    "valuation": {
+      "dcf_fair_value": 0.0,
+      "dcf_method": "no_positive_cash_flow",
+      "dcf_status": "unavailable",
+      "dcf_upside": 0.0,
+      "fair_value_sources": [],
+      "graham_number": 0.0,
+      "graham_status": "unavailable",
+      "target_aggressive": 225.143,
+      "target_agreement_pct": null,
+      "target_base": 225.143,
+      "target_components": [
+        {
+          "source": "analyst_consensus",
+          "value": 225.143,
+          "weight": 1.0
+        }
+      ],
+      "target_confidence": 0.0,
+      "target_conservative": 225.143,
+      "target_probability": 0.0,
+      "target_source_count": 1,
+      "target_sources": [
+        "analyst_consensus"
+      ],
+      "valuation_label": "UNAVAILABLE",
+      "valuation_score": 50.0,
+      "valuation_status": "unavailable"
+    }
+  },
+  "ticker": "MSTR"
+}

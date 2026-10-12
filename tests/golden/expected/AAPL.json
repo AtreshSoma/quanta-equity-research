@@ -1,0 +1,843 @@
+{
+  "account_size": 100000.0,
+  "recorded_at": "2026-09-07",
+  "result": {
+    "action_items": [
+      "Do not open a new position while the blocking conditions remain",
+      "Re-run the Decision after the primary blocker clears"
+    ],
+    "action_plan_note": "These targets are for existing holders, not new entry recommendations.",
+    "action_plan_title": "EXISTING HOLDER PROFIT PLAN",
+    "adjustment_status": "split_dividend_adjusted",
+    "after_hours_change_pct": 0.0125,
+    "after_hours_price": 320.01,
+    "analysis_timestamp": "<volatile>",
+    "asset_type": "common_stock",
+    "beginner_guidance": {
+      "aggressive_buyer": "Do not add until the final decision changes",
+      "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
+      "breakout_entry": 344.273,
+      "buy_now": "NO",
+      "candlestick_timing": "WAIT",
+      "confidence": 47.4403,
+      "data_quality": "WARN",
+      "entry_quality": "Poor",
+      "existing_holder": "Hold",
+      "existing_holder_stop": 308.519,
+      "long_term_holder_stop": 308.519,
+      "long_tf": "Review before adding",
+      "main_reason": "Fundamentals are strong but timing is unclear; defer entry.",
+      "mid_tf": "Hold existing / wait",
+      "new_buyer": "Wait; no new position",
+      "pullback_basis": "support zone",
+      "pullback_entry": 319.075,
+      "pullback_is_deep": false,
+      "pullback_stop": 311.462,
+      "recommendation_label": "WATCHLIST",
+      "risk_conflict_warning": "",
+      "risk_grade": "C",
+      "rr_label": "Unfavorable",
+      "short_tf": "Wait",
+      "signal": "HOLD",
+      "tactical_stop": 317.479,
+      "tactical_stop_basis": "below recent swing low",
+      "volume_requirement": ">= 1.5x avg on entry day",
+      "warnings": [
+        "Valuation target 311.12 is at or below the entry reference 319.97 \u2014 no long reward, so R:R is 0 by definition."
+      ]
+    },
+    "business_summary": "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. The company offers iPhone, a line of smartphones; Mac, a line of personal computers; iPad, a line of multi-purpose tablets; and wearables, home, and accessories comprising AirPods, Apple Vision Pro, Apple TV, Apple Watch, Beats products, and HomePod, as well as Apple branded and third-party accessories. It also provides AppleCare support and cloud services; and operates various platforms, including the App Store that allows customers to discover and download applications and digital content, such as books, music, video, games, and podcasts, as well as advertising services include third-party licensing arrangements and its own advertising platforms. In addition, the company offers various subscription-based services, such as Apple Arcade, a game subscription service; Apple Fitness+, a personalized fitness service; Apple Music, which offers users a curated listening experience with on-demand radio stations; Apple News+, a subscription news and magazine service; Apple TV, which offers original content and live sports; Apple Card, a co-branded credit card; and Apple Pay, a cashless payment service, as well as licenses its intellectual property. The company serves consumers, and small and mid-sized businesses; and the education, enterprise, and government markets. It distributes third-party applications for its products through the App Store. The company also sells its products through its retail and online stores, and direct sales force; and third-party cellular network carriers and resellers. The company was formerly known as Apple Computer, Inc. and changed its name to Apple Inc. in January 2007. Apple Inc. was founded in 1976 and is headquartered in Cupertino, California.",
+    "catalysts": {
+      "catalyst_score": 0,
+      "days_to_earnings": 52,
+      "dividend_yield": 0.0034,
+      "earnings_date": "2026-10-29",
+      "ex_dividend_date": "Unknown",
+      "last_earnings_result": "Unknown",
+      "last_earnings_surprise_pct": 0.0,
+      "near_term_catalyst": false
+    },
+    "company_name": "Apple Inc.",
+    "confidence_level": "LOW",
+    "confidence_score": 47.4403,
+    "conviction_label": "LOW-CONVICTION",
+    "country": "United States",
+    "currency": "USD",
+    "currency_symbol": "$",
+    "current_price": 319.97,
+    "data_provider": "yfinance",
+    "data_quality_status": "ok",
+    "day_change": -8.24,
+    "day_change_pct": -2.5106,
+    "decision": {
+      "action": "WATCHLIST",
+      "as_of": "<volatile>",
+      "blockers": [
+        {
+          "category": "valuation",
+          "code": "TARGET_BELOW_ENTRY",
+          "remedy": "A valuation target above the entry price",
+          "text": "12-month valuation target is at or below the entry"
+        }
+      ],
+      "blocking": [
+        "Target 311.12 <= entry 319.97 \u2192 WATCHLIST"
+      ],
+      "blocking_codes": [
+        "TARGET_BELOW_ENTRY"
+      ],
+      "caveat": "",
+      "conflicts": [],
+      "engine": "elite",
+      "event_check": {
+        "agreement_date": null,
+        "avoid": false,
+        "checked_at": "<volatile>",
+        "code": "",
+        "cvr": false,
+        "cvr_non_transferable": false,
+        "deal_price": null,
+        "filed": null,
+        "note": "not recorded (offline replay)",
+        "registrant": "",
+        "source": "",
+        "spread_pct": null,
+        "status": "clear",
+        "stock": false,
+        "text": "",
+        "url": null
+      },
+      "evidence": {
+        "caveats": [
+          "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+        ],
+        "generated_utc": null,
+        "lineage": [
+          {
+            "change": "risk leg removed from the ranking composite",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.alpha_only.v1",
+            "summary": "Never tested.",
+            "tested_through": null
+          },
+          {
+            "change": "original composite",
+            "status": "NO_EDGE",
+            "status_text": "Tested out of sample \u2014 no demonstrated edge",
+            "strategy": "elite.composite",
+            "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+            "tested_through": "2026-08-25"
+          }
+        ],
+        "metrics": {},
+        "permits_recommendation": false,
+        "scope": "",
+        "status": "UNTESTED",
+        "status_text": "Never validated",
+        "strategy": "elite.research.v2",
+        "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+        "tested_through": null
+      },
+      "factor_scores": {
+        "fundamental": 78,
+        "quality": 87.963,
+        "sentiment": 45,
+        "technical": 68,
+        "valuation": 20.0
+      },
+      "freshness": {
+        "lag_sessions": 0,
+        "last_bar": "2026-09-04",
+        "notes": [],
+        "status": "fresh"
+      },
+      "generated_at": "<volatile>",
+      "holder_action": "HOLD",
+      "holdings_known": false,
+      "horizon": {
+        "key": "position",
+        "label": "Position (~3 months)",
+        "trading_days": 63
+      },
+      "interpretation": null,
+      "invalidation": [],
+      "label": "WATCHLIST",
+      "levels": {
+        "entry": 319.97,
+        "reference_price": 319.97,
+        "reward_risk": 0.0,
+        "stop": 308.519,
+        "target": 311.122,
+        "target_basis": "63-session target, pro-rated from the 12-month valuation target",
+        "target_horizon_days": 63,
+        "valuation_target": 284.578,
+        "valuation_target_horizon_days": 252
+      },
+      "model_stance": "BULLISH",
+      "new_money": "WATCH",
+      "primary_blocker": {
+        "category": "valuation",
+        "code": "TARGET_BELOW_ENTRY",
+        "remedy": "A valuation target above the entry price",
+        "text": "12-month valuation target is at or below the entry"
+      },
+      "qualifier": "",
+      "reasons": [
+        "Composite score 62.4 \u2192 candidate ACCUMULATE",
+        "Target 311.12 <= entry 319.97 \u2192 WATCHLIST"
+      ],
+      "risk_grade": "C",
+      "risk_grade_drivers": [
+        {
+          "detail": "29% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 1
+        },
+        {
+          "detail": "0.69 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 0
+        },
+        {
+          "detail": "-33% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 1
+        },
+        {
+          "detail": "60/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 1
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "risk_grade_lookback_days": 501,
+      "risk_metrics": {
+        "beta": 0.688368,
+        "risk_score": 30,
+        "volatility": 0.288556
+      },
+      "risks": [],
+      "scenarios": [
+        {
+          "method": "range of analyst consensus, dcf (lowest)",
+          "name": "low_method",
+          "price": 219.11,
+          "return_pct": -31.5217,
+          "source_ids": [
+            "analyst_consensus",
+            "dcf"
+          ]
+        },
+        {
+          "method": "weighted blend of analyst consensus, dcf",
+          "name": "weighted",
+          "price": 284.578,
+          "return_pct": -11.0609,
+          "source_ids": [
+            "analyst_consensus",
+            "dcf"
+          ]
+        },
+        {
+          "method": "range of analyst consensus, dcf (highest)",
+          "name": "high_method",
+          "price": 323.859,
+          "return_pct": 1.21557,
+          "source_ids": [
+            "analyst_consensus",
+            "dcf"
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "score": 62.4403,
+      "score_basis": "Research composite (alpha factors only), 0-100",
+      "sizing": {
+        "dollar_risk": 0,
+        "portfolio_weight": 0,
+        "position_value": 0,
+        "recommended_shares": 0,
+        "shares": 0
+      },
+      "sizing_basis": "none",
+      "sources": [
+        {
+          "as_of": "<volatile>",
+          "id": "px",
+          "kind": "price",
+          "provider": "yfinance",
+          "retrieved_at": "<volatile>",
+          "title": "",
+          "url": ""
+        }
+      ],
+      "stance": "NEUTRAL",
+      "ticker": "AAPL",
+      "transitions": []
+    },
+    "evidence": {
+      "caveats": [
+        "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+      ],
+      "generated_utc": null,
+      "lineage": [
+        {
+          "change": "risk leg removed from the ranking composite",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.alpha_only.v1",
+          "summary": "Never tested.",
+          "tested_through": null
+        },
+        {
+          "change": "original composite",
+          "status": "NO_EDGE",
+          "status_text": "Tested out of sample \u2014 no demonstrated edge",
+          "strategy": "elite.composite",
+          "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+          "tested_through": "2026-08-25"
+        }
+      ],
+      "metrics": {},
+      "permits_recommendation": false,
+      "scope": "",
+      "status": "UNTESTED",
+      "status_text": "Never validated",
+      "strategy": "elite.research.v2",
+      "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+      "tested_through": null
+    },
+    "exchange": "NMS",
+    "expense_ratio": 0.0,
+    "fast_mode": false,
+    "final_action": "WATCHLIST",
+    "first_bar_date": "2024-09-05",
+    "fundamental": {
+      "altman_z_score": 12.0795,
+      "altman_z_status": "ok",
+      "altman_z_variant": "public",
+      "current_ratio": 1.003,
+      "debt_to_equity": 0.7844,
+      "dividend_yield": 0.0034,
+      "eps_growth_yoy": 28.7,
+      "ev_ebitda": 27.933,
+      "fcf_yield": 2.3068,
+      "forward_pe": 33.4195,
+      "free_cash_flow": 107722000000.0,
+      "gross_margin": 48.653,
+      "is_etf": false,
+      "net_margin": 27.619,
+      "operating_margin": 32.623,
+      "pb_ratio": 43.4742,
+      "pe_ratio": 36.6098,
+      "peg_ratio": 1.2756,
+      "piotroski_components_available": 9,
+      "piotroski_f_score": 8,
+      "quality_score": 87.963,
+      "reported_inputs": {
+        "current_ratio": true,
+        "debt_to_equity": true,
+        "net_margin": true,
+        "revenue_growth": true,
+        "roe": true
+      },
+      "revenue_growth_yoy": 16.4,
+      "roa": 27.082,
+      "roe": 148.751,
+      "roic": 87.9165
+    },
+    "has_existing_position": false,
+    "history_bars": 502,
+    "industry": "Consumer Electronics",
+    "insider": {
+      "context_missing": false,
+      "data_status": "measured",
+      "display_label": "BEARISH",
+      "insider_sentiment": "BEARISH",
+      "key_transactions": [
+        "NEWSTEAD JENNIFER sold 1,439 shares @ $317.01 on 2026-09-01 ($456,177)",
+        "NEWSTEAD JENNIFER sold 1,439 shares @ $310.95 on 2026-08-25 ($447,457)",
+        "NEWSTEAD JENNIFER sold 1,439 shares @ $307.49 on 2026-08-18 ($442,478)",
+        "NEWSTEAD JENNIFER sold 1,439 shares @ $307.75 on 2026-08-11 ($442,852)"
+      ],
+      "net_flow": -1823200.0,
+      "recent_buys": 0,
+      "recent_sells": 5
+    },
+    "is_adr": false,
+    "is_etf": false,
+    "is_financial": false,
+    "is_high_volatility": false,
+    "is_invalid": false,
+    "key_insights": [
+      "\u23f8\ufe0f HOLD signal with 47% confidence",
+      "\ud83d\udd34 Candlestick: Bearish Engulfing (Bearish, high reliability)",
+      "\ud83d\udcaa Strong ROE of 148.8% - excellent profitability",
+      "\u2b50 High Piotroski F-Score (8/9) - strong fundamentals",
+      "\u26a0\ufe0f DCF suggests 32% overvaluation"
+    ],
+    "last_bar_date": "2026-09-04",
+    "market_cap": 4669700000000.0,
+    "market_intel": {
+      "analyst_count": 38,
+      "analyst_rating": "BUY",
+      "buy_ratings": 0,
+      "hold_ratings": 0,
+      "implied_upside": 1.2156,
+      "next_earnings_date": "2026-10-29",
+      "sell_ratings": 0,
+      "target_high": 400.0,
+      "target_low": 215.0,
+      "target_mean": 323.86,
+      "target_median": 335.0
+    },
+    "market_regime": "SIDEWAYS",
+    "market_state": "CLOSED",
+    "market_timestamp": "<volatile>",
+    "mc_model_note": "",
+    "model_action": "WATCHLIST",
+    "monte_carlo": {
+      "days_simulated": 30,
+      "expected_return": -0.0399,
+      "expected_return_basis": "mean",
+      "mean_price": 319.842,
+      "median_price": 317.304,
+      "percentile_25": 297.932,
+      "percentile_5": 270.219,
+      "percentile_75": 339.86,
+      "percentile_95": 376.697,
+      "probability_10pct_gain": 0.1543,
+      "probability_10pct_loss": 0.1463,
+      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only \u2014 not the chance of touching a target, and not target-vs-stop.",
+      "probability_profit": 0.4703,
+      "simulations_run": 3000,
+      "var_95": -15.5486
+    },
+    "net_assets": 0.0,
+    "peer_comparison": {
+      "overall_assessment": "Above Average",
+      "pb_sector_avg": 11.734,
+      "pb_stock": 43.4742,
+      "pb_vs_sector": 270.498,
+      "pe_sector_avg": 41.5335,
+      "pe_stock": 36.6098,
+      "pe_vs_sector": -11.8547,
+      "roe_sector_avg": 48.7717,
+      "roe_stock": 148.751,
+      "roe_vs_sector": 204.994,
+      "sector": "Technology",
+      "sector_rank": 4,
+      "sector_total": 9
+    },
+    "portfolio_outlook": {
+      "bottom_line": "Existing holders can hold with a strict stop. New buyers should wait for pullback or breakout confirmation.",
+      "reason": "Fundamentals are strong but timing is unclear; defer entry.",
+      "recommendation": "WATCHLIST"
+    },
+    "portfolio_risk_check": {
+      "adjustments": {},
+      "approved": true,
+      "correlation_risk": 0.0,
+      "holdings_known": false,
+      "sector_exposure": {
+        "Technology": 0.0
+      },
+      "warnings": []
+    },
+    "position_sizing": {
+      "is_viable": false,
+      "kelly_optimal": 0.0,
+      "portfolio_weight": 0.0,
+      "position_value": 0.0,
+      "recommended_shares": 0,
+      "sizing_method": "RISK_PARITY"
+    },
+    "pre_market_change_pct": 0.0,
+    "pre_market_price": 0.0,
+    "previous_close": 328.21,
+    "quote_type": "EQUITY",
+    "recommendation_caveat": "",
+    "recommendation_label": "WATCHLIST",
+    "recommendation_qualifier": "",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 47% | Score: 62/100 | Risk: C",
+    "relative_performance": {
+      "basis": "total return, dividend-adjusted closes",
+      "benchmark": "SPY",
+      "rows": [
+        {
+          "benchmark_pct": 0.21,
+          "excess_pct": 2.3,
+          "sessions": 21,
+          "stock_pct": 2.51,
+          "window": "1M"
+        },
+        {
+          "benchmark_pct": 4.69,
+          "excess_pct": -0.49,
+          "sessions": 63,
+          "stock_pct": 4.2,
+          "window": "3M"
+        },
+        {
+          "benchmark_pct": 15.16,
+          "excess_pct": 9.34,
+          "sessions": 126,
+          "stock_pct": 24.5,
+          "window": "6M"
+        },
+        {
+          "benchmark_pct": null,
+          "excess_pct": null,
+          "sessions": 252,
+          "stock_pct": 33.94,
+          "window": "1Y"
+        }
+      ]
+    },
+    "requested_symbol": "AAPL",
+    "retrieval_timestamp": "<volatile>",
+    "risk": {
+      "annualized_volatility": 0.2886,
+      "beta": 0.6884,
+      "beta_benchmark": "SPY",
+      "beta_observations": 251,
+      "beta_status": "measured",
+      "cvar_95": -0.0419,
+      "grade_drivers": [
+        {
+          "detail": "29% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 1
+        },
+        {
+          "detail": "0.69 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 0
+        },
+        {
+          "detail": "-33% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 1
+        },
+        {
+          "detail": "60/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 1
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "liquidity_score": 10.0,
+      "max_drawdown": -0.3336,
+      "overall_risk_score": 6,
+      "risk_grade": "C",
+      "risk_points": 6,
+      "sharpe_ratio": 0.6362,
+      "sortino_ratio": 0.9345,
+      "var_95_daily": -0.027
+    },
+    "risk_warnings": [],
+    "scores": {
+      "component_details": {},
+      "composite_score": 62.4403,
+      "data_quality_note": "HIGH - All data sources available",
+      "fundamental_score": 78,
+      "quality_score": 87.963,
+      "risk_score": 30,
+      "score_confidence_margin": 0.0,
+      "sentiment_score": 45,
+      "technical_score": 68,
+      "valuation_score": 20.0,
+      "weights": {
+        "fundamental": 0.2778,
+        "quality": 0.1111,
+        "sentiment": 0.1111,
+        "technical": 0.3333,
+        "valuation": 0.1667
+      }
+    },
+    "sector": "Technology",
+    "sentiment": {
+      "key_headline_sources": [
+        "GuruFocus.com",
+        "GuruFocus.com",
+        "Motley Fool",
+        "GuruFocus.com",
+        "24/7 Wall St."
+      ],
+      "key_headlines": [
+        "Palantir Stock Leads August Rally -- Nvidia, Salesforce and Super Micro Jump",
+        "Apple's $54 Billion iPhone Engine Hits an AI Memory Squeeze",
+        "Tim Cook Delivered a 2,720% Total Return Over 15 Years. Here's Whether John Ternus Can Do the Same f",
+        "Apple's $320 Stock Faces Huawei's 68% Foldable Fortress",
+        "How a 64-Year-Old\u2019s $1.2 Million in VOO Turned Into a $456,000 Bet on a Single Sector"
+      ],
+      "last_news_timestamp": "<volatile>",
+      "measured": true,
+      "negative_articles": 3,
+      "news_relevance": {
+        "direct_count": 7,
+        "direct_headlines": [
+          "Apple's $54 Billion iPhone Engine Hits an AI Memory Squeeze",
+          "Tim Cook Delivered a 2,720% Total Return Over 15 Years. Here's Whether John Ternus Can Do the Same for Apple Investors.",
+          "Apple's $320 Stock Faces Huawei's 68% Foldable Fortress",
+          "Jim Cramer Wants Nvidia to Buy Back $500 Billion. Can Apple\u2019s Playbook Work?",
+          "KeyBanc Delivers Stark Warning on Apple Stock Ahead of iPhone 18 Launch"
+        ],
+        "direct_sentiment_label": "NEUTRAL",
+        "direct_sentiment_score": 0.119,
+        "has_direct_news": true,
+        "macro_count": 3,
+        "macro_headlines": [
+          "Palantir Stock Leads August Rally -- Nvidia, Salesforce and Super Micro Jump",
+          "How a 64-Year-Old\u2019s $1.2 Million in VOO Turned Into a $456,000 Bet on a Single Sector",
+          "Berkshire Hathaway Owns AI Exposure in 3 Different Ways. Here's Why That's Not the Same as Owning Nvidia."
+        ],
+        "peer_count": 0,
+        "peer_headlines": [],
+        "peer_sentiment_score": 0.0,
+        "weighted_sentiment_label": "NEUTRAL",
+        "weighted_sentiment_score": 0.119
+      },
+      "news_volume": 10,
+      "positive_articles": 7,
+      "sentiment_label": "POSITIVE",
+      "sentiment_score": 0.243,
+      "sentiment_trend": "STABLE",
+      "sources_attempted": 5,
+      "sources_succeeded": 1,
+      "status": "PARTIAL"
+    },
+    "signal": "HOLD",
+    "signal_explanation": {
+      "composite_score": 62.4403,
+      "overrides_triggered": [
+        "Base target -11.1% below current price \u2192 HOLD"
+      ],
+      "primary_reason": "Base target -11.1% below current price \u2192 HOLD",
+      "risk_factors": [
+        "Risk grade C: volatility 29% annualised, max drawdown -33% peak to trough, tail risk 60/100 from skew and fat tails",
+        "Monte Carlo tail shape is unfavorable (6.2% 75th-percentile upside vs 15.5% 5th-percentile downside); diagnostic only"
+      ],
+      "supporting_factors": [
+        "Technical score 68 (bullish)",
+        "Fundamental score 78 (strong)",
+        "5 bullish confirmations"
+      ]
+    },
+    "sizing_basis": "none",
+    "stage_timings": [
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "price_history",
+        "status": "ok"
+      },
+      {
+        "cached": true,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "company_info",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "parallel_analysis",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "monte_carlo",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "valuation_targets",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "signal_generation",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "trade_setup",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "position_sizing",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "decision_core",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "narrative",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "record_signal",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "-",
+        "stage": "TOTAL",
+        "status": "ok"
+      }
+    ],
+    "stance": "NEUTRAL",
+    "symbol_note": "",
+    "technical": {
+      "adx": 14.9065,
+      "atr": 7.6339,
+      "atr_percent": 2.3858,
+      "bollinger_signal": "NEUTRAL",
+      "candlestick_bias": "BEARISH",
+      "candlestick_patterns": [
+        {
+          "bias": "BEARISH",
+          "context": "Sellers overwhelmed buyers",
+          "name": "Bearish Engulfing",
+          "reliability": "HIGH",
+          "strength": 3,
+          "type": "REVERSAL"
+        }
+      ],
+      "candlestick_score": 30.0,
+      "death_cross": false,
+      "golden_cross": false,
+      "macd_signal": "BULLISH",
+      "momentum_score": 56.1164,
+      "prior_trend": "UP",
+      "resistance_level": 320.28,
+      "rsi": 53.9532,
+      "squeeze_detected": false,
+      "support_level": 319.075,
+      "trend_direction": "SIDEWAYS",
+      "trend_score": 54.6667,
+      "trend_strength": "WEAK",
+      "volatility_score": 60,
+      "volume_ratio": 0.9974,
+      "week_52_basis": "provider-reported traded range",
+      "week_52_high": 344.57,
+      "week_52_low": 225.95
+    },
+    "thesis": {
+      "bear_case": [
+        "Valuation stretched - significantly overvalued",
+        "DCF suggests 31.5% overvaluation",
+        "History of significant drawdowns (-33.4%)",
+        "Net insider selling in the last 90 days (small relative to company size)"
+      ],
+      "bull_case": [
+        "Strong profitability with 148.8% ROE",
+        "Growing revenues at 16.4% YoY",
+        "Positive news sentiment supporting price action"
+      ],
+      "catalysts": [],
+      "risks": [],
+      "summary": "Apple Inc. (AAPL) should be held at current levels with a 47% confidence score. Composite score of 62/100."
+    },
+    "ticker": "AAPL",
+    "trade_setup": {
+      "entry_price": 319.97,
+      "entry_type": "REFERENCE",
+      "has_long_reward": false,
+      "is_actionable_entry": false,
+      "levels_available": true,
+      "risk_reward_ratio": 0.0,
+      "setup_basis": "spot (reference only, not an order); stop below support (widened to 1.5xATR); 12-month valuation target $284.58 (-11%) is at or below spot \u2014 no long reward; stop shown for holders only",
+      "stop_loss": 308.519,
+      "target_aggressive": 0.0,
+      "target_base": 284.579,
+      "target_conservative": 0.0,
+      "time_horizon": "POSITION",
+      "trailing_stop": 0.0,
+      "trailing_stop_pct": 4.8,
+      "win_probability": 0.0
+    },
+    "valuation": {
+      "dcf_fair_value": 219.11,
+      "dcf_method": "fcf_based",
+      "dcf_status": "measured",
+      "dcf_upside": -31.5217,
+      "fair_value_sources": [
+        "dcf"
+      ],
+      "graham_number": 0.0,
+      "graham_status": "rejected",
+      "target_aggressive": 323.86,
+      "target_agreement_pct": 61.4,
+      "target_base": 284.579,
+      "target_components": [
+        {
+          "source": "analyst_consensus",
+          "value": 323.859,
+          "weight": 0.625
+        },
+        {
+          "source": "dcf",
+          "value": 219.11,
+          "weight": 0.375
+        }
+      ],
+      "target_confidence": 61.4,
+      "target_conservative": 219.11,
+      "target_probability": 0.0,
+      "target_source_count": 2,
+      "target_sources": [
+        "analyst_consensus",
+        "dcf"
+      ],
+      "valuation_label": "SIGNIFICANTLY_OVERVALUED",
+      "valuation_score": 20,
+      "valuation_status": "measured"
+    }
+  },
+  "ticker": "AAPL"
+}

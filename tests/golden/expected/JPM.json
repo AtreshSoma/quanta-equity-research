@@ -1,0 +1,817 @@
+{
+  "account_size": 100000.0,
+  "recorded_at": "2026-08-27",
+  "result": {
+    "action_items": [
+      "Do not open a new position while the blocking conditions remain",
+      "Re-run the Decision after the primary blocker clears"
+    ],
+    "action_plan_note": "These targets are for existing holders, not new entry recommendations.",
+    "action_plan_title": "EXISTING HOLDER PROFIT PLAN",
+    "adjustment_status": "split_dividend_adjusted",
+    "after_hours_change_pct": 0.0819,
+    "after_hours_price": 354.22,
+    "analysis_timestamp": "<volatile>",
+    "asset_type": "financial",
+    "beginner_guidance": {
+      "aggressive_buyer": "Do not add until the final decision changes",
+      "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
+      "breakout_entry": 366.5,
+      "buy_now": "NO",
+      "candlestick_timing": "WAIT / NO CLEAR EDGE",
+      "confidence": 49.4524,
+      "data_quality": "WARN",
+      "entry_quality": "Weak",
+      "existing_holder": "Hold",
+      "existing_holder_stop": 345.06,
+      "long_term_holder_stop": 345.06,
+      "long_tf": "Review before adding",
+      "main_reason": "Fundamentals are strong but timing is unclear; defer entry.",
+      "mid_tf": "Hold existing / wait",
+      "new_buyer": "Wait; no new position",
+      "pullback_basis": "support zone",
+      "pullback_entry": 353.33,
+      "pullback_is_deep": false,
+      "pullback_stop": 347.427,
+      "recommendation_label": "WATCHLIST",
+      "risk_conflict_warning": "",
+      "risk_grade": "B",
+      "rr_label": "Unfavorable",
+      "short_tf": "Wait",
+      "signal": "HOLD",
+      "tactical_stop": 351.563,
+      "tactical_stop_basis": "below recent swing low",
+      "volume_requirement": ">= 1.5x avg on entry day",
+      "warnings": [
+        "Valuation target 348.76 is at or below the entry reference 353.93 \u2014 no long reward, so R:R is 0 by definition."
+      ]
+    },
+    "business_summary": "JPMorgan Chase & Co. operates as a bank and financial holding company in the United States, rest of North America, Europe, the Middle East, Africa, the Asia Pacific, Latin America, and the Caribbean. It operates in three segments: Consumer & Community Banking, Commercial & Investment Bank, and Asset & Wealth Management. The company offers deposit, investment and lending products, and cash management; mortgage origination and servicing activities; residential mortgages and home equity loans; and credit cards, payment solutions, travel services, merchant offers, lifestyle benefits, auto loans, and leases to consumers and small businesses through bank branches, ATMs, and digital and telephone banking. It also provides investment banking, market-making, financing, custody, and securities products and services; corporate strategy and structure advisory, equity and debt market capital-raising, and loan origination and syndication services; cash and derivative instruments, risk management solutions, prime brokerage, clearing, and research; and fund services, liquidity and trading services, and data solutions products for large corporations, financial institutions, merchants, start-ups, small and midsized companies, local governments, municipalities, nonprofits, and commercial real estate clients. In addition, the company offers multi-asset investment management solutions in equities, fixed income, alternatives, and money market funds to institutional clients and retail investors; retirement products and services, estate planning, lending, deposits, and investment management products to high-net-worth clients; and financial transaction processing. JPMorgan Chase & Co. was founded in 1799 and is headquartered in New York, New York.",
+    "catalysts": {
+      "catalyst_score": 0,
+      "days_to_earnings": 47,
+      "dividend_yield": 0.017,
+      "earnings_date": "2026-10-13",
+      "ex_dividend_date": "Unknown",
+      "last_earnings_result": "Unknown",
+      "last_earnings_surprise_pct": 0.0,
+      "near_term_catalyst": false
+    },
+    "company_name": "JP Morgan Chase & Co.",
+    "confidence_level": "LOW",
+    "confidence_score": 49.4524,
+    "conviction_label": "LOW-CONVICTION",
+    "country": "United States",
+    "currency": "USD",
+    "currency_symbol": "$",
+    "current_price": 353.93,
+    "data_provider": "yfinance",
+    "data_quality_status": "ok",
+    "day_change": -2.57,
+    "day_change_pct": -0.7209,
+    "decision": {
+      "action": "WATCHLIST",
+      "as_of": "<volatile>",
+      "blockers": [
+        {
+          "category": "score",
+          "code": "HOLD_NOT_OWNED",
+          "remedy": "Overall score reaching 55 or higher",
+          "text": "Overall score is in the neutral band (45\u201355)"
+        }
+      ],
+      "blocking": [
+        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+      ],
+      "blocking_codes": [
+        "HOLD_NOT_OWNED"
+      ],
+      "caveat": "",
+      "conflicts": [],
+      "engine": "elite",
+      "event_check": {
+        "agreement_date": null,
+        "avoid": false,
+        "checked_at": "<volatile>",
+        "code": "",
+        "cvr": false,
+        "cvr_non_transferable": false,
+        "deal_price": null,
+        "filed": null,
+        "note": "not recorded (offline replay)",
+        "registrant": "",
+        "source": "",
+        "spread_pct": null,
+        "status": "clear",
+        "stock": false,
+        "text": "",
+        "url": null
+      },
+      "evidence": {
+        "caveats": [
+          "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+        ],
+        "generated_utc": null,
+        "lineage": [
+          {
+            "change": "risk leg removed from the ranking composite",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.alpha_only.v1",
+            "summary": "Never tested.",
+            "tested_through": null
+          },
+          {
+            "change": "original composite",
+            "status": "NO_EDGE",
+            "status_text": "Tested out of sample \u2014 no demonstrated edge",
+            "strategy": "elite.composite",
+            "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+            "tested_through": "2026-08-25"
+          }
+        ],
+        "metrics": {},
+        "permits_recommendation": false,
+        "scope": "",
+        "status": "UNTESTED",
+        "status_text": "Never validated",
+        "strategy": "elite.research.v2",
+        "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+        "tested_through": null
+      },
+      "factor_scores": {
+        "fundamental": 78,
+        "quality": 41.0714,
+        "sentiment": 35,
+        "technical": 48,
+        "valuation": 20.0
+      },
+      "freshness": {
+        "lag_sessions": 0,
+        "last_bar": "2026-08-27",
+        "notes": [],
+        "status": "fresh"
+      },
+      "generated_at": "<volatile>",
+      "holder_action": "HOLD",
+      "holdings_known": false,
+      "horizon": {
+        "key": "position",
+        "label": "Position (~3 months)",
+        "trading_days": 63
+      },
+      "interpretation": null,
+      "invalidation": [],
+      "label": "WATCHLIST",
+      "levels": {
+        "entry": 353.93,
+        "reference_price": 353.93,
+        "reward_risk": 0.0,
+        "stop": 345.06,
+        "target": 348.757,
+        "target_basis": "63-session target, pro-rated from the 12-month valuation target",
+        "target_horizon_days": 63,
+        "valuation_target": 333.237,
+        "valuation_target_horizon_days": 252
+      },
+      "model_stance": "NEUTRAL",
+      "new_money": "WATCH",
+      "primary_blocker": {
+        "category": "score",
+        "code": "HOLD_NOT_OWNED",
+        "remedy": "Overall score reaching 55 or higher",
+        "text": "Overall score is in the neutral band (45\u201355)"
+      },
+      "qualifier": "",
+      "reasons": [
+        "Composite score 49.5 \u2192 candidate HOLD_EXISTING",
+        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+      ],
+      "risk_grade": "B",
+      "risk_grade_drivers": [
+        {
+          "detail": "25% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 1
+        },
+        {
+          "detail": "0.79 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 0
+        },
+        {
+          "detail": "-24% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 0
+        },
+        {
+          "detail": "60/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 1
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "risk_grade_lookback_days": 500,
+      "risk_metrics": {
+        "beta": 0.785734,
+        "risk_score": 50,
+        "volatility": 0.251117
+      },
+      "risks": [],
+      "scenarios": [
+        {
+          "method": "range of analyst consensus, intrinsic value (lowest)",
+          "name": "low_method",
+          "price": 264.346,
+          "return_pct": -25.3114,
+          "source_ids": [
+            "analyst_consensus",
+            "intrinsic_value"
+          ]
+        },
+        {
+          "method": "weighted blend of analyst consensus, intrinsic value",
+          "name": "weighted",
+          "price": 333.237,
+          "return_pct": -5.84671,
+          "source_ids": [
+            "analyst_consensus",
+            "intrinsic_value"
+          ]
+        },
+        {
+          "method": "range of analyst consensus, intrinsic value (highest)",
+          "name": "high_method",
+          "price": 374.571,
+          "return_pct": 5.83207,
+          "source_ids": [
+            "analyst_consensus",
+            "intrinsic_value"
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "score": 49.4524,
+      "score_basis": "Research composite (alpha factors only), 0-100",
+      "sizing": {
+        "dollar_risk": 0,
+        "portfolio_weight": 0,
+        "position_value": 0,
+        "recommended_shares": 0,
+        "shares": 0
+      },
+      "sizing_basis": "none",
+      "sources": [
+        {
+          "as_of": "<volatile>",
+          "id": "px",
+          "kind": "price",
+          "provider": "yfinance",
+          "retrieved_at": "<volatile>",
+          "title": "",
+          "url": ""
+        }
+      ],
+      "stance": "NEUTRAL",
+      "ticker": "JPM",
+      "transitions": []
+    },
+    "evidence": {
+      "caveats": [
+        "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+      ],
+      "generated_utc": null,
+      "lineage": [
+        {
+          "change": "risk leg removed from the ranking composite",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.alpha_only.v1",
+          "summary": "Never tested.",
+          "tested_through": null
+        },
+        {
+          "change": "original composite",
+          "status": "NO_EDGE",
+          "status_text": "Tested out of sample \u2014 no demonstrated edge",
+          "strategy": "elite.composite",
+          "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+          "tested_through": "2026-08-25"
+        }
+      ],
+      "metrics": {},
+      "permits_recommendation": false,
+      "scope": "",
+      "status": "UNTESTED",
+      "status_text": "Never validated",
+      "strategy": "elite.research.v2",
+      "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+      "tested_through": null
+    },
+    "exchange": "NYQ",
+    "expense_ratio": 0.0,
+    "fast_mode": false,
+    "final_action": "WATCHLIST",
+    "first_bar_date": "2024-08-28",
+    "fundamental": {
+      "altman_z_score": null,
+      "altman_z_status": "not_applicable",
+      "altman_z_variant": "",
+      "current_ratio": null,
+      "debt_to_equity": null,
+      "dividend_yield": 0.017,
+      "eps_growth_yoy": 46.9,
+      "ev_ebitda": 0,
+      "fcf_yield": 0.0,
+      "forward_pe": 14.1532,
+      "free_cash_flow": 0,
+      "gross_margin": 0.0,
+      "is_etf": false,
+      "net_margin": 34.921,
+      "operating_margin": 50.394,
+      "pb_ratio": 2.661,
+      "pe_ratio": 15.1576,
+      "peg_ratio": 0.3232,
+      "piotroski_components_available": 7,
+      "piotroski_f_score": 4,
+      "quality_score": 41.0714,
+      "reported_inputs": {
+        "current_ratio": false,
+        "debt_to_equity": false,
+        "net_margin": true,
+        "revenue_growth": true,
+        "roe": true
+      },
+      "revenue_growth_yoy": 30.4,
+      "roa": 1.36,
+      "roe": 17.789,
+      "roic": 9.5745
+    },
+    "has_existing_position": false,
+    "history_bars": 501,
+    "industry": "Banks - Diversified",
+    "insider": {
+      "context_missing": false,
+      "data_status": "measured",
+      "display_label": "BEARISH",
+      "insider_sentiment": "BEARISH",
+      "key_transactions": [
+        "LEOPOLD ROBIN sold 2,500 shares @ $361.41 on 2026-08-11 ($903,518)",
+        "FRIEDMAN STACEY R. sold 5,467 shares @ $330.73 on 2026-06-22 ($1,808,121)"
+      ],
+      "net_flow": -2711640.0,
+      "recent_buys": 0,
+      "recent_sells": 2
+    },
+    "is_adr": false,
+    "is_etf": false,
+    "is_financial": true,
+    "is_high_volatility": false,
+    "is_invalid": false,
+    "key_insights": [
+      "\u23f8\ufe0f HOLD signal with 49% confidence",
+      "\ud83d\udcf0 No direct company headlines found; peer/macro sentiment is not treated as company evidence"
+    ],
+    "last_bar_date": "2026-08-27",
+    "market_cap": 940812000000.0,
+    "market_intel": {
+      "analyst_count": 21,
+      "analyst_rating": "BUY",
+      "buy_ratings": 0,
+      "hold_ratings": 0,
+      "implied_upside": 5.8321,
+      "next_earnings_date": "2026-10-13",
+      "sell_ratings": 0,
+      "target_high": 420.0,
+      "target_low": 305.0,
+      "target_mean": 374.571,
+      "target_median": 372.0
+    },
+    "market_regime": "SIDEWAYS",
+    "market_state": "POST",
+    "market_timestamp": "<volatile>",
+    "mc_model_note": "",
+    "model_action": "WATCHLIST",
+    "monte_carlo": {
+      "days_simulated": 30,
+      "expected_return": 0.0395,
+      "expected_return_basis": "mean",
+      "mean_price": 354.07,
+      "median_price": 352.672,
+      "percentile_25": 332.196,
+      "percentile_5": 304.599,
+      "percentile_75": 374.633,
+      "percentile_95": 409.23,
+      "probability_10pct_gain": 0.132,
+      "probability_10pct_loss": 0.1177,
+      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only \u2014 not the chance of touching a target, and not target-vs-stop.",
+      "probability_profit": 0.4847,
+      "simulations_run": 3000,
+      "var_95": -13.9382
+    },
+    "net_assets": 0.0,
+    "peer_comparison": {
+      "overall_assessment": "Sector not mapped",
+      "pb_sector_avg": 0.0,
+      "pb_stock": 0.0,
+      "pb_vs_sector": 0.0,
+      "pe_sector_avg": 0.0,
+      "pe_stock": 0.0,
+      "pe_vs_sector": 0.0,
+      "roe_sector_avg": 0.0,
+      "roe_stock": 0.0,
+      "roe_vs_sector": 0.0,
+      "sector": "Financial Services",
+      "sector_rank": 0,
+      "sector_total": 0
+    },
+    "portfolio_outlook": {
+      "bottom_line": "Existing holders can hold with a strict stop. New buyers should wait for pullback or breakout confirmation.",
+      "reason": "Fundamentals are strong but timing is unclear; defer entry.",
+      "recommendation": "WATCHLIST"
+    },
+    "portfolio_risk_check": {
+      "adjustments": {},
+      "approved": true,
+      "correlation_risk": 0.0,
+      "holdings_known": false,
+      "sector_exposure": {
+        "Financial Services": 0.0
+      },
+      "warnings": []
+    },
+    "position_sizing": {
+      "is_viable": false,
+      "kelly_optimal": 0.0,
+      "portfolio_weight": 0.0,
+      "position_value": 0.0,
+      "recommended_shares": 0,
+      "sizing_method": "RISK_PARITY"
+    },
+    "pre_market_change_pct": 0.0,
+    "pre_market_price": 0.0,
+    "previous_close": 356.5,
+    "quote_type": "EQUITY",
+    "recommendation_caveat": "",
+    "recommendation_label": "WATCHLIST",
+    "recommendation_qualifier": "",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 49% | Score: 49/100 | Risk: B",
+    "relative_performance": {
+      "basis": "total return, dividend-adjusted closes",
+      "benchmark": "SPY",
+      "rows": [
+        {
+          "benchmark_pct": 5.71,
+          "excess_pct": -3.04,
+          "sessions": 21,
+          "stock_pct": 2.67,
+          "window": "1M"
+        },
+        {
+          "benchmark_pct": 2.45,
+          "excess_pct": 17.36,
+          "sessions": 63,
+          "stock_pct": 19.81,
+          "window": "3M"
+        },
+        {
+          "benchmark_pct": 12.46,
+          "excess_pct": 4.27,
+          "sessions": 126,
+          "stock_pct": 16.73,
+          "window": "6M"
+        },
+        {
+          "benchmark_pct": null,
+          "excess_pct": null,
+          "sessions": 252,
+          "stock_pct": 20.81,
+          "window": "1Y"
+        }
+      ]
+    },
+    "requested_symbol": "JPM",
+    "retrieval_timestamp": "<volatile>",
+    "risk": {
+      "annualized_volatility": 0.2511,
+      "beta": 0.7857,
+      "beta_benchmark": "SPY",
+      "beta_observations": 250,
+      "beta_status": "measured",
+      "cvar_95": -0.0372,
+      "grade_drivers": [
+        {
+          "detail": "25% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 1
+        },
+        {
+          "detail": "0.79 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 0
+        },
+        {
+          "detail": "-24% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 0
+        },
+        {
+          "detail": "60/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 1
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "liquidity_score": 10.0,
+      "max_drawdown": -0.2442,
+      "overall_risk_score": 5,
+      "risk_grade": "B",
+      "risk_points": 5,
+      "sharpe_ratio": 0.9714,
+      "sortino_ratio": 1.4188,
+      "var_95_daily": -0.0234
+    },
+    "risk_warnings": [],
+    "scores": {
+      "component_details": {},
+      "composite_score": 49.4524,
+      "data_quality_note": "HIGH - All data sources available",
+      "fundamental_score": 78,
+      "quality_score": 41.0714,
+      "risk_score": 50,
+      "score_confidence_margin": 0.0,
+      "sentiment_score": 35,
+      "technical_score": 48,
+      "valuation_score": 20.0,
+      "weights": {
+        "fundamental": 0.2778,
+        "quality": 0.1111,
+        "sentiment": 0.1111,
+        "technical": 0.3333,
+        "valuation": 0.1667
+      }
+    },
+    "sector": "Financial Services",
+    "sentiment": {
+      "key_headline_sources": [
+        "MT Newswires",
+        "GuruFocus.com",
+        "GuruFocus.com",
+        "24/7 Wall St.",
+        "TipRanks"
+      ],
+      "key_headlines": [
+        "Sector Update: Financial Stocks Softer Late Afternoon",
+        "JPMorgan Prices One Fed Formula at 61% of Quarterly Profit",
+        "JPMorgan Flags Big Risk Ahead of IREN Earnings",
+        "3 Time-Tested Dividend Stocks to Build Annual Income",
+        "\u201cWe\u2019re Bullish\u201d: JPMorgan Pulls the Trigger on 2 Digital Platform Stocks"
+      ],
+      "last_news_timestamp": "<volatile>",
+      "measured": true,
+      "negative_articles": 5,
+      "news_relevance": {
+        "direct_count": 0,
+        "direct_headlines": [],
+        "direct_sentiment_label": "NEUTRAL",
+        "direct_sentiment_score": 0.0,
+        "has_direct_news": false,
+        "macro_count": 10,
+        "macro_headlines": [
+          "Sector Update: Financial Stocks Softer Late Afternoon",
+          "JPMorgan Prices One Fed Formula at 61% of Quarterly Profit",
+          "JPMorgan Flags Big Risk Ahead of IREN Earnings",
+          "3 Time-Tested Dividend Stocks to Build Annual Income",
+          "\u201cWe\u2019re Bullish\u201d: JPMorgan Pulls the Trigger on 2 Digital Platform Stocks"
+        ],
+        "peer_count": 0,
+        "peer_headlines": [],
+        "peer_sentiment_score": 0.0,
+        "weighted_sentiment_label": "NEUTRAL",
+        "weighted_sentiment_score": 0.0
+      },
+      "news_volume": 10,
+      "positive_articles": 4,
+      "sentiment_label": "NEUTRAL",
+      "sentiment_score": 0.0918,
+      "sentiment_trend": "STABLE",
+      "sources_attempted": 5,
+      "sources_succeeded": 1,
+      "status": "PARTIAL"
+    },
+    "signal": "HOLD",
+    "signal_explanation": {
+      "composite_score": 49.4524,
+      "overrides_triggered": [],
+      "primary_reason": "Composite score 49 in HOLD range",
+      "risk_factors": [
+        "Monte Carlo tail shape is unfavorable (5.8% 75th-percentile upside vs 13.9% 5th-percentile downside); diagnostic only"
+      ],
+      "supporting_factors": [
+        "Fundamental score 78 (strong)"
+      ]
+    },
+    "sizing_basis": "none",
+    "stage_timings": [
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "price_history",
+        "status": "ok"
+      },
+      {
+        "cached": true,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "company_info",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "parallel_analysis",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "monte_carlo",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "valuation_targets",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "signal_generation",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "trade_setup",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "position_sizing",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "decision_core",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "narrative",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "record_signal",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "-",
+        "stage": "TOTAL",
+        "status": "ok"
+      }
+    ],
+    "stance": "NEUTRAL",
+    "symbol_note": "",
+    "technical": {
+      "adx": 12.8597,
+      "atr": 5.913,
+      "atr_percent": 1.6707,
+      "bollinger_signal": "NEUTRAL",
+      "candlestick_bias": "NEUTRAL",
+      "candlestick_patterns": [],
+      "candlestick_score": 50.0,
+      "death_cross": false,
+      "golden_cross": false,
+      "macd_signal": "BEARISH",
+      "momentum_score": 42.2721,
+      "prior_trend": "SIDEWAYS",
+      "resistance_level": 359.3,
+      "rsi": 50.6511,
+      "squeeze_detected": false,
+      "support_level": 353.33,
+      "trend_direction": "SIDEWAYS",
+      "trend_score": 53.3333,
+      "trend_strength": "WEAK",
+      "volatility_score": 70,
+      "volume_ratio": 0.5796,
+      "week_52_basis": "provider-reported traded range",
+      "week_52_high": 366.5,
+      "week_52_low": 279.1
+    },
+    "thesis": {
+      "bear_case": [
+        "Valuation stretched - significantly overvalued",
+        "Net insider selling in the last 90 days (small relative to company size)"
+      ],
+      "bull_case": [
+        "Strong profitability with 17.8% ROE",
+        "Growing revenues at 30.4% YoY"
+      ],
+      "catalysts": [],
+      "risks": [],
+      "summary": "JP Morgan Chase & Co. (JPM) should be held at current levels with a 49% confidence score. Composite score of 49/100."
+    },
+    "ticker": "JPM",
+    "trade_setup": {
+      "entry_price": 353.93,
+      "entry_type": "REFERENCE",
+      "has_long_reward": false,
+      "is_actionable_entry": false,
+      "levels_available": true,
+      "risk_reward_ratio": 0.0,
+      "setup_basis": "spot (reference only, not an order); stop below support (widened to 1.5xATR); 12-month valuation target $333.24 (-6%) is at or below spot \u2014 no long reward; stop shown for holders only",
+      "stop_loss": 345.06,
+      "target_aggressive": 0.0,
+      "target_base": 333.237,
+      "target_conservative": 0.0,
+      "time_horizon": "POSITION",
+      "trailing_stop": 0.0,
+      "trailing_stop_pct": 3.3,
+      "win_probability": 0.0
+    },
+    "valuation": {
+      "dcf_fair_value": 0.0,
+      "dcf_method": "not_applicable_financial",
+      "dcf_status": "not_applicable",
+      "dcf_upside": 0.0,
+      "fair_value_sources": [
+        "graham"
+      ],
+      "graham_number": 264.346,
+      "graham_status": "measured",
+      "target_aggressive": 374.571,
+      "target_agreement_pct": 65.5,
+      "target_base": 333.237,
+      "target_components": [
+        {
+          "source": "analyst_consensus",
+          "value": 374.571,
+          "weight": 0.625
+        },
+        {
+          "source": "intrinsic_value",
+          "value": 264.346,
+          "weight": 0.375
+        }
+      ],
+      "target_confidence": 65.5,
+      "target_conservative": 264.346,
+      "target_probability": 0.0,
+      "target_source_count": 2,
+      "target_sources": [
+        "analyst_consensus",
+        "intrinsic_value"
+      ],
+      "valuation_label": "SIGNIFICANTLY_OVERVALUED",
+      "valuation_score": 20,
+      "valuation_status": "measured"
+    }
+  },
+  "ticker": "JPM"
+}

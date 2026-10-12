@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b0e14" id="theme-color-meta" />
+  <title>QUANTA · Investment Research</title>
+  <!-- Inline icon: no /favicon.ico round trip (it 404'd on every page load). -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a56db'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' font-weight='700' fill='white' text-anchor='middle'%3EQ%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- IBM Plex Sans + Mono: one superfamily, two voices. A label and the
+       figure beneath it share a skeleton, so numeric columns and their
+       headers hold the same rhythm. Playfair is brand only (wordmark and
+       maker's mark) and never sets running text — two faces, upright 700 for
+       the wordmark and italic 600 for the accent and signature, which is
+       every Playfair cut the stylesheet actually asks for. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,600&display=swap" />
+  <!-- One design-system sheet (tokens + every component), then the two focused
+       component sheets that only read those tokens. Cache-bust every change. -->
+  <link rel="stylesheet" href="{{ asset_url('quanta.css') }}" />
+  <link rel="stylesheet" href="{{ asset_url('quote-board.css') }}" />
+  <link rel="stylesheet" href="{{ asset_url('signature.css') }}" />
+  <!-- Blocking on purpose: sets the theme before first paint (no flash). A file,
+       not inline, so the Content-Security-Policy can forbid inline script. -->
+  <script src="{{ asset_url('theme-init.js') }}"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <!-- ===================== TOP BAR =====================
+       Three zones: identity + the four-step workflow on the left, research
+       entry (search, market) in the middle, and one contained status control
+       on the right. Operational detail (clock, feed ledger, cache) lives in
+       the status popover, never in the navigation row. -->
+  <header class="topbar">
+    <div class="brand-cluster">
+      <a class="brand" href="#dashboard" data-view-link="dashboard" aria-label="QUANTA: Overview">
+        <span class="brand-mark" aria-hidden="true">Q</span>
+        <span class="brand-name">QUANTA<span class="brand-name-accent">·Elite</span></span>
+      </a>
+    </div>
+
+    <nav class="nav-tabs" role="tablist" aria-label="Primary views">
+      <button type="button" class="nav-tab active" data-view="dashboard" role="tab" aria-selected="true" aria-controls="view-dashboard">Overview</button>
+      <button type="button" class="nav-tab" data-view="discover" role="tab" aria-selected="false" aria-controls="view-discover" tabindex="-1">Discover</button>
+      <button type="button" class="nav-tab" data-view="analyze" role="tab" aria-selected="false" aria-controls="view-analyze" tabindex="-1">Research</button>
+      <button type="button" class="nav-tab" data-view="picks" role="tab" aria-selected="false" aria-controls="view-picks" tabindex="-1">Picks</button>
+      <button type="button" class="nav-tab" data-view="holdings" role="tab" aria-selected="false" aria-controls="view-holdings" tabindex="-1" aria-label="My Portfolio"><span class="nav-label-long">My Portfolio</span><span class="nav-label-short" aria-hidden="true">My Portfolio</span></button>
+    </nav>
+
+    <div class="topbar-utility">
+      <!-- Collapsed to its icon; opens on click or Ctrl/Cmd-K. -->
+      <form class="q-search" id="global-search" role="search">
+        <button type="button" class="q-search-btn" id="global-search-toggle" aria-expanded="false"
+                aria-controls="global-search-input" title="Research a ticker (Ctrl+K)" aria-label="Research a ticker">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2A4.5 4.5 0 0 0 5 9.5 4.5 4.5 0 0 0 9.5 14 4.5 4.5 0 0 0 14 9.5 4.5 4.5 0 0 0 9.5 5z"/></svg>
+          <span class="q-search-hint" aria-hidden="true">Ticker</span>
+        </button>
+        <input id="global-search-input" type="search" placeholder="Ticker or ETF" aria-label="Search a ticker or ETF and open its tear sheet" autocomplete="off" spellcheck="false" tabindex="-1" />
+      </form>
+
+      <div class="market-toggle" role="group" aria-label="Market">
+        <button class="mkt-btn active" data-market="US" title="United States equities" type="button" aria-pressed="true"><span class="mkt-label">US</span></button>
+        <button class="mkt-btn" data-market="IN" title="Indian equities (NSE)" type="button" aria-pressed="false"><span class="mkt-label">India</span></button>
+      </div>
+
+      <!-- One status control: freshness of the read, feed health, clock.
+           The popover holds the ledger and the maintenance action. -->
+      <div class="q-status">
+        <div class="q-health">
+          <button type="button" class="q-health-btn" id="data-health-toggle" aria-expanded="false" aria-controls="data-health-panel" title="Data status: freshness, news feeds and market clock">
+            <span class="freshness-chip" id="freshness-chip" data-staleness="unknown">
+              <span class="freshness-dot" aria-hidden="true"></span>
+              <span class="freshness-label">Updated</span>
+              <span class="freshness-time" id="freshness-time">not yet</span>
+            </span>
+            <span class="q-health-sep" aria-hidden="true"></span>
+            <span class="q-health-dot" id="data-health-dot" aria-hidden="true"></span>
+            <span class="q-health-k">News</span>
+            <span class="q-health-v" id="data-health-value">checking…</span>
+            <svg class="q-health-caret" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
+          </button>
+          <div class="q-health-panel" id="data-health-panel" hidden role="group" aria-label="Data status">
+            <div class="q-health-clock ticker-clock" id="market-clock" title="Market clock">
+              <span class="q-health-clock-k">Market clock</span>
+              <span id="clock-date">--</span>
+              <span id="clock-text">--:--:--</span>
+              <span class="clock-tz" id="clock-tz">ET</span>
+            </div>
+            <div id="source-ledger-body" class="source-ledger-body">
+              <div class="q-empty q-empty--inline"><span class="badge-spinner" aria-hidden="true"></span>Checking sources…</div>
+            </div>
+            <div class="q-health-actions">
+              <button class="q-btn" id="clear-cache" title="Clear the data cache (forces a fully fresh next scan)" type="button">
+                <span class="clear-cache-label">Clear data cache</span>
+              </button>
+              <span class="q-health-actions-note">Forces the next scan and tear sheet to refetch every source.</span>
+            </div>
+          </div>
+        </div>
+        <button class="icon-btn" id="refresh-dashboard" title="Refresh market data" aria-label="Refresh market data" type="button">
+          <svg class="refresh-icon" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        </button>
+      </div>
+
+      <a class="icon-btn guide-link" id="guide-link" href="#guide" data-view-link="guide" title="How QUANTA works" aria-label="Guide: how QUANTA works">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6"/><path d="M12 17h.01"/></svg>
+        <span class="guide-link-label" aria-hidden="true">Guide</span>
+      </a>
+      <a class="icon-btn guide-link evidence-link" id="evidence-link" href="#track" data-view-link="track" title="Model evidence &amp; track record" aria-label="Model evidence and track record">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 13l2 2 4-4"/></svg>
+        <span class="guide-link-label" aria-hidden="true">Evidence</span>
+      </a>
+      <button class="icon-btn theme-toggle" id="theme-toggle" title="Toggle color theme" aria-label="Toggle color theme" type="button" aria-pressed="true">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===================== MAIN ===================== -->
+  <main class="app-main" id="main-content">
+
+    <!-- ============== OVERVIEW (DASHBOARD) VIEW ============== -->
+    <section class="view active" id="view-dashboard" aria-label="Market overview">
+      <h1 class="sr-only">Market overview</h1>
+
+      <!-- ROW 0 · TAPE — what is moving the market right now -->
+      <section class="q-tape" id="top-headlines" aria-label="Market-moving headlines">
+        <div class="q-tape-inner">
+          <span class="q-tape-kicker neutral"><span class="q-tape-pulse neutral"></span>Market-moving now</span>
+          <span class="q-tape-empty">Reading the tape…</span>
+        </div>
+      </section>
+
+      <!-- ROW 1 · COMMAND ROW — regime · playbook · risk -->
+      <div class="q-command q-hero" aria-label="Market regime, playbook and risk">
+
+        <section class="q-panel q-regime" id="decision-brief" aria-label="Market regime">
+          <div class="q-skel" aria-busy="true">
+            <span class="skel-line w-30"></span>
+            <span class="skel-line w-60"></span>
+            <span class="skel-line w-45"></span>
+          </div>
+        </section>
+
+        <section class="q-panel q-playbook" aria-labelledby="playbook-title">
+          <header class="q-head">
+            <h2 class="q-head-title" id="playbook-title">Today's playbook</h2>
+            <span class="q-head-meta" id="playbook-meta">Risk-first</span>
+          </header>
+          <div id="allocator-body" class="q-body allocator-body">
+            <div class="q-empty q-empty--inline">Translating conditions into allocation rules…</div>
+          </div>
+        </section>
+
+        <section class="q-panel q-riskpanel" aria-labelledby="risk-title">
+          <header class="q-head">
+            <h2 class="q-head-title" id="risk-title">Risk</h2>
+            <span class="q-head-meta" id="risk-meta">Assessing</span>
+          </header>
+          <div id="risk-body" class="q-body">
+            <div class="q-empty q-empty--inline">Reading volatility, breadth and event risk…</div>
+          </div>
+        </section>
+        <section class="q-panel q-trigpanel" id="regime-triggers" aria-labelledby="triggers-title">
+          <header class="q-head">
+            <div class="q-head-l">
+              <h2 class="q-head-title" id="triggers-title">What would change the call</h2>
+            </div>
+            <span class="q-head-meta" id="triggers-meta"></span>
+          </header>
+          <div class="q-body" id="triggers-body"><div class="q-empty q-empty--inline">Checking the conditions…</div></div>
+        </section>
+
+      </div>
+
+      <!-- ROW 2 · MARKET RIBBON — indices, vol, rates, commodities, crypto, breadth -->
+      <section class="q-ribbon" id="market-pulse" aria-label="Market ribbon">
+        <div class="q-ribbon-skel" aria-busy="true">
+          <span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span>
+          <span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span>
+        </div>
+      </section>
+
+      <!-- Market context shares one tabbed workspace (signal, drivers, dated
+           catalysts); the rail summarises opportunities and breadth. Both
+           columns stretch to one bottom line. -->
+      <!-- Index futures: shown only outside the regular session. -->
+      <div class="q-futures" id="futures-strip" aria-live="polite" hidden></div>
+
+
+
+
+
+
+      <!-- 2 · THE MARKET. The chart beside the benchmark's levels and the
+           cross-asset gauges. -->
+      <div class="q-mkt-grid">
+        <section class="q-panel q-chartpanel" id="overview-chart" aria-labelledby="ovc-title">
+        <header class="q-head ovc-head">
+          <div class="ovc-title-wrap">
+            <h2 class="q-head-title" id="ovc-title">Price chart</h2>
+            <span class="q-head-meta" id="ovc-name"></span>
+            <a class="q-btn q-btn--sm q-btn--link" id="ovc-open" href="#analyze" hidden>Open tear sheet</a>
+          </div>
+          <form class="ovc-pick" id="ovc-form" autocomplete="off" aria-label="Chart a symbol">
+            <div class="ovc-chips" id="ovc-chips" role="group" aria-label="Market symbols"></div>
+            <label class="ovc-field">
+              <span class="sr-only">Ticker to chart</span>
+              <input id="ovc-ticker" type="text" placeholder="Chart a ticker" spellcheck="false" autocapitalize="characters" maxlength="32" />
+            </label>
+            <button type="submit" class="q-btn q-btn--sm">Chart</button>
+          </form>
+        </header>
+        <div class="ovc-body" id="ovc-body"></div>
+        </section>
+        <div class="q-side-stack">
+          <section class="q-panel q-flat" id="key-levels" aria-labelledby="levels-title">
+            <header class="q-head">
+              <div class="q-head-l">
+                <h2 class="q-head-title" id="levels-title">Levels and expected move</h2>
+              </div>
+              <span class="q-head-meta" id="levels-meta"></span>
+            </header>
+            <div class="q-body" id="levels-body"></div>
+          </section>
+          <section class="q-panel q-flat" id="cross-asset" aria-labelledby="cross-title">
+            <header class="q-head">
+              <div class="q-head-l">
+                <h2 class="q-head-title" id="cross-title">Cross-asset</h2>
+              </div>
+            </header>
+            <div class="q-body" id="cross-body"></div>
+          </section>
+        </div>
+      </div>
+
+      <!-- 3 · WHERE IT MOVES. Sectors beside the ideas worth a look. -->
+      <div class="q-ideas-grid">
+        <section class="q-panel q-flat" id="sector-map" aria-labelledby="sector-title">
+          <header class="q-head">
+            <div class="q-head-l">
+              <h2 class="q-head-title" id="sector-title">Sectors</h2>
+            </div>
+            <span class="q-head-meta" id="sector-meta"></span>
+          </header>
+          <div class="q-body" id="sector-body"></div>
+        </section>
+        <section class="q-panel q-flat q-oppbrief" id="opportunity-brief" aria-labelledby="oppbrief-title">
+          <header class="q-head">
+            <div class="q-head-l">
+              <h2 class="q-head-title" id="oppbrief-title">Where the opportunities are</h2>
+              <p class="q-head-sub" id="oppbrief-sub">Leading names from Discover.</p>
+            </div>
+            <a class="q-btn q-btn--link" href="#discover" data-view-link="discover">Open Discover &rarr;</a>
+          </header>
+          <div id="opportunity-brief-body" class="q-body q-body--flush">
+            <div class="q-skelrows" aria-busy="true"><span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 4 · WHAT IS COMING. The dated week beside the conditions that would
+           change the call. -->
+      <div class="q-week-grid">
+        <section class="q-panel q-flat q-weekpanel" id="week-calendar" aria-labelledby="week-title">
+          <header class="q-head">
+            <div class="q-head-l">
+              <h2 class="q-head-title" id="week-title">The week ahead</h2>
+            </div>
+            <span class="q-head-meta" id="week-meta"></span>
+          </header>
+          <div class="q-body" id="week-body"></div>
+        </section>
+      </div>
+
+      <!-- 5 · WHY. What changed since the last session, and how broad the move is. -->
+      <div class="q-why-grid">
+        <section class="q-panel q-flat" id="what-changed" aria-labelledby="changed-title">
+          <header class="q-head">
+            <div class="q-head-l">
+              <h2 class="q-head-title" id="changed-title">What changed</h2>
+            </div>
+            <span class="q-head-meta" id="changed-meta"></span>
+          </header>
+          <div class="q-body" id="changed-body"><div class="q-empty q-empty--inline">Comparing with the last session…</div></div>
+        </section>
+        <section class="q-panel q-flat" id="breadth-panel" aria-labelledby="breadth-title">
+          <header class="q-head">
+            <div class="q-head-l">
+              <h2 class="q-head-title" id="breadth-title">Uptrends &amp; movers</h2>
+            </div>
+            <span class="q-head-meta" id="breadth-meta">Measuring</span>
+          </header>
+          <div id="breadth-body" class="q-body">
+            <div class="q-empty q-empty--inline">Measuring participation…</div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 6 · THE EVIDENCE. The factor model, drivers and dated catalysts
+           beside the ranked headlines. -->
+      <div class="q-research-grid">
+        <section class="q-panel q-flat q-workspace" data-dashboard-tabs aria-label="Market context">
+          <div class="q-workspace-tabs" role="tablist" aria-label="Market context views">
+            <button type="button" class="q-tab is-active" id="tab-signal-check" role="tab" aria-selected="true" aria-controls="signal-check" tabindex="0">Market signal</button><button type="button" class="q-tab" id="tab-market-drivers" role="tab" aria-selected="false" aria-controls="market-drivers" tabindex="-1">Drivers</button><button type="button" class="q-tab" id="tab-event-risk" role="tab" aria-selected="false" aria-controls="event-risk" tabindex="-1">Catalysts <span class="q-tab-count" id="event-risk-count"></span></button>
+          </div>
+          <section class="q-panel" id="signal-check" role="tabpanel" aria-labelledby="tab-signal-check">
+          <header class="q-head">
+            <div class="q-head-l">
+              <h2 class="q-head-title" id="signal-title">Market signal</h2>
+            </div>
+            <span class="q-head-meta" id="signal-check-meta">Reading</span>
+          </header>
+          <div id="signal-check-body" class="q-body q-body--flush cc-signalcheck-body">
+            <div class="q-empty q-empty--inline">Scoring the factor model…</div>
+          </div>
+        </section>
+          <section class="q-panel" id="market-drivers" role="tabpanel" aria-labelledby="tab-market-drivers" hidden>
+          <header class="q-head">
+            <div class="q-head-l">
+              <h2 class="q-head-title" id="drivers-title">Market drivers</h2>
+            </div>
+            <span class="q-head-meta" id="market-drivers-meta">Scanning</span>
+          </header>
+          <div id="market-drivers-body" class="q-body q-body--flush cc-drivers-body">
+            <div class="q-empty q-empty--inline">Identifying the forces moving the tape…</div>
+          </div>
+        </section>
+          <section class="q-panel" id="event-risk" role="tabpanel" aria-labelledby="tab-event-risk" hidden>
+            <header class="q-head">
+              <div class="q-head-l">
+                <h2 class="q-head-title" id="catalysts-title">Upcoming catalysts</h2>
+              </div>
+              <span class="q-head-meta" id="event-risk-meta">7 calendar days</span>
+            </header>
+            <div id="event-risk-body" class="q-body q-body--flush event-risk-body">
+              <div class="q-empty q-empty--inline">Loading the 7-day catalyst window…</div>
+            </div>
+          </section>
+
+        </section>
+        <!-- ROW 7 · MARKET INTELLIGENCE — ranked headlines with interpretation -->
+        <section class="q-panel q-flat q-intel" id="market-intelligence" aria-labelledby="intel-title">
+        <header class="q-head q-head--tabs">
+          <div class="q-head-l">
+            <h2 class="q-head-title" id="intel-title">Market intelligence</h2>
+          </div>
+          <div class="q-tabs" role="tablist" id="news-tabs" aria-label="News category">
+            <button type="button" role="tab" aria-selected="true" class="q-tab is-active" data-news-group="high-impact" data-label="High impact">High impact</button>
+            <button type="button" role="tab" aria-selected="false" class="q-tab" data-news-group="macro" data-label="Macro">Macro</button>
+            <button type="button" role="tab" aria-selected="false" class="q-tab" data-news-group="stocks" data-label="Stocks">Stocks</button>
+            <button type="button" role="tab" aria-selected="false" class="q-tab" data-news-group="earnings" data-label="Earnings news">Earnings news</button>
+          </div>
+          <span class="q-head-meta" id="news-meta">Feeds</span>
+        </header>
+        <div id="news-body" class="q-body q-body--flush news-body">
+          <div class="q-skelrows" aria-busy="true">
+            <span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span>
+          </div>
+        </div>
+      </section>
+
+      </div>
+
+    </section>
+
+    <!-- ============== DISCOVER VIEW ==============
+         Where the opportunities are: the ranked setups first, then the tape
+         monitor (movers, open extremes, watchlist, extended, avoid). -->
+    <section class="view" id="view-discover" aria-labelledby="discover-title">
+      <header class="page-head">
+        <div class="page-head-l">
+          <h1 class="page-title" id="discover-title">Discover</h1>
+          <p class="page-sub">Ranked ideas and the names moving today, each labelled by the model&rsquo;s Decision or a plain price condition.</p>
+        </div>
+      </header>
+      <section class="q-panel q-opps" aria-labelledby="opps-title">
+        <header class="q-head">
+          <div class="q-head-l">
+            <h2 class="q-head-title" id="opps-title">Top opportunities</h2>
+            <p class="q-head-sub">Scan-qualified setups when a Picks scan has run; otherwise Street research candidates. Expand a row for evidence and levels; open a name for its full tear sheet.</p>
+          </div>
+          <div class="q-head-r">
+            <span class="q-head-meta" id="scan-meta">Waiting</span>
+            <button type="button" class="q-btn q-btn--primary" id="opps-scan-btn" data-jump-view="picks">Run a scan</button>
+          </div>
+        </header>
+        <div id="portfolio-scan-body" class="q-body q-body--flush portfolio-scan-body">
+          <div class="q-empty q-empty--inline">Checking scan status…</div>
+        </div>
+      </section>
+
+      <section class="q-panel q-workspace" id="security-monitor" data-dashboard-tabs aria-labelledby="monitor-title">
+        <header class="q-head"><div class="q-head-l"><h2 class="q-head-title" id="monitor-title">Security monitor</h2><p class="q-head-sub">Review the tape, developing setups and entry risks.</p></div></header>
+        <div class="q-workspace-tabs" role="tablist" aria-label="Security monitor views">
+          <button type="button" class="q-tab is-active" id="tab-top-movers" role="tab" aria-selected="true" aria-controls="top-movers" tabindex="0">Market moves</button><button type="button" class="q-tab" id="tab-open-extremes" role="tab" aria-selected="false" aria-controls="open-extremes" tabindex="-1" title="Names that opened at the session high or low">Opened at high/low</button><button type="button" class="q-tab" id="tab-monitor-watchlist" role="tab" aria-selected="false" aria-controls="monitor-watchlist" tabindex="-1">Watchlist</button><button type="button" class="q-tab" id="tab-monitor-extended" role="tab" aria-selected="false" aria-controls="monitor-extended" tabindex="-1">Extended</button><button type="button" class="q-tab" id="tab-scanner-vetoes" role="tab" aria-selected="false" aria-controls="scanner-vetoes" tabindex="-1">Avoid</button>
+        </div>
+        <section class="q-panel q-boardpanel" id="top-movers" role="tabpanel" aria-labelledby="tab-top-movers">
+        <header class="q-head">
+          <div class="q-head-l">
+            <h2 class="q-head-title" id="board-title">Top gainers &amp; losers</h2>
+            <p class="q-head-sub">Ranked by today's move, with the session board. Select a row to open its Research tear sheet; Open chart shows it on TradingView.</p>
+          </div>
+          <span class="q-head-meta" id="top-movers-meta">Fetching</span>
+        </header>
+        <div id="top-movers-body" class="q-body q-body--flush">
+          <div class="q-skelrows" aria-busy="true">
+            <span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span>
+          </div>
+        </div>
+      </section>
+        <section class="q-panel q-boardpanel" id="open-extremes" role="tabpanel" aria-labelledby="tab-open-extremes" hidden>
+          <header class="q-head">
+            <div class="q-head-l">
+              <h2 class="q-head-title" id="open-extremes-title">Open at session low / high</h2>
+              <p class="q-head-sub">Exact matches in the latest available session snapshot. These are price conditions, not trade recommendations.</p>
+            </div>
+            <span class="q-head-meta" id="open-extremes-meta">Scanning</span>
+          </header>
+          <div id="open-extremes-body" class="q-body q-body--flush">
+            <div class="q-skelrows" aria-busy="true">
+              <span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span>
+            </div>
+          </div>
+        </section>
+        <section id="monitor-watchlist" role="tabpanel" aria-labelledby="tab-monitor-watchlist" hidden><div id="monitor-watchlist-body"></div></section>
+        <section id="monitor-extended" role="tabpanel" aria-labelledby="tab-monitor-extended" hidden><div id="monitor-extended-body"></div></section>
+        <section class="q-panel q-vetoes" id="scanner-vetoes" role="tabpanel" aria-labelledby="tab-scanner-vetoes" hidden>
+        <header class="q-head">
+          <div class="q-head-l">
+            <h2 class="q-head-title" id="vetoes-title">What the scanner rejected</h2>
+            <p class="q-head-sub">Names that ranked but did not clear the gate, and what would make each one valid again.</p>
+          </div>
+          <span class="q-head-meta" id="vetoes-meta">No vetoes</span>
+        </header>
+        <div id="setup-status-body" class="q-body q-body--flush setup-status-body">
+          <div class="q-empty q-empty--inline">Checking the veto queue…</div>
+        </div>
+      </section>
+      </section>
+
+    </section>
+
+    <!-- ============== PICKS VIEW ============== -->
+    <section class="view" id="view-picks" aria-labelledby="portfolio-title">
+      <header class="page-head">
+        <div class="page-head-l">
+          <h1 class="page-title" id="portfolio-title">Picks</h1>
+          <p class="page-sub">Scan an index within your capital and mandate: each name gets a Buy, Accumulate or Watchlist call and a size.</p>
+        </div>
+      </header>
+      <div class="workspace-grid">
+        <aside class="card form-card sticky">
+          <header class="card-header">
+            <div>
+              <h2 class="card-title">Scan setup</h2>
+              <p class="card-sub setup-summary" id="sp-setup-summary" hidden></p>
+            </div>
+            <button type="button" id="sp-setup-toggle" class="q-btn" aria-controls="picks-form" aria-expanded="true" hidden>Edit scan setup</button>
+          </header>
+
+          <form id="picks-form" class="form-stack" autocomplete="off">
+            <div class="form-row two">
+              <label class="form-field">
+                <span>Market</span>
+                <select id="sp-market" aria-describedby="sp-market-hint">
+                  <option value="US" selected>US Equities</option>
+                  <option value="IN">Indian Equities</option>
+                </select>
+                <em class="field-hint" id="sp-market-hint">US listings, prices in USD</em>
+              </label>
+              <label class="form-field">
+                <span>Capital budget</span>
+                <input id="sp-capital" type="number" step="any" inputmode="decimal" aria-describedby="sp-capital-hint" />
+                <em class="field-hint" id="sp-capital-hint">USD, minimum <span data-threshold="CAPITAL.MIN_US" data-threshold-fmt="money"></span></em>
+              </label>
+            </div>
+            <div class="q-notice" id="sp-market-notice" role="note" hidden></div>
+            <div class="q-notice" id="sp-sec-notice" role="note" hidden></div>
+
+            <label class="form-field">
+              <span>Scan universe</span>
+              <!-- Each option shows its short label in the menu; its text, the full
+                   description, is spelled out in #sp-scan-hint under the select. -->
+              <select id="sp-scan" aria-describedby="sp-scan-hint">
+                <!-- US universe -->
+                <optgroup label="Broad Universe" data-market="US">
+                  <option value="quick" label="Quick" data-label-tpl="Quick ({n} names)" data-text-tpl="Quick: {n} most liquid of the S&amp;P 500, NASDAQ-100 and Dow" data-market="US">Quick: the most liquid of the S&amp;P 500, NASDAQ-100 and Dow</option>
+                  <option value="standard" label="Standard, recommended" data-label-tpl="Standard ({n} names), recommended" data-text-tpl="Standard: {n} most liquid of the full universe (recommended)" selected data-market="US">Standard: the most liquid of the full universe (recommended)</option>
+                  <option value="comprehensive" label="Comprehensive" data-label-tpl="Comprehensive ({n} names)" data-text-tpl="Comprehensive: {n} most liquid of the full universe" data-market="US">Comprehensive: the most liquid of the full universe</option>
+                  <option value="full" label="Full (every name, slowest)" data-market="US">Full: every assembled name, index names first (slowest)</option>
+                </optgroup>
+                <optgroup label="Style Focus" data-market="US">
+                  <option value="focused_growth" label="Growth Leaders" data-label-tpl="Growth Leaders ({n} names)" data-text-tpl="Growth Leaders: {n} most liquid S&amp;P 500 names, then the growth screen" data-market="US">Growth Leaders: the most liquid S&amp;P 500 names, then the growth screen</option>
+                  <option value="focused_value" label="Value Compounders" data-label-tpl="Value Compounders ({n} names)" data-text-tpl="Value Compounders: {n} most liquid S&amp;P 500 names, then the value screen" data-market="US">Value Compounders: the most liquid S&amp;P 500 names, then the value screen</option>
+                  <option value="focused_dividend" label="Dividend Aristocrats" data-market="US">Dividend Aristocrats: every Aristocrat (25+ years of increases), then the dividend screen</option>
+                  <option value="focused_momentum" label="Momentum Leaders" data-label-tpl="Momentum Leaders ({n} names)" data-text-tpl="Momentum Leaders: S&amp;P 500 names in an uptrend, the {n} most liquid of them" data-market="US">Momentum Leaders: the most liquid S&amp;P 500 names in an uptrend</option>
+                  <option value="focused_etf" label="ETF Sleeve" data-market="US">ETF Sleeve: sector, index and asset funds, scored on trend</option>
+                </optgroup>
+                <optgroup label="Market-Cap Focus" data-market="US">
+                  <option value="large_cap" label="Large-Cap Bluechips" data-label-tpl="Large-Cap Bluechips ({n} names)" data-text-tpl="Large-Cap Bluechips: {n} most liquid of the S&amp;P 500 and Dow, {cap} and up" data-market="US">Large-Cap Bluechips: the most liquid of the S&amp;P 500 and Dow</option>
+                  <option value="mid_cap" label="Mid-Cap, S&amp;P 400" data-label-tpl="Mid-Cap, S&amp;P 400 ({n} names)" data-text-tpl="Mid-Cap: {n} most liquid of the S&amp;P 400" data-market="US">Mid-Cap: the most liquid of the S&amp;P 400</option>
+                  <option value="small_cap" label="Small-Cap, S&amp;P 600" data-label-tpl="Small-Cap, S&amp;P 600 ({n} names)" data-text-tpl="Small-Cap: {n} most liquid of the S&amp;P 600" data-market="US">Small-Cap: the most liquid of the S&amp;P 600</option>
+                </optgroup>
+                <optgroup label="Specialty" data-market="US">
+                  <option value="pre_momentum" label="Pre-Momentum (semis, AI infra)" data-market="US">Pre-Momentum (Semis / AI infra)</option>
+                </optgroup>
+                <!-- India universe (NSE) -->
+                <optgroup label="Broad Universe (NSE)" data-market="IN">
+                  <option value="india_quick" label="Quick (Nifty 50)" data-market="IN">Quick: Nifty 50 (fast)</option>
+                  <option value="india_standard" label="Standard (Nifty 50, Sensex, Bank Nifty)" data-market="IN">Standard: Nifty 50 + Sensex + Bank Nifty</option>
+                  <option value="india_sectoral" label="Sectoral (Nifty 50, Bank, IT)" data-market="IN">Sectoral: Nifty 50 + Bank + IT</option>
+                  <option value="india_comprehensive" label="Comprehensive (Nifty 500, slowest)" data-market="IN">Comprehensive: all of the Nifty 500 (slowest)</option>
+                </optgroup>
+                <optgroup label="Style Focus (NSE)" data-market="IN">
+                  <option value="india_growth" label="Growth Leaders" data-label-tpl="Growth Leaders ({n} names)" data-text-tpl="Growth Leaders: {n} most liquid Nifty 500 names, then the growth screen" data-market="IN">Growth Leaders: the most liquid Nifty 500 names, then the growth screen</option>
+                  <option value="india_value" label="Value" data-label-tpl="Value ({n} names)" data-text-tpl="Value: {n} most liquid Nifty 500 names, then the value screen" data-market="IN">Value: the most liquid Nifty 500 names, then the value screen</option>
+                  <option value="india_dividend" label="Dividend Payers" data-label-tpl="Dividend Payers ({n} names)" data-text-tpl="Dividend Payers: {n} most liquid Nifty 500 names, then the dividend screen" data-market="IN">Dividend Payers: the most liquid Nifty 500 names, then the dividend screen</option>
+                  <option value="india_momentum" label="Momentum Leaders" data-label-tpl="Momentum Leaders ({n} names)" data-text-tpl="Momentum Leaders: {n} most liquid Nifty 500 names, then the uptrend screen" data-market="IN">Momentum Leaders: the most liquid Nifty 500 names, then the uptrend screen</option>
+                </optgroup>
+                <optgroup label="Market-Cap Focus (NSE)" data-market="IN">
+                  <option value="india_large" label="Large-Cap (Nifty 100)" data-market="IN">Large-Cap: Nifty 100</option>
+                  <option value="india_mid" label="Mid-Cap" data-label-tpl="Mid-Cap ({n} names)" data-text-tpl="Mid-Cap: {n} most liquid of the Nifty Midcap 150" data-market="IN">Mid-Cap: the most liquid of the Nifty Midcap 150</option>
+                  <option value="india_small" label="Small-Cap" data-label-tpl="Small-Cap ({n} names)" data-text-tpl="Small-Cap: {n} most liquid of the Nifty Smallcap 250" data-market="IN">Small-Cap: the most liquid of the Nifty Smallcap 250</option>
+                </optgroup>
+                <!-- Available in both markets -->
+                <optgroup label="Your List">
+                  <option value="custom" label="Custom tickers">Custom Tickers…</option>
+                </optgroup>
+              </select>
+              <em class="field-hint" id="sp-scan-hint"></em>
+            </label>
+
+            <label class="form-field hidden" id="custom-tickers-field">
+              <span>Custom tickers <em>(comma separated)</em></span>
+              <input id="sp-custom-tickers" type="text" placeholder="Tickers, separated by commas" />
+            </label>
+
+            <details class="sp-filters" id="sp-filters">
+              <summary><span>Filters</span><em id="sp-filters-count">optional, none set</em></summary>
+              <fieldset class="sp-f-sectors">
+                <legend>Sectors <em>(none ticked = all)</em></legend>
+                <div id="sp-sectors" class="sp-f-grid"></div>
+              </fieldset>
+              <div class="form-row two">
+                <label class="form-field"><span>Market cap from <em class="sp-f-unit" data-unit="cap"></em></span>
+                  <input id="sp-f-capmin" type="number" min="0" step="any" inputmode="decimal" placeholder="Any" /></label>
+                <label class="form-field"><span>to <em class="sp-f-unit" data-unit="cap"></em></span>
+                  <input id="sp-f-capmax" type="number" min="0" step="any" inputmode="decimal" placeholder="Any" /></label>
+              </div>
+              <div class="form-row two">
+                <label class="form-field"><span>Price from <em class="sp-f-unit" data-unit="price"></em></span>
+                  <input id="sp-f-pmin" type="number" min="0" step="any" inputmode="decimal" placeholder="Any" /></label>
+                <label class="form-field"><span>to <em class="sp-f-unit" data-unit="price"></em></span>
+                  <input id="sp-f-pmax" type="number" min="0" step="any" inputmode="decimal" placeholder="Any" /></label>
+              </div>
+              <label class="form-field"><span>Traded per day, at least <em class="sp-f-unit" data-unit="value"></em></span>
+                <input id="sp-f-value" type="number" min="0" step="any" inputmode="decimal" placeholder="Any" /></label>
+              <p class="field-hint" id="sp-filters-hint">Filters only narrow the scan; every built-in liquidity, price and safety rule still applies.</p>
+              <button type="button" class="btn-mini" id="sp-filters-clear">Clear filters</button>
+            </details>
+
+            <div class="form-row two">
+              <label class="form-field">
+                <span>Client mandate</span>
+                <select id="sp-risk" aria-describedby="sp-risk-hint">
+                  <option value="conservative">Conservative</option>
+                  <option value="balanced" selected>Balanced</option>
+                </select>
+                <em class="field-hint" id="sp-risk-hint">Sizes every position at the full risk budget</em>
+              </label>
+              <label class="form-field">
+                <span>Max positions</span>
+                <input id="sp-positions" type="number" min="1" inputmode="numeric" aria-describedby="sp-positions-hint" />
+                <em class="field-hint" id="sp-positions-hint">Most names sized at once</em>
+              </label>
+            </div>
+
+            <label class="form-field checkbox-field">
+              <input id="sp-diversify" type="checkbox" checked />
+              <span>Diversify across sectors
+                <em>Caps each sector's share of the book</em>
+              </span>
+            </label>
+
+            <button type="submit" id="btn-scan" class="primary-btn">Run Picks scan</button>
+
+            <div id="sp-progress" class="progress hidden">
+              <div class="progress-track"><div class="progress-bar" id="sp-bar"></div></div>
+              <p id="sp-status" class="progress-status" role="status" aria-live="polite">Waiting</p>
+              <ol id="sp-stages" class="scan-stages" aria-label="Scan stages"></ol>
+            </div>
+
+            <p class="form-foot">Only Buy and Accumulate calls are sized, as a risk budget rather than a validated edge: <a href="#track" data-view-link="track">model evidence</a>.</p>
+          </form>
+        </aside>
+
+        <section class="card results-card">
+          <header class="card-header">
+            <div>
+              <h2 class="card-title">Scan results</h2>
+            </div>
+            <span class="q-head-meta" id="picks-meta" role="status" aria-live="polite">No scan yet</span>
+          </header>
+          <div id="picks-results" class="results-body">
+            <div class="empty-state large">
+              <h3>Nothing scanned yet</h3>
+              <p>Set your capital and mandate, then run the scan to get:</p>
+              <ol class="empty-preview" aria-label="What a scan returns">
+                <li><b>Ranked calls</b></li>
+                <li><b>Sized positions</b></li>
+                <li><b>Why not, per name</b></li>
+                <li><b>How the scan decided</b></li>
+              </ol>
+              <button type="button" class="btn-secondary empty-cta" data-run-scan-now>Run Picks scan</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ============== MY PORTFOLIO VIEW ==============
+         Real holdings, read-only, from the broker (Robinhood via its MCP
+         server). Every block is tagged Account data / Market data / QUANTA
+         analysis / AI interpretation. Rendered by static/my-portfolio.js. -->
+    <section class="view" id="view-holdings" aria-labelledby="holdings-title">
+      <header class="page-head">
+        <div class="page-head-l">
+          <h1 class="page-title" id="holdings-title">My Portfolio</h1>
+          <p class="hp-updated" id="hp-updated" hidden></p>
+        </div>
+        <div class="page-head-r hp-head-actions" id="hp-actions"></div>
+      </header>
+      <p class="sr-only" id="hp-status" role="status" aria-live="polite"></p>
+      <div id="hp-root" class="hp-root" aria-busy="true">
+        <div class="q-skelrows" aria-hidden="true"><span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span></div>
+      </div>
+    </section>
+
+    <!-- ============== RESEARCH VIEW ==============
+         One name at a time. The request bar sits above the tear sheet so the
+         report gets the full width; the report itself reads Snapshot → Thesis
+         → Fundamentals → Valuation → Technicals → Catalysts → Risks →
+         Scenarios → Decision → Evidence. -->
+    <section class="view" id="view-analyze" aria-labelledby="research-title">
+      <header class="page-head">
+        <div class="page-head-l">
+          <h1 class="page-title" id="research-title">Research</h1>
+          <p class="page-sub">A tear sheet for one stock or ETF, scored on the same factors as the Picks scan.</p>
+        </div>
+      </header>
+
+      <form id="analyze-form" class="research-bar" autocomplete="off" aria-label="Analyze a stock or ETF">
+        <div class="rs-bar">
+          <div class="rs-combo">
+            <div class="rs-box">
+              <label class="research-field">
+                <span class="sr-only">Search a stock or ETF by name or ticker</span>
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2A4.5 4.5 0 0 0 5 9.5 4.5 4.5 0 0 0 9.5 14 4.5 4.5 0 0 0 14 9.5 4.5 4.5 0 0 0 9.5 5z"/></svg>
+                <input id="an-ticker" type="text" placeholder="Search stocks and ETFs" autocomplete="off" spellcheck="false" autocapitalize="characters"
+                  role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="an-suggest" aria-describedby="an-ticker-error an-market-hint" />
+              </label>
+              <kbd class="rs-kbd" aria-hidden="true">/</kbd>
+              <label class="research-toggle rs-fast" title="A quicker first read: news, insider activity, analyst views and peers are skipped and treated as neutral">
+                <input id="an-fast-mode" type="checkbox" role="switch" />
+                <span>Fast preview</span>
+              </label>
+            </div>
+            <div class="rs-pop" id="an-suggest" role="listbox" aria-label="Matching stocks and ETFs" hidden></div>
+          </div>
+          <button type="submit" id="btn-analyze" class="primary-btn sp-btn"><span class="sp-btn-glow" aria-hidden="true"></span><span class="sp-btn-label">Analyze</span></button>
+        </div>
+        <!-- Examples per index for the selected market (renderResearchChips, from
+             UI.RESEARCH_SUGGESTIONS); hidden when there are none. -->
+        <div class="chip-row research-chips" id="an-quick-chips" aria-label="Examples by index" hidden>
+          <span class="chip-list" data-chip-list></span>
+        </div>
+        <p class="research-hint" id="an-market-hint">US tickers as listed. For India, add .NS (NSE) or .BO (BSE).</p>
+        <p class="field-error" id="an-ticker-error" role="alert" hidden></p>
+        <div id="an-progress" class="progress research-progress hidden">
+          <div class="progress-track"><div class="progress-bar" id="an-bar"></div></div>
+          <p id="an-status" class="progress-status" role="status" aria-live="polite">Waiting</p>
+        </div>
+      </form>
+
+      <div id="an-results" class="research-results">
+        <div class="empty-state large research-empty">
+          <h2 class="empty-title">Start with a ticker</h2>
+          <p>The tear sheet reads top to bottom the way a research note does. What comes back:</p>
+          <ol class="empty-preview empty-preview--3">
+            <li><b>Snapshot &amp; Decision</b><span>Price, session, and the engine&rsquo;s call with its horizon, conviction, evidence status and freshness.</span></li>
+            <li><b>Thesis to scenarios</b><span>Fundamentals, valuation, technicals, catalysts, risks and bear/base/bull outcomes.</span></li>
+            <li><b>Evidence</b><span>Data checks, validation warnings and whether the model has been tested out of sample.</span></li>
+          </ol>
+          <p class="research-empty-note">ETFs are supported; single-company panels (insider, Piotroski, earnings) read N/A by design.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== HOW QUANTA WORKS (secondary) ==============
+         One example idea followed from the market read to a sized, explained
+         decision, then to how that decision is checked later. Every
+         demonstration is the product's own rule set run on labelled example
+         data (never a live result): the posture bands (app.py), the scan
+         gates (SP_ELITE_PRO.py), the score weights by regime and the decision
+         resolver with its holder rule (TradingAnalysis_ELITE.py, engine/),
+         the scanner's sizing chain, the My Portfolio limits
+         (portfolio/analytics.py) and the broker read allowlist
+         (brokers/robinhood.py, brokers/mcp_http.py). The only live block is
+         the track-record status. The static markup is the finished state of
+         each demo, so nothing is hidden without JavaScript; motion is added
+         by .hw-motion and never under reduced motion.
+         tests/unit/guide.test.cjs reads every figure back from the source. -->
+    <section class="view" id="view-guide" aria-labelledby="guide-title">
+      <div class="hw">
+        <div class="hw-progress" aria-hidden="true"></div>
+
+        <!-- ================= HERO ================= -->
+        <header class="hw-hero">
+          <div class="hw-hero-bg" aria-hidden="true"><i class="hw-orb hw-orb--a"></i><i class="hw-orb hw-orb--b"></i><i class="hw-hero-grid"></i></div>
+          <div class="hw-hero-copy">
+            <p class="hw-kicker">How QUANTA works</p>
+            <h1 class="hw-title" id="guide-title">Research that <em>shows its work.</em></h1>
+            <p class="hw-lede">QUANTA reads the market, screens US and Indian stocks, and explains every call it makes, down to the share count.</p>
+            <div class="hw-cta">
+              <a class="hw-btn hw-btn--primary" href="#dashboard" data-view-link="dashboard">Start with today's market</a>
+              <a class="hw-btn" href="#analyze" data-view-link="analyze" data-focus="#an-ticker">Research a ticker</a>
+            </div>
+          </div>
+
+          <figure class="hw-inst" aria-labelledby="hw-inst-cap">
+            <div class="hw-inst-head">
+              <div>
+                <p class="hw-inst-name">Example Co.</p>
+                <p class="hw-inst-meta">Illustrative stock, not live data</p>
+              </div>
+              <p class="hw-inst-px"><span>Entry</span>$100.00</p>
+            </div>
+            <div class="hw-inst-plot">
+            <svg class="hw-chart" viewBox="0 0 660 300" role="img" aria-label="Illustrative price path rising to a $100.00 entry. The stop sits at $95.80 and the target at $108.40: $8.40 of reward for $4.20 of risk, 2.0 to 1.">
+              <defs>
+                <linearGradient id="hw-g-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="hw-st-area" stop-opacity="0.34"/><stop offset="1" class="hw-st-area" stop-opacity="0"/></linearGradient>
+                <linearGradient id="hw-g-reward" x1="0" y1="1" x2="0" y2="0"><stop offset="0" class="hw-st-bull" stop-opacity="0.08"/><stop offset="1" class="hw-st-bull" stop-opacity="0.30"/></linearGradient>
+                <linearGradient id="hw-g-risk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="hw-st-bear" stop-opacity="0.08"/><stop offset="1" class="hw-st-bear" stop-opacity="0.30"/></linearGradient>
+              </defs>
+              <g class="hw-ch-grid"><path d="M20 43.1H520M20 104H520M20 164.4H520M20 225.1H520M20 280H520"/></g>
+              <g class="hw-ch-zones">
+                <rect class="hw-ch-reward" x="392" y="43.1" width="100" height="121.3" fill="url(#hw-g-reward)"/>
+                <rect class="hw-ch-risk" x="392" y="164.4" width="100" height="60.7" fill="url(#hw-g-risk)"/>
+              </g>
+              <path class="hw-ch-area" d="M20.0,256.9 L28.0,258.2 L36.0,250.0 L44.0,251.0 L52.0,253.0 L60.0,262.5 L68.0,262.9 L76.0,247.0 L84.0,239.8 L92.0,225.2 L100.0,220.6 L108.0,214.4 L116.0,210.8 L124.0,230.0 L132.0,217.6 L140.0,209.8 L148.0,202.4 L156.0,222.0 L164.0,241.5 L172.0,249.9 L180.0,252.7 L188.0,245.7 L196.0,243.2 L204.0,233.8 L212.0,238.8 L220.0,231.8 L228.0,224.0 L236.0,229.3 L244.0,204.9 L252.0,196.0 L260.0,179.5 L268.0,186.2 L276.0,193.9 L284.0,196.1 L292.0,195.0 L300.0,184.7 L308.0,179.9 L316.0,183.8 L324.0,193.4 L332.0,196.1 L340.0,176.3 L348.0,184.1 L356.0,176.7 L364.0,167.8 L372.0,184.6 L380.0,164.4 L380.0,290 L20.0,290 Z" fill="url(#hw-g-area)"/>
+              <polyline class="hw-ch-line" pathLength="1" points="20.0,256.9 28.0,258.2 36.0,250.0 44.0,251.0 52.0,253.0 60.0,262.5 68.0,262.9 76.0,247.0 84.0,239.8 92.0,225.2 100.0,220.6 108.0,214.4 116.0,210.8 124.0,230.0 132.0,217.6 140.0,209.8 148.0,202.4 156.0,222.0 164.0,241.5 172.0,249.9 180.0,252.7 188.0,245.7 196.0,243.2 204.0,233.8 212.0,238.8 220.0,231.8 228.0,224.0 236.0,229.3 244.0,204.9 252.0,196.0 260.0,179.5 268.0,186.2 276.0,193.9 284.0,196.1 292.0,195.0 300.0,184.7 308.0,179.9 316.0,183.8 324.0,193.4 332.0,196.1 340.0,176.3 348.0,184.1 356.0,176.7 364.0,167.8 372.0,184.6 380.0,164.4"/>
+              <g class="hw-ch-levels">
+                <path class="hw-lv hw-lv--target" pathLength="1" d="M20 43.1H520"/>
+                <path class="hw-lv hw-lv--entry" pathLength="1" d="M20 164.4H520"/>
+                <path class="hw-lv hw-lv--stop" pathLength="1" d="M20 225.1H520"/>
+              </g>
+              <circle class="hw-ch-dot" cx="380" cy="164.4" r="5"/>
+              <g class="hw-ch-labels">
+                <text class="hw-lt hw-lt--target" x="528" y="47.5">Target $108.40</text>
+                <text class="hw-lt hw-lt--entry" x="528" y="168.8">Entry $100.00</text>
+                <text class="hw-lt hw-lt--stop" x="528" y="229.5">Stop $95.80</text>
+              </g>
+              <g class="hw-ch-rr">
+                <path d="M506 47v113M500 47h12M500 160h12M506 168v53M500 168h12M500 221h12"/>
+                <text x="442" y="108" text-anchor="middle" class="hw-rr-t">+$8.40</text>
+                <text x="442" y="200" text-anchor="middle" class="hw-rr-t hw-rr-t--risk">-$4.20</text>
+              </g>
+            </svg>
+            <ul class="hw-inst-legend" aria-hidden="true"><li class="is-target">Target <b>$108.40</b></li><li class="is-entry">Entry <b>$100.00</b></li><li class="is-stop">Stop <b>$95.80</b></li></ul>
+            </div>
+            <div class="hw-inst-foot">
+              <ol class="hw-checks-row" aria-label="Checks behind this example call, in the order the engine runs them">
+                <li data-t="score"><b>68</b><span>Score, starts as Buy</span></li>
+                <li><b>B</b><span>Risk grade</span></li>
+                <li><b>Clear</b><span>Insider selling</span></li>
+                <li><b>2.0 : 1</b><span>Reward/risk</span></li>
+                <li><b>Current</b><span>Price data</span></li>
+              </ol>
+              <div class="hw-stamp">
+                <p class="hw-stamp-k">Decision</p>
+                <p class="hw-stamp-v">Buy</p>
+                <p class="hw-stamp-s">25 shares <span class="hw-tag">Model not yet validated</span></p>
+              </div>
+            </div>
+            <figcaption class="hw-inst-cap" id="hw-inst-cap">An example call laid out the way a tear sheet shows it. The size uses the Picks arithmetic for a $25,000 account on the Balanced mandate.</figcaption>
+          </figure>
+        </header>
+
+        <!-- Figures that are true of the product, not of a market. -->
+        <ul class="hw-proof" aria-label="QUANTA in figures">
+          <li><b>5</b><span>pages, one path from the market to a position</span></li>
+          <li><b>8</b><span>gates a name clears before Picks funds it</span></li>
+          <li><b>6</b><span>possible calls, and rules can only lower them</span></li>
+          <li><b>7</b><span>sections in every tear sheet</span></li>
+          <li><b>0</b><span>orders QUANTA can place: read-only by design</span></li>
+        </ul>
+
+        <!-- ================= THE REEL =================
+             A 15-second motion piece, drawn live in SVG and driven by one
+             Web Animations timeline (bindGuideReel in app.js), with a real
+             player: play, pause, scrub, chapters. Every figure in it is one
+             the page proves below. Without JS, or under reduced motion
+             before you press play, the stage shows its closing frame. -->
+        <section class="hw-reel" aria-labelledby="hw-reel-title">
+          <div class="hw-reel-head">
+            <h2 class="hw-h2" id="hw-reel-title">QUANTA in 15 seconds</h2>
+            <p class="hw-p hw-p--sm">The whole path in one take, from the market read to a sized, read-only decision. Every figure in it comes from the product; the stock is an example.</p>
+          </div>
+          <figure class="hw-reel-player">
+            <div class="hw-reel-stage" id="hw-reel">
+              <svg class="hw-reel-svg" viewBox="0 0 1280 720" role="img" aria-labelledby="hw-reel-title hw-reel-desc" preserveAspectRatio="xMidYMid slice">
+                <desc id="hw-reel-desc">An animated reel in seven scenes: the QUANTA mark; Overview filling an exposure dial to 50-70 percent for a Lean long posture; Discover running about 400 example names through eight gates to a short list; Research scoring an example stock 68 and stamping it Buy after four checks; Picks sizing 25 shares from a $105 risk; My Portfolio flagging concentration at 10 and 20 percent behind a read-only shield; and the closing card.</desc>
+                <defs>
+                  <radialGradient id="rl-orb-a"><stop offset="0" stop-color="#5ea2f7" stop-opacity="0.34"/><stop offset="1" stop-color="#5ea2f7" stop-opacity="0"/></radialGradient>
+                  <radialGradient id="rl-orb-b"><stop offset="0" stop-color="#67e8f9" stop-opacity="0.22"/><stop offset="1" stop-color="#67e8f9" stop-opacity="0"/></radialGradient>
+                  <linearGradient id="rl-beam" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1280" y2="0"><stop offset="0" stop-color="#5ea2f7" stop-opacity="0"/><stop offset="0.7" stop-color="#5ea2f7"/><stop offset="1" stop-color="#67e8f9"/></linearGradient>
+                  <linearGradient id="rl-brand" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f74e0"/><stop offset="1" stop-color="#138ab8"/></linearGradient>
+                  <linearGradient id="rl-edge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5ea2f7" stop-opacity="0.8"/><stop offset="0.5" stop-color="#5ea2f7" stop-opacity="0.08"/><stop offset="1" stop-color="#67e8f9" stop-opacity="0.7"/></linearGradient>
+                  <linearGradient id="rl-bar" x1="0" x2="1"><stop offset="0" stop-color="#5ea2f7"/><stop offset="1" stop-color="#67e8f9"/></linearGradient>
+                  <pattern id="rl-hatch" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="12" height="12" fill="#f87171" fill-opacity="0.12"/><rect width="6" height="12" fill="#f87171" fill-opacity="0.34"/></pattern>
+                  <radialGradient id="rl-vig" cx="0.5" cy="0.5" r="0.8"><stop offset="0.72" stop-color="#05070b" stop-opacity="0"/><stop offset="1" stop-color="#05070b" stop-opacity="0.55"/></radialGradient>
+                  <clipPath id="rl-reveal"><circle id="rl-reveal-c" class="rl-o" cx="640" cy="398" r="420"/></clipPath>
+                </defs>
+
+                <rect width="1280" height="720" fill="#070a10"/>
+                <!-- Background: drifting grid and two lights, for the whole reel. -->
+                <g id="rl-bg">
+                  <circle id="rl-orb-a" cx="330" cy="210" r="460" fill="url(#rl-orb-a)"/>
+                  <circle id="rl-orb-b" cx="1000" cy="560" r="420" fill="url(#rl-orb-b)"/>
+                  <path id="rl-grid" class="rl-grid" d="M0 0V784M64 0V784M128 0V784M192 0V784M256 0V784M320 0V784M384 0V784M448 0V784M512 0V784M576 0V784M640 0V784M704 0V784M768 0V784M832 0V784M896 0V784M960 0V784M1024 0V784M1088 0V784M1152 0V784M1216 0V784M1280 0V784M1344 0V784M0 0H1344M0 64H1344M0 128H1344M0 192H1344M0 256H1344M0 320H1344M0 384H1344M0 448H1344M0 512H1344M0 576H1344M0 640H1344M0 704H1344M0 768H1344"/>
+                </g>
+
+                <!-- 1 · OPEN -->
+                <g id="rl-s1" class="rl-scene" style="opacity:0">
+                  <path id="rl-scan" class="rl-scan" pathLength="1" d="M0 360H1280"/>
+                  <circle id="rl-scanhead" class="rl-o" cx="1280" cy="360" r="7" fill="#67e8f9"/>
+                  <g id="rl-mark" class="rl-o">
+                    <rect x="580" y="196" width="120" height="120" rx="30" fill="url(#rl-brand)"/>
+                    <text x="640" y="286" class="rl-q" text-anchor="middle">Q</text>
+                  </g>
+                  <g class="rl-word">
+                    <text id="rl-w1" class="rl-o rl-wm" x="495" y="440" text-anchor="middle">Q</text>
+                    <text id="rl-w2" class="rl-o rl-wm" x="553" y="440" text-anchor="middle">U</text>
+                    <text id="rl-w3" class="rl-o rl-wm" x="611" y="440" text-anchor="middle">A</text>
+                    <text id="rl-w4" class="rl-o rl-wm" x="669" y="440" text-anchor="middle">N</text>
+                    <text id="rl-w5" class="rl-o rl-wm" x="727" y="440" text-anchor="middle">T</text>
+                    <text id="rl-w6" class="rl-o rl-wm" x="785" y="440" text-anchor="middle">A</text>
+                  </g>
+                  <text id="rl-tag" class="rl-o rl-sub" x="640" y="500" text-anchor="middle">Research that shows its work.</text>
+                </g>
+
+                <!-- 2 · OVERVIEW -->
+                <g id="rl-s2" class="rl-scene" style="opacity:0">
+                  <text id="rl-s2-t" class="rl-o rl-title" x="80" y="112">Overview reads the market.</text>
+                  <text id="rl-s2-s" class="rl-o rl-sub" x="80" y="154">Seven postures. One exposure range for the whole book.</text>
+                  <path class="rl-dial-track" id="rl-dial-track" pathLength="100" d="M230 520a190 190 0 0 1 380 0"/>
+                  <path class="rl-dial-band" id="rl-dial-band" pathLength="100" d="M230 520a190 190 0 0 1 380 0"/>
+                  <text id="rl-dial-v" class="rl-o rl-big" x="420" y="505" text-anchor="middle">50-70%</text>
+                  <text id="rl-dial-k" class="rl-o rl-cap" x="420" y="545" text-anchor="middle">gross exposure</text>
+                  <rect id="rl-hl" class="rl-o" x="742" y="224" width="440" height="46" rx="10" fill="#5ea2f7" fill-opacity="0.16" stroke="#5ea2f7" stroke-opacity="0.7"/>
+                  <g class="rl-plist">
+                    <text id="rl-p1" class="rl-o rl-row" x="764" y="254">Offensive</text><text id="rl-p1v" class="rl-o rl-rowv" x="1160" y="254" text-anchor="end">65-95%</text>
+                    <text id="rl-p2" class="rl-o rl-row" x="764" y="306">Selective offensive</text><text id="rl-p2v" class="rl-o rl-rowv" x="1160" y="306" text-anchor="end">65-95%</text>
+                    <text id="rl-p3" class="rl-o rl-row rl-row--on" x="764" y="358">Lean long</text><text id="rl-p3v" class="rl-o rl-rowv rl-row--on" x="1160" y="358" text-anchor="end">50-70%</text>
+                    <text id="rl-p4" class="rl-o rl-row" x="764" y="410">Neutral</text><text id="rl-p4v" class="rl-o rl-rowv" x="1160" y="410" text-anchor="end">45-65%</text>
+                    <text id="rl-p5" class="rl-o rl-row" x="764" y="462">Lean defensive</text><text id="rl-p5v" class="rl-o rl-rowv" x="1160" y="462" text-anchor="end">20-50%</text>
+                    <text id="rl-p6" class="rl-o rl-row" x="764" y="514">Selective defensive</text><text id="rl-p6v" class="rl-o rl-rowv" x="1160" y="514" text-anchor="end">20-50%</text>
+                    <text id="rl-p7" class="rl-o rl-row" x="764" y="566">Defensive</text><text id="rl-p7v" class="rl-o rl-rowv" x="1160" y="566" text-anchor="end">20-50%</text>
+                  </g>
+                </g>
+
+                <!-- 3 · DISCOVER -->
+                <g id="rl-s3" class="rl-scene" style="opacity:0">
+                  <text id="rl-s3-t" class="rl-o rl-title" x="80" y="112">Eight gates. Every rejection explained.</text>
+                  <text id="rl-s3-s" class="rl-o rl-sub" x="80" y="154">An illustrative scan of about 400 names.</text>
+                  <g id="rl-field" clip-path="url(#rl-reveal)"></g>
+                  <text id="rl-in-v" class="rl-o rl-big rl-big--l" x="80" y="400">~400</text>
+                  <text id="rl-in-k" class="rl-o rl-cap" x="82" y="436">names in</text>
+                  <text id="rl-out-v" class="rl-o rl-big rl-big--l rl-azure" x="1000" y="400">A few</text>
+                  <text id="rl-out-k" class="rl-o rl-cap" x="1002" y="436">picked, the rest explained</text>
+                  <g id="rl-ticks"></g>
+                  <g id="rl-gates" class="rl-gates">
+                    <text id="rl-gl1" class="rl-o rl-gate" x="640" y="672" text-anchor="middle">1 Actionable call</text>
+                    <text id="rl-gl2" class="rl-o rl-gate" x="640" y="672" text-anchor="middle">2 Risk grade A to D</text>
+                    <text id="rl-gl3" class="rl-o rl-gate" x="640" y="672" text-anchor="middle">3 Score above the floor</text>
+                    <text id="rl-gl4" class="rl-o rl-gate" x="640" y="672" text-anchor="middle">4 Reward/risk <tspan data-threshold="RR.SCANNER_MIN" data-threshold-fmt="rr"></tspan></text>
+                    <text id="rl-gl5" class="rl-o rl-gate" x="640" y="672" text-anchor="middle">5 Enough conviction</text>
+                    <text id="rl-gl6" class="rl-o rl-gate" x="640" y="672" text-anchor="middle">6 Worth the costs</text>
+                    <text id="rl-gl7" class="rl-o rl-gate" x="640" y="672" text-anchor="middle">7 Fits sector limits</text>
+                    <text id="rl-gl8" class="rl-o rl-gate" x="640" y="672" text-anchor="middle">8 Research confirms</text>
+                  </g>
+                  <circle id="rl-hero-dot" class="rl-o" cx="640" cy="398" r="12" fill="#5ea2f7"/>
+                </g>
+
+                <!-- 4 · RESEARCH -->
+                <g id="rl-s4" class="rl-scene" style="opacity:0">
+                  <text id="rl-s4-t" class="rl-o rl-title" x="80" y="112">One stock. One Decision. Every reason.</text>
+                  <g id="rl-card" class="rl-o">
+                    <rect x="300" y="160" width="680" height="440" rx="24" fill="#0e131c" stroke="url(#rl-edge)" stroke-width="2"/>
+                    <text x="340" y="212" class="rl-cardh">Example Co.</text>
+                    <text x="340" y="238" class="rl-cap">Illustrative stock, not live data</text>
+                    <circle cx="440" cy="360" r="78" class="rl-ring-track"/>
+                    <circle id="rl-ring" cx="440" cy="360" r="78" class="rl-ring" pathLength="100"/>
+                    <text id="rl-ring-v" class="rl-o rl-ringv" x="440" y="376" text-anchor="middle">68</text>
+                    <text x="440" y="470" class="rl-cap" text-anchor="middle">overall score</text>
+                    <g id="rl-c1" class="rl-o"><circle cx="590" cy="290" r="14" class="rl-chk-c"/><path id="rl-k1" class="rl-chk" pathLength="1" d="M583 290l5 5 9-10"/><text x="620" y="297" class="rl-row">Risk grade</text><text x="940" y="297" class="rl-rowv rl-bull" text-anchor="end">B</text></g>
+                    <g id="rl-c2" class="rl-o"><circle cx="590" cy="346" r="14" class="rl-chk-c"/><path id="rl-k2" class="rl-chk" pathLength="1" d="M583 346l5 5 9-10"/><text x="620" y="353" class="rl-row">Insider selling</text><text x="940" y="353" class="rl-rowv rl-bull" text-anchor="end">Clear</text></g>
+                    <g id="rl-c3" class="rl-o"><circle cx="590" cy="402" r="14" class="rl-chk-c"/><path id="rl-k3" class="rl-chk" pathLength="1" d="M583 402l5 5 9-10"/><text x="620" y="409" class="rl-row">Reward/risk</text><text x="940" y="409" class="rl-rowv rl-bull" text-anchor="end">2.0 : 1</text></g>
+                    <g id="rl-c4" class="rl-o"><circle cx="590" cy="458" r="14" class="rl-chk-c"/><path id="rl-k4" class="rl-chk" pathLength="1" d="M583 458l5 5 9-10"/><text x="620" y="465" class="rl-row">Price data</text><text x="940" y="465" class="rl-rowv rl-bull" text-anchor="end">Current</text></g>
+                  </g>
+                  <circle id="rl-wave" class="rl-o rl-wave" cx="640" cy="540" r="90"/>
+                  <g id="rl-stamp" class="rl-o">
+                    <rect x="520" y="498" width="240" height="84" rx="16" fill="#0f2a22" stroke="#34d399" stroke-width="3"/>
+                    <text x="640" y="562" class="rl-stamp" text-anchor="middle">BUY</text>
+                  </g>
+                  <g id="rl-utag" class="rl-o">
+                    <rect x="782" y="522" width="236" height="36" rx="18" fill="#3a2e0e" stroke="#fbbf24" stroke-opacity="0.7"/>
+                    <text x="900" y="546" class="rl-tagt" text-anchor="middle">Model not yet validated</text>
+                  </g>
+                </g>
+
+                <!-- 5 · PICKS -->
+                <g id="rl-s5" class="rl-scene" style="opacity:0">
+                  <text id="rl-s5-t" class="rl-o rl-title" x="80" y="112">Sized from the stop, not the story.</text>
+                  <path id="rl-axes" class="rl-axes" pathLength="1" d="M380 230V600H900"/>
+                  <text id="rl-ax-y" class="rl-o rl-cap" x="392" y="252">stop distance</text>
+                  <text id="rl-ax-x" class="rl-o rl-cap" x="900" y="632" text-anchor="end">position value</text>
+                  <rect id="rl-budget" class="rl-o rl-bl" x="380" y="474" width="247" height="126" fill="none" stroke="#f87171" stroke-width="3" stroke-dasharray="10 7"/>
+                  <rect id="rl-fill" class="rl-o rl-bl" x="380" y="474" width="208" height="126" fill="url(#rl-hatch)" stroke="#f87171" stroke-width="2"/>
+                  <path id="rl-cap" class="rl-cap-line" pathLength="1" d="M588 230V600"/>
+                  <text id="rl-cap-k" class="rl-o rl-capk" x="598" y="252"><tspan data-threshold="SIZING.MAX_POSITION_PCT" data-threshold-fmt="pct"></tspan> position limit</text>
+                  <text id="rl-e1" class="rl-o rl-eq rl-azure" x="960" y="360">$2,500</text>
+                  <text id="rl-e2" class="rl-o rl-eq" x="960" y="410">x 4.2%</text>
+                  <text id="rl-e3" class="rl-o rl-eq rl-bear" x="960" y="460">= $105 at risk</text>
+                  <text id="rl-e4" class="rl-o rl-big rl-big--l rl-quant" x="960" y="548">25 shares</text>
+                </g>
+
+                <!-- 6 · MY PORTFOLIO -->
+                <g id="rl-s6" class="rl-scene" style="opacity:0">
+                  <text id="rl-s6-t" class="rl-o rl-title" x="80" y="112">Judged as a portfolio. Read-only.</text>
+                  <g class="rl-bars">
+                    <rect id="rl-b1" class="rl-o rl-bl" x="140" y="220" width="405" height="30" rx="6" fill="url(#rl-bar)"/>
+                    <rect id="rl-b2" class="rl-o rl-bl" x="140" y="276" width="331" height="30" rx="6" fill="#8b95a8"/>
+                    <rect id="rl-b3" class="rl-o rl-bl" x="140" y="332" width="258" height="30" rx="6" fill="#8b95a8"/>
+                    <rect id="rl-b4" class="rl-o rl-bl" x="140" y="388" width="221" height="30" rx="6" fill="#8b95a8"/>
+                    <rect id="rl-b5" class="rl-o rl-bl" x="140" y="444" width="166" height="30" rx="6" fill="#8b95a8"/>
+                    <rect id="rl-b6" class="rl-o rl-bl" x="140" y="500" width="147" height="30" rx="6" fill="#8b95a8"/>
+                  </g>
+                  <path id="rl-l10" class="rl-lim" pathLength="1" d="M324 196V552"/>
+                  <path id="rl-l20" class="rl-lim rl-lim--trim" pathLength="1" d="M508 196V552"/>
+                  <text id="rl-l10k" class="rl-o rl-capk rl-muted" x="316" y="186" text-anchor="end"><tspan data-threshold="PORTFOLIO.MAX_SINGLE_POSITION" data-threshold-fmt="pct"></tspan> no new money</text>
+                  <text id="rl-l20k" class="rl-o rl-capk" x="516" y="186"><tspan data-threshold="PORTFOLIO.TRIM_REVIEW_POSITION" data-threshold-fmt="pct"></tspan> trim review</text>
+                  <text id="rl-ch1" class="rl-o rl-chip rl-warn" x="565" y="242">Trim review</text>
+                  <text id="rl-ch2" class="rl-o rl-chip rl-muted" x="491" y="298">Do Not Add</text>
+                  <path id="rl-shield" class="rl-shield" pathLength="1" d="M980 250l-96 40v80c0 60 40 100 96 120 56-20 96-60 96-120v-80z"/>
+                  <path id="rl-shield-k" class="rl-shield-k" pathLength="1" d="M944 372l26 26 50-54"/>
+                  <text id="rl-ro" class="rl-o rl-cardh" x="980" y="560" text-anchor="middle">Read-only, in code</text>
+                  <g id="rl-order" class="rl-o">
+                    <text x="980" y="606" class="rl-mono rl-bear" text-anchor="middle">place_equity_order</text>
+                    <path id="rl-strike" class="rl-strike" pathLength="1" d="M880 600H1080"/>
+                  </g>
+                </g>
+
+                <!-- 7 · END CARD (also the poster frame) -->
+                <g id="rl-s7" class="rl-scene">
+                  <g id="rl-emark" class="rl-o">
+                    <rect x="584" y="166" width="112" height="112" rx="28" fill="url(#rl-brand)"/>
+                    <text x="640" y="250" class="rl-q" text-anchor="middle">Q</text>
+                  </g>
+                  <g class="rl-word">
+                    <text id="rl-e-w1" class="rl-o rl-wm rl-wm--end" x="485" y="384" text-anchor="middle">Q</text>
+                    <text id="rl-e-w2" class="rl-o rl-wm rl-wm--end" x="547" y="384" text-anchor="middle">U</text>
+                    <text id="rl-e-w3" class="rl-o rl-wm rl-wm--end" x="609" y="384" text-anchor="middle">A</text>
+                    <text id="rl-e-w4" class="rl-o rl-wm rl-wm--end" x="671" y="384" text-anchor="middle">N</text>
+                    <text id="rl-e-w5" class="rl-o rl-wm rl-wm--end" x="733" y="384" text-anchor="middle">T</text>
+                    <text id="rl-e-w6" class="rl-o rl-wm rl-wm--end" x="795" y="384" text-anchor="middle">A</text>
+                  </g>
+                  <g id="rl-pages" class="rl-pages">
+                    <text id="rl-pg1" class="rl-o rl-page" x="378" y="452" text-anchor="middle">Overview</text>
+                    <text id="rl-pg2" class="rl-o rl-page" x="511" y="452" text-anchor="middle">Discover</text>
+                    <text id="rl-pg3" class="rl-o rl-page" x="644" y="452" text-anchor="middle">Research</text>
+                    <text id="rl-pg4" class="rl-o rl-page" x="761" y="452" text-anchor="middle">Picks</text>
+                    <text id="rl-pg5" class="rl-o rl-page" x="890" y="452" text-anchor="middle">My Portfolio</text>
+                    <path id="rl-pgline" class="rl-pgline" pathLength="1" d="M334 474H946"/>
+                  </g>
+                  <text id="rl-etag" class="rl-o rl-sub rl-sub--end" x="640" y="530" text-anchor="middle">Research that shows its work.</text>
+                  <text id="rl-fine" class="rl-o rl-fine" x="640" y="664" text-anchor="middle">Educational and informational use only. Not investment advice.</text>
+                </g>
+
+                <!-- HUD: reel furniture, above every scene. -->
+                <rect width="1280" height="720" fill="url(#rl-vig)" pointer-events="none"/>
+                <g class="rl-hud" aria-hidden="true">
+                  <path class="rl-corner" d="M28 60V28H60M1220 28H1252V60M1252 660V692H1220M60 692H28V660"/>
+                  <text x="44" y="672" class="rl-hudt">QUANTA / SHOW REEL</text>
+                  <text id="rl-scene-k" x="1236" y="54" class="rl-hudt" text-anchor="end">07 END</text>
+                  <text id="rl-tc" x="1236" y="672" class="rl-hudt rl-hudt--tc" text-anchor="end">00:15.00</text>
+                </g>
+              </svg>
+              <button type="button" class="hw-reel-cover" id="hw-reel-cover" aria-label="Play the 15-second reel"><span aria-hidden="true"></span></button>
+            </div>
+            <div class="hw-reel-bar">
+              <button type="button" class="hw-reel-btn" id="hw-reel-play" aria-label="Play reel"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="hw-reel-i-play" d="M8 5v14l11-7z"/><path class="hw-reel-i-pause" d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+              <button type="button" class="hw-reel-btn" id="hw-reel-replay" aria-label="Replay from the start"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <label class="sr-only" for="hw-reel-seek">Reel position</label>
+              <input type="range" class="hw-reel-seek" id="hw-reel-seek" min="0" max="15000" step="10" value="15000" aria-valuetext="0:15 of 0:15" />
+              <span class="hw-reel-time" id="hw-reel-time" aria-hidden="true">0:15 / 0:15</span>
+              <button type="button" class="hw-reel-btn" id="hw-reel-full" aria-label="Full screen" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <a class="hw-reel-dl" href="{{ asset_url('img/guide/quanta-reel.webm') }}" download="quanta-reel.webm">Download WebM</a>
+            </div>
+            <ol class="hw-reel-chapters" aria-label="Reel chapters">
+              <li><button type="button" data-reel-t="0">Open</button></li>
+              <li><button type="button" data-reel-t="2350">Overview</button></li>
+              <li><button type="button" data-reel-t="4650">Discover</button></li>
+              <li><button type="button" data-reel-t="7250">Research</button></li>
+              <li><button type="button" data-reel-t="9850">Picks</button></li>
+              <li><button type="button" data-reel-t="12050">My Portfolio</button></li>
+              <li><button type="button" data-reel-t="13550">End</button></li>
+            </ol>
+            <figcaption class="hw-reel-cap">Drawn live in the page, so it stays sharp at any size and follows the product. The stock, the scan and the account are illustrations, not live data.</figcaption>
+          </figure>
+        </section>
+
+        <!-- ================= THE PATH ================= -->
+        <nav class="hw-flow" aria-labelledby="hw-flow-title">
+          <h2 class="hw-h2 hw-flow-title" id="hw-flow-title">From the whole market to one decision</h2>
+          <ol class="hw-flow-list">
+            <li><button type="button" class="hw-flow-node" data-hw-jump="hw-overview"><span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M12 17l4.5-5.5"/></svg></span><b>Overview</b><span class="hw-flow-q">What kind of market is it?</span><span class="hw-flow-a">A posture and an exposure range</span></button></li>
+            <li><button type="button" class="hw-flow-node" data-hw-jump="hw-discover"><span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16l-6 7.5V18l-4 2v-7.5z"/></svg></span><b>Discover</b><span class="hw-flow-q">Which names deserve a look?</span><span class="hw-flow-a">A short list, with every rejection explained</span></button></li>
+            <li><button type="button" class="hw-flow-node" data-hw-jump="hw-research"><span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg></span><b>Research</b><span class="hw-flow-q">What is the case for this stock?</span><span class="hw-flow-a">One Decision, with its reasons</span></button></li>
+            <li><button type="button" class="hw-flow-node" data-hw-jump="hw-picks"><span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V13M11 20V8M17 20V4M3 20h18"/></svg></span><b>Picks</b><span class="hw-flow-q">How much would I buy?</span><span class="hw-flow-a">Shares sized from the stop</span></button></li>
+            <li><button type="button" class="hw-flow-node" data-hw-jump="hw-holdings"><span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12h8.5"/></svg></span><b>My Portfolio</b><span class="hw-flow-q">What does it mean for what I own?</span><span class="hw-flow-a">An action for every holding</span></button></li>
+          </ol>
+          <p class="hw-flow-after">Then the <button type="button" class="hw-inline-btn" data-hw-jump="hw-trust">track record</button> checks whether the calls worked.</p>
+        </nav>
+
+        <div class="hw-story">
+          <!-- Chapter rail: where you are in the five pages. -->
+          <nav class="hw-rail" aria-label="Guide chapters">
+            <div class="hw-rail-in">
+              <span class="hw-rail-line" aria-hidden="true"><i></i></span>
+              <ol>
+                <li><button type="button" class="hw-rail-btn" data-hw-jump="hw-overview">Overview</button></li>
+                <li><button type="button" class="hw-rail-btn" data-hw-jump="hw-discover">Discover</button></li>
+                <li><button type="button" class="hw-rail-btn" data-hw-jump="hw-research">Research</button></li>
+                <li><button type="button" class="hw-rail-btn" data-hw-jump="hw-picks">Picks</button></li>
+                <li><button type="button" class="hw-rail-btn" data-hw-jump="hw-holdings">My Portfolio</button></li>
+                <li><button type="button" class="hw-rail-btn" data-hw-jump="hw-trust">Track record</button></li>
+              </ol>
+            </div>
+          </nav>
+
+          <div class="hw-chapters-wrap">
+
+          <!-- ================= OVERVIEW ================= -->
+          <section class="hw-ch" id="hw-overview" aria-labelledby="hw-overview-h">
+            <header class="hw-ch-head">
+              <p class="hw-page"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M12 17l4.5-5.5"/></svg></span>Overview</p>
+              <h2 class="hw-h2" id="hw-overview-h">Know what kind of day it is</h2>
+              <p class="hw-p">Before any single stock, Overview scores trend, volatility, participation, rates and event risk, and turns them into a market posture with an exposure range for the whole book.</p>
+            </header>
+            <div class="hw-demo hw-posture" data-reveal>
+              <div class="hw-posture-dial">
+                <svg class="hw-dial" viewBox="0 -14 300 190" aria-hidden="true">
+                  <path class="hw-dial-track" pathLength="100" d="M30 150a120 120 0 0 1 240 0"/>
+                  <path class="hw-dial-band" id="hw-dial-band" pathLength="100" d="M30 150a120 120 0 0 1 240 0" style="--lo:50;--hi:70"/>
+                  <g class="hw-dial-ticks"><path d="M30 150h10M260 150h10M150 30v10M65.1 65.1l7 7M234.9 65.1l-7 7"/></g>
+                  <text x="24" y="168" class="hw-dial-t">0%</text><text x="150" y="4" text-anchor="middle" class="hw-dial-t">50%</text><text x="276" y="168" text-anchor="end" class="hw-dial-t">100%</text>
+                </svg>
+                <p class="hw-dial-v"><b id="hw-dial-v">50-70%</b><span>gross exposure</span></p>
+              </div>
+              <div class="hw-posture-side">
+                <p class="hw-demo-title" id="hw-posture-title">Pick a posture</p>
+                <div class="hw-posture-list" role="radiogroup" aria-labelledby="hw-posture-title">
+                  <button type="button" role="radio" aria-checked="false" class="hw-posture-row" data-posture="offensive" style="--lo:65;--hi:95"><span class="hw-posture-name">Offensive</span><span class="hw-posture-band">65-95%</span></button>
+                  <button type="button" role="radio" aria-checked="false" class="hw-posture-row" data-posture="selective-offensive" style="--lo:65;--hi:95"><span class="hw-posture-name">Selective offensive</span><span class="hw-posture-band">65-95%</span></button>
+                  <button type="button" role="radio" aria-checked="true" class="hw-posture-row is-active" data-posture="lean-long" style="--lo:50;--hi:70"><span class="hw-posture-name">Lean long</span><span class="hw-posture-band">50-70%</span></button>
+                  <button type="button" role="radio" aria-checked="false" class="hw-posture-row" data-posture="neutral" style="--lo:45;--hi:65"><span class="hw-posture-name">Neutral</span><span class="hw-posture-band">45-65%</span></button>
+                  <button type="button" role="radio" aria-checked="false" class="hw-posture-row" data-posture="lean-defensive" style="--lo:20;--hi:50"><span class="hw-posture-name">Lean defensive</span><span class="hw-posture-band">20-50%</span></button>
+                  <button type="button" role="radio" aria-checked="false" class="hw-posture-row" data-posture="selective-defensive" style="--lo:20;--hi:50"><span class="hw-posture-name">Selective defensive</span><span class="hw-posture-band">20-50%</span></button>
+                  <button type="button" role="radio" aria-checked="false" class="hw-posture-row" data-posture="defensive" style="--lo:20;--hi:50"><span class="hw-posture-name">Defensive</span><span class="hw-posture-band">20-50%</span></button>
+                </div>
+                <fieldset class="hw-seg" aria-describedby="hw-posture-out">
+                  <legend>Data behind the read</legend>
+                  <label><input type="radio" name="hw-conf" value="normal" checked /><span>Normal</span></label>
+                  <label><input type="radio" name="hw-conf" value="low" /><span>Low confidence</span></label>
+                  <label><input type="radio" name="hw-conf" value="stale" /><span>Stale data</span></label>
+                </fieldset>
+                <p class="hw-demo-out" id="hw-posture-out" aria-live="polite"><b>Lean long:</b> 50-70% gross exposure. Moderate starter size.</p>
+              </div>
+            </div>
+            <div class="hw-overview-more" data-reveal>
+              <div class="hw-ribbon">
+                <p class="hw-mini-k">The market ribbon</p>
+                <ul class="hw-tickers" aria-label="United States ribbon"><li>SPY</li><li>QQQ</li><li>DIA</li><li>IWM</li><li>VIX</li><li>10Y yield</li><li>Gold ETF</li><li>Oil ETF</li><li>Bitcoin</li></ul>
+                <ul class="hw-tickers" aria-label="India ribbon"><li>Nifty 50</li><li>Sensex</li><li>Bank Nifty</li><li>Nifty IT</li><li>India VIX</li><li>USD/INR</li></ul>
+              </div>
+              <dl class="hw-facts">
+                <div><dt>Catalysts</dt><dd>Dated events for the next seven calendar days.</dd></div>
+                <div><dt>Signal, drivers, breadth</dt><dd>The factors behind the posture, the stories moving the tape, and how broad the move is.</dd></div>
+                <div><dt>Market intelligence</dt><dd>Headlines from public news feeds, ranked, with what each one means.</dd></div>
+              </dl>
+            </div>
+            <p class="hw-limit"><b>Keep in mind:</b> the posture is a rules-based read, not a forecast. Prices come from daily bars and can be delayed.</p>
+            <a class="hw-link" href="#dashboard" data-view-link="dashboard">Open Overview</a>
+          </section>
+
+          <!-- ================= DISCOVER ================= -->
+          <section class="hw-ch" id="hw-discover" aria-labelledby="hw-discover-h">
+            <header class="hw-ch-head">
+              <p class="hw-page"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16l-6 7.5V18l-4 2v-7.5z"/></svg></span>Discover</p>
+              <h2 class="hw-h2" id="hw-discover-h">Narrow hundreds of names to a few</h2>
+              <p class="hw-p">A scan, started from Picks, puts every name through the same eight gates in the same order. Discover ranks what passed, and keeps what failed with the reason. Scroll through the gates to run twelve example names through them.</p>
+            </header>
+            <div class="hw-scrolly hw-funnel">
+              <ol class="hw-gate-list" aria-label="Scan gates, in order">
+                <li><button type="button" class="hw-gate" data-gate="1"><b>Actionable call</b><span>Only Strong Buy, Buy or Accumulate go on. Watchlist, Hold and Avoid stop here.</span><em>Stops Stocks B, C and L</em></button></li>
+                <li><button type="button" class="hw-gate" data-gate="2"><b>Risk grade A to D</b><span>Grade F never reaches sizing, however good the score; grade D is sized at half.</span><em>Stops Stock D</em></button></li>
+                <li><button type="button" class="hw-gate" data-gate="3"><b>Score above the floor</b><span>At least <span data-threshold="band:ACCUMULATE" data-threshold-fmt="int"></span>; it rises with a strong pool, so a scan funds its best names.</span><em>Stops Stock E</em></button></li>
+                <li><button type="button" class="hw-gate" data-gate="4"><b>Reward/risk <span data-threshold="RR.SCANNER_MIN" data-threshold-fmt="rr"></span></b><span>After trading costs. Stricter than the <span data-threshold="RR.RESEARCH_MIN" data-threshold-fmt="rr"></span> Research needs for a Buy.</span><em>Stops Stock F</em></button></li>
+                <li><button type="button" class="hw-gate" data-gate="5"><b>Enough conviction</b><span>Two stars or more; the floor adapts to how many candidates are left.</span><em>Stops Stock G</em></button></li>
+                <li><button type="button" class="hw-gate" data-gate="6"><b>Worth the costs</b><span>Expected return at least <span data-threshold="BOOK.COST_VIABILITY_MULTIPLE" data-threshold-fmt="num"></span>x round-trip cost, or the trade isn't worth making.</span><em>Stops Stock H</em></button></li>
+                <li><button type="button" class="hw-gate" data-gate="7"><b>Fits sector limits</b><span>Sized within the sector cap, so one industry can't take the book.</span><em>Stops Stock I</em></button></li>
+                <li><button type="button" class="hw-gate" data-gate="8"><b>Research confirms</b><span>A full Research re-check can only lower the call, never raise it.</span><em>Stops Stock J</em></button></li>
+              </ol>
+              <div class="hw-scrolly-stage">
+                <div class="hw-demo hw-funnel-stage">
+                  <div class="hw-funnel-top">
+                    <p class="hw-funnel-count" id="hw-funnel-count" aria-live="polite"><b>2</b> of 12 picked after all eight gates</p>
+                    <div class="hw-funnel-ctl">
+                      <button type="button" class="hw-btn hw-btn--sm hw-btn--solid" id="hw-funnel-run">Run the gates</button>
+                      <button type="button" class="hw-btn hw-btn--sm" id="hw-funnel-reset">Reset</button>
+                    </div>
+                  </div>
+                  <ol class="hw-fbars" aria-hidden="true">
+                    <li style="--n:12" data-at="0"><span>Scan</span><i></i><b>12</b></li>
+                    <li style="--n:9" data-at="1"><span>1</span><i></i><b>9</b></li>
+                    <li style="--n:8" data-at="2"><span>2</span><i></i><b>8</b></li>
+                    <li style="--n:7" data-at="3"><span>3</span><i></i><b>7</b></li>
+                    <li style="--n:6" data-at="4"><span>4</span><i></i><b>6</b></li>
+                    <li style="--n:5" data-at="5"><span>5</span><i></i><b>5</b></li>
+                    <li style="--n:4" data-at="6"><span>6</span><i></i><b>4</b></li>
+                    <li style="--n:3" data-at="7"><span>7</span><i></i><b>3</b></li>
+                    <li style="--n:2" data-at="8"><span>8</span><i></i><b>2</b></li>
+                  </ol>
+                  <ul class="hw-rows" aria-label="Example names and where each one stopped">
+                    <li class="hw-row" data-out="0"><span class="hw-row-t">Stock A</span><span class="hw-row-c">Buy, grade B, score 71, 2.4 : 1</span><span class="hw-row-s">Funded</span></li>
+                    <li class="hw-row" data-out="1"><span class="hw-row-t">Stock B</span><span class="hw-row-c">Watchlist, score 58</span><span class="hw-row-s">Not an actionable call</span></li>
+                    <li class="hw-row" data-out="1"><span class="hw-row-t">Stock C</span><span class="hw-row-c">Avoid, score 38</span><span class="hw-row-s">Not an actionable call</span></li>
+                    <li class="hw-row" data-out="2"><span class="hw-row-t">Stock D</span><span class="hw-row-c">Accumulate, grade F</span><span class="hw-row-s">Risk grade F</span></li>
+                    <li class="hw-row" data-out="3"><span class="hw-row-t">Stock E</span><span class="hw-row-c">Accumulate, score 56</span><span class="hw-row-s">Below this scan's floor of 58</span></li>
+                    <li class="hw-row" data-out="4"><span class="hw-row-t">Stock F</span><span class="hw-row-c">Buy, score 66, 1.6 : 1</span><span class="hw-row-s">Reward/risk under <span data-threshold="RR.SCANNER_MIN" data-threshold-fmt="rr"></span></span></li>
+                    <li class="hw-row" data-out="5"><span class="hw-row-t">Stock G</span><span class="hw-row-c">Buy, score 69, one star</span><span class="hw-row-s">Too little conviction</span></li>
+                    <li class="hw-row" data-out="6"><span class="hw-row-t">Stock H</span><span class="hw-row-c">Accumulate, small expected move</span><span class="hw-row-s">Costs eat the return</span></li>
+                    <li class="hw-row" data-out="7"><span class="hw-row-t">Stock I</span><span class="hw-row-c">Buy, same sector as Stock A</span><span class="hw-row-s">Sector already at its cap</span></li>
+                    <li class="hw-row" data-out="8"><span class="hw-row-t">Stock J</span><span class="hw-row-c">Strong Buy, score 78</span><span class="hw-row-s">Re-check found heavy insider selling</span></li>
+                    <li class="hw-row" data-out="0"><span class="hw-row-t">Stock K</span><span class="hw-row-c">Buy, grade B, score 67, 1.9 : 1</span><span class="hw-row-s">Funded</span></li>
+                    <li class="hw-row" data-out="1"><span class="hw-row-t">Stock L</span><span class="hw-row-c">Hold band, score 49</span><span class="hw-row-s">Not an actionable call</span></li>
+                  </ul>
+                  <p class="hw-demo-note">Twelve example names. Real scans cover roughly 100 to 400 or more.</p>
+                </div>
+              </div>
+            </div>
+            <div class="hw-tabcards" data-reveal>
+              <p class="hw-mini-k">What each Discover tab shows</p>
+              <dl class="hw-tabs-dl">
+                <div><dt>Top Opportunities</dt><dd>After a scan: the Buy and Accumulate picks with entry, stop, target, reward/risk, score, conviction and horizon. Before one: Street research candidates, marked Research only, with QUANTA's levels left blank.</dd></div>
+                <div><dt>Market Moves and Open = L/H</dt><dd>Today's gainers and losers on a session board, and names that opened at the day's low or high. Price conditions, not recommendations.</dd></div>
+                <div><dt>Watchlist</dt><dd>Early-momentum names from the last scan that are not picks yet: at least <span data-threshold="CHASE.EARLY_MOMENTUM_MIN_SIGNALS" data-threshold-fmt="int"></span> of six checks, such as RSI, volume and trend.</dd></div>
+                <div><dt>Extended</dt><dd>Names that ran too far, too fast: gap-ups and sharp five- or ten-day moves. Not extended-hours trading.</dd></div>
+                <div><dt>Avoid</dt><dd>Names that ranked but failed confirmation, with what would make each valid again.</dd></div>
+              </dl>
+            </div>
+            <div class="hw-universes" data-reveal>
+              <p class="hw-mini-k">What you can scan</p>
+              <ul class="hw-chips" aria-label="United States universes"><li>Quick, 100</li><li>Standard, 250</li><li>Comprehensive, 400</li><li>Full</li><li>Growth</li><li>Value</li><li>Dividend</li><li>Momentum</li><li>ETFs</li><li>Large cap</li><li>Mid cap</li><li>Small cap</li><li>Pre-momentum</li></ul>
+              <ul class="hw-chips" aria-label="India universes (NSE)"><li>Nifty 50</li><li>Nifty 50 + Sensex + Bank</li><li>Nifty 50 + Bank + IT</li><li>Nifty 500</li><li>Growth</li><li>Value</li><li>Dividend</li><li>Momentum</li><li>Large cap</li><li>Mid cap</li><li>Small cap</li></ul>
+              <ul class="hw-chips" aria-label="Either market"><li>Your own list, up to <span data-threshold="CAPITAL.MAX_CUSTOM_TICKERS" data-threshold-fmt="int"></span></li></ul>
+            </div>
+            <div class="hw-rules" id="hw-effective-rules" data-reveal>
+              <p class="hw-mini-k">Effective rules</p>
+              <dl class="hw-tabs-dl">
+                <div><dt>Chase alert: gap</dt><dd>An opening gap above the prior close of more than <span data-threshold="CHASE.GAP_PCT" data-threshold-fmt="pct"></span> on either of the last <span data-threshold="CHASE.GAP_LOOKBACK_BARS" data-threshold-fmt="int"></span> sessions.</dd></div>
+                <div><dt>Chase alert: run-up</dt><dd>A close-to-close rise of more than <span data-threshold="CHASE.MOVE_5D_PCT" data-threshold-fmt="pct"></span> in 5 sessions or <span data-threshold="CHASE.MOVE_10D_PCT" data-threshold-fmt="pct"></span> in 10. A flagged name loses <span data-threshold="CHASE.SCORE_PENALTY" data-threshold-fmt="num"></span> points of score.</dd></div>
+                <div><dt>Wider thresholds for volatile stocks</dt><dd data-chase-wide></dd></div>
+                <div><dt>Pre-momentum scan</dt><dd>At least <span data-threshold="CHASE.PREMOMENTUM_MIN_SIGNALS" data-threshold-fmt="int"></span> of six checks and a one-month move under <span data-threshold="CHASE.PREMOMENTUM_MAX_1M" data-threshold-fmt="pct"></span>.</dd></div>
+                <div><dt>India screens</dt><dd>Price <span data-threshold="UNIVERSE.INDIA_MIN_PRICE" data-threshold-fmt="inr"></span> to <span data-threshold="UNIVERSE.INDIA_MAX_PRICE" data-threshold-fmt="inr"></span>, average volume at least <span data-threshold="UNIVERSE.INDIA_MIN_AVG_VOLUME" data-threshold-fmt="int"></span> shares, market cap at least <span data-threshold="UNIVERSE.INDIA_MIN_MARKET_CAP" data-threshold-fmt="crore"></span>, traded value at least <span data-threshold="UNIVERSE.INDIA_MIN_DAILY_VALUE" data-threshold-fmt="crore"></span> a day.</dd></div>
+              </dl>
+            </div>
+            <p class="hw-limit"><b>Keep in mind:</b> Watchlist, Extended and Avoid fill in after a scan in this session. A scan takes minutes because free data providers limit request rates.</p>
+            <a class="hw-link" href="#discover" data-view-link="discover">Open Discover</a>
+          </section>
+
+          <!-- ================= RESEARCH ================= -->
+          <section class="hw-ch" id="hw-research" aria-labelledby="hw-research-h">
+            <header class="hw-ch-head">
+              <p class="hw-page"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg></span>Research</p>
+              <h2 class="hw-h2" id="hw-research-h">One stock, the whole case</h2>
+              <p class="hw-p">Type a US or Indian ticker, or an ETF. QUANTA builds a tear sheet that opens with one Decision, why it was made, the main risk and the levels, with every supporting section one tab away.</p>
+            </header>
+            <ol class="hw-chapters" aria-label="Tear sheet sections, in order">
+              <li style="--i:0"><b>Summary</b><span>The Decision, why, the main blocker and the levels</span></li>
+              <li style="--i:1"><b>Decision detail</b><span>Every rule, the plan and what would change the call</span></li>
+              <li style="--i:2"><b>Business</b><span>The business, the case and the fundamentals</span></li>
+              <li style="--i:3"><b>Valuation</b><span>DCF, multiples, analyst targets and scenarios</span></li>
+              <li style="--i:4"><b>Technicals</b><span>Session, trend, momentum and levels</span></li>
+              <li style="--i:5"><b>Risks &amp; catalysts</b><span>Risk grade, what could go wrong, dated events</span></li>
+              <li style="--i:6"><b>Evidence &amp; data</b><span>Data checks and model validation</span></li>
+            </ol>
+
+            <div class="hw-demo hw-mix" data-reveal>
+              <div class="hw-mix-head">
+                <div>
+                  <p class="hw-demo-title">What the score is made of</p>
+                  <p class="hw-demo-note">Five pillars, weighted by the trend regime QUANTA detects. Risk is graded separately and sets the risk grade and size.</p>
+                </div>
+                <fieldset class="hw-seg hw-seg--tight">
+                  <legend class="sr-only">Regime</legend>
+                  <label><input type="radio" name="hw-regime" value="sideways" checked /><span>Sideways</span></label>
+                  <label><input type="radio" name="hw-regime" value="bull" /><span>Bull</span></label>
+                  <label><input type="radio" name="hw-regime" value="bear" /><span>Bear</span></label>
+                  <label><input type="radio" name="hw-regime" value="high_vol" /><span>High volatility</span></label>
+                </fieldset>
+              </div>
+              <div class="hw-mix-bar" id="hw-mix-bar">
+                <span data-pillar="technical" style="--w:33.3"><b>33%</b>Technical</span>
+                <span data-pillar="fundamental" style="--w:27.8"><b>28%</b>Fundamental</span>
+                <span data-pillar="valuation" style="--w:16.7"><b>17%</b>Valuation</span>
+                <span data-pillar="quality" style="--w:11.1"><b>11%</b>Quality</span>
+                <span data-pillar="sentiment" style="--w:11.1"><b>11%</b>Sentiment</span>
+              </div>
+            </div>
+
+            <div class="hw-lab" data-reveal>
+              <div class="hw-lab-ctl">
+                <p class="hw-demo-title">A score sets the starting call. Rules can only lower it.</p>
+                <p class="hw-demo-note">Change the inputs and follow the call down the ladder.</p>
+                <div class="hw-range">
+                  <label class="hw-range-label" for="hw-score">Overall score <output id="hw-score-out" for="hw-score">68</output></label>
+                  <input type="range" id="hw-score" min="0" max="100" value="68" step="1" aria-describedby="hw-score-hint" />
+                  <div class="hw-bands" aria-hidden="true">
+                    <span data-band="avoid" style="--f:45">Avoid</span><span data-band="hold" style="--f:10">Hold</span><span data-band="accumulate" style="--f:10">Acc.</span><span data-band="buy" style="--f:10">Buy</span><span data-band="strong" style="--f:25">Strong Buy</span>
+                  </div>
+                  <div class="hw-ticks" aria-hidden="true"><span style="--x:0">0</span><span data-threshold="band:HOLD" data-threshold-fmt="int" data-threshold-style="--x"></span><span data-threshold="band:ACCUMULATE" data-threshold-fmt="int" data-threshold-style="--x"></span><span data-threshold="band:BUY" data-threshold-fmt="int" data-threshold-style="--x"></span><span data-threshold="band:STRONG_BUY" data-threshold-fmt="int" data-threshold-style="--x"></span><span style="--x:100">100</span></div>
+                  <p class="hw-hint" id="hw-score-hint">Below <span data-threshold="band:HOLD" data-threshold-fmt="int"></span> is Avoid for everyone. <span data-threshold="band:HOLD" data-threshold-fmt="int"></span> to <span data-threshold="band:ACCUMULATE" data-threshold-fmt="int"></span> is Hold if you own it, Watchlist if you don't.</p>
+                </div>
+                <fieldset class="hw-seg">
+                  <legend>Risk grade</legend>
+                  <label><input type="radio" name="hw-grade" value="ok" checked /><span>A to C</span></label>
+                  <label><input type="radio" name="hw-grade" value="D" /><span>D</span></label>
+                  <label><input type="radio" name="hw-grade" value="F" /><span>F</span></label>
+                </fieldset>
+                <div class="hw-checks">
+                  <label class="hw-check"><input type="checkbox" id="hw-insider" /><span>Heavy insider selling</span></label>
+                  <label class="hw-check"><input type="checkbox" id="hw-flag" /><span>Bearish reversal, or price over <span data-threshold="LADDER.DCF_OVERVALUATION_CAP_PCT" data-threshold-fmt="int"></span>% above its DCF value</span></label>
+                  <label class="hw-check"><input type="checkbox" id="hw-rr" /><span>Reward/risk below <span data-threshold="RR.RESEARCH_MIN" data-threshold-fmt="rr"></span></span></label>
+                  <label class="hw-check hw-check--own"><input type="checkbox" id="hw-owned" /><span>I already own it</span></label>
+                </div>
+              </div>
+              <div class="hw-lab-out">
+                <div class="hw-ladder-wrap">
+                  <ol class="hw-ladder hw-calls" id="hw-ladder" aria-label="The six calls, strongest first">
+                    <li data-call="strong" data-tone="bull"><b>Strong Buy</b><span>Full-size position allowed</span></li>
+                    <li data-call="buy" data-tone="bull" class="is-active is-start"><b>Buy</b><span>Standard-size position allowed</span></li>
+                    <li data-call="accumulate" data-tone="bull"><b>Accumulate</b><span>Build gradually, at reduced size</span></li>
+                    <li data-call="hold" data-tone="neutral"><b>Hold</b><span>Only if you own it: add nothing</span></li>
+                    <li data-call="watchlist" data-tone="warn"><b>Watchlist</b><span>Don't buy yet: wait for the blocker</span></li>
+                    <li data-call="avoid" data-tone="bear"><b>Avoid</b><span>Bearish: don't open a position</span></li>
+                  </ol>
+                  <div class="hw-verdict" aria-live="polite" id="hw-lab-out">
+                    <p class="hw-verdict-k">Decision</p>
+                    <p class="hw-verdict-v" id="hw-verdict" data-tone="bull">Buy</p>
+                    <dl class="hw-verdict-dl">
+                      <div><dt>New money</dt><dd id="hw-newmoney">Eligible</dd></div>
+                      <div><dt>If you hold it</dt><dd id="hw-holder">Hold</dd></div>
+                    </dl>
+                    <ol class="hw-why" id="hw-why" aria-label="Why this Decision">
+                      <li>Score 68 starts as Buy.</li>
+                      <li class="is-final">No rule lowered it. Final: Buy.</li>
+                    </ol>
+                  </div>
+                </div>
+                <p class="hw-limit"><b>Keep in mind:</b> here you pick the flags. On a tear sheet they come from data, and a few more checks apply: stale prices, thin target upside, fewer than three confirmations for a Strong Buy, and Fast preview, which skips news, insider and catalyst checks.</p>
+              </div>
+            </div>
+            <a class="hw-link" href="#analyze" data-view-link="analyze" data-focus="#an-ticker">Research a ticker</a>
+          </section>
+
+          <!-- ================= PICKS ================= -->
+          <section class="hw-ch" id="hw-picks" aria-labelledby="hw-picks-h">
+            <header class="hw-ch-head">
+              <p class="hw-page"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V13M11 20V8M17 20V4M3 20h18"/></svg></span>Picks</p>
+              <h2 class="hw-h2" id="hw-picks-h">Size from the stop, not from the story</h2>
+              <p class="hw-p">Enter capital and a mandate. Picks funds only names whose Decision allows new money, and sizes each one from what you would lose at its stop. The book is hypothetical: it is the capital you type in, not your holdings.</p>
+            </header>
+            <form class="hw-demo hw-calc" id="hw-calc" data-reveal aria-labelledby="hw-calc-title" data-no-submit>
+              <div class="hw-calc-l">
+                <p class="hw-demo-title" id="hw-calc-title">Work out a position</p>
+                <p class="hw-demo-note">The scanner's own arithmetic, in US dollars. A real scan can also trim for a near earnings date or a full sector.</p>
+                <div class="hw-calc-in">
+                  <label class="hw-field"><span>Capital</span><input type="number" id="hw-c-cap" value="25000" min="500" step="100" inputmode="decimal" /></label>
+                  <label class="hw-field"><span>Entry</span><input type="number" id="hw-c-entry" value="100" min="1" step="0.01" inputmode="decimal" /></label>
+                  <label class="hw-field"><span>Stop</span><input type="number" id="hw-c-stop" value="95.8" min="0.01" step="0.01" inputmode="decimal" /></label>
+                  <label class="hw-field"><span>Score</span><input type="number" id="hw-c-score" value="68" min="55" max="100" step="1" inputmode="numeric" /></label>
+                  <label class="hw-field"><span>Call</span><select id="hw-c-call"><option value="strong">Strong Buy</option><option value="buy" selected>Buy</option><option value="accumulate">Accumulate</option></select></label>
+                  <label class="hw-field"><span>Risk grade</span><select id="hw-c-grade"><option value="A" selected>A or B</option><option value="C">C</option></select></label>
+                  <label class="hw-field hw-field--wide"><span>Mandate</span><select id="hw-c-mandate"><option value="conservative">Conservative</option><option value="balanced" selected>Balanced</option></select></label>
+                </div>
+                <ol class="hw-receipt" id="hw-receipt" aria-live="polite">
+                  <li><span class="hw-rc-k">Risk budget</span><span class="hw-rc-f"><span data-threshold="SIZING.TARGET_RISK_PER_TRADE" data-threshold-fmt="pct"></span> x Buy <span data-threshold="SIZING.SIGNAL_SIZE_MULT.BUY" data-threshold-fmt="num"></span> x score 1.04</span><b class="hw-rc-v">$124.80</b></li>
+                  <li><span class="hw-rc-k">Stop distance</span><span class="hw-rc-f">$100.00 down to $95.80</span><b class="hw-rc-v">4.2%</b></li>
+                  <li><span class="hw-rc-k">Before limits</span><span class="hw-rc-f">Budget / stop distance</span><b class="hw-rc-v">$2,971</b></li>
+                  <li class="is-binding"><span class="hw-rc-k">Position limit</span><span class="hw-rc-f"><span data-threshold="SIZING.MAX_POSITION_PCT" data-threshold-fmt="pct"></span> of capital, binding</span><b class="hw-rc-v">$2,500</b></li>
+                  <li><span class="hw-rc-k">Grade and mandate</span><span class="hw-rc-f">x1.00 x1.00</span><b class="hw-rc-v">$2,500</b></li>
+                  <li class="is-final"><span class="hw-rc-k">Position</span><span class="hw-rc-f">$105 at the stop, 0.42% of capital</span><b class="hw-rc-v">25 shares</b></li>
+                </ol>
+              </div>
+              <div class="hw-geo" aria-hidden="true">
+                <p class="hw-geo-k">Risk is an area: position value times stop distance</p>
+                <div class="hw-geo-plot">
+                  <span class="hw-geo-axis hw-geo-axis--y">Stop distance</span>
+                  <span class="hw-geo-axis hw-geo-axis--x">Position value, up to <span data-threshold="SIZING.SMALL_ACCOUNT_MAX_POSITION_PCT" data-threshold-fmt="pct"></span> of capital</span>
+                  <i class="hw-geo-budget" id="hw-geo-budget" style="--gw:0.475;--gh:0.35"></i>
+                  <i class="hw-geo-cap" id="hw-geo-cap" style="--gc:0.4"><em>Position limit</em></i>
+                  <i class="hw-geo-fill" id="hw-geo-fill" style="--gw:0.4;--gh:0.35"></i>
+                  <p class="hw-geo-v" id="hw-geo-v"><b>$105</b> at risk<br />$2,500 x 4.2%<br />Budget $124.80</p>
+                </div>
+                <p class="hw-geo-leg"><span class="hw-geo-sw hw-geo-sw--budget"></span>Risk budget <span class="hw-geo-sw hw-geo-sw--fill"></span>What is actually at risk</p>
+              </div>
+            </form>
+            <ul class="hw-limits" data-reveal>
+              <li><b><span data-threshold="SIZING.MAX_POSITION_PCT" data-threshold-fmt="pct"></span></b><span>most in one stock, up to <span data-threshold="SIZING.SMALL_ACCOUNT_MAX_POSITION_PCT" data-threshold-fmt="pct"></span> for accounts under <span data-threshold="SIZING.SMALL_ACCOUNT_THRESHOLD" data-threshold-fmt="money"></span></span></li>
+              <li><b><span data-threshold="BOOK.MAX_SECTOR_PCT" data-threshold-fmt="pct"></span></b><span>most in one sector, or <span data-threshold="@small_sector_cap" data-threshold-fmt="pct"></span> for accounts under <span data-threshold="SIZING.SMALL_ACCOUNT_THRESHOLD" data-threshold-fmt="money"></span></span></li>
+              <li><b><span data-threshold="RR.SCANNER_MIN" data-threshold-fmt="rr"></span></b><span>reward/risk for a Buy or Accumulate call, after trading costs</span></li>
+              <li><b><span data-threshold="SIZING.MAX_RISK_PER_TRADE" data-threshold-fmt="pct"></span></b><span>hard ceiling on capital at risk per trade (<span data-threshold="SIZING.MAX_RISK_STRONG_BUY" data-threshold-fmt="pct"></span> for a Strong Buy)</span></li>
+            </ul>
+            <p class="hw-p hw-p--sm">A scan returns the planned loss if every stop is hit, the positions with the cash left over, the funnel, the names Research did not confirm, and a watchlist you can copy into TradingView.</p>
+            <p class="hw-limit"><b>Keep in mind:</b> sizing is a risk budget, not a validated edge. Planned losses exclude gaps and costs.</p>
+            <a class="hw-link" href="#picks" data-view-link="picks" data-focus="#sp-capital">Set up a scan</a>
+          </section>
+
+          <!-- ================= MY PORTFOLIO ================= -->
+          <section class="hw-ch" id="hw-holdings" aria-labelledby="hw-holdings-h">
+            <header class="hw-ch-head">
+              <p class="hw-page"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12h8.5"/></svg></span>My Portfolio</p>
+              <h2 class="hw-h2" id="hw-holdings-h">Your holdings, judged as a portfolio</h2>
+              <p class="hw-p">Connect Robinhood read-only and every stock and ETF you hold goes through the same research. Then a second question: given this account's size and concentration, what should it do?</p>
+            </header>
+            <div class="hw-demo hw-book" data-reveal>
+              <div class="hw-demo-head">
+                <p class="hw-demo-title" id="hw-book-title">A stock's call is not your portfolio's call</p>
+                <p class="hw-demo-note">Example account, not real holdings. Pick a position.</p>
+              </div>
+              <div class="hw-book-body">
+                <div class="hw-book-plot">
+                  <div class="hw-bars">
+                    <div class="hw-bars-lines" aria-hidden="true">
+                      <span class="hw-bars-line" style="--x:40"><em><span data-threshold="PORTFOLIO.MAX_SINGLE_POSITION" data-threshold-fmt="pct"></span> no new money</em></span>
+                      <span class="hw-bars-line hw-bars-line--trim" style="--x:80"><em><span data-threshold="PORTFOLIO.TRIM_REVIEW_POSITION" data-threshold-fmt="pct"></span> trim review</em></span>
+                    </div>
+                    <div class="hw-bars-list" role="radiogroup" aria-labelledby="hw-book-title">
+                      <button type="button" role="radio" aria-checked="false" class="hw-bar" data-hold="m" style="--w:22;--i:0"><span class="hw-bar-t">Stock M</span><span class="hw-bar-b"><i></i><em>22%</em></span><span class="hw-bar-a" data-tone="warn">Trim / Risk Review</span></button>
+                      <button type="button" role="radio" aria-checked="false" class="hw-bar" data-hold="p" style="--w:18;--i:1"><span class="hw-bar-t">Stock P</span><span class="hw-bar-b"><i></i><em>18%</em></span><span class="hw-bar-a" data-tone="neutral">Do Not Add</span></button>
+                      <button type="button" role="radio" aria-checked="true" class="hw-bar is-active" data-hold="x" style="--w:14;--i:2"><span class="hw-bar-t">Example Co.</span><span class="hw-bar-b"><i></i><em>14%</em></span><span class="hw-bar-a" data-tone="neutral">Do Not Add</span></button>
+                      <button type="button" role="radio" aria-checked="false" class="hw-bar" data-hold="q" style="--w:12;--i:3"><span class="hw-bar-t">Stock Q</span><span class="hw-bar-b"><i></i><em>12%</em></span><span class="hw-bar-a" data-tone="warn">Trim / Risk Review</span></button>
+                      <button type="button" role="radio" aria-checked="false" class="hw-bar" data-hold="n" style="--w:9;--i:4"><span class="hw-bar-t">Stock N</span><span class="hw-bar-b"><i></i><em>9%</em></span><span class="hw-bar-a" data-tone="bull">Consider Adding</span></button>
+                      <button type="button" role="radio" aria-checked="false" class="hw-bar" data-hold="r" style="--w:8;--i:5"><span class="hw-bar-t">Stock R</span><span class="hw-bar-b"><i></i><em>8%</em></span><span class="hw-bar-a" data-tone="bear">Exit Review</span></button>
+                    </div>
+                  </div>
+                  <p class="hw-bars-foot">Dashed lines: <span data-threshold="PORTFOLIO.MAX_SINGLE_POSITION" data-threshold-fmt="pct"></span>, where new money stops, and <span data-threshold="PORTFOLIO.TRIM_REVIEW_POSITION" data-threshold-fmt="pct"></span>, where a Hold is reviewed for trimming. Cash 17%. Stocks M and P share a sector at 40%, over the <span data-threshold="PORTFOLIO.MAX_SECTOR" data-threshold-fmt="pct"></span> sector limit.</p>
+                </div>
+                <div class="hw-insp">
+                  <div class="hw-insp-panel" data-hold-panel="x">
+                    <h3 class="hw-insp-h">Example Co. at 14%</h3>
+                    <div class="hw-insp-grid">
+                      <div><p class="hw-insp-k">The stock's Decision</p><p class="hw-insp-v" data-tone="bull">Buy</p><p class="hw-insp-p">Score 68, no red flags. New money eligible.</p></div>
+                      <div><p class="hw-insp-k">This account's call</p><p class="hw-insp-v" data-tone="neutral">Do Not Add</p><p class="hw-insp-p">It is already above the <span data-threshold="PORTFOLIO.MAX_SINGLE_POSITION" data-threshold-fmt="pct"></span> position limit, so no new money goes in. Keep it; the view on the stock has not changed.</p></div>
+                    </div>
+                  </div>
+                  <div class="hw-insp-panel" data-hold-panel="m" hidden>
+                    <h3 class="hw-insp-h">Stock M at 22%</h3>
+                    <div class="hw-insp-grid">
+                      <div><p class="hw-insp-k">The stock's Decision</p><p class="hw-insp-v" data-tone="bull">Accumulate</p><p class="hw-insp-p">Score 58. If you hold it: Hold.</p></div>
+                      <div><p class="hw-insp-k">This account's call</p><p class="hw-insp-v" data-tone="warn">Trim / Risk Review</p><p class="hw-insp-p">A Hold at <span data-threshold="PORTFOLIO.TRIM_REVIEW_POSITION" data-threshold-fmt="pct"></span> or more of the account is reviewed for trimming because of its size, not because the view on the stock changed.</p></div>
+                    </div>
+                  </div>
+                  <div class="hw-insp-panel" data-hold-panel="p" hidden>
+                    <h3 class="hw-insp-h">Stock P at 18%</h3>
+                    <div class="hw-insp-grid">
+                      <div><p class="hw-insp-k">The stock's Decision</p><p class="hw-insp-v" data-tone="bull">Buy</p><p class="hw-insp-p">Score 66. New money eligible.</p></div>
+                      <div><p class="hw-insp-k">This account's call</p><p class="hw-insp-v" data-tone="neutral">Do Not Add</p><p class="hw-insp-p">Over the <span data-threshold="PORTFOLIO.MAX_SINGLE_POSITION" data-threshold-fmt="pct"></span> position limit, and its sector is at 40% against a <span data-threshold="PORTFOLIO.MAX_SECTOR" data-threshold-fmt="pct"></span> limit.</p></div>
+                    </div>
+                  </div>
+                  <div class="hw-insp-panel" data-hold-panel="q" hidden>
+                    <h3 class="hw-insp-h">Stock Q at 12%</h3>
+                    <div class="hw-insp-grid">
+                      <div><p class="hw-insp-k">The stock's Decision</p><p class="hw-insp-v" data-tone="bear">Avoid</p><p class="hw-insp-p">Score 41, below the <span data-threshold="band:HOLD" data-threshold-fmt="int"></span> hold band.</p></div>
+                      <div><p class="hw-insp-k">This account's call</p><p class="hw-insp-v" data-tone="warn">Trim / Risk Review</p><p class="hw-insp-p">A score below <span data-threshold="band:HOLD" data-threshold-fmt="int"></span> on a holding means review it for trimming. A low score alone is never a sell instruction.</p></div>
+                    </div>
+                  </div>
+                  <div class="hw-insp-panel" data-hold-panel="n" hidden>
+                    <h3 class="hw-insp-h">Stock N at 9%</h3>
+                    <div class="hw-insp-grid">
+                      <div><p class="hw-insp-k">The stock's Decision</p><p class="hw-insp-v" data-tone="bull">Accumulate</p><p class="hw-insp-p">Score 61. New money eligible.</p></div>
+                      <div><p class="hw-insp-k">This account's call</p><p class="hw-insp-v" data-tone="bull">Consider Adding</p><p class="hw-insp-p">Under the position and sector limits, with no earnings report in the next seven days.</p></div>
+                    </div>
+                  </div>
+                  <div class="hw-insp-panel" data-hold-panel="r" hidden>
+                    <h3 class="hw-insp-h">Stock R at 8%</h3>
+                    <div class="hw-insp-grid">
+                      <div><p class="hw-insp-k">The stock's Decision</p><p class="hw-insp-v" data-tone="bear">Avoid</p><p class="hw-insp-p">Score 31, and the price is more than <span data-threshold="LADDER.DCF_OVERVALUATION_CAP_PCT" data-threshold-fmt="int"></span>% above its DCF value.</p></div>
+                      <div><p class="hw-insp-k">This account's call</p><p class="hw-insp-v" data-tone="bear">Exit Review</p><p class="hw-insp-p">A score below <span data-threshold="band:REDUCE" data-threshold-fmt="int"></span> plus a measured red flag. A prompt to review the thesis, not an instruction to sell.</p></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="hw-guard" data-reveal>
+              <div class="hw-guard-head">
+                <p class="hw-demo-title">Read-only, enforced in code</p>
+                <p class="hw-demo-note">What QUANTA may ask Robinhood's official MCP server, and what it refuses before any request leaves your computer.</p>
+              </div>
+              <div class="hw-guard-map">
+                <div class="hw-guard-col">
+                  <p class="hw-guard-k" data-tone="bull">Allowed: 8 read tools</p>
+                  <ul class="hw-toolchips hw-toolchips--ok"><li>get_accounts</li><li>get_portfolio</li><li>get_equity_positions</li><li>get_equity_quotes</li><li>get_equity_tax_lots</li><li>get_equity_fundamentals</li><li>get_earnings_calendar</li><li>get_realized_pnl</li></ul>
+                </div>
+                <div class="hw-guard-gate" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+                <div class="hw-guard-col">
+                  <p class="hw-guard-k" data-tone="bear">Refused, whatever the list says</p>
+                  <ul class="hw-toolchips hw-toolchips--no"><li>place_equity_order</li><li>review_equity_order</li><li>any tool named place, cancel, submit, transfer, withdraw or deposit</li></ul>
+                  <p class="hw-guard-note">Order execution is switched off in the source, so turning it on would take a code change.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="hw-ch-cols" data-reveal>
+              <ul class="hw-promises">
+                <li><b>Your sign-in stays with Robinhood</b><span>You sign in on Robinhood's own page. The access token is kept in memory only: never on disk, in the browser or in logs. Disconnect or restart QUANTA and it is gone.</span></li>
+                <li><b>Nothing is made up</b><span>No sample portfolio is ever shown in its place. Missing data is shown as a limitation, never as a view on the stock. Hide amounts removes dollar figures from the page.</span></li>
+              </ul>
+              <dl class="hw-tabs-dl">
+                <div><dt>Overview</dt><dd>What the account is, its top priorities and where the money sits.</dd></div>
+                <div><dt>Holdings</dt><dd>Every position with QUANTA's view and the portfolio action.</dd></div>
+                <div><dt>Analysis</dt><dd>Allocation map, what moved the account, and risk: market sensitivity, loss at model stops, volatility.</dd></div>
+                <div><dt>Plan</dt><dd>The guidance, grouped from Exit Review to Hold.</dd></div>
+              </dl>
+            </div>
+            <p class="hw-limit"><b>Keep in mind:</b> Robinhood is the only broker. Stocks and ETFs are analysed; options and crypto are not. Model stops are QUANTA levels, not orders at Robinhood.</p>
+            <a class="hw-link" href="#holdings" data-view-link="holdings">Open My Portfolio</a>
+          </section>
+
+          <!-- ================= TRACK RECORD ================= -->
+          <section class="hw-ch" id="hw-trust" aria-labelledby="guide-trust-title">
+            <header class="hw-ch-head">
+              <p class="hw-page"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 7 4-14 3 7h4"/></svg></span>Track record</p>
+              <h2 class="hw-h2" id="guide-trust-title">Honest about what it knows</h2>
+              <p class="hw-p">Every published call is recorded and later measured against the market. Until a model passes tests on past data, its buy calls say so.</p>
+            </header>
+            <div class="hw-ledger-wrap">
+              <ol class="hw-ledger" aria-label="How a call is measured">
+                <li><b>Recorded</b><span>The call, score, levels and evidence status, stored once and never edited.</span></li>
+                <li><b>Entered</b><span>At the next session's open, not at the price you saw.</span></li>
+                <li><b>Closed</b><span>At the close of its horizon's last session: about three months for a Research call.</span></li>
+                <li><b>Compared</b><span>Return over SPY, or over the Nifty 50 for NSE stocks.</span></li>
+                <li><b>Counted</b><span>Only after <span data-threshold="EVIDENCE.MIN_SAMPLE" data-threshold-fmt="int"></span> measured calls on at least <span data-threshold="EVIDENCE.MIN_DATES" data-threshold-fmt="int"></span> separate dates.</span></li>
+              </ol>
+              <span class="hw-ledger-dot" aria-hidden="true"></span>
+            </div>
+            <div class="hw-trust" data-reveal>
+              <div class="hw-live">
+                <p class="hw-live-k" id="guide-evidence-meta">Live status</p>
+                <div class="hw-live-nums" id="guide-evidence-nums" aria-hidden="true"></div>
+                <div class="hw-live-body" id="guide-evidence" aria-live="polite">Checking the model's track record…</div>
+                <a class="hw-link" href="#track" data-view-link="track">See the track record</a>
+              </div>
+              <div class="hw-tagset">
+                <p class="hw-mini-k">Tags a buy call can carry</p>
+                <ul>
+                  <li><span class="hw-tag">Model not yet validated</span><span>Not yet tested on past data</span></li>
+                  <li><span class="hw-tag">Partly tested model</span><span>Only parts of it have been tested</span></li>
+                  <li><span class="hw-tag">No proven edge</span><span>Tested, and no reliable edge was found</span></li>
+                  <li><span class="hw-tag">Validation out of date</span><span>Its last passing test has expired</span></li>
+                </ul>
+              </div>
+              <dl class="hw-facts hw-facts--tight">
+                <div><dt>Data</dt><dd>Yahoo Finance daily bars and public news feeds, plus Finnhub, Polygon or Alpha Vantage if you add keys. Quotes can be delayed.</dd></div>
+                <div><dt>Freshness</dt><dd>Every Decision dates its price. An out-of-date price blocks new money.</dd></div>
+                <div><dt>Where it runs</dt><dd>On your computer at 127.0.0.1, with no QUANTA account. It refuses to serve other machines.</dd></div>
+              </dl>
+            </div>
+          </section>
+
+          </div>
+        </div>
+
+        <section class="hw-faq-sec" aria-labelledby="hw-faq-title">
+          <div class="hw-faq-intro">
+            <h2 class="hw-h2" id="hw-faq-title">Common questions</h2>
+            <p class="hw-p hw-p--sm">Straight answers, including what QUANTA does not do.</p>
+          </div>
+          <div class="hw-faq">
+            <details><summary>Is this investment advice?</summary><p>No. QUANTA is a research tool for education and information. It doesn't know your goals, taxes or full finances. Check every price with your broker before you act.</p></details>
+            <details><summary>Can QUANTA trade in my account?</summary><p>No. My Portfolio reads your Robinhood account and nothing else. Order tools are blocked in code before any request is sent, and order execution is switched off in the source. Every trade is yours to place.</p></details>
+            <details><summary>Why is a stock Research rates a Buy missing from Picks?</summary><p>Picks is stricter. A scan also needs reward/risk of <span data-threshold="RR.SCANNER_MIN" data-threshold-fmt="rr"></span> (Research needs <span data-threshold="RR.RESEARCH_MIN" data-threshold-fmt="rr"></span>), a risk grade of A to C, a score above the scan's floor, enough conviction, a return that covers costs, room in its sector, and a second full Research check.</p></details>
+            <details><summary>Why does My Portfolio say Do Not Add to a stock Research likes?</summary><p>Because of the account, not the stock. New money stops when one stock reaches <span data-threshold="PORTFOLIO.MAX_SINGLE_POSITION" data-threshold-fmt="pct"></span> of the account, when its sector or a group of holdings that move together reaches <span data-threshold="PORTFOLIO.MAX_SECTOR" data-threshold-fmt="pct"></span>, or when an earnings report is due within <span data-threshold="PORTFOLIO.EARNINGS_WINDOW_DAYS" data-threshold-fmt="int"></span> days. The view on the stock stays the same.</p></details>
+            <details><summary>What does "Model not yet validated" mean?</summary><p>The scoring model behind the call hasn't yet passed tests on past data. Treat those calls as research ideas, and position sizes as a risk budget, not a prediction.</p></details>
+            <details><summary>How does it decide how many shares to buy?</summary><p>From the loss at the stop: <span data-threshold="SIZING.TARGET_RISK_PER_TRADE" data-threshold-fmt="pct"></span> of capital (<span data-threshold="SIZING.TARGET_RISK_STRONG_BUY" data-threshold-fmt="pct"></span> for a Strong Buy), scaled by the call and the score, divided by the distance to the stop. Limits then trim it: at most <span data-threshold="SIZING.MAX_POSITION_PCT" data-threshold-fmt="pct"></span> in one stock, the risk grade, and the mandate, which funds <span data-threshold="SIZING.MANDATE_SCALE.conservative" data-threshold-fmt="pct"></span> for Conservative. Shares are whole, with a minimum trade of <span data-threshold="SIZING.MIN_POSITION_PCT" data-threshold-fmt="pct"></span> of capital, at least <span data-threshold="SIZING.MIN_POSITION_FLOOR" data-threshold-fmt="money"></span> and at most <span data-threshold="SIZING.MIN_POSITION_SIZE" data-threshold-fmt="money"></span>.</p></details>
+            <details><summary>Which markets and assets does it cover?</summary><p>US stocks and ETFs, and Indian stocks on the NSE (add .NS) or BSE (add .BO) in Research. Scans cover ready-made US and NSE universes, or up to <span data-threshold="CAPITAL.MAX_CUSTOM_TICKERS" data-threshold-fmt="int"></span> tickers of your own. My Portfolio analyses stocks and ETFs, not options or crypto.</p></details>
+            <details><summary>What doesn't QUANTA do?</summary><p>It has no price alerts, saved watchlists, report downloads or side-by-side stock comparison. Picks can copy its picks as a TradingView watchlist, and a scan's error log can be downloaded.</p></details>
+            <details><summary>Why can a scan take several minutes?</summary><p>QUANTA spaces out its data requests so free providers don't block it. A quick scan takes a few minutes; a full one takes longer.</p></details>
+          </div>
+        </section>
+
+        <section class="hw-end" aria-labelledby="hw-end-title" data-reveal>
+          <div class="hw-end-bg" aria-hidden="true"><i></i><i></i></div>
+          <h2 class="hw-end-title" id="hw-end-title">Try it on today's market</h2>
+          <p>Read the posture on Overview, then research any ticker for its Decision.</p>
+          <div class="hw-cta">
+            <a class="hw-btn hw-btn--primary" href="#dashboard" data-view-link="dashboard">Start with today's market</a>
+            <a class="hw-btn" href="#analyze" data-view-link="analyze" data-focus="#an-ticker">Research a ticker</a>
+          </div>
+        </section>
+        <p class="hw-fine">Educational and informational use only. Not investment advice. Examples on this page are illustrations, not live data or recommendations.</p>
+      </div>
+    </section>
+
+    <!-- ============== MODEL EVIDENCE (secondary) ==============
+         Not a primary destination: until outcomes mature it is a record of
+         what was published and whether each model has been validated. Reached
+         from every Decision's evidence line, the Portfolio results and the
+         footer. The ledger adds no statistics of its own. -->
+    <section class="view" id="view-track" aria-labelledby="track-title">
+      <header class="page-head">
+        <div class="page-head-l">
+          <p class="page-eyebrow"><button type="button" class="q-btn q-btn--link page-back" data-back-view>&larr; Back</button></p>
+          <h1 class="page-title" id="track-title">Model evidence &amp; track record</h1>
+          <p class="page-sub">Whether each model is validated out of sample, and how each published Decision did against its benchmark.</p>
+        </div>
+        <div class="page-head-r">
+          <span class="q-head-meta" id="track-meta">Not loaded</span>
+          <button type="button" class="q-btn" id="track-refresh">Refresh</button>
+        </div>
+      </header>
+      <div id="track-body" class="track-body">
+        <div class="q-empty q-empty--inline"><span class="badge-spinner" aria-hidden="true"></span>Loading the ledger…</div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <nav class="footer-links" aria-label="Secondary">
+        <a href="#guide" data-view-link="guide">How QUANTA works</a>
+        <a href="#track" data-view-link="track">Model evidence &amp; track record</a>
+      </nav>
+      <div class="signature" aria-label="Designed and built by Atresh Somayajula">
+        <span class="signature-kicker">Designed &amp; built by</span>
+        <span class="signature-name">Atresh Somayajula</span>
+      </div>
+      <p class="footer-disclaimer-text">QUANTA{% if app_build %} {{ app_build }}{% endif %} · Educational and informational use only · Not investment advice. No strategy here has a demonstrated out-of-sample edge unless its evidence says so.</p>
+    </div>
+  </footer>
+
+  <!-- [F9] Decision thresholds from engine/thresholds.py (also GET /api/thresholds). -->
+  <script type="application/json" id="quanta-thresholds">{{ thresholds_json|safe }}</script>
+  <script src="{{ asset_url('live-chart.js') }}" defer></script>
+  <script src="{{ asset_url('app.js') }}" defer></script>
+  <script src="{{ asset_url('dashboard-workspace.js') }}" defer></script>
+  <script src="{{ asset_url('elite-pro.js') }}" defer></script>
+  <script src="{{ asset_url('my-portfolio.js') }}" defer></script>
+  <script src="{{ asset_url('mp-charts.js') }}" defer></script>
+  <script src="{{ asset_url('mp-insights.js') }}" defer></script>
+  <script src="{{ asset_url('mp-review.js') }}" defer></script>
+  <script src="{{ asset_url('mp-activity-model.js') }}" defer></script>
+  <script src="{{ asset_url('mp-activity.js') }}" defer></script>
+  <script src="{{ asset_url('mp-news.js') }}" defer></script>
+  <script src="{{ asset_url('mp-overview.js') }}" defer></script>
+  <script src="{{ asset_url('mp-guidance.js') }}" defer></script>
+</body>
+</html>

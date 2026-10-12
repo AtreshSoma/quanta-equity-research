@@ -1,0 +1,919 @@
+{
+  "account_size": 100000.0,
+  "recorded_at": "2026-08-27",
+  "result": {
+    "action_items": [
+      "Do not open a new position while the blocking conditions remain",
+      "Re-run the Decision after the primary blocker clears"
+    ],
+    "action_plan_note": "These targets are for existing holders, not new entry recommendations.",
+    "action_plan_title": "EXISTING HOLDER PROFIT PLAN",
+    "adjustment_status": "split_dividend_adjusted",
+    "after_hours_change_pct": -0.0913,
+    "after_hours_price": 770.396,
+    "analysis_timestamp": "<volatile>",
+    "asset_type": "etf",
+    "beginner_guidance": {
+      "aggressive_buyer": "Do not add until the final decision changes",
+      "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
+      "breakout_entry": 779.37,
+      "buy_now": "NO",
+      "candlestick_timing": "WAIT / NO CLEAR EDGE",
+      "confidence": 47.5455,
+      "data_quality": "PASS",
+      "entry_quality": "Weak",
+      "existing_holder": "Hold",
+      "existing_holder_stop": 754.42,
+      "long_term_holder_stop": 754.42,
+      "long_tf": "Review before adding",
+      "main_reason": "Mixed signals; wait for a clearer setup.",
+      "mid_tf": "Hold existing / wait",
+      "new_buyer": "Wait; no new position",
+      "pullback_basis": "VWAP (14d)",
+      "pullback_entry": 769.827,
+      "pullback_is_deep": false,
+      "pullback_stop": 758.279,
+      "recommendation_label": "WATCHLIST",
+      "risk_conflict_warning": "",
+      "risk_grade": "B",
+      "rr_label": "N/A",
+      "short_tf": "Wait",
+      "signal": "HOLD",
+      "tactical_stop": 764.26,
+      "tactical_stop_basis": "below 20-day MA",
+      "volume_requirement": ">= 1.5x avg on entry day",
+      "warnings": []
+    },
+    "business_summary": "The trust seeks to achieve its investment objective by holding a portfolio of the common stocks that are included in the index (the \u201cPortfolio\u201d), with the weight of each stock in the Portfolio substantially corresponding to the weight of such stock in the index.",
+    "catalysts": {
+      "catalyst_score": 0,
+      "days_to_earnings": -1,
+      "dividend_yield": 0.0101,
+      "earnings_date": "Unknown",
+      "ex_dividend_date": "Unknown",
+      "last_earnings_result": "Unknown",
+      "last_earnings_surprise_pct": 0.0,
+      "near_term_catalyst": false
+    },
+    "company_name": "State Street SPDR S&P 500 ETF T",
+    "confidence_level": "LOW",
+    "confidence_score": 47.5455,
+    "conviction_label": "LOW-CONVICTION",
+    "country": "",
+    "currency": "USD",
+    "currency_symbol": "$",
+    "current_price": 771.1,
+    "data_provider": "yfinance",
+    "data_quality_status": "warning",
+    "day_change": 5.02,
+    "day_change_pct": 0.6553,
+    "decision": {
+      "action": "WATCHLIST",
+      "as_of": "<volatile>",
+      "blockers": [
+        {
+          "category": "score",
+          "code": "HOLD_NOT_OWNED",
+          "remedy": "Overall score reaching 55 or higher",
+          "text": "Overall score is in the neutral band (45\u201355)"
+        }
+      ],
+      "blocking": [
+        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+      ],
+      "blocking_codes": [
+        "HOLD_NOT_OWNED"
+      ],
+      "caveat": "",
+      "conflicts": [],
+      "engine": "elite",
+      "event_check": {
+        "agreement_date": null,
+        "avoid": false,
+        "checked_at": "<volatile>",
+        "code": "",
+        "cvr": false,
+        "cvr_non_transferable": false,
+        "deal_price": null,
+        "filed": null,
+        "note": "not recorded (offline replay)",
+        "registrant": "",
+        "source": "",
+        "spread_pct": null,
+        "status": "clear",
+        "stock": false,
+        "text": "",
+        "url": null
+      },
+      "evidence": {
+        "caveats": [
+          "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+        ],
+        "generated_utc": null,
+        "lineage": [
+          {
+            "change": "risk leg removed from the ranking composite",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.alpha_only.v1",
+            "summary": "Never tested.",
+            "tested_through": null
+          },
+          {
+            "change": "original composite",
+            "status": "NO_EDGE",
+            "status_text": "Tested out of sample \u2014 no demonstrated edge",
+            "strategy": "elite.composite",
+            "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+            "tested_through": "2026-08-25"
+          }
+        ],
+        "metrics": {},
+        "permits_recommendation": false,
+        "scope": "",
+        "status": "UNTESTED",
+        "status_text": "Never validated",
+        "strategy": "elite.research.v2",
+        "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+        "tested_through": null
+      },
+      "factor_scores": {
+        "sentiment": 50,
+        "technical": 48,
+        "valuation": 45.0
+      },
+      "freshness": {
+        "lag_sessions": 0,
+        "last_bar": "2026-08-27",
+        "notes": [],
+        "status": "fresh"
+      },
+      "generated_at": "<volatile>",
+      "holder_action": "HOLD",
+      "holdings_known": false,
+      "horizon": {
+        "key": "position",
+        "label": "Position (~3 months)",
+        "trading_days": 63
+      },
+      "interpretation": null,
+      "invalidation": [],
+      "label": "WATCHLIST",
+      "levels": {
+        "entry": 771.1,
+        "reference_price": 771.1,
+        "reward_risk": 0.0,
+        "stop": 754.42,
+        "target": null,
+        "target_basis": "",
+        "target_horizon_days": null,
+        "valuation_target": null,
+        "valuation_target_horizon_days": null
+      },
+      "model_stance": "NEUTRAL",
+      "new_money": "WATCH",
+      "primary_blocker": {
+        "category": "score",
+        "code": "HOLD_NOT_OWNED",
+        "remedy": "Overall score reaching 55 or higher",
+        "text": "Overall score is in the neutral band (45\u201355)"
+      },
+      "qualifier": "",
+      "reasons": [
+        "Composite score 47.5 \u2192 candidate HOLD_EXISTING",
+        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+      ],
+      "risk_grade": "B",
+      "risk_grade_drivers": [
+        {
+          "detail": "17% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 0
+        },
+        {
+          "detail": "1.00 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 0
+        },
+        {
+          "detail": "-19% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 0
+        },
+        {
+          "detail": "60/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 1
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "risk_grade_lookback_days": 500,
+      "risk_metrics": {
+        "beta": 1.0,
+        "risk_score": 60,
+        "volatility": 0.166356
+      },
+      "risks": [],
+      "scenarios": [],
+      "schema_version": 1,
+      "score": 47.5455,
+      "score_basis": "Research composite (alpha factors only), 0-100",
+      "sizing": {
+        "dollar_risk": 0,
+        "portfolio_weight": 0,
+        "position_value": 0,
+        "recommended_shares": 0,
+        "shares": 0
+      },
+      "sizing_basis": "none",
+      "sources": [
+        {
+          "as_of": "<volatile>",
+          "id": "px",
+          "kind": "price",
+          "provider": "yfinance",
+          "retrieved_at": "<volatile>",
+          "title": "",
+          "url": ""
+        }
+      ],
+      "stance": "NEUTRAL",
+      "ticker": "SPY",
+      "transitions": []
+    },
+    "evidence": {
+      "caveats": [
+        "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+      ],
+      "generated_utc": null,
+      "lineage": [
+        {
+          "change": "risk leg removed from the ranking composite",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.alpha_only.v1",
+          "summary": "Never tested.",
+          "tested_through": null
+        },
+        {
+          "change": "original composite",
+          "status": "NO_EDGE",
+          "status_text": "Tested out of sample \u2014 no demonstrated edge",
+          "strategy": "elite.composite",
+          "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+          "tested_through": "2026-08-25"
+        }
+      ],
+      "metrics": {},
+      "permits_recommendation": false,
+      "scope": "",
+      "status": "UNTESTED",
+      "status_text": "Never validated",
+      "strategy": "elite.research.v2",
+      "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+      "tested_through": null
+    },
+    "exchange": "PCX",
+    "expense_ratio": 0.0,
+    "fast_mode": false,
+    "final_action": "WATCHLIST",
+    "first_bar_date": "2024-08-28",
+    "fundamental": {
+      "altman_z_score": null,
+      "altman_z_status": "unavailable",
+      "altman_z_variant": "",
+      "current_ratio": 0.0,
+      "debt_to_equity": 0.0,
+      "dividend_yield": 0.0101,
+      "eps_growth_yoy": 0.0,
+      "ev_ebitda": 0.0,
+      "fcf_yield": 0.0,
+      "forward_pe": 0.0,
+      "free_cash_flow": 0.0,
+      "gross_margin": 0.0,
+      "is_etf": true,
+      "net_margin": 0.0,
+      "operating_margin": 0.0,
+      "pb_ratio": 0.0,
+      "pe_ratio": 25.9761,
+      "peg_ratio": 0.0,
+      "piotroski_components_available": 0,
+      "piotroski_f_score": null,
+      "quality_score": 50.0,
+      "reported_inputs": {},
+      "revenue_growth_yoy": 0.0,
+      "roa": 0.0,
+      "roe": 0.0,
+      "roic": 0.0
+    },
+    "has_existing_position": false,
+    "history_bars": 501,
+    "industry": "Large Blend",
+    "insider": {
+      "context_missing": false,
+      "data_status": "measured",
+      "display_label": "NEUTRAL",
+      "insider_sentiment": "NEUTRAL",
+      "key_transactions": [],
+      "net_flow": 0.0,
+      "recent_buys": 0,
+      "recent_sells": 0
+    },
+    "is_adr": false,
+    "is_etf": true,
+    "is_financial": false,
+    "is_high_volatility": false,
+    "is_invalid": false,
+    "key_insights": [
+      "\u23f8\ufe0f HOLD signal with 48% confidence",
+      "\ud83d\udcf0 No direct company headlines found; peer/macro sentiment is not treated as company evidence",
+      "\ud83d\udcca Monte Carlo: 62% chance of profit in 30 days"
+    ],
+    "last_bar_date": "2026-08-27",
+    "market_cap": 795307000000.0,
+    "market_intel": {
+      "analyst_count": 0,
+      "analyst_rating": "",
+      "buy_ratings": 0,
+      "hold_ratings": 0,
+      "implied_upside": 0.0,
+      "next_earnings_date": "Unknown",
+      "sell_ratings": 0,
+      "target_high": 0,
+      "target_low": 0,
+      "target_mean": 0,
+      "target_median": 0
+    },
+    "market_regime": "SIDEWAYS",
+    "market_state": "POST",
+    "market_timestamp": "<volatile>",
+    "mc_model_note": "",
+    "model_action": "WATCHLIST",
+    "monte_carlo": {
+      "days_simulated": 30,
+      "expected_return": 2.0529,
+      "expected_return_basis": "mean",
+      "mean_price": 786.93,
+      "median_price": 785.199,
+      "percentile_25": 755.525,
+      "percentile_5": 717.255,
+      "percentile_75": 816.208,
+      "percentile_95": 862.765,
+      "probability_10pct_gain": 0.093,
+      "probability_10pct_loss": 0.0157,
+      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only \u2014 not the chance of touching a target, and not target-vs-stop.",
+      "probability_profit": 0.6207,
+      "simulations_run": 3000,
+      "var_95": -6.9829
+    },
+    "net_assets": 795307000000.0,
+    "peer_comparison": {
+      "overall_assessment": "Sector not mapped",
+      "pb_sector_avg": 0.0,
+      "pb_stock": 0.0,
+      "pb_vs_sector": 0.0,
+      "pe_sector_avg": 0.0,
+      "pe_stock": 0.0,
+      "pe_vs_sector": 0.0,
+      "roe_sector_avg": 0.0,
+      "roe_stock": 0.0,
+      "roe_vs_sector": 0.0,
+      "sector": "Large Blend",
+      "sector_rank": 0,
+      "sector_total": 0
+    },
+    "portfolio_fund_decision": {
+      "action": "WATCHLIST",
+      "as_of": "<volatile>",
+      "blockers": [
+        {
+          "category": "score",
+          "code": "HOLD_NOT_OWNED",
+          "remedy": "Overall score reaching 55 or higher",
+          "text": "Overall score is in the neutral band (45\u201355)"
+        }
+      ],
+      "blocking": [
+        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+      ],
+      "blocking_codes": [
+        "HOLD_NOT_OWNED"
+      ],
+      "caveat": "",
+      "conflicts": [],
+      "engine": "elite",
+      "event_check": {
+        "code": "",
+        "source": "instrument_type",
+        "status": "not_applicable",
+        "text": "Corporate-event check: not applicable to funds."
+      },
+      "evidence": {
+        "caveats": [
+          "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+        ],
+        "generated_utc": null,
+        "lineage": [
+          {
+            "change": "risk leg removed from the ranking composite",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.alpha_only.v1",
+            "summary": "Never tested.",
+            "tested_through": null
+          },
+          {
+            "change": "original composite",
+            "status": "NO_EDGE",
+            "status_text": "Tested out of sample \u2014 no demonstrated edge",
+            "strategy": "elite.composite",
+            "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+            "tested_through": "2026-08-25"
+          }
+        ],
+        "metrics": {},
+        "permits_recommendation": false,
+        "scope": "",
+        "status": "UNTESTED",
+        "status_text": "Never validated",
+        "strategy": "elite.research.v2",
+        "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+        "tested_through": null
+      },
+      "factor_scores": {
+        "sentiment": 50,
+        "technical": 48,
+        "valuation": 45.0
+      },
+      "freshness": {
+        "lag_sessions": 0,
+        "last_bar": "2026-08-27",
+        "notes": [],
+        "status": "fresh"
+      },
+      "generated_at": "<volatile>",
+      "holder_action": "HOLD",
+      "holdings_known": false,
+      "horizon": {
+        "key": "position",
+        "label": "Position (~3 months)",
+        "trading_days": 63
+      },
+      "interpretation": null,
+      "invalidation": [],
+      "label": "WATCHLIST",
+      "levels": {
+        "entry": 771.1,
+        "reference_price": 771.1,
+        "reward_risk": 0.0,
+        "stop": 754.42,
+        "target": null,
+        "target_basis": "",
+        "target_horizon_days": null,
+        "valuation_target": null,
+        "valuation_target_horizon_days": null
+      },
+      "model_stance": "NEUTRAL",
+      "new_money": "WATCH",
+      "primary_blocker": {
+        "category": "score",
+        "code": "HOLD_NOT_OWNED",
+        "remedy": "Overall score reaching 55 or higher",
+        "text": "Overall score is in the neutral band (45\u201355)"
+      },
+      "qualifier": "",
+      "reasons": [
+        "Composite score 47.5 \u2192 candidate HOLD_EXISTING",
+        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+      ],
+      "risk_grade": "B",
+      "risk_grade_drivers": [
+        {
+          "detail": "17% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 0
+        },
+        {
+          "detail": "1.00 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 0
+        },
+        {
+          "detail": "-19% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 0
+        },
+        {
+          "detail": "60/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 1
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "risk_grade_lookback_days": 500,
+      "risk_metrics": {
+        "beta": 1.0,
+        "risk_score": 60,
+        "volatility": 0.166356
+      },
+      "risks": [],
+      "scenarios": [],
+      "schema_version": 1,
+      "score": 47.5455,
+      "score_basis": "Research composite (alpha factors only), 0-100",
+      "sizing": {
+        "dollar_risk": 0,
+        "portfolio_weight": 0,
+        "position_value": 0,
+        "recommended_shares": 0,
+        "shares": 0
+      },
+      "sizing_basis": "none",
+      "sources": [
+        {
+          "as_of": "<volatile>",
+          "id": "px",
+          "kind": "price",
+          "provider": "yfinance",
+          "retrieved_at": "<volatile>",
+          "title": "",
+          "url": ""
+        }
+      ],
+      "stance": "NEUTRAL",
+      "ticker": "SPY",
+      "transitions": []
+    },
+    "portfolio_outlook": {
+      "bottom_line": "Existing holders can hold with a strict stop. New buyers should wait for pullback or breakout confirmation.",
+      "reason": "Mixed signals; wait for a clearer setup.",
+      "recommendation": "WATCHLIST"
+    },
+    "portfolio_risk_check": {
+      "adjustments": {},
+      "approved": true,
+      "correlation_risk": 0.0,
+      "holdings_known": false,
+      "sector_exposure": {
+        "Large Blend": 0.0
+      },
+      "warnings": []
+    },
+    "position_sizing": {
+      "is_viable": false,
+      "kelly_optimal": 0.0,
+      "portfolio_weight": 0.0,
+      "position_value": 0.0,
+      "recommended_shares": 0,
+      "sizing_method": "RISK_PARITY"
+    },
+    "pre_market_change_pct": 0.0,
+    "pre_market_price": 0.0,
+    "previous_close": 766.08,
+    "quote_type": "ETF",
+    "recommendation_caveat": "",
+    "recommendation_label": "WATCHLIST",
+    "recommendation_qualifier": "",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 48% | Score: 48/100 | Risk: B",
+    "relative_performance": {
+      "basis": "total return, dividend-adjusted closes",
+      "benchmark": "SPY",
+      "rows": [
+        {
+          "benchmark_pct": 5.71,
+          "excess_pct": 0.0,
+          "sessions": 21,
+          "stock_pct": 5.71,
+          "window": "1M"
+        },
+        {
+          "benchmark_pct": 2.45,
+          "excess_pct": 0.0,
+          "sessions": 63,
+          "stock_pct": 2.45,
+          "window": "3M"
+        },
+        {
+          "benchmark_pct": 12.46,
+          "excess_pct": 0.0,
+          "sessions": 126,
+          "stock_pct": 12.46,
+          "window": "6M"
+        },
+        {
+          "benchmark_pct": null,
+          "excess_pct": null,
+          "sessions": 252,
+          "stock_pct": 20.85,
+          "window": "1Y"
+        }
+      ]
+    },
+    "requested_symbol": "SPY",
+    "retrieval_timestamp": "<volatile>",
+    "risk": {
+      "annualized_volatility": 0.1664,
+      "beta": 1.0,
+      "beta_benchmark": "SPY",
+      "beta_observations": 250,
+      "beta_status": "measured",
+      "cvar_95": -0.0236,
+      "grade_drivers": [
+        {
+          "detail": "17% annualised (points above 25% / 35% / 50%)",
+          "factor": "volatility",
+          "label": "Volatility",
+          "points": 0
+        },
+        {
+          "detail": "1.00 vs its benchmark (points above 1.2 / 1.5)",
+          "factor": "beta",
+          "label": "Beta",
+          "points": 0
+        },
+        {
+          "detail": "-19% peak to trough (points beyond -25% / -40%)",
+          "factor": "drawdown",
+          "label": "Max drawdown",
+          "points": 0
+        },
+        {
+          "detail": "60/100 from skew and fat tails (points above 50 / 70)",
+          "factor": "tail",
+          "label": "Tail risk",
+          "points": 1
+        },
+        {
+          "detail": "10/10 dollar-volume score (a point below 5)",
+          "factor": "liquidity",
+          "label": "Liquidity",
+          "points": 0
+        }
+      ],
+      "liquidity_score": 10.0,
+      "max_drawdown": -0.1876,
+      "overall_risk_score": 4,
+      "risk_grade": "B",
+      "risk_points": 4,
+      "sharpe_ratio": 0.8615,
+      "sortino_ratio": 1.2733,
+      "var_95_daily": -0.0155
+    },
+    "risk_warnings": [],
+    "scores": {
+      "component_details": {},
+      "composite_score": 47.5455,
+      "data_quality_note": "LOW - Limited data sources",
+      "fundamental_score": 50.0,
+      "quality_score": 50.0,
+      "risk_score": 60,
+      "score_confidence_margin": 0.0,
+      "sentiment_score": 50,
+      "technical_score": 48,
+      "valuation_score": 45.0,
+      "weights": {
+        "fundamental": 0.0,
+        "quality": 0.0,
+        "sentiment": 0.1111,
+        "technical": 0.3333,
+        "valuation": 0.1667
+      }
+    },
+    "sector": "Large Blend",
+    "sentiment": {
+      "key_headline_sources": [
+        "24/7 Wall St.",
+        "24/7 Wall St.",
+        "24/7 Wall St.",
+        "24/7 Wall St.",
+        "Motley Fool"
+      ],
+      "key_headlines": [
+        "Webull Surges 8%, Robinhood Ticks Up as the Retail Trading Bid Extends",
+        "China E-Commerce Stocks Sink While Baidu Climbs 4%: Alibaba Falls 4%, PDD Holdings Declines 3%",
+        "Dollar General Advances 5% on Raised Full-Year Outlook, Dollar Tree Slips 3%",
+        "Lucid Jumps 7%, Rivian Edges Higher: Is the EV Selloff Finally Exhausted?",
+        "Billionaire Israel Englander's 2 Biggest Bets Are on the S&P 500, and He Just Bought More"
+      ],
+      "last_news_timestamp": "<volatile>",
+      "measured": true,
+      "negative_articles": 4,
+      "news_relevance": {
+        "direct_count": 0,
+        "direct_headlines": [],
+        "direct_sentiment_label": "NEUTRAL",
+        "direct_sentiment_score": 0.0,
+        "has_direct_news": false,
+        "macro_count": 10,
+        "macro_headlines": [
+          "Webull Surges 8%, Robinhood Ticks Up as the Retail Trading Bid Extends",
+          "China E-Commerce Stocks Sink While Baidu Climbs 4%: Alibaba Falls 4%, PDD Holdings Declines 3%",
+          "Dollar General Advances 5% on Raised Full-Year Outlook, Dollar Tree Slips 3%",
+          "Lucid Jumps 7%, Rivian Edges Higher: Is the EV Selloff Finally Exhausted?",
+          "Billionaire Israel Englander's 2 Biggest Bets Are on the S&P 500, and He Just Bought More"
+        ],
+        "peer_count": 0,
+        "peer_headlines": [],
+        "peer_sentiment_score": 0.0,
+        "weighted_sentiment_label": "NEUTRAL",
+        "weighted_sentiment_score": 0.0
+      },
+      "news_volume": 10,
+      "positive_articles": 6,
+      "sentiment_label": "NEUTRAL",
+      "sentiment_score": 0.1269,
+      "sentiment_trend": "STABLE",
+      "sources_attempted": 5,
+      "sources_succeeded": 1,
+      "status": "PARTIAL"
+    },
+    "signal": "HOLD",
+    "signal_explanation": {
+      "composite_score": 47.5455,
+      "overrides_triggered": [],
+      "primary_reason": "Composite score 48 in HOLD range",
+      "risk_factors": [],
+      "supporting_factors": []
+    },
+    "sizing_basis": "none",
+    "stage_timings": [
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "price_history",
+        "status": "ok"
+      },
+      {
+        "cached": true,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "company_info",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "yfinance",
+        "stage": "parallel_analysis",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "monte_carlo",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "valuation_targets",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "signal_generation",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "trade_setup",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "position_sizing",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "decision_core",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "narrative",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "local",
+        "stage": "record_signal",
+        "status": "ok"
+      },
+      {
+        "cached": false,
+        "duration_ms": 0.0,
+        "provider": "-",
+        "stage": "TOTAL",
+        "status": "ok"
+      }
+    ],
+    "stance": "NEUTRAL",
+    "symbol_note": "",
+    "technical": {
+      "adx": 15.3551,
+      "atr": 6.2738,
+      "atr_percent": 0.8136,
+      "bollinger_signal": "NEUTRAL",
+      "candlestick_bias": "NEUTRAL",
+      "candlestick_patterns": [],
+      "candlestick_score": 50.0,
+      "death_cross": false,
+      "golden_cross": false,
+      "macd_signal": "BEARISH",
+      "momentum_score": 39.4786,
+      "prior_trend": "SIDEWAYS",
+      "resistance_level": 776.85,
+      "rsi": 58.6326,
+      "squeeze_detected": false,
+      "support_level": 762.04,
+      "trend_direction": "SIDEWAYS",
+      "trend_score": 53.3333,
+      "trend_strength": "WEAK",
+      "volatility_score": 70,
+      "volume_ratio": 0.7854,
+      "week_52_basis": "provider-reported traded range",
+      "week_52_high": 779.37,
+      "week_52_low": 629.28
+    },
+    "thesis": {
+      "bear_case": [],
+      "bull_case": [],
+      "catalysts": [],
+      "risks": [],
+      "summary": "State Street SPDR S&P 500 ETF T (SPY) should be held at current levels with a 48% confidence score. Composite score of 48/100."
+    },
+    "ticker": "SPY",
+    "trade_setup": {
+      "entry_price": 771.1,
+      "entry_type": "REFERENCE",
+      "has_long_reward": false,
+      "is_actionable_entry": false,
+      "levels_available": true,
+      "risk_reward_ratio": 0.0,
+      "setup_basis": "spot (reference only, not an order); stop below support; no valuation blend available \u2014 no target or reward/risk published",
+      "stop_loss": 754.42,
+      "target_aggressive": 0.0,
+      "target_base": 0.0,
+      "target_conservative": 0.0,
+      "time_horizon": "POSITION",
+      "trailing_stop": 0.0,
+      "trailing_stop_pct": 1.6,
+      "win_probability": 0.0
+    },
+    "valuation": {
+      "dcf_fair_value": 0.0,
+      "dcf_method": "",
+      "dcf_status": "not_applicable",
+      "dcf_upside": 0.0,
+      "fair_value_sources": [],
+      "graham_number": 0.0,
+      "graham_status": "unavailable",
+      "target_aggressive": 0.0,
+      "target_agreement_pct": null,
+      "target_base": 0.0,
+      "target_components": [],
+      "target_confidence": 0.0,
+      "target_conservative": 0.0,
+      "target_probability": 0.0,
+      "target_source_count": 0,
+      "target_sources": [],
+      "valuation_label": "NOT_APPLICABLE",
+      "valuation_score": 45.0,
+      "valuation_status": "not_applicable"
+    }
+  },
+  "ticker": "SPY"
+}

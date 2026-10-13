@@ -27,6 +27,34 @@
       "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
       "tested_through": "2026-08-25"
     },
+    "elite.research.v2": {
+      "caveats": [
+        "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+        "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
+        "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
+      ],
+      "code_fingerprint": "3e11cd6b178ee87de7225643e63f84602327fd2e5a19720abc57a5e1d6e9491e",
+      "generated_utc": "2026-10-13T19:51:29+00:00",
+      "metrics": {
+        "21d": {
+          "decile_spread": -0.0024035656719926177,
+          "mean_ic": -0.0030889578086794153,
+          "n_independent_dates": 158,
+          "t_stat": -0.2607822879668139
+        },
+        "63d": {
+          "decile_spread": -0.0012229729495425974,
+          "mean_ic": 0.0007075958826456032,
+          "n_independent_dates": 56,
+          "t_stat": -0.002385428234255261
+        }
+      },
+      "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
+      "source": "apex_quant/_reports/research_v2_oos.json",
+      "status": "NO_EDGE",
+      "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
+      "tested_through": "2026-09-30"
+    },
     "shortterm.composite": {
       "caveats": [
         "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
@@ -67,5 +95,5 @@
       "tested_through": "2026-09-30"
     }
   },
-  "updated_utc": "2026-10-13T19:18:15.666817+00:00"
+  "updated_utc": "2026-10-13T19:52:10.551139+00:00"
 }

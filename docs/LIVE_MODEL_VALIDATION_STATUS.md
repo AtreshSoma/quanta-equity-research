@@ -1,6 +1,23 @@
-# Live model validation status — 27 September 2026
+# Live model validation status — 13 October 2026
 
-## Verdict
+## Update, 13 October 2026
+
+The current models have now been measured, with the scope each test allows:
+
+| Model | Test | Result |
+| --- | --- | --- |
+| `elite.research.v2` | technical leg (33% of weight), 42 names, weekly, 2010-12-30..2026-09-30 | IC -0.003 (21d, t -0.26), +0.001 (63d); Q5-Q1 spread -0.24% / -0.12%. **NO_EDGE.** Not distinguishable from 12-1 momentum or random on identical cross-sections |
+| `shortterm.composite` | price core (58% of weight) replayed bar by bar, 1,284 trades, 2016-2026 | +0.03% per weekly entry cohort vs SPY (95% CI -0.29% to +0.36%); +0.11% vs random entries with the same exits (CI -0.27% to +0.49%). **NO_EDGE** |
+| `elite.composite` (predecessor) | as below, re-read on identical cross-sections | 21d IC -0.029, significantly negative after FDR control; reliably worse than 12-1 momentum |
+
+The `elite.research.v2` row carries the caveat recorded below: its risk-leg
+removal was chosen after reading the predecessor's result on the same sample,
+so the period is not fully out of sample for it. Both entries fail closed in
+`apex_quant/_reports/evidence_registry.json`. The prospective ledger, now
+fingerprinted per call and published as a hash-chained record, remains the
+only path to evidence that is out of sample by construction.
+
+## Verdict (27 September 2026)
 
 **No predictive edge is demonstrated for the current live model.** The deep
 (Research) engine's evidence key is now `elite.research.v2`, which fails closed

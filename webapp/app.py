@@ -1561,25 +1561,8 @@ def _article_impact(title: str, description: str, source: str) -> int:
     return min(score, 100)
 
 
-def _build_rss_ssl_context() -> ssl.SSLContext:
-    """A verifying TLS context whose trust store actually contains CAs.
-
-    urllib uses OpenSSL's default paths. On python.org's macOS builds those
-    are empty until "Install Certificates.command" is run, so every feed failed
-    with CERTIFICATE_VERIFY_FAILED while prices (requests + certifi) worked.
-    This keeps the system / SSL_CERT_FILE trust and adds certifi's bundle.
-    Verification and hostname checking stay on.
-    """
-    context = ssl.create_default_context()
-    try:
-        import certifi  # noqa: WPS433 - hard dependency of requests
-        context.load_verify_locations(cafile=certifi.where())
-    except (ImportError, OSError, ssl.SSLError) as exc:  # pragma: no cover - env specific
-        logger.warning("certifi CA bundle unavailable (%s); RSS uses the system trust store only", exc)
-    return context
-
-
-_RSS_SSL_CONTEXT = _build_rss_ssl_context()
+# The shared verifying context (system trust plus certifi); see engine/tls.py.
+from engine.tls import SSL_CONTEXT as _RSS_SSL_CONTEXT  # noqa: E402
 
 
 # A feed is LIVE when its newest dated article is younger than this. 72h spans

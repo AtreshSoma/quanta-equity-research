@@ -23,6 +23,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from engine.tls import SSL_CONTEXT
+
 SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 # Fund share classes (ETF and mutual-fund series) are listed apart, under their
 # trust's CIK: XLK is a series of the Select Sector SPDR Trust.
@@ -241,7 +243,8 @@ def failure_reason(exc: BaseException) -> tuple:
 def http_get_json(url: str, require_contact: bool = False) -> Any:
     req = urllib.request.Request(url, headers={"User-Agent": _agent(require_contact), "Accept": "application/json"})
     _pace()
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:      # noqa: S310 - fixed https hosts
+    with urllib.request.urlopen(req, timeout=TIMEOUT,                # noqa: S310 - fixed https hosts
+                                context=SSL_CONTEXT) as resp:
         return json.loads(resp.read(8_000_000).decode("utf-8"))
 
 
@@ -251,7 +254,8 @@ def http_get_text(url: str, max_bytes: int, require_contact: bool = True) -> str
         raise ValueError("only sec.gov documents are fetched")
     req = urllib.request.Request(url, headers={"User-Agent": _agent(require_contact)})
     _pace()
-    with urllib.request.urlopen(req, timeout=TIMEOUT * 2) as resp:  # noqa: S310 - sec.gov only
+    with urllib.request.urlopen(req, timeout=TIMEOUT * 2,            # noqa: S310 - sec.gov only
+                                context=SSL_CONTEXT) as resp:
         return resp.read(max_bytes).decode("utf-8", errors="replace")
 
 

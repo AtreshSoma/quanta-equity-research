@@ -1,0 +1,211 @@
+{
+  "generated_at": "2026-10-13T19:51:29+00:00",
+  "data_hash": "5b553eb3ab9543a1a9f38fe75e890a9cde0994a5a5088037467fe7bb872df1f6",
+  "universe": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "GOOGL",
+    "AMZN",
+    "META",
+    "AVGO",
+    "TXN",
+    "QCOM",
+    "INTC",
+    "CSCO",
+    "WMT",
+    "COST",
+    "HD",
+    "MCD",
+    "NKE",
+    "SBUX",
+    "PG",
+    "KO",
+    "PEP",
+    "JPM",
+    "BAC",
+    "GS",
+    "V",
+    "MA",
+    "AXP",
+    "JNJ",
+    "UNH",
+    "PFE",
+    "MRK",
+    "ABBV",
+    "TMO",
+    "CAT",
+    "BA",
+    "HON",
+    "UNP",
+    "XOM",
+    "CVX",
+    "DIS",
+    "NFLX",
+    "T",
+    "VZ"
+  ],
+  "n_tickers_scored": 42,
+  "start": "2010-12-30",
+  "end": "2026-09-30",
+  "eval_every_bars": 5,
+  "composite_weight_covered": 0.3333333333,
+  "composite_min": 37.222222223,
+  "composite_max": 58.888888887499995,
+  "n_panel_rows": 33035,
+  "ic": {
+    "21d": {
+      "horizon_days": 21,
+      "n_dates": 788,
+      "n_observations": 32827,
+      "mean_ic": -0.0030889578086794153,
+      "median_ic": -5.1087294061600544e-05,
+      "ic_std": 0.20290304171782583,
+      "t_stat": -0.2607822879668139,
+      "n_independent_dates": 158,
+      "t_stat_overlapping": -0.4273527742100841,
+      "hit_rate": 0.5,
+      "decile_spread": -0.0024035656719926177,
+      "spread_t_stat": -1.3072628249920697,
+      "spread_negative_share": 0.5126903553299492
+    },
+    "63d": {
+      "horizon_days": 63,
+      "n_dates": 780,
+      "n_observations": 32489,
+      "mean_ic": 0.0007075958826456032,
+      "median_ic": 0.01367801408191512,
+      "ic_std": 0.20497935615819468,
+      "t_stat": -0.002385428234255261,
+      "n_independent_dates": 56,
+      "t_stat_overlapping": 0.09641008679547201,
+      "hit_rate": 0.5333333333333333,
+      "decile_spread": -0.0012229729495425974,
+      "spread_t_stat": -1.0306509651845324,
+      "spread_negative_share": 0.4846153846153846
+    }
+  },
+  "component_ic": {
+    "21d": {
+      "composite": -0.0030889578086794153,
+      "score_technical": -0.0030889578086794153,
+      "score_risk": -0.04631995509960828,
+      "rsi": 0.013134398720012194,
+      "adx": 0.005172331692079125,
+      "beta": 0.061156084227769275,
+      "annualized_volatility": 0.07229812097027649
+    },
+    "63d": {
+      "composite": 0.0007075958826456032,
+      "score_technical": 0.0007075958826456032,
+      "score_risk": -0.10021744061330552,
+      "rsi": 0.01211550488285948,
+      "adx": 0.01011473517102035,
+      "beta": 0.1195581372973493,
+      "annualized_volatility": 0.1360083225092606
+    }
+  },
+  "buckets": {
+    "21d": [
+      {
+        "bucket": 0,
+        "composite_low": 37.222222223,
+        "composite_high": 50.555555555,
+        "n": 6304.0,
+        "mean_fwd_return": 0.01251140797041468,
+        "median_fwd_return": 0.010947195284264244,
+        "win_rate": 0.5701142131979695
+      },
+      {
+        "bucket": 1,
+        "composite_low": 37.222222223,
+        "composite_high": 52.2222222215,
+        "n": 6304.0,
+        "mean_fwd_return": 0.012533719085095507,
+        "median_fwd_return": 0.011251283336574769,
+        "win_rate": 0.5702728426395939
+      },
+      {
+        "bucket": 2,
+        "composite_low": 37.222222223,
+        "composite_high": 53.888888888,
+        "n": 6304.0,
+        "mean_fwd_return": 0.014061467456239088,
+        "median_fwd_return": 0.01273596659747711,
+        "win_rate": 0.5874048223350253
+      },
+      {
+        "bucket": 3,
+        "composite_low": 37.222222223,
+        "composite_high": 54.5555555546,
+        "n": 6304.0,
+        "mean_fwd_return": 0.014077287927045918,
+        "median_fwd_return": 0.0130249031001054,
+        "win_rate": 0.5907360406091371
+      },
+      {
+        "bucket": 4,
+        "composite_low": 37.222222223,
+        "composite_high": 58.888888887499995,
+        "n": 6304.0,
+        "mean_fwd_return": 0.010107842298422064,
+        "median_fwd_return": 0.009921132676096844,
+        "win_rate": 0.5726522842639594
+      }
+    ],
+    "63d": [
+      {
+        "bucket": 0,
+        "composite_low": 37.222222223,
+        "composite_high": 50.555555555,
+        "n": 6240.0,
+        "mean_fwd_return": 0.03873175522401844,
+        "median_fwd_return": 0.03485373166018102,
+        "win_rate": 0.6259615384615385
+      },
+      {
+        "bucket": 1,
+        "composite_low": 37.222222223,
+        "composite_high": 52.2222222215,
+        "n": 6240.0,
+        "mean_fwd_return": 0.04067770638604543,
+        "median_fwd_return": 0.035190587270695683,
+        "win_rate": 0.6283653846153846
+      },
+      {
+        "bucket": 2,
+        "composite_low": 37.222222223,
+        "composite_high": 53.888888888,
+        "n": 6240.0,
+        "mean_fwd_return": 0.04031638881527574,
+        "median_fwd_return": 0.03489264491522637,
+        "win_rate": 0.6238782051282051
+      },
+      {
+        "bucket": 3,
+        "composite_low": 37.222222223,
+        "composite_high": 54.5555555546,
+        "n": 6240.0,
+        "mean_fwd_return": 0.03852809215666867,
+        "median_fwd_return": 0.03529516336371763,
+        "win_rate": 0.635576923076923
+      },
+      {
+        "bucket": 4,
+        "composite_low": 37.222222223,
+        "composite_high": 58.888888887499995,
+        "n": 6240.0,
+        "mean_fwd_return": 0.03750878227447585,
+        "median_fwd_return": 0.03223890808777563,
+        "win_rate": 0.6229166666666667
+      }
+    ]
+  },
+  "caveats": [
+    "Only the price-based legs (technical, and risk where the model has one) are point-in-time reconstructible: 33% of SIDEWAYS composite weight. The other four components are held constant because no as-of-date source exists; varying them with present-day values would be look-ahead bias.",
+    "STRONG_BUY (>=75) is unreachable in this configuration, so no result here validates the full model.",
+    "Universe is a static present-day list: results carry survivorship and selection bias. Absolute numbers are optimistic; relative comparisons are the trustworthy part.",
+    "t_stat is computed on non-overlapping dates. t_stat_overlapping is shown only to expose the inflation from overlapping forward returns and must not be quoted.",
+    "IC statistics exclude transaction costs. Costs enter the walk-forward trade simulation, which is a separate report."
+  ]
+}

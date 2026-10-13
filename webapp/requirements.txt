@@ -16,6 +16,7 @@
 
 # Web server
 flask>=3.0
+waitress>=3.0
 
 # Engine hard dependencies (mirror of pyproject.toml [project].dependencies)
 numpy>=1.26

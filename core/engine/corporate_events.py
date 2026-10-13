@@ -394,8 +394,8 @@ def _reader(fetch_text: Optional[FetchText]):
 # can do about it. The text says what happened; the fix names the exact setting or action (I1: a missing
 # contact, a rate limit and a timeout used to read alike, and all three told the
 # reader to set the contact).
-_SET_CONTACT = ("Set QUANTA_SEC_CONTACT to your email address (a Windows user environment "
-                "variable, or a line in the repository .env), then restart the server")
+_SET_CONTACT = ("Set QUANTA_SEC_CONTACT to your email address in the repository .env "
+                "(copy .env.example), or as an environment variable, then restart the server")
 UNAVAILABLE_REASONS: Dict[str, tuple] = {
     "contact_missing": ("no SEC contact configured", "no SEC contact is configured for the server "
                         "(QUANTA_SEC_CONTACT is not set in its environment)", _SET_CONTACT),

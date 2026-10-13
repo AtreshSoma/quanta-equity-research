@@ -26,6 +26,7 @@ Design
 """
 from __future__ import annotations
 
+import gzip
 import json
 import logging
 import math
@@ -43,6 +44,8 @@ from zoneinfo import ZoneInfo
 
 from engine.market_calendar import add_trading_days, last_completed_session
 from engine.thresholds import EVIDENCE as _EVIDENCE
+
+from .fingerprint import code_fingerprint, git_commit
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +99,13 @@ CREATE TABLE IF NOT EXISTS signals (
     resolved_at            TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_signals_pending ON signals(outcome, as_of_date);
+-- The full Decision each call stood on (levels, factors, risk metrics, event
+-- check, sources, freshness), gzip-compressed JSON. Kept apart from ``signals``
+-- so the scoring queries stay small; written once, with the call, never updated.
+CREATE TABLE IF NOT EXISTS signal_snapshots (
+    signal_id    INTEGER PRIMARY KEY REFERENCES signals(id),
+    decision_gz  BLOB NOT NULL
+);
 CREATE INDEX IF NOT EXISTS ix_signals_group ON signals(engine, horizon_days, stance);
 """
 
@@ -183,7 +193,8 @@ class SignalLedger:
             # their rows, but new measurements use next-session opens.
             columns = {r["name"] for r in con.execute("PRAGMA table_info(signals)")}
             for name, kind in (("entry_date", "TEXT"), ("entry_price", "REAL"),
-                               ("benchmark_entry_price", "REAL"), ("entry_basis", "TEXT")):
+                               ("benchmark_entry_price", "REAL"), ("entry_basis", "TEXT"),
+                               ("code_fingerprint", "TEXT"), ("git_commit", "TEXT")):
                 if name not in columns:
                     con.execute(f"ALTER TABLE signals ADD COLUMN {name} {kind}")
             con.execute("UPDATE signals SET entry_basis='as_of_close_legacy' "
@@ -214,6 +225,7 @@ class SignalLedger:
         target_price: Optional[float] = None,
         stop_price: Optional[float] = None,
         benchmark: str = BENCHMARK,
+        snapshot: Optional[Dict[str, Any]] = None,
     ) -> Optional[int]:
         """Record one call. Returns its row id, None if rejected.
 
@@ -222,6 +234,9 @@ class SignalLedger:
         next-session entry. A second
         call for the same engine/ticker/horizon/session returns the first row;
         repeated scans cannot revise a forecast after seeing later data.
+
+        Each row is stamped with the fingerprint of the code that produced it;
+        ``snapshot`` (the full Decision) is stored only with the first record.
         """
         as_of_d = _as_date(as_of)
         ticker = (ticker or "").strip().upper()
@@ -253,14 +268,31 @@ class SignalLedger:
             "target_price": _finite(target_price),
             "stop_price": _finite(stop_price),
             "benchmark": benchmark,
+            "code_fingerprint": code_fingerprint(engine),
+            "git_commit": git_commit(),
         }
+        blob = None
+        if snapshot is not None:
+            try:
+                blob = gzip.compress(json.dumps(snapshot, default=str, sort_keys=True).encode("utf-8"))
+            except (TypeError, ValueError) as exc:  # a bad snapshot must not cost the call
+                logger.warning("ledger: snapshot for %s not stored: %s", key, exc)
         cols = ", ".join(row)
         marks = ", ".join(f":{c}" for c in row)
         sql = f"INSERT OR IGNORE INTO signals ({cols}) VALUES ({marks})"
         with self._lock, self._connect() as con:
-            con.execute(sql, row)
+            inserted = con.execute(sql, row).rowcount == 1
             got = con.execute("SELECT id FROM signals WHERE signal_key=?", (key,)).fetchone()
+            if inserted and got and blob is not None:
+                con.execute("INSERT OR IGNORE INTO signal_snapshots VALUES (?, ?)", (got["id"], blob))
         return int(got["id"]) if got else None
+
+    def snapshot(self, signal_id: int) -> Optional[Dict[str, Any]]:
+        """The Decision a call was recorded from, or None for calls recorded without one."""
+        with self._connect() as con:
+            got = con.execute("SELECT decision_gz FROM signal_snapshots WHERE signal_id=?",
+                              (int(signal_id),)).fetchone()
+        return json.loads(gzip.decompress(got["decision_gz"])) if got else None
 
     def record_decision(self, decision: Any, context: Optional[Dict[str, Any]] = None) -> Optional[int]:
         """Record an ``engine.decision.Decision``.
@@ -289,6 +321,7 @@ class SignalLedger:
             target_price=decision.target,
             stop_price=decision.stop,
             benchmark="^NSEI" if decision.ticker.upper().endswith(".NS") else BENCHMARK,
+            snapshot=decision.to_dict() if callable(getattr(decision, "to_dict", None)) else None,
         )
 
     # ----------------------------------------------------------------- resolve

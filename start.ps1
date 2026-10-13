@@ -202,18 +202,23 @@ else {
         $env:QUANTA_SEC_CONTACT = $secContact
         $secSource = "Windows user environment"
     }
-    else {
-        $dotEnv = Join-Path $ProjectRoot ".env"
-        if (Test-Path $dotEnv) {
-            foreach ($line in Get-Content $dotEnv) {
-                if ($line -match '^\s*QUANTA_SEC_CONTACT\s*=\s*(.+?)\s*$') {
-                    $env:QUANTA_SEC_CONTACT = $Matches[1].Trim('"', "'")
-                    $secSource = ".env"
-                }
-            }
+    Remove-Variable secContact -ErrorAction SilentlyContinue
+}
+
+# Every other KEY=VALUE in the git-ignored .env (provider keys, QUANTA_* settings;
+# see .env.example) reaches the engines too. Blank values and variables already
+# set in the environment are left alone, matching start.sh.
+$dotEnv = Join-Path $ProjectRoot ".env"
+if (Test-Path $dotEnv) {
+    foreach ($line in Get-Content $dotEnv) {
+        if ($line -match '^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$') {
+            $key = $Matches[1]
+            $value = $Matches[2].Trim('"', "'")
+            if (-not $value -or [Environment]::GetEnvironmentVariable($key, 'Process')) { continue }
+            [Environment]::SetEnvironmentVariable($key, $value, 'Process')
+            if ($key -eq 'QUANTA_SEC_CONTACT' -and -not $secSource) { $secSource = ".env" }
         }
     }
-    Remove-Variable secContact -ErrorAction SilentlyContinue
 }
 if ($secSource) {
     Write-Host "SEC contact: configured (from $secSource)" -ForegroundColor DarkGray

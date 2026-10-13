@@ -36,7 +36,7 @@ colors:
   ink-secondary-dark: "#c6cdd9"
   ink-muted-dark: "#929cae"
 typography:
-  display: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "30px", fontWeight: 700, lineHeight: 1.15 }
+  display: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "24px", fontWeight: 700, lineHeight: 1.2, letterSpacing: "-0.012em" }
   headline: { fontFamily: "'IBM Plex Mono', ui-monospace, Consolas, monospace", fontSize: "24px", fontWeight: 700, lineHeight: 1, fontFeature: "tnum" }
   title: { fontFamily: "'IBM Plex Sans', system-ui, sans-serif", fontSize: "15px", fontWeight: 600, lineHeight: 1.35 }
   body: { fontFamily: "'IBM Plex Sans', system-ui, sans-serif", fontSize: "13.5px", fontWeight: 400, lineHeight: 1.55 }
@@ -107,7 +107,7 @@ A cool slate field, one azure voice, four semantic hues that each mean one thing
 **Character:** One engineering skeleton in two widths: Sans names things, Mono measures them.
 
 ### Hierarchy
-- **Display** (Playfair 700, 30px, 1.15): page titles ("Research", "Picks") and the wordmark.
+- **Display** (Playfair 700, 24px `--hs-page`, 21px at 640px and below, 1.2, -0.012em): page titles ("Research", "Picks") and the wordmark. Tracking tightens as size grows; body and labels stay at 0.
 - **Chapter** (Playfair 700, 20px `--hs-chapter`, 1.2): chapter heads inside a Research panel that holds more than one chapter, over a hairline.
 - **Headline** (Mono 700, 24px): ticker and price in the Decision band; the call word is Sans 700 24px.
 - **Title** (Sans 600, 15px): panel titles and key figures (`--fs-lg`).
@@ -133,6 +133,17 @@ On coarse pointers or at 640px and below, every tab, button and link is at least
 Research is flat. Tiles and the Decision band carry a 1px hairline and no shadow (`#an-results` sets `box-shadow: none`). Depth is tonal: Surface over Ground, Board Head strips over Surface. The shared `--panel-shadow` and frosted glass belong to app chrome (topbar, popovers), never behind a price.
 
 **The Hairline Rule.** Structure is drawn with 1px `--border-soft` rules. A heavier stroke is a state (3px selected rule, 2px condensed underline), never a frame.
+
+## Motion
+
+Motion is feedback and wayfinding, never decoration (the apple-design skill, filtered through this system).
+
+- **One spring.** `--ease-spring` is critically damped (no overshoot, about 0.33 s response) over `--dur-spring` 480ms. Nothing in QUANTA follows a flick, so nothing earns bounce.
+- **Origins.** Popovers (data status, Export) grow from the button that opened them (`transform-origin: top right`) and leave along the same path.
+- **Direction.** The primary nav has one azure underline that travels to the new tab; views without a tab hide it.
+- **Brightness.** The theme switch cross-fades the page (View Transitions) instead of flashing.
+- **Press, not release.** Pressed states apply on `:active`; hover styles apply only where a pointer can hover (`@media (hover: hover)`), so a tap on a phone leaves nothing highlighted. A hover that reveals content stays unguarded so touch can reach it.
+- **Reduced motion** stops movement but keeps the comprehension fades: views, popovers and the theme switch fade; nothing slides, scales or springs.
 
 ## Shapes
 

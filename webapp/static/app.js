@@ -1249,6 +1249,7 @@ const switchView = (rawId, opts = {}) => {
     b.setAttribute('aria-selected', active ? 'true' : 'false');
     b.tabIndex = active ? 0 : -1;
   });
+  syncNavIndicator();
   // Secondary links reflect the open view without claiming a tab.
   $$('[data-view-link]').forEach((a) => {
     if (a.dataset.viewLink === id) a.setAttribute('aria-current', 'page');
@@ -2521,6 +2522,45 @@ async function resolveTrackRecord() {
     if (meta) meta.textContent = 'Resolve failed: backend unreachable';
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Resolve outcomes'; }
+  }
+}
+
+/* [PURE-ish] The primary nav's one underline: sits under the active tab and
+   travels to the next one (CSS springs it), so a view change reads as a move
+   in a direction. Views with no tab (Guide, Evidence) hide it. The first
+   placement and any re-layout (resize, font load) jump without animating. */
+function syncNavIndicator({ animate = true } = {}) {
+  const nav = typeof document !== 'undefined' ? document.querySelector('.nav-tabs') : null;
+  const bar = nav && nav.querySelector('.nav-indicator');
+  if (!bar) return;
+  const tab = nav.querySelector('.nav-tab.active');
+  if (!tab || !tab.offsetWidth) {
+    nav.classList.remove('has-indicator');
+    return;
+  }
+  let inset = 12;
+  try {
+    const left = parseFloat(getComputedStyle(tab, '::after').left);
+    if (Number.isFinite(left)) inset = left;
+  } catch (_) { /* keep the default inset */ }
+  if (!animate) nav.classList.remove('is-ready');
+  bar.style.width = `${Math.max(0, tab.offsetWidth - 2 * inset)}px`;
+  bar.style.transform = `translateX(${tab.offsetLeft + inset}px)`;
+  nav.classList.add('has-indicator');
+  if (!animate) {
+    void bar.offsetWidth; // commit the jump before transitions return
+    nav.classList.add('is-ready');
+  } else if (!nav.classList.contains('is-ready')) {
+    requestAnimationFrame(() => nav.classList.add('is-ready'));
+  }
+}
+
+function initNavIndicator() {
+  syncNavIndicator({ animate: false });
+  const relayout = () => syncNavIndicator({ animate: false });
+  if (typeof window !== 'undefined') window.addEventListener('resize', relayout);
+  if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(relayout).catch(() => {});
   }
 }
 
@@ -12095,6 +12135,8 @@ function bindEvents() {
   $('#analyze-form')?.addEventListener('submit', runAnalysis);
   $('#an-ticker')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') runAnalysis(e); });
 
+  initNavIndicator();
+
   // Theme toggle (light / dark)
   const themeBtn = $('#theme-toggle');
   if (themeBtn) {
@@ -12102,7 +12144,12 @@ function bindEvents() {
     themeBtn.addEventListener('click', () => {
       const current = document.documentElement.getAttribute('data-theme') || 'light';
       const next = current === 'dark' ? 'light' : 'dark';
-      applyTheme(next, { persist: true });
+      // Cross-fade instead of flashing the whole page from dark to light.
+      if (typeof document.startViewTransition === 'function') {
+        document.startViewTransition(() => applyTheme(next, { persist: true }));
+      } else {
+        applyTheme(next, { persist: true });
+      }
     });
   }
 

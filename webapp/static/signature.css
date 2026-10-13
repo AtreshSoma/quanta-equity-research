@@ -20,7 +20,7 @@
 
 .footer-links { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .footer-links a { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
-.footer-links a:hover { color: var(--text-primary); }
+@media (hover: hover) { .footer-links a:hover { color: var(--text-primary); } }
 .footer-links a[aria-current="page"] { color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; }
 
 .signature {

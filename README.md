@@ -331,6 +331,7 @@ The harness carries its own guards in `core/apex_quant/tests/`:
 | Test | Result |
 |---|---|
 | ELITE composite (price legs, 2010-2026) | IC -0.029 (21d, significantly negative) / -0.035 (63d) on identical cross-sections; reliably **worse than plain 12-1 momentum**, and worse than a random ranking at 63 days (`_reports/factor_baselines.txt`) |
+| Current research model `elite.research.v2` (technical leg, 2010-2026) | IC -0.003 (21d, t -0.26) / +0.001 (63d): **no signal**, and not distinguishable from 12-1 momentum or a random ranking (`_reports/research_v2_oos.txt`, `factor_baselines_research_v2_oos.txt`). Removing the inverted risk leg took the model from inverted to flat, not to an edge |
 | Short-term scanner price core (1,284 trades, 2016-2026) | 56.6% win rate, but random entries with the same exits win 55.0%; excess vs SPY **+0.03% per weekly entry cohort** (95% CI -0.29% to +0.36%; -0.10% per trade) and **no better than random entries** (+0.11%, CI -0.27% to +0.49%); probabilistic Sharpe 0.56 (`_reports/shortterm/`) |
 
 A high win rate with no excess return is the trap these tests exist to catch.

@@ -1,0 +1,317 @@
+{
+  "generated_at": "2026-10-13T19:51:43+00:00",
+  "panel_rows": 33035,
+  "tickers": 42,
+  "start": "2010-12-30",
+  "end": "2026-09-30",
+  "horizons": {
+    "21d": [
+      {
+        "factor": "composite",
+        "description": "QUANTA composite (the model)",
+        "n_dates": 737,
+        "mean_ic": -0.006108384033420966,
+        "t_newey_west": -0.6179941657550777,
+        "p_value": 0.5365791844610097,
+        "ci95_bootstrap": [
+          -0.02468551783749778,
+          0.013471741841474314
+        ],
+        "hit_rate": 0.4925373134328358,
+        "composite_minus": null,
+        "significant_fdr": false,
+        "difference_significant_fdr": null,
+        "inverted": false
+      },
+      {
+        "factor": "score_technical",
+        "description": "QUANTA technical leg",
+        "n_dates": 737,
+        "mean_ic": -0.006108384033420966,
+        "t_newey_west": -0.6179941657550777,
+        "p_value": 0.5365791844610097,
+        "ci95_bootstrap": [
+          -0.02468551783749778,
+          0.013471741841474314
+        ],
+        "hit_rate": 0.4925373134328358,
+        "composite_minus": {
+          "n": 737,
+          "mean": 0.0,
+          "t_newey_west": null,
+          "p_value": null,
+          "ci95_bootstrap": [
+            0.0,
+            0.0
+          ]
+        },
+        "significant_fdr": false,
+        "difference_significant_fdr": null,
+        "inverted": false
+      },
+      {
+        "factor": "momentum_12_1",
+        "description": "12-month return skipping the last month",
+        "n_dates": 737,
+        "mean_ic": 0.026727695311605033,
+        "t_newey_west": 1.585815018168848,
+        "p_value": 0.1127812778745676,
+        "ci95_bootstrap": [
+          -0.00719519195766011,
+          0.059557960241433144
+        ],
+        "hit_rate": 0.5712347354138398,
+        "composite_minus": {
+          "n": 737,
+          "mean": -0.032836079345026,
+          "t_newey_west": -1.8125745752572948,
+          "p_value": 0.06989746214656956,
+          "ci95_bootstrap": [
+            -0.06742687516957467,
+            0.0023352705828571262
+          ]
+        },
+        "significant_fdr": false,
+        "difference_significant_fdr": false,
+        "inverted": false
+      },
+      {
+        "factor": "reversal_1m",
+        "description": "minus the last month's return",
+        "n_dates": 737,
+        "mean_ic": -0.010646834054187532,
+        "t_newey_west": -0.8283644250416295,
+        "p_value": 0.40746414723614954,
+        "ci95_bootstrap": [
+          -0.035963880495187374,
+          0.013999849804363824
+        ],
+        "hit_rate": 0.46132971506105835,
+        "composite_minus": {
+          "n": 737,
+          "mean": 0.004538450020766567,
+          "t_newey_west": 0.21217232867810473,
+          "p_value": 0.831972593792033,
+          "ci95_bootstrap": [
+            -0.03578261455038227,
+            0.04647312286668115
+          ]
+        },
+        "significant_fdr": false,
+        "difference_significant_fdr": false,
+        "inverted": false
+      },
+      {
+        "factor": "low_volatility",
+        "description": "minus annualised volatility",
+        "n_dates": 737,
+        "mean_ic": -0.08127544097693352,
+        "t_newey_west": -3.551259354107456,
+        "p_value": 0.00038339241575124916,
+        "ci95_bootstrap": [
+          -0.12711357717637298,
+          -0.03470895140534747
+        ],
+        "hit_rate": 0.3880597014925373,
+        "composite_minus": {
+          "n": 737,
+          "mean": 0.07516705694351256,
+          "t_newey_west": 3.0084351895797288,
+          "p_value": 0.0026259680508622374,
+          "ci95_bootstrap": [
+            0.024890577286646256,
+            0.12637944814916738
+          ]
+        },
+        "significant_fdr": true,
+        "difference_significant_fdr": true,
+        "inverted": true
+      },
+      {
+        "factor": "random",
+        "description": "a seeded random ranking (should be ~0)",
+        "n_dates": 737,
+        "mean_ic": -0.006360403338925364,
+        "t_newey_west": -1.0141918300502206,
+        "p_value": 0.3104912262820547,
+        "ci95_bootstrap": [
+          -0.018663195195776194,
+          0.006211143243360208
+        ],
+        "hit_rate": 0.4993215739484396,
+        "composite_minus": {
+          "n": 737,
+          "mean": 0.0002520193055043997,
+          "t_newey_west": 0.022548815484118617,
+          "p_value": 0.9820101727589303,
+          "ci95_bootstrap": [
+            -0.021451732697781598,
+            0.022021651227127303
+          ]
+        },
+        "significant_fdr": false,
+        "difference_significant_fdr": false,
+        "inverted": false
+      }
+    ],
+    "63d": [
+      {
+        "factor": "composite",
+        "description": "QUANTA composite (the model)",
+        "n_dates": 729,
+        "mean_ic": 0.0026376340417273744,
+        "t_newey_west": 0.21992156570661212,
+        "p_value": 0.8259322404478739,
+        "ci95_bootstrap": [
+          -0.021034292224173096,
+          0.026089016734652155
+        ],
+        "hit_rate": 0.5390946502057613,
+        "composite_minus": null,
+        "significant_fdr": false,
+        "difference_significant_fdr": null,
+        "inverted": false
+      },
+      {
+        "factor": "score_technical",
+        "description": "QUANTA technical leg",
+        "n_dates": 729,
+        "mean_ic": 0.0026376340417273744,
+        "t_newey_west": 0.21992156570661212,
+        "p_value": 0.8259322404478739,
+        "ci95_bootstrap": [
+          -0.021034292224173096,
+          0.026089016734652155
+        ],
+        "hit_rate": 0.5390946502057613,
+        "composite_minus": {
+          "n": 729,
+          "mean": 0.0,
+          "t_newey_west": null,
+          "p_value": null,
+          "ci95_bootstrap": [
+            0.0,
+            0.0
+          ]
+        },
+        "significant_fdr": false,
+        "difference_significant_fdr": null,
+        "inverted": false
+      },
+      {
+        "factor": "momentum_12_1",
+        "description": "12-month return skipping the last month",
+        "n_dates": 729,
+        "mean_ic": 0.024365537102664477,
+        "t_newey_west": 0.8715770317763645,
+        "p_value": 0.3834391652167506,
+        "ci95_bootstrap": [
+          -0.029623317814374734,
+          0.07775060029802579
+        ],
+        "hit_rate": 0.5555555555555556,
+        "composite_minus": {
+          "n": 729,
+          "mean": -0.021727903060937106,
+          "t_newey_west": -0.809642285879198,
+          "p_value": 0.41814579735131785,
+          "ci95_bootstrap": [
+            -0.07197470381189942,
+            0.029523379691782276
+          ]
+        },
+        "significant_fdr": false,
+        "difference_significant_fdr": false,
+        "inverted": false
+      },
+      {
+        "factor": "reversal_1m",
+        "description": "minus the last month's return",
+        "n_dates": 729,
+        "mean_ic": -0.019717313032579526,
+        "t_newey_west": -1.2037898237727802,
+        "p_value": 0.22867082389010296,
+        "ci95_bootstrap": [
+          -0.05160852204438475,
+          0.013114787534390073
+        ],
+        "hit_rate": 0.4513031550068587,
+        "composite_minus": {
+          "n": 729,
+          "mean": 0.022354947074306894,
+          "t_newey_west": 0.8281501412680969,
+          "p_value": 0.4075854761027249,
+          "ci95_bootstrap": [
+            -0.031262550384204196,
+            0.074613837120625
+          ]
+        },
+        "significant_fdr": false,
+        "difference_significant_fdr": false,
+        "inverted": false
+      },
+      {
+        "factor": "low_volatility",
+        "description": "minus annualised volatility",
+        "n_dates": 729,
+        "mean_ic": -0.14377066942559266,
+        "t_newey_west": -3.939399036965602,
+        "p_value": 8.168596876512169e-05,
+        "ci95_bootstrap": [
+          -0.21247567924397198,
+          -0.071883507439063
+        ],
+        "hit_rate": 0.31824417009602196,
+        "composite_minus": {
+          "n": 729,
+          "mean": 0.14640830346732003,
+          "t_newey_west": 3.770027342354079,
+          "p_value": 0.00016322966353299329,
+          "ci95_bootstrap": [
+            0.07182557581688508,
+            0.22012461104676886
+          ]
+        },
+        "significant_fdr": true,
+        "difference_significant_fdr": true,
+        "inverted": true
+      },
+      {
+        "factor": "random",
+        "description": "a seeded random ranking (should be ~0)",
+        "n_dates": 729,
+        "mean_ic": 0.0043725888351001255,
+        "t_newey_west": 0.6950487453095682,
+        "p_value": 0.48702475389663036,
+        "ci95_bootstrap": [
+          -0.00751073201615207,
+          0.016652453822733865
+        ],
+        "hit_rate": 0.4828532235939643,
+        "composite_minus": {
+          "n": 729,
+          "mean": -0.0017349547933727509,
+          "t_newey_west": -0.13399534303878932,
+          "p_value": 0.8934062569432857,
+          "ci95_bootstrap": [
+            -0.027801589004120567,
+            0.023738834666946068
+          ]
+        },
+        "significant_fdr": false,
+        "difference_significant_fdr": false,
+        "inverted": false
+      }
+    ]
+  },
+  "verdicts": {
+    "21d": "Composite mean IC -0.0061 (not significant after FDR control). Beats low_volatility only because that baseline is itself inverted (significantly negative IC); not evidence of skill.",
+    "63d": "Composite mean IC +0.0026 (not significant after FDR control). Beats low_volatility only because that baseline is itself inverted (significantly negative IC); not evidence of skill."
+  },
+  "caveats": [
+    "Same panel as the out-of-sample report: a static present-day universe, so survivorship bias applies to every factor alike. Compare factors with each other, not with an absolute bar.",
+    "Inference uses every evaluation date: Newey-West t with lags equal to the forward-return overlap, and a circular block bootstrap with blocks at least that long.",
+    "Every factor is ranked on the same rows: those where all factors and the forward return exist, so paired differences compare identical cross-sections.",
+    "Benjamini-Hochberg at q=0.05, separately across the factor ICs and across the composite-minus-baseline differences at each horizon."
+  ]
+}

@@ -59,16 +59,53 @@ pip install -e ".[dev,webapp]"
 
 ### Start the web app
 
-```powershell
-.\start.ps1                      # Windows: installs what is missing, serves http://127.0.0.1:5500
+```bash
+./start.sh                       # macOS / Linux: creates .venv, installs what is missing, opens http://127.0.0.1:5500
 ```
+
+```powershell
+.\start.ps1                      # Windows: the same, from PowerShell
+```
+
+No terminal needed: double-click **`Start QUANTA.command`** in Finder (macOS; drag it to the Dock
+for one-click launches) or **`launch_quanta.bat`** (Windows). Close the window to stop the server.
+
+Before the first scan, copy `.env.example` to `.env` and set `QUANTA_SEC_CONTACT` to your email
+address. SEC EDGAR requires it, and without it the corporate-event check fails closed and **no
+Picks name can be funded**. `--port 5600` (or `QUANTA_PORT`) serves on another port.
+
+![QUANTA Overview: market regime, playbook, quote board and live chart](docs/img/overview.jpg)
+
+### Build a track record (recommended)
+
+The ledger only proves anything if calls are recorded every day and scored when their horizon
+ends. One command schedules that on macOS (Monday to Saturday at 17:30 local time; the job scans
+each completed New York session exactly once, so any local time zone works):
 
 ```bash
-./scripts/run_stock_analysis.sh  # macOS / Linux
+scripts/schedule_daily.sh          # install;  --status to check, --remove to uninstall
+scripts/quanta_daily.sh            # or run the job once by hand
 ```
 
-Set `QUANTA_PORT` to serve on another port. Optional settings (SEC contact, provider keys) go in
-a `.env` file at the repository root; it is git-ignored.
+launchd cannot read a checkout under `~/Documents`, `~/Desktop` or `~/Downloads` unless `/bin/bash`
+has Full Disk Access (macOS privacy protection); a checkout elsewhere needs nothing.
+
+Each run resolves finished calls against SPY / Nifty, runs the short-term scanner (its calls enter
+the ledger immutably), posts a notification for any stop or target an open call touched, and logs
+the benchmarked report to `logs/daily/`. Results appear on the **Evidence** page, which also has a
+**Resolve outcomes** button for unscheduled use.
+
+The record is built to be checked, not trusted:
+
+- Every call stores the **fingerprint of the engine code** that produced it and a snapshot of the
+  full Decision behind it, so a period can be shown to have run on frozen code and any call can be
+  replayed. The Evidence page shows how many calls the current code made.
+- Each run exports `track_record/ledger.csv` with a per-call hash of the forecast fields and
+  appends a hash-chained line to `track_record/chain.jsonl`. Set `QUANTA_PUBLISH_COMMIT=1` to
+  commit it daily, so git timestamps every link. `python -m tracking verify` (from `core/`) detects
+  any forecast or link edited after publication.
+
+![Model evidence and track record page](docs/img/track-record.jpg)
 
 ### Run your first CLI scan
 
@@ -113,8 +150,9 @@ streamlit run core/streamlit_app.py          # browser research desk
 python -m core.apex_quant.run status         # walk-forward sizing verdict
 ```
 
-Windows users can double-click `launch_quanta.bat` (web app) or run `.\start.ps1` (dev server on
-port 5500).
+```bash
+python -m tracking resolve | report | alerts | publish | verify   # from core/: the track-record CLI
+```
 
 ---
 
@@ -265,9 +303,19 @@ python -m core.apex_quant.run elite-oos --end 2026-08-27 --eval-every 5
 # Walk-forward the ELITE composite as a tradeable strategy
 python -m core.apex_quant.run elite-walkforward
 
+# Does the composite beat free factors (12-1 momentum, 1-month reversal, low vol, random)?
+python -m core.apex_quant.run baselines
+
+# Replay the short-term scanner's price core against SPY and random entries
+python core/sp_shortterm_backtest.py --universe liquid --start 2016-01-01 --end 2026-09-30
+
 # Sizing gate verdict
 python -m core.apex_quant.run status
 ```
+
+Inference is built for overlapping, fat-tailed returns (`core/apex_quant/stats.py`): Newey-West t,
+circular block-bootstrap intervals, Benjamini-Hochberg across factors, and a Sharpe ratio deflated
+for the number of variants tried.
 
 If the strategy is not validated, the runner **says so and refuses to emit position sizes**. Plain
 text only — no decorative output.
@@ -278,8 +326,14 @@ The harness carries its own guards in `core/apex_quant/tests/`:
 - `test_costs.py` — the friction model is applied everywhere
 - `test_reproducibility.py` — identical inputs produce identical outputs
 
-**Result so far:** the ELITE composite has **no demonstrated out-of-sample edge** (recorded in
-`docs/RECALIBRATION_PLAN.md`). That finding is kept deliberately visible rather than buried.
+**Results so far: no model has a demonstrated edge.** They are kept visible rather than buried:
+
+| Test | Result |
+|---|---|
+| ELITE composite (price legs, 2010-2026) | IC -0.029 (21d, significantly negative) / -0.035 (63d) on identical cross-sections; reliably **worse than plain 12-1 momentum**, and worse than a random ranking at 63 days (`_reports/factor_baselines.txt`) |
+| Short-term scanner price core (1,284 trades, 2016-2026) | 56.6% win rate, but random entries with the same exits win 55.0%; excess vs SPY **+0.03% per weekly entry cohort** (95% CI -0.29% to +0.36%; -0.10% per trade) and **no better than random entries** (+0.11%, CI -0.27% to +0.49%); probabilistic Sharpe 0.56 (`_reports/shortterm/`) |
+
+A high win rate with no excess return is the trap these tests exist to catch.
 
 ---
 
@@ -310,11 +364,12 @@ quanta-equity-research/
 ├── docs/                       Design notes, audits, redesign logs
 ├── config/                     Reference data
 ├── data/                       Static calendars and compliance data
-├── scripts/                    macOS / Linux launcher
+├── scripts/                    Daily track-record job and its launchd scheduler
 ├── .github/workflows/          CI and the Windows executable build
 ├── PRODUCT.md, DESIGN.md       Product context and the web app's design system
 ├── pyproject.toml              Dependencies, pytest and ruff configuration
-├── start.ps1                   Windows web-app launcher (port 5500)
+├── start.sh, start.ps1         Web-app launchers: macOS / Linux and Windows (port 5500)
+├── Start QUANTA.command        macOS double-click launcher
 └── launch_quanta.bat           Windows one-click web-app launcher
 ```
 
@@ -476,6 +531,22 @@ This is intentional. `yfinance` issues one un-throttled HTTP request per call, a
 fan-out makes Yahoo answer `429` — which silently returns empty frames and collapses the scan. A
 process-wide minimum interval (`YF_MIN_REQUEST_INTERVAL`, 0.35s) spaces requests out and widens
 adaptively when a 429 appears. Budget ~4–6 minutes for a standard scan.
+
+</details>
+
+<details>
+<summary><strong>Every ticker, even SPY, says "possibly delisted; no price data found"</strong></summary>
+
+Yahoo is answering, but `yfinance`'s cached session cookie has gone stale, usually after a burst of
+throttled requests. Check with `curl -A Mozilla/5.0 "https://query1.finance.yahoo.com/v8/finance/chart/SPY"`:
+if that returns data, move the cookie cache aside and `yfinance` fetches a new one on the next call:
+
+```bash
+cd ~/Library/Caches/py-yfinance && for f in cookies.db*; do mv "$f" "$f.stale"; done   # macOS
+```
+
+(Linux: `~/.cache/py-yfinance`; Windows: `%LOCALAPPDATA%\py-yfinance`.) If `curl` also fails, Yahoo
+is rate-limiting this address; wait 30-60 minutes and run fewer parallel workers.
 
 </details>
 

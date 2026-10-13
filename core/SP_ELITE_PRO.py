@@ -1169,7 +1169,10 @@ class DataValidator:
                 last_timestamp = pd.Timestamp(hist.index.max())
                 if pd.isna(last_timestamp):
                     raise ValueError("missing latest timestamp")
-                now = pd.Timestamp.now(tz=last_timestamp.tz) if last_timestamp.tzinfo else pd.Timestamp.now()
+                # datetime.now, the clock every other freshness rule reads (and
+                # the one tests can freeze), not pandas' separate one.
+                now = (pd.Timestamp(datetime.now(timezone.utc)).tz_convert(last_timestamp.tz)
+                       if last_timestamp.tzinfo else pd.Timestamp(datetime.now()))
                 age_days = (now.normalize() - last_timestamp.normalize()).days
                 if age_days > max_age_days:
                     errors.append(

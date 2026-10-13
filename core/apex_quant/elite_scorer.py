@@ -16,8 +16,11 @@ and insider flow with no as-of dimension, so using them to score a 2023 bar
 would mean scoring the past with facts from the future -- textbook look-ahead
 bias, and precisely the error this harness exists to prevent.
 
-So the four unavailable components are held at the value the engine itself
-assigns to a default (empty) input, and the composite under test is:
+So the unavailable components are held at the value the engine itself
+assigns to a default (empty) input. Weights are read from the live
+``Config.REGIME_WEIGHTS`` at run time, so a rerun measures the current model; the
+figures below describe the original ``elite.composite`` (later versions dropped
+the risk leg, leaving the technical leg as the only reconstructible input):
 
     composite = 27.5                      (the four pinned components x 0.60)
               + technical_score  x 0.30

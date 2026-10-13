@@ -195,6 +195,15 @@ class CachedPriceProvider(DataProvider):
     def _download(self, ticker: str) -> pd.DataFrame:
         self._throttle()
         df = self._download_yfinance(ticker)
+        # Yahoo answers a throttled request with an empty frame ("possibly
+        # delisted"); one backed-off retry recovers most of those without making
+        # a genuinely delisted ticker cost more than a few seconds.
+        for wait in (8.0,):
+            if df is not None and not df.empty:
+                break
+            logger.warning("%s: yfinance empty; retrying in %.0fs", ticker, wait)
+            time.sleep(wait)
+            df = self._download_yfinance(ticker)
         if df is None or df.empty:
             logger.warning("%s: yfinance empty, trying Stooq", ticker)
             df = self._download_stooq(ticker)

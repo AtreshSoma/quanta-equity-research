@@ -1,0 +1,174 @@
+{
+  "total_trades": 1284,
+  "win_rate_pct": 56.62,
+  "avg_win_pct": 3.987,
+  "avg_loss_pct": 4.937,
+  "expectancy_pct_per_trade": 0.116,
+  "exit_reason_breakdown": {
+    "target": 561,
+    "stop": 469,
+    "time": 250,
+    "end": 4
+  },
+  "sequential_drawdown_pct": 41.98,
+  "years_tested": 11,
+  "per_year": {
+    "2016": {
+      "count": 62,
+      "mean_net_pct": 0.9776435483870969,
+      "mean_excess_pct": 0.34589516129032266
+    },
+    "2017": {
+      "count": 83,
+      "mean_net_pct": 0.30195542168674705,
+      "mean_excess_pct": -0.23799156626506018
+    },
+    "2018": {
+      "count": 114,
+      "mean_net_pct": -0.5251280701754386,
+      "mean_excess_pct": 0.02784912280701757
+    },
+    "2019": {
+      "count": 77,
+      "mean_net_pct": -0.12396883116883113,
+      "mean_excess_pct": -0.5692558441558441
+    },
+    "2020": {
+      "count": 195,
+      "mean_net_pct": -0.20151435897435888,
+      "mean_excess_pct": -0.2699246153846154
+    },
+    "2021": {
+      "count": 154,
+      "mean_net_pct": 0.04224610389610388,
+      "mean_excess_pct": -0.3559428571428572
+    },
+    "2022": {
+      "count": 80,
+      "mean_net_pct": -0.5243137500000001,
+      "mean_excess_pct": 0.29676250000000015
+    },
+    "2023": {
+      "count": 136,
+      "mean_net_pct": 0.09584926470588225,
+      "mean_excess_pct": -0.38868088235294124
+    },
+    "2024": {
+      "count": 134,
+      "mean_net_pct": 0.372865671641791,
+      "mean_excess_pct": -0.18233880597014926
+    },
+    "2025": {
+      "count": 121,
+      "mean_net_pct": -0.08364710743801657,
+      "mean_excess_pct": -0.1002264462809917
+    },
+    "2026": {
+      "count": 128,
+      "mean_net_pct": 1.2055304687499997,
+      "mean_excess_pct": 0.69662578125
+    }
+  },
+  "trades_without_benchmark": 0,
+  "excess_vs_spy": {
+    "n": 428,
+    "mean": 0.02657737501497721,
+    "t_newey_west": 0.15816021737991792,
+    "p_value": 0.8743305510592418,
+    "ci95_bootstrap": [
+      -0.28629591073648414,
+      0.36077163829773395
+    ],
+    "unit": "weekly entry cohort",
+    "mean_per_trade": -0.09573870716510902
+  },
+  "probabilistic_sharpe": 0.5625330317056848,
+  "deflated_sharpe": null,
+  "n_trials_assumed": 1,
+  "random_baseline": {
+    "total_trades": 1123,
+    "win_rate_pct": 55.03,
+    "avg_win_pct": 4.664,
+    "avg_loss_pct": 4.744,
+    "expectancy_pct_per_trade": 0.434,
+    "exit_reason_breakdown": {
+      "target": 411,
+      "stop": 403,
+      "time": 306,
+      "end": 3
+    },
+    "mean_excess_pct": -0.2064252894033838
+  },
+  "signal_minus_random_excess": {
+    "mean": 0.1106865822382748,
+    "ci95_bootstrap": [
+      -0.26994286517588184,
+      0.48862886307392217
+    ],
+    "unit": "per trade, resampled by calendar week"
+  },
+  "verdict": "Signal trades are not distinguishable from SPY over the same dates. Entry timing is not distinguishable from random entries with the same exits. Probabilistic Sharpe 0.56 that weekly excess beats zero (0.95+ is the usual bar; pass --trials to deflate it for the variants tried).",
+  "config": {
+    "start": "2016-01-01",
+    "end": "2026-09-30",
+    "max_hold_days": 14,
+    "warmup_bars": 220,
+    "seed": 0,
+    "trials": 1,
+    "tickers": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "GOOGL",
+      "AMZN",
+      "META",
+      "AVGO",
+      "TXN",
+      "QCOM",
+      "INTC",
+      "CSCO",
+      "WMT",
+      "COST",
+      "HD",
+      "MCD",
+      "NKE",
+      "SBUX",
+      "PG",
+      "KO",
+      "PEP",
+      "JPM",
+      "BAC",
+      "GS",
+      "V",
+      "MA",
+      "AXP",
+      "JNJ",
+      "UNH",
+      "PFE",
+      "MRK",
+      "ABBV",
+      "TMO",
+      "CAT",
+      "BA",
+      "HON",
+      "UNP",
+      "XOM",
+      "CVX",
+      "DIS",
+      "NFLX",
+      "T",
+      "VZ"
+    ],
+    "failed_tickers": {},
+    "friction_round_trip": 0.003,
+    "composite_weights": {
+      "technical": 0.28,
+      "fundamental": 0.2,
+      "momentum": 0.22,
+      "quality": 0.12,
+      "analyst": 0.1,
+      "pattern": 0.08
+    }
+  },
+  "code_fingerprint": "1dbba0aeb44208bf894b8dba067fb9c80f619c9962c83c9831e6a8f8bf05ef0a"
+}

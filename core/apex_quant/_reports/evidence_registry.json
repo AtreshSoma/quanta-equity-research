@@ -26,7 +26,46 @@
       "status": "NO_EDGE",
       "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
       "tested_through": "2026-08-25"
+    },
+    "shortterm.composite": {
+      "caveats": [
+        "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+        "A 56.62% win rate is not evidence on its own: random entries with the same exits won 55.03%."
+      ],
+      "code_fingerprint": "1dbba0aeb44208bf894b8dba067fb9c80f619c9962c83c9831e6a8f8bf05ef0a",
+      "generated_utc": "2026-10-13T19:18:15.666672+00:00",
+      "metrics": {
+        "deflated_sharpe": null,
+        "excess_vs_spy": {
+          "ci95_bootstrap": [
+            -0.28629591073648414,
+            0.36077163829773395
+          ],
+          "mean": 0.02657737501497721,
+          "mean_per_trade": -0.09573870716510902,
+          "n": 428,
+          "p_value": 0.8743305510592418,
+          "t_newey_west": 0.15816021737991792,
+          "unit": "weekly entry cohort"
+        },
+        "probabilistic_sharpe": 0.5625330317056848,
+        "sequential_drawdown_pct": 41.98,
+        "signal_minus_random_excess": {
+          "ci95_bootstrap": [
+            -0.26994286517588184,
+            0.48862886307392217
+          ],
+          "mean": 0.1106865822382748,
+          "unit": "per trade, resampled by calendar week"
+        },
+        "win_rate_pct": 56.62
+      },
+      "scope": "Price-based legs only (technical, momentum, pattern: 58% of composite weight); fundamental, quality and analyst legs held neutral. No regime multiplier, peer re-scoring or portfolio caps.",
+      "source": "apex_quant/_reports/shortterm/summary_latest.json",
+      "status": "NO_EDGE",
+      "summary": "Entry signals do not beat SPY or random entries out of sample: 1284 trades 2016-01-01..2026-09-30: excess vs SPY +0.03% per weekly entry cohort (95% CI -0.29% to +0.36%; -0.10% per trade); vs random entries +0.11% (CI -0.27% to +0.49%)",
+      "tested_through": "2026-09-30"
     }
   },
-  "updated_utc": "2026-09-24T15:27:02.922192+00:00"
+  "updated_utc": "2026-10-13T19:18:15.666817+00:00"
 }

@@ -163,7 +163,8 @@ def test_the_alert_carries_company_distance_trigger_and_dates(monkeypatch):
     a = alerts["SYNJ"]
     assert a["company"] == "Synthetic SYNJ"
     assert a["trigger"] == "gap" and a["move_pct"] == pytest.approx(7.2, abs=0.05)
-    assert a["bar_date"] == "2026-10-02" and a["session_date"] == "2026-10-02"
+    last = acc._IDX[-1].date().isoformat()
+    assert a["bar_date"] == last and a["session_date"] == last
     assert a["threshold_pct"] == pytest.approx(T.CHASE.GAP_PCT * 100)
     f = gapped(j)
     sma20 = float(f["Close"].tail(20).mean())

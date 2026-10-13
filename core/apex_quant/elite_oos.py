@@ -489,6 +489,7 @@ def run_oos_report(
     horizons: tuple[int, ...] = DEFAULT_HORIZONS,
     provider: Optional[DataProvider] = None,
     log: Callable[[str], None] = print,
+    panel_path: Optional[Path] = None,
 ) -> OOSReport:
     """Build the panel and evaluate it. `eval_every=5` scores weekly."""
     # Deliberately NOT the default `_cache`: thirteen files there are committed
@@ -506,7 +507,7 @@ def run_oos_report(
     dates = panel.index.get_level_values("date")
     log(f"panel: {len(panel)} rows, {n_tickers} tickers, {dates.min().date()}..{dates.max().date()}")
 
-    saved_panel = save_panel(panel)
+    saved_panel = save_panel(panel, panel_path)
     log(f"panel cached: {saved_panel}")
 
     ic = {f"{h}d": compute_ic(panel, h) for h in horizons}
@@ -515,8 +516,15 @@ def run_oos_report(
 
     import TradingAnalysis_ELITE as elite
 
-    weights = elite.Config.REGIME_WEIGHTS["SIDEWAYS"]
-    covered = weights["technical"] + weights["risk"]
+    # Share of the composite the scorer can rebuild point-in-time, computed the
+    # way the live composite weighs its legs. The original model also ranked on
+    # a risk leg; the alpha-only composite does not, so only technical remains.
+    raw = elite.Config.REGIME_WEIGHTS["SIDEWAYS"]
+    legs = ("technical", "fundamental", "valuation", "quality", "sentiment")
+    if "risk" in raw:  # a pre-alpha-only weight table
+        legs += ("risk",)
+    used = {k: max(0.0, raw.get(k, 0.0)) for k in legs}
+    covered = (used.get("technical", 0.0) + used.get("risk", 0.0)) / (sum(used.values()) or 1.0)
 
     report = OOSReport(
         generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -534,8 +542,8 @@ def run_oos_report(
         component_ic=component_ic,
         buckets=buckets,
         caveats=[
-            "Only technical (0.30) and risk (0.10) are point-in-time reconstructible: "
-            f"{covered:.0%} of SIDEWAYS composite weight. The other four components are "
+            "Only the price-based legs (technical, and risk where the model has one) are "
+            f"point-in-time reconstructible: {covered:.0%} of SIDEWAYS composite weight. The other four components are "
             "held constant because no as-of-date source exists; varying them with "
             "present-day values would be look-ahead bias.",
             "STRONG_BUY (>=75) is unreachable in this configuration, so no result here "

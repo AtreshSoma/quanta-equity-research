@@ -5,6 +5,7 @@ latest out-of-sample verdict and the numbers behind it. Only the validation
 harness writes it; engines and surfaces only read it (fail-closed).
 
     python -m apex_quant.evidence_registry     # rebuild ELITE entry from elite_oos.json
+    python -m apex_quant.evidence_registry shortterm <summary.json>   # record a scanner replay
 
 (run from ``core/``).
 """
@@ -91,7 +92,68 @@ def elite_entry_from_oos(report: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def shortterm_entry_from_backtest(summary: Dict[str, Any], source: str) -> Dict[str, Any]:
+    """Translate an ``sp_shortterm_backtest`` summary into a registry entry.
+
+    The replay scores the price-based legs only (technical, momentum, pattern)
+    with the other legs neutral, so the best possible verdict is PARTIAL: signal
+    trades beat SPY on the same dates (95% CI above zero) AND beat random entries
+    with the same exits. Anything else is NO_EDGE.
+    """
+    ex = summary.get("excess_vs_spy") or {}
+    diff = summary.get("signal_minus_random_excess") or {}
+    ci, dci = ex.get("ci95_bootstrap"), diff.get("ci95_bootstrap")
+    beats_spy, beats_random = bool(ci and ci[0] > 0), bool(dci and dci[0] > 0)
+    positive = beats_spy and beats_random
+    cfg = summary.get("config") or {}
+    weights = cfg.get("composite_weights") or {}
+    covered = sum(weights.get(k, 0.0) for k in ("technical", "momentum", "pattern"))
+    def pct(x):
+        return "n/a" if x is None else f"{x:+.2f}%"
+    stated = (f"{summary.get('total_trades', 0)} trades {cfg.get('start')}..{cfg.get('end')}: "
+              f"excess vs SPY {pct(ex.get('mean'))} per {ex.get('unit') or 'trade'} "
+              f"(95% CI {pct(ci[0]) if ci else 'n/a'} to {pct(ci[1]) if ci else 'n/a'}"
+              + (f"; {pct(ex['mean_per_trade'])} per trade" if ex.get("mean_per_trade") is not None else "")
+              + "); "
+              f"vs random entries {pct(diff.get('mean'))} "
+              f"(CI {pct(dci[0]) if dci else 'n/a'} to {pct(dci[1]) if dci else 'n/a'})")
+    return {
+        "status": "PARTIAL" if positive else "NO_EDGE",
+        "summary": (stated if positive else
+                    "Entry signals do not " + (
+                        "beat SPY or random entries" if not (beats_spy or beats_random)
+                        else "beat random entries" if beats_spy else "beat SPY")
+                    + " out of sample: " + stated),
+        "tested_through": cfg.get("end"),
+        "scope": (f"Price-based legs only (technical, momentum, pattern: {covered:.0%} of composite "
+                  "weight); fundamental, quality and analyst legs held neutral. No regime "
+                  "multiplier, peer re-scoring or portfolio caps."),
+        "metrics": {"excess_vs_spy": ex, "signal_minus_random_excess": diff,
+                    "win_rate_pct": summary.get("win_rate_pct"),
+                    "probabilistic_sharpe": summary.get("probabilistic_sharpe"),
+                    "deflated_sharpe": summary.get("deflated_sharpe"),
+                    "sequential_drawdown_pct": summary.get("sequential_drawdown_pct")},
+        "caveats": [SURVIVORSHIP_CAVEAT] + ([
+            f"A {summary.get('win_rate_pct')}% win rate is not evidence on its own: random entries "
+            f"with the same exits won {(summary.get('random_baseline') or {}).get('win_rate_pct')}%."]
+            if (summary.get("random_baseline") or {}).get("win_rate_pct") is not None else []),
+        "code_fingerprint": summary.get("code_fingerprint"),
+        "source": source,
+    }
+
+
 def main(argv=None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["shortterm"] and len(argv) == 2:
+        src = Path(argv[1])
+        try:
+            source = src.resolve().relative_to(REPORT_DIR.parent.parent).as_posix()
+        except ValueError:  # outside core/: record it as given
+            source = str(src)
+        entry = shortterm_entry_from_backtest(json.loads(src.read_text()), source=source)
+        p = update("strategies", "shortterm.composite", entry)
+        print(f"updated {p}: shortterm.composite -> {entry['status']}")
+        return 0
     oos = REPORT_DIR / "elite_oos.json"
     if not oos.exists():
         print(f"missing {oos}", file=sys.stderr)

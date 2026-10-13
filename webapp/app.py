@@ -5354,6 +5354,8 @@ def _track_record_payload(engine: Optional[str] = None) -> Dict[str, Any]:
     so it stays an explicit offline job (``python -m tracking resolve``).
     """
     from engine import evidence as ev  # noqa: WPS433 - engine lives on sys.path
+    from tracking.alerts import recent_alerts
+    from tracking.fingerprint import code_fingerprint
     from tracking.ledger import BENCHMARK, MIN_SAMPLE, SignalLedger, pending_schedule
 
     ledger = SignalLedger()
@@ -5394,8 +5396,13 @@ def _track_record_payload(engine: Optional[str] = None) -> Dict[str, Any]:
     engines = []
     for key, label, strategy_attr in _TRACK_RECORD_ENGINES:
         evidence = ev.get_evidence(getattr(ev, strategy_attr)).to_dict()
+        # Model freeze: calls made by the code running now, versus earlier code.
+        current = code_fingerprint(key)
+        mine = [r for r in rows if r.get("engine") == key]
         engines.append({"engine": key, "label": label, "evidence": evidence,
-                        "recorded": sum(1 for r in rows if r.get("engine") == key)})
+                        "recorded": len(mine), "code_fingerprint": current,
+                        "recorded_on_current_code": sum(1 for r in mine
+                                                        if r.get("code_fingerprint") == current)})
     return {
         "as_of": _now_iso(),
         # The single benchmark when every call shares one; None when the ledger
@@ -5415,6 +5422,8 @@ def _track_record_payload(engine: Optional[str] = None) -> Dict[str, Any]:
         },
         "groups": groups,
         "recent": recent,
+        # Stops / targets touched by open calls (informational; never an outcome).
+        "alerts": recent_alerts(ledger, engine=engine),
         "engines": engines,
         "method": (
             "Entry at the first session open after publication; exit at the close "
@@ -5435,6 +5444,85 @@ def track_record():
     except Exception as exc:  # noqa: BLE001 - surfaced to the UI as an honest state
         logger.warning("track record unavailable: %s", exc)
         return jsonify({"error": "Track record is unavailable", "detail": type(exc).__name__}), 503
+
+
+# The last completed Picks scan per market, so a restart (or a new tab) opens on
+# the most recent book instead of an empty page. Beside the response cache, so
+# the test suite's temporary cache directory isolates it too.
+_LAST_SCAN_DIR = Path(os.environ.get("QUANTA_CACHE_DIR", str(PROJECT_ROOT / "data" / "cache"))) / "last_scan"
+
+
+def _last_scan_path(market: str) -> Path:
+    return _LAST_SCAN_DIR / f"{'IN' if str(market).upper() == 'IN' else 'US'}.json.gz"
+
+
+def _save_last_scan(params: Dict[str, Any], result: Dict[str, Any]) -> None:
+    """Best effort: a failed save never fails the scan that produced the result."""
+    path = _last_scan_path(params.get("market", "US"))
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {"saved_at": _now_iso(), "params": _safe_serialize(params),
+                   "result": _safe_serialize(result)}
+        tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+        tmp.write_bytes(gzip.compress(json.dumps(payload, default=str).encode("utf-8")))
+        tmp.replace(path)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("last scan not saved: %s", exc)
+
+
+@app.route("/api/stock-picks/last")
+def stock_picks_last():
+    """The most recent completed Picks scan for a market, or 404 when there is none."""
+    market = (request.args.get("market") or "US").strip().upper()
+    path = _last_scan_path(market)
+    if not path.exists():
+        return jsonify({"error": "No completed scan yet"}), 404
+    try:
+        return jsonify(json.loads(gzip.decompress(path.read_bytes())))
+    except Exception as exc:  # noqa: BLE001 - a corrupt file reads as "no scan"
+        logger.warning("last scan unreadable: %s", exc)
+        return jsonify({"error": "The saved scan could not be read"}), 404
+
+
+_TRACK_RESOLVE_LOCK = threading.Lock()
+
+
+@app.route("/api/track-record/resolve", methods=["POST"])
+def track_record_resolve():
+    """Score every call whose horizon has elapsed, then check open calls' levels.
+
+    The same work as ``python -m tracking resolve`` and ``alerts``, for owners who
+    do not schedule scripts/quanta_daily.sh. One run at a time: it loads price
+    history for every pending ticker.
+    """
+    if not _TRACK_RESOLVE_LOCK.acquire(blocking=False):
+        return jsonify({"error": "A resolve run is already in progress"}), 409
+    try:
+        from tracking.alerts import check_levels, notify_desktop
+        from tracking.ledger import SignalLedger, yfinance_loader
+
+        # Resolving and the level check read the same tickers: download each once.
+        cache: Dict[tuple, Any] = {}
+
+        def loader(ticker, start, end):
+            key = (ticker, start, end)
+            if key not in cache:
+                cache[key] = yfinance_loader(ticker, start, end)
+            return cache[key]
+
+        ledger = SignalLedger()
+        resolved = ledger.resolve_outcomes(loader)
+        alerts = check_levels(ledger, loader)
+        # Announced here means the scheduled job will not repeat it, so say it now too.
+        notify_desktop(alerts)
+        logger.info("track record: resolved %d call(s), %d new level alert(s)", resolved, len(alerts))
+        return jsonify({"resolved": resolved, "alerts": [a.to_dict() for a in alerts]})
+    except Exception as exc:  # noqa: BLE001 - surfaced to the UI as an honest state
+        logger.warning("track record resolve failed: %s", exc)
+        return jsonify({"error": "Resolving outcomes failed; see the server log.",
+                        "detail": type(exc).__name__}), 503
+    finally:
+        _TRACK_RESOLVE_LOCK.release()
 
 
 @app.route("/api/cache/stats")
@@ -6851,6 +6939,7 @@ def _run_stock_picks(job_id: str, params: dict):
                     finished_at=time.time(),
                     stage=_terminal_stage("complete", stage_log, _notes,
                                           round(time.time() - _scan_started, 1)))
+        _save_last_scan(params, result)
 
         # [SCAN-HEALTH] Record telemetry for the dashboard health panel.
         with _last_scan_meta_lock:
@@ -7821,6 +7910,11 @@ def job_cancel(job_id: str):
     }), 200
 
 
+# A comment line every 15 s while a stage is silent: writing is how the server
+# notices a client that has gone away (and keeps proxies from idling it out).
+_SSE_HEARTBEAT_SECONDS = 15.0
+
+
 @app.route("/api/jobs/<job_id>/stream")
 def job_stream(job_id: str):
     """Server-Sent Events stream for real-time progress.
@@ -7831,6 +7925,7 @@ def job_stream(job_id: str):
     """
     def generate():
         last_seen = None
+        last_sent = time.monotonic()
         while True:
             with _jobs_lock:
                 job = _jobs.get(job_id)
@@ -7858,8 +7953,14 @@ def job_stream(job_id: str):
                     if job.get("error_detail"):
                         payload["error_detail"] = job["error_detail"]
                 yield f"data: {json.dumps(payload, default=str)}\n\n"
+                last_sent = time.monotonic()
                 if job["status"] in ("complete", "error"):
                     break
+            elif time.monotonic() - last_sent >= _SSE_HEARTBEAT_SECONDS:
+                # A comment line: keeps a slow stage's connection from being
+                # closed as idle by the server or a proxy; EventSource ignores it.
+                yield ": keepalive\n\n"
+                last_sent = time.monotonic()
             time.sleep(0.5)
 
     return Response(generate(), mimetype="text/event-stream",
@@ -8186,6 +8287,45 @@ def _claim_ports_exclusively() -> None:
     base._quanta_exclusive = True
 
 
+def _listening_socket(host: str, port: int):
+    """A bound socket that only this server can own (see _claim_ports_exclusively)."""
+    import socket
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    sock = socket.socket(family, socket.SOCK_STREAM)
+    if sys.platform == "win32" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+    else:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((host, port))
+    return sock
+
+
+def _serve(host: str, port: int) -> None:
+    """Serve with waitress (a production WSGI server) when installed.
+
+    Flask's development server remains the fallback, or the choice with
+    QUANTA_SERVER=dev. waitress streams the job progress events unbuffered; it
+    gets a pre-bound socket because its own bind sets SO_REUSEADDR, which on
+    Windows would let a second server share the port.
+    """
+    if os.getenv("QUANTA_SERVER", "").lower() != "dev":
+        try:
+            from waitress import serve
+        except ImportError:
+            logger.info("waitress is not installed; using the Flask development server")
+        else:
+            try:
+                sock = _listening_socket(host, port)
+            except OSError as exc:  # taken between the port check and the bind
+                print(f"QUANTA is not starting: cannot bind http://{host}:{port} ({exc}). "
+                      "Stop the other server, or set QUANTA_PORT to a free port.", file=sys.stderr)
+                sys.exit(1)
+            serve(app, sockets=[sock], threads=32, channel_timeout=300, ident="QUANTA")
+            return
+    _claim_ports_exclusively()
+    app.run(host=host, port=port, debug=False, threaded=True)
+
+
 def main():
     port = int(os.getenv("QUANTA_PORT", 5500))
     host = os.getenv("QUANTA_HOST", "127.0.0.1")
@@ -8203,16 +8343,17 @@ def main():
             file=sys.stderr,
         )
         sys.exit(1)
-    _claim_ports_exclusively()
 
     logger.info(f"QUANTA Web starting on http://{host}:{port}")
     _sec_contact_startup_check()
 
     # Auto-open browser
     if os.getenv("QUANTA_NO_BROWSER") != "1":
-        threading.Timer(1.5, lambda: webbrowser.open(f"http://{host}:{port}")).start()
+        opener = threading.Timer(1.5, lambda: webbrowser.open(f"http://{host}:{port}"))
+        opener.daemon = True  # a failed start must not still open a tab
+        opener.start()
 
-    app.run(host=host, port=port, debug=False, threaded=True)
+    _serve(host, port)
 
 
 if __name__ == "__main__":

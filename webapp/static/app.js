@@ -2281,6 +2281,17 @@ function trackStateHtml({ title, body, actions = '', tone = '' }) {
   </div>`;
 }
 
+// Model freeze: how many of an engine's calls the code running now produced.
+// A record only counts as evidence for code that did not change during it.
+function trackFreezeNote(e) {
+  const total = Number(e.recorded) || 0;
+  const fp = String(e.code_fingerprint || '');
+  if (!fp) return '';
+  const current = Number(e.recorded_on_current_code) || 0;
+  const changed = total > current ? ` · <b>${total - current}</b> on earlier code` : '';
+  return `<small class="muted track-freeze" title="Fingerprint of the engine code running now: ${escapeHtml(fp)}"><br>code <span class="mono">${escapeHtml(fp.slice(0, 8))}</span>${total ? ` · ${current} on it${changed}` : ''}</small>`;
+}
+
 function renderTrackRecord(data = {}) {
   const body = $('#track-body');
   if (!body) return;
@@ -2316,7 +2327,7 @@ function renderTrackRecord(data = {}) {
       <td class="track-engine">${escapeHtml(e.label || e.engine)}</td>
       <td><span class="q-status-cell ${tone}">${escapeHtml(ev.status_text || ev.status || 'Unknown')}</span></td>
       <td class="num">${ev.tested_through ? escapeHtml(ev.tested_through) : '<span class="q-na">--</span>'}</td>
-      <td class="num">${Number(e.recorded) || 0}</td>
+      <td class="num">${Number(e.recorded) || 0}${trackFreezeNote(e)}</td>
       <td class="track-means">${escapeHtml(ev.summary || '')}</td>
     </tr>${(ev.lineage || []).map((l) => `<tr class="track-lineage" data-lineage="${escapeHtml(l.strategy || '')}">
       <td class="track-engine muted">↳ earlier version <span class="mono">${escapeHtml(l.strategy || '')}</span></td>
@@ -2366,13 +2377,13 @@ function renderTrackRecord(data = {}) {
   let ledgerState = '';
   if (recorded === 0) {
     ledgerState = trackStateHtml({ title: 'No Decisions recorded yet',
-      body: 'A Decision is recorded when a Picks scan publishes picks or a tear sheet completes. Outcomes resolve offline with <code>python -m tracking resolve</code> from <code>core/</code>.',
+      body: 'A Decision is recorded when a Picks scan publishes picks or a tear sheet completes. Use <b>Resolve outcomes</b> once a horizon has ended, or let <code>scripts/schedule_daily.sh</code> scan, resolve and check levels every weekday so the record builds itself.',
       actions: '<a class="q-btn" href="#picks" data-view-link="picks">Run a scan</a><a class="q-btn" href="#analyze" data-view-link="analyze" data-focus="#an-ticker">Research a ticker</a>' });
   } else if (resolved === 0) {
     // "No outcomes" has several distinct causes; say which ones the counts support.
     const causes = [];
     if (awaitingMaturity) causes.push(`<b>${awaitingMaturity}</b> ${awaitingMaturity === 1 ? 'is' : 'are'} still inside ${awaitingMaturity === 1 ? 'its' : 'their'} horizon`);
-    if (awaitingResolution) causes.push(`<b>${awaitingResolution}</b> ${awaitingResolution === 1 ? 'has' : 'have'} passed ${awaitingResolution === 1 ? 'its' : 'their'} horizon without a recorded outcome (the resolve job has not run, or a price or benchmark bar is missing)`);
+    if (awaitingResolution) causes.push(`<b>${awaitingResolution}</b> ${awaitingResolution === 1 ? 'has' : 'have'} passed ${awaitingResolution === 1 ? 'its' : 'their'} horizon without a recorded outcome (use <b>Resolve outcomes</b> above; if they stay pending, a price or benchmark bar is missing)`);
     if (legacyN) causes.push(`<b>${legacyN}</b> earlier as-of-close result${legacyN === 1 ? ' is' : 's are'} excluded from the record`);
     ledgerState = trackStateHtml({ title: 'No resolved track record yet',
       body: `QUANTA has recorded ${recorded} published Decision${recorded === 1 ? '' : 's'}${causes.length ? `: ${causes.join('; ')}` : ''}. Performance against ${bench} appears once outcomes resolve; statistics below ${minSample} resolved Decisions carry no weight as evidence.${matureText}` });
@@ -2426,6 +2437,23 @@ function renderTrackRecord(data = {}) {
     ? `<h3 class="track-h">Latest Decisions</h3>${recentTable}`
     : `<details class="q-disclose track-pending"><summary>Pending Decisions (${recent.length})</summary><div class="q-disclose-body">${recentTable}</div></details>`);
 
+  // Stops and targets touched by still-open calls: what needs attention today.
+  const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+  const alertsBlock = alerts.length ? `<h3 class="track-h">Level alerts</h3>
+    <p class="q-note">Open calls whose stop or target traded. Informational: an outcome is still scored only at the horizon.</p>
+    <div class="q-tablewrap" tabindex="0" role="region" aria-label="Level alerts">
+      <table class="q-table"><thead><tr>
+        <th>Session</th><th>Ticker</th><th>Level</th><th class="num">Price</th><th>Call</th><th>Engine</th>
+      </tr></thead><tbody>${alerts.map((a) => `<tr>
+        <td class="mono">${escapeHtml(a.session || '')}</td>
+        <td><button type="button" class="ticker-link" data-ticker="${escapeHtml(a.ticker || '')}">${escapeHtml(a.ticker || '')}</button></td>
+        <td class="${({ TARGET: 'bull', STOP: 'bear' })[a.kind] || ''}">${({ TARGET: 'Target reached', STOP: 'Stop hit' })[a.kind] || escapeHtml(a.kind || '')}</td>
+        <td class="num">${Number.isFinite(Number(a.level)) ? Number(a.level).toFixed(2) : '--'}</td>
+        <td>${escapeHtml(a.label || titleLabel(a.stance || ''))} <small class="muted">${escapeHtml(a.as_of_date || '')}</small></td>
+        <td>${escapeHtml(TRACK_ENGINE_LABEL[a.engine] || a.engine || '')}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>` : '';
+
   const legacy = t.legacy_excluded ? ` ${t.legacy_excluded} earlier as-of-close result(s) are excluded.` : '';
   // 3 — Methodology: the backend's own method statement, one clause per line,
   // plus the thresholds the page applies when it reports anything.
@@ -2451,7 +2479,7 @@ function renderTrackRecord(data = {}) {
     </div></header>
     <div class="q-body">
       ${metrics}
-      ${ledgerState}${sampleNote}${groupTable}${recentBlock}
+      ${ledgerState}${sampleNote}${alertsBlock}${groupTable}${recentBlock}
     </div>
   </section>`;
 
@@ -2473,6 +2501,26 @@ async function loadTrackRecord() {
     renderTrackRecord({ error: 'The backend could not be reached', unreachable: true });
   } finally {
     if (body) body.removeAttribute('aria-busy');
+  }
+}
+
+async function resolveTrackRecord() {
+  const btn = $('#track-resolve');
+  const meta = $('#track-meta');
+  if (btn) { btn.disabled = true; btn.textContent = 'Resolving…'; }
+  try {
+    const res = await fetch('/api/track-record/resolve', { method: 'POST', headers: QUANTA_POST_HEADERS });
+    const data = await res.json().catch(() => ({}));
+    await loadTrackRecord();
+    if (meta) {
+      meta.textContent = res.ok
+        ? `${data.resolved || 0} resolved · ${(data.alerts || []).length} new alert${(data.alerts || []).length === 1 ? '' : 's'}`
+        : (data.error || `Resolve failed (HTTP ${res.status})`);
+    }
+  } catch (err) {
+    if (meta) meta.textContent = 'Resolve failed: backend unreachable';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Resolve outcomes'; }
   }
 }
 
@@ -4104,12 +4152,19 @@ function upsideCell(up, caption, title) {
   return `<span title="${escapeHtml(title)}">${fmtPct(up, 1, false)}</span><small>${escapeHtml(caption)}</small>`;
 }
 
+/** The Picks result the rest of the app may treat as current: a scan restored
+ *  from an earlier session stays on the Picks page (marked as saved) and is
+ *  never presented as today's book on Overview, Discover or Monitor. */
+function livePicks() {
+  return state.picksSavedAt ? null : state.picks;
+}
+
 function renderOpportunityBrief(intel = {}) {
   const body = $('#opportunity-brief-body');
   if (!body) return;
   const sub = $('#oppbrief-sub');
-  const picks = (state.picks?.recommendations || []).filter(isFundedPick);
-  const sym = state.picks?.currency || _currencySymbol();
+  const picks = (livePicks()?.recommendations || []).filter(isFundedPick);
+  const sym = livePicks()?.currency || _currencySymbol();
   const row = (ticker, name, right, rightCls, note) => `
     <li class="q-oppbrief-row">
       <button type="button" class="q-oppbrief-tick ticker-action" role="button" data-ticker="${escapeHtml(ticker)}" aria-label="Open ${escapeHtml(ticker)} tear sheet">
@@ -4129,8 +4184,8 @@ function renderOpportunityBrief(intel = {}) {
         `<span class="q-status-cell ${am.tone}"${am.qualifier ? ` title="${escapeHtml(am.qualifier)}"` : ''}>${escapeHtml(am.label)}</span>${am.qualifier ? modelFlagHtml(rec.decision.evidence || rec.evidence) : ''}`);
     }).join('');
   } else if ((intel.analyst_picks || []).length) {
-    const recs = state.picks?.recommendations || [];
-    if (sub) sub.textContent = state.picks
+    const recs = livePicks()?.recommendations || [];
+    if (sub) sub.textContent = livePicks()
       ? `No Buy or Accumulate call (${recs.length} Watchlist) · Street research candidates shown, not QUANTA setups`
       : 'Analyst picks, not QUANTA setups until a scan runs';
     const gapCheck = mkt('TARGET_GAP_CHECK_PCT');
@@ -4170,7 +4225,7 @@ function renderOpportunityBrief(intel = {}) {
 
 // Wording for "why are QUANTA levels missing": never claim no scan ran when one did.
 function scanRanClause() {
-  if (!state.picks) return 'no Picks scan has run this session';
+  if (!livePicks()) return 'no Picks scan has run this session';
   return 'the last Picks scan did not fund this name';
 }
 
@@ -4187,14 +4242,14 @@ function renderTopOpportunitiesBody(intel = {}) {
   const body = $('#portfolio-scan-body');
   if (!body) return;
   const meta = $('#scan-meta');
-  const picks = state.picks?.recommendations || [];
+  const picks = livePicks()?.recommendations || [];
   const funded = picks.filter(isFundedPick);
-  const scanned = state.picks?.total_scanned || state.picks?.universe_size || 0;
-  const sym = state.picks?.currency || _currencySymbol();
+  const scanned = livePicks()?.total_scanned || livePicks()?.universe_size || 0;
+  const sym = livePicks()?.currency || _currencySymbol();
 
   if (funded.length) {
-    const chaseCount = (state.picks?.chase_alerts || []).length;
-    const vetoCount = (state.picks?.deep_confirmation?.rejected || []).length;
+    const chaseCount = (livePicks()?.chase_alerts || []).length;
+    const vetoCount = (livePicks()?.deep_confirmation?.rejected || []).length;
     if (meta) meta.textContent = `${funded.length} qualified · ${scanned || '—'} scanned`;
 
     const head = `<tr>
@@ -4308,7 +4363,7 @@ function renderTopOpportunitiesBody(intel = {}) {
         </div>
         <div class="q-detail-sec">
           <h3>Next step</h3>
-          <p>${state.picks ? 'Rerun the Picks scan under a different mandate, or' : 'Run a Picks scan to rank and size this universe, or'} open the tear sheet for a single-name trade plan.</p>
+          <p>${livePicks() ? 'Rerun the Picks scan under a different mandate, or' : 'Run a Picks scan to rank and size this universe, or'} open the tear sheet for a single-name trade plan.</p>
           <div class="q-detail-actions">
             <button type="button" class="q-btn" data-ticker-open="${escapeHtml(ticker)}">Open tear sheet</button>
             <button type="button" class="q-btn q-btn--primary" data-jump-view="picks">Run scan</button>
@@ -4330,14 +4385,14 @@ function renderTopOpportunitiesBody(intel = {}) {
         <tr class="q-detail" data-detail="cons-${i}" hidden><td colspan="10">${detail}</td></tr>`;
     }).join('');
     body.innerHTML = qTable(head, rows) +
-      `<p class="q-note"><strong>Analyst consensus, not a QUANTA setup.</strong> Entry, stop, reward-to-risk and position size are absent because ${scanRanClause()} — QUANTA does not estimate levels it has not computed. ${state.picks ? 'Adjust the mandate or rerun the scan to look again.' : 'Run a scan to add them.'}</p>`;
+      `<p class="q-note"><strong>Analyst consensus, not a QUANTA setup.</strong> Entry, stop, reward-to-risk and position size are absent because ${scanRanClause()} — QUANTA does not estimate levels it has not computed. ${livePicks() ? 'Adjust the mandate or rerun the scan to look again.' : 'Run a scan to add them.'}</p>`;
     wireExpandableRows(body);
     attachDashboardActionHandlers(body);
     return;
   }
 
   // -- Nothing at all: compact, informative empty state (§9).
-  if (meta) meta.textContent = scanned ? `${scanned} scanned · 0 qualified` : (state.picks ? 'Scan complete · 0 qualified' : 'No scan yet');
+  if (meta) meta.textContent = scanned ? `${scanned} scanned · 0 qualified` : (livePicks() ? 'Scan complete · 0 qualified' : 'No scan yet');
   const reasons = [
     ['Too extended', 'far above moving averages'],
     ['Weak volume', 'no accumulation on the move'],
@@ -4346,7 +4401,7 @@ function renderTopOpportunitiesBody(intel = {}) {
     ['No clean base', 'no defined pivot to trade'],
     ['Stale data', 'inputs incomplete or delayed'],
   ];
-  const scanDone = !!state.picks;
+  const scanDone = !!livePicks();
   body.innerHTML = `<div class="q-empty">
     <strong>${scanned || scanDone ? 'No qualified setups' : 'No Picks scan yet'}</strong>
     <p>${scanned ? `Scanned ${escapeHtml(String(scanned))} names — none cleared every entry gate.` : (scanDone ? 'The last Picks scan completed without qualified setups.' : 'No Picks scan has run this session.')}
@@ -4899,10 +4954,10 @@ function renderOpenExtremes(intel = {}) {
    ========================================================================= */
 function renderSecurityQueues(intel = {}) {
   const movers = [...(intel.movers_up || []), ...(intel.movers_down || [])];
-  const extended = state.picks?.chase_alerts?.length
-    ? state.picks.chase_alerts
+  const extended = livePicks()?.chase_alerts?.length
+    ? livePicks().chase_alerts
     : movers.filter(row => setupQualityForMover(row) === SETUP_QUALITY.extended);
-  const watchlist = state.picks?.early_momentum || [];
+  const watchlist = livePicks()?.early_momentum || [];
   for (const [id, rows, label] of [
     ['monitor-watchlist', watchlist, 'Watchlist'], ['monitor-extended', extended, 'Extended'],
   ]) {
@@ -4934,7 +4989,7 @@ function renderSetupStatusCard(intel = {}) {
   renderSecurityQueues(intel);
   const body = $('#setup-status-body');
   if (!body) return;
-  const vetoes = state.picks?.deep_confirmation?.rejected || [];
+  const vetoes = livePicks()?.deep_confirmation?.rejected || [];
   const movers = [...(intel.movers_up || []), ...(intel.movers_down || [])];
   const inferredChase = movers.filter((row) => setupQualityForMover(row) === SETUP_QUALITY.extended).slice(0, 5);
 
@@ -7643,6 +7698,36 @@ const MARKET_DEPENDENT_PANELS = [
   'decision-brief',
 ];
 
+/** Reopen the last completed scan for ``market`` (saved server-side), marked as
+ *  saved, so a restart or a new tab does not start on an empty Picks page. It
+ *  never replaces a scan the user has run or started since. */
+async function restoreLastScan(market) {
+  const m = market === 'IN' ? 'IN' : 'US';
+  // Any scan started (or failed) while this request is in flight wins.
+  const scanToken = _jobTokens.scan;
+  let saved;
+  try {
+    const res = await fetch(`/api/stock-picks/last?market=${m}`, { cache: 'no-store' });
+    if (!res.ok) return false;
+    saved = await res.json();
+  } catch (_) { return false; }
+  const scanBtn = document.getElementById('btn-scan');
+  const marketNow = ($('#sp-market')?.value || 'US') === 'IN' ? 'IN' : 'US';
+  if (!saved || !saved.result || state.picks || marketNow !== m || (scanBtn && scanBtn.disabled)
+      || !jobTokenCurrent('scan', scanToken)) return false;
+  renderPicks(saved.result, { savedAt: saved.saved_at || 'unknown' });
+  const when = saved.saved_at ? new Date(saved.saved_at) : null;
+  const whenText = when && !Number.isNaN(when.getTime())
+    ? when.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : 'an earlier session';
+  setPicksMeta(`Saved scan · ${whenText}`);
+  const results = document.getElementById('picks-results');
+  if (results) {
+    results.insertAdjacentHTML('afterbegin', `<p class="q-note picks-restored" role="status">Showing your last scan, from <b>${escapeHtml(whenText)}</b>. Prices and calls may have moved since: run a new scan before acting on it.</p>`);
+  }
+  return true;
+}
+
 /** Blank every country-specific panel and say which market is loading. */
 function clearMarketDependentPanels(market) {
   // A scan still in flight belongs to the market that just went away: discard
@@ -7658,6 +7743,7 @@ function clearMarketDependentPanels(market) {
     scanResults.innerHTML = `<div class="empty-state large"><h3>Nothing scanned yet</h3><p>The ${escapeHtml(market === 'IN' ? 'India' : 'United States')} market is selected. Run a scan to build its position list.</p></div>`;
   }
   state.picks = null;
+  state.picksSavedAt = null;
   state.dashboard = null;
   state.shownSymbols = new Set();
   const label = market === 'IN' ? 'India' : 'United States';
@@ -7667,6 +7753,7 @@ function clearMarketDependentPanels(market) {
     if (el) el.innerHTML = notice;
   });
   setPicksMeta('No scan yet');
+  restoreLastScan(market);
   // Meta lines make claims about the market that just went away.
   ['top-movers-meta', 'open-extremes-meta', 'vetoes-meta', 'event-risk-meta',
    'signal-check-meta', 'market-drivers-meta', 'breadth-meta'].forEach((id) => {
@@ -9098,8 +9185,9 @@ function wirePicksTable(container, data) {
   });
 }
 
-function renderPicks(data) {
+function renderPicks(data, { savedAt = null } = {}) {
   state.picks = data;
+  state.picksSavedAt = savedAt;
   // A finished scan re-ranks Discover and the Overview summary at once.
   try {
     const intel = (state.dashboard && state.dashboard.market_intel) || {};
@@ -11927,6 +12015,7 @@ function bindEvents() {
   bindTickerKeyboardActions();
   $('#refresh-dashboard')?.addEventListener('click', () => loadDashboard(true));
   $('#track-refresh')?.addEventListener('click', loadTrackRecord);
+  $('#track-resolve')?.addEventListener('click', resolveTrackRecord);
   $('#clear-cache')?.addEventListener('click', clearDataCache);
 
   // Global search — collapsed to its icon until asked for. Ctrl/Cmd-K opens it
@@ -12075,6 +12164,7 @@ function bindEvents() {
     spmInit.value = state.market || 'US';
     applyPicksMarketUI(spmInit.value);
     refreshSecContactNotice();
+    restoreLastScan(spmInit.value);
     spmInit.addEventListener('change', () => {
       const m = spmInit.value;
       applyPicksMarketUI(m);

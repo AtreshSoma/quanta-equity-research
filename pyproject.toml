@@ -70,6 +70,7 @@ dev = [
 # Flask web app under webapp/.
 webapp = [
     "flask>=3.0",
+    "waitress>=3.0",
 ]
 # Streamlit research desk (core/streamlit_app.py).
 ui = [

@@ -30,8 +30,11 @@ ensure_paths()
 import SP_ELITE_PRO as sp  # noqa: E402
 from engine import corporate_events as ce  # noqa: E402
 from engine import thresholds as T  # noqa: E402
+from engine.market_calendar import last_completed_session  # noqa: E402
 
-_IDX = pd.bdate_range(end="2026-10-02", periods=520)
+# Anchored to the last completed session: a fixed end date ages past the
+# engine's freshness gate and every name is then rejected as stale data.
+_IDX = pd.bdate_range(end=last_completed_session().isoformat(), periods=520)
 
 
 def _frame(i, scale=1.0, volume=2_000_000.0, rows=520):
@@ -93,7 +96,7 @@ def _install(monkeypatch):
 
         @property
         def calendar(self):
-            return {"Earnings Date": [pd.Timestamp("2026-12-01")]} if _NAMES[self.key][2] else {}
+            return {"Earnings Date": [_IDX[-1] + pd.Timedelta(days=50)]} if _NAMES[self.key][2] else {}
 
         insider_transactions = property(lambda self: pd.DataFrame())
         insider_purchases = property(lambda self: pd.DataFrame())

@@ -82,8 +82,21 @@ def _scan(monkeypatch):
         webapp._jobs.pop(job, None)
 
 
+# An exact snapshot must not follow the wall clock: holidays inside the bar
+# range and the earnings offset shift levels by a cent on some dates. Bars and
+# "now" are both pinned (Monday 2026-10-05, 14:00 New York; last session Fri 2 Oct).
+FIXED_LAST_SESSION = "2026-10-02"
+FIXED_NOW = "2026-10-05 18:00:00"  # UTC
+
+
 def test_the_synthetic_scan_matches_its_frozen_snapshot(monkeypatch):
-    got = _business(_scan(monkeypatch))
+    import pandas as pd
+    from freezegun import freeze_time
+
+    import test_scan_accounting as acc
+    monkeypatch.setattr(acc, "_IDX", pd.bdate_range(end=FIXED_LAST_SESSION, periods=520))
+    with freeze_time(FIXED_NOW):
+        got = _business(_scan(monkeypatch))
     if os.environ.get("QUANTA_REGEN_SCAN_GOLDEN") == "1":
         SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
         SNAPSHOT.write_text(json.dumps(got, indent=1, sort_keys=True) + "\n", encoding="utf-8")

@@ -15,6 +15,8 @@ from engine.evidence import ELITE, get_evidence
 from engine.types import FinalAction
 from tracking.ledger import SignalLedger
 
+QUANTA_HEADERS = {"X-QUANTA-Request": "1"}
+
 
 @pytest.fixture()
 def ledger(tmp_path, monkeypatch):
@@ -48,6 +50,8 @@ def test_recorded_call_appears_pending_with_its_published_label(ledger):
     body = webapp.app.test_client().get("/api/track-record").get_json()
     assert body["totals"]["recorded"] == 1
     assert body["totals"]["pending"] == 1
+    elite = next(e for e in body["engines"] if e["engine"] == "elite")
+    assert len(elite["code_fingerprint"]) == 64 and elite["recorded_on_current_code"] == 1
     assert body["recent"][0]["ticker"] == "AAPL"
     assert body["recent"][0]["label"] == "BUY"   # the call as published; evidence is reported beside it
     group = body["groups"][0]
@@ -56,3 +60,36 @@ def test_recorded_call_appears_pending_with_its_published_label(ledger):
 
 def test_unknown_engine_filter_is_rejected(ledger):
     assert webapp.app.test_client().get("/api/track-record?engine=nope").status_code == 400
+
+
+def test_resolve_endpoint_scores_and_surfaces_level_alerts(ledger, monkeypatch):
+    import pandas as pd
+
+    import tracking.ledger as tl
+
+    idx = pd.bdate_range("2026-01-05", periods=30)
+    stock = pd.DataFrame({"Open": 100.0, "High": [101.0] * 3 + [130.0] * 27,
+                          "Low": 99.0, "Close": 100.0}, index=idx)
+    spy = pd.DataFrame({"Open": 400.0, "High": 401.0, "Low": 399.0, "Close": 400.0}, index=idx)
+    monkeypatch.setattr(tl, "yfinance_loader", lambda t, s, e: spy if t == "SPY" else stock)
+    import tracking.alerts as ta
+    notified = []
+    monkeypatch.setattr(ta, "notify_desktop", lambda alerts: notified.append(list(alerts)))
+    ledger.record(engine="shortterm", ticker="ABC", as_of=date(2026, 1, 5), horizon_days=200,
+                  stance="BULLISH", action="BUY", target_price=120.0, stop_price=90.0)
+    with ledger._connect() as con:
+        con.execute("UPDATE signals SET recorded_at='2026-01-05T22:00:00+00:00'")
+
+    res = webapp.app.test_client().post("/api/track-record/resolve", headers=QUANTA_HEADERS)
+    assert res.status_code == 200
+    body = res.get_json()
+    assert body["resolved"] == 0  # a 200-session horizon has not elapsed
+    assert [(a["ticker"], a["kind"], a["session"]) for a in body["alerts"]] == [
+        ("ABC", "TARGET", "2026-01-08")]
+    # Announced by the endpoint means the scheduled job stays silent, so it notifies.
+    assert [a.kind for a in notified[0]] == ["TARGET"]
+
+    page = webapp.app.test_client().get("/api/track-record").get_json()
+    assert [a["kind"] for a in page["alerts"]] == ["TARGET"]
+    # Announced once: a second run reports nothing new.
+    assert webapp.app.test_client().post("/api/track-record/resolve", headers=QUANTA_HEADERS).get_json()["alerts"] == []

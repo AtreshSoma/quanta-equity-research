@@ -79,13 +79,34 @@ def cmd_elite_oos(args: argparse.Namespace) -> int:
     if args.max_tickers:
         tickers = tickers[: args.max_tickers]
 
+    from .elite_oos import REPORT_DIR
+
+    # A named run keeps its own panel and report, so re-testing a new model
+    # version never overwrites the evidence an earlier version's entry cites.
+    panel_path = None if args.name == "elite_oos" else REPORT_DIR / f"{args.name}_panel.parquet"
     report = run_oos_report(
         tickers=tickers,
         as_of=args.end,
         eval_every=args.eval_every,
+        panel_path=panel_path,
     )
     print(format_report(report))
-    path = save_report(report)
+    path = save_report(report, name=args.name)
+    print(f"\nwritten: {path}")
+    print(f"         {path.with_suffix('.txt')}")
+    return 0
+
+
+def cmd_baselines(args: argparse.Namespace) -> int:
+    """Compare the composite's IC with free baseline factors on the cached panel."""
+    from .factor_baselines import format_report, run_baselines, save_report
+
+    from .elite_oos import REPORT_DIR, load_panel
+
+    panel = load_panel(REPORT_DIR / f"{args.panel}_panel.parquet") if args.panel else None
+    report = run_baselines(panel, seed=args.seed)
+    print(format_report(report))
+    path = save_report(report, name=f"factor_baselines_{args.panel}" if args.panel else "factor_baselines")
     print(f"\nwritten: {path}")
     print(f"         {path.with_suffix('.txt')}")
     return 0
@@ -216,6 +237,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="bars between composite evaluations; 5 = weekly, 1 = daily",
     )
     e.add_argument("--max-tickers", type=int, default=0, help="0 = full universe")
+    e.add_argument("--name", default="elite_oos",
+                   help="report name; anything else also writes <name>_panel.parquet")
     e.set_defaults(func=cmd_elite_oos)
 
     w = sub.add_parser(
@@ -229,6 +252,14 @@ def build_parser() -> argparse.ArgumentParser:
     w.add_argument("--test-years", type=int, default=1)
     w.add_argument("--max-tickers", type=int, default=0, help="0 = full universe")
     w.set_defaults(func=cmd_elite_walkforward)
+
+    b = sub.add_parser(
+        "baselines",
+        help="does the composite beat momentum, reversal, low-vol and random? (needs elite-oos)",
+    )
+    b.add_argument("--seed", type=int, default=0, help="seed for the random baseline and bootstrap")
+    b.add_argument("--panel", help="named elite-oos run to read (default: the elite_oos panel)")
+    b.set_defaults(func=cmd_baselines)
 
     s = sub.add_parser("status", help="print the sizing gate verdict")
     s.set_defaults(func=cmd_status)

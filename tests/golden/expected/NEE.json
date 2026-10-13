@@ -109,9 +109,11 @@
       },
       "evidence": {
         "caveats": [
-          "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+          "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+          "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
+          "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
         ],
-        "generated_utc": null,
+        "generated_utc": "<volatile>",
         "lineage": [
           {
             "change": "risk leg removed from the ranking composite",
@@ -130,14 +132,27 @@
             "tested_through": "2026-08-25"
           }
         ],
-        "metrics": {},
+        "metrics": {
+          "21d": {
+            "decile_spread": -0.00240357,
+            "mean_ic": -0.00308896,
+            "n_independent_dates": 158,
+            "t_stat": -0.260782
+          },
+          "63d": {
+            "decile_spread": -0.00122297,
+            "mean_ic": 0.000707596,
+            "n_independent_dates": 56,
+            "t_stat": -0.00238543
+          }
+        },
         "permits_recommendation": false,
-        "scope": "",
-        "status": "UNTESTED",
-        "status_text": "Never validated",
+        "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
+        "status": "NO_EDGE",
+        "status_text": "Tested out of sample \u2014 no demonstrated edge",
         "strategy": "elite.research.v2",
-        "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
-        "tested_through": null
+        "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
+        "tested_through": "2026-09-30"
       },
       "factor_scores": {
         "fundamental": 68,
@@ -287,9 +302,11 @@
     },
     "evidence": {
       "caveats": [
-        "Changes since the tested predecessor were informed by that test, so its sample period is no longer out-of-sample for this version."
+        "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+        "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
+        "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
       ],
-      "generated_utc": null,
+      "generated_utc": "<volatile>",
       "lineage": [
         {
           "change": "risk leg removed from the ranking composite",
@@ -308,14 +325,27 @@
           "tested_through": "2026-08-25"
         }
       ],
-      "metrics": {},
+      "metrics": {
+        "21d": {
+          "decile_spread": -0.00240357,
+          "mean_ic": -0.00308896,
+          "n_independent_dates": 158,
+          "t_stat": -0.260782
+        },
+        "63d": {
+          "decile_spread": -0.00122297,
+          "mean_ic": 0.000707596,
+          "n_independent_dates": 56,
+          "t_stat": -0.00238543
+        }
+      },
       "permits_recommendation": false,
-      "scope": "",
-      "status": "UNTESTED",
-      "status_text": "Never validated",
+      "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
+      "status": "NO_EDGE",
+      "status_text": "Tested out of sample \u2014 no demonstrated edge",
       "strategy": "elite.research.v2",
-      "summary": "This version has not been tested. Its predecessor (elite.composite) was tested out of sample and showed no edge: Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
-      "tested_through": null
+      "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
+      "tested_through": "2026-09-30"
     },
     "exchange": "NYQ",
     "expense_ratio": 0.0,

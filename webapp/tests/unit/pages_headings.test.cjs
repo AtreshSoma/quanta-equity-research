@@ -77,7 +77,11 @@ test('the Overview writes no em dash and no tracked caps of its own', () => {
 test('Guide type sits on the page and chapter scale', () => {
   for (const m of css.matchAll(/\.hw-(?:title|h2|end-title)\b[^{]*\{([^}]*)\}/g)) {
     const fs_ = /font-size:\s*([^;]+);/.exec(m[1]);
-    if (fs_) assert.match(fs_[1], /var\(--hs-page\)|var\(--hs-chapter\)/, `Guide heading at ${fs_[1]}`);
+    if (fs_) assert.match(fs_[1], /var\(--hs-display\)|var\(--hs-section\)|var\(--hs-page\)|var\(--hs-chapter\)/, `Guide heading at ${fs_[1]}`);
+  }
+  // The display size belongs to the Guide's hero alone.
+  for (const m of css.replace(/[/][*][^]*?[*][/]/g, '').matchAll(/([^{}]+)\{[^}]*var\(--hs-display\)[^}]*\}/g)) {
+    assert.match(m[1].trim(), /^\.hw-title$/, `--hs-display used by ${m[1].trim()}`);
   }
 });
 

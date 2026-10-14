@@ -1772,6 +1772,10 @@ function renderGuideFunnel(step, motion = false) {
 // times, so play, pause, scrub and chapter jumps are one currentTime for
 // every track. The markup's static state is the closing frame (the poster).
 const REEL_MS = 15000;
+// The poster: the Research frame with the call stamped, its checks and the
+// "Model not yet validated" tag all drawn (they land by 9.6 s; the scene
+// leaves at 9.65 s). The clearest single picture of what QUANTA produces.
+const REEL_POSTER_MS = 9600;
 const REEL_EASE = {
   out: 'cubic-bezier(0.16, 1, 0.3, 1)', io: 'cubic-bezier(0.65, 0, 0.35, 1)',
   back: 'cubic-bezier(0.34, 1.56, 0.64, 1)', in: 'cubic-bezier(0.7, 0, 0.84, 0)', lin: 'linear',
@@ -1922,6 +1926,7 @@ function reelTimeline(svg) {
   T('rl-budget', [[10250, { opacity: 1, transform: 'scale(0, 0)' }, 'out'], [10800, { opacity: 1, transform: 'scale(1, 1)' }]]);
   draw('rl-cap', 10380, 360, 'out'); fade('rl-cap-k', 10600);
   T('rl-fill', [[10560, { opacity: 1, transform: 'scale(0, 0)' }, 'out'], [11100, { opacity: 1, transform: 'scale(1, 1)' }]]);
+  fade('rl-e0', 10850, 360);
   up('rl-e1', 10950, 420, 18); up('rl-e2', 11150, 420, 18); up('rl-e3', 11350, 420, 18);
   T('rl-e4', [[11600, { opacity: 0, transform: 'scale(0.7)' }, 'back'], [11950, { opacity: 1, transform: 'scale(1)' }]]);
 
@@ -1994,12 +1999,14 @@ function bindGuideReel(motion) {
     playBtn?.setAttribute('aria-label', 'Pause reel');
     if (!raf) raf = requestAnimationFrame(tick);
   };
-  // Poster: the closing frame, paused, until someone (or the first view) plays it.
+  // Poster: the Research frame, paused, until someone (or the first view)
+  // plays it; playing from the poster starts at the beginning.
   anims.forEach((a) => a.pause());
-  seekTo(REEL_MS);
+  seekTo(REEL_POSTER_MS);
   player.classList.add('is-idle');
-  playBtn?.addEventListener('click', () => (player.classList.contains('is-playing') ? pause() : play()));
-  $('#hw-reel-cover')?.addEventListener('click', play);
+  const start = () => { if (player.classList.contains('is-idle')) seekTo(0); play(); };
+  playBtn?.addEventListener('click', () => (player.classList.contains('is-playing') ? pause() : start()));
+  $('#hw-reel-cover')?.addEventListener('click', start);
   $('#hw-reel-replay')?.addEventListener('click', () => { seekTo(0); play(); });
   // Read the new position before pausing: pause() redraws the scrubber.
   seek?.addEventListener('input', () => { const v = seek.value; pause(); player.classList.remove('is-idle'); seekTo(v); });
@@ -2033,9 +2040,9 @@ function bindGuideReel(motion) {
 // full-page capture, a printout or an instant jump never finds a blank
 // block. First match wins; the effect is the block's starting pose.
 const GUIDE_REVEALS = [
-  ['.hw-flow-list', 'line'],
-  ['[data-reveal], .hw-ch-head', 'rise'],
-  ['.hw-proof > li, .hw-flow-list > li, .hw-toolchips li, .hw-ledger > li, .hw-limits > li', 'rise'],
+  ['.hw-steps-tabs', 'line'],
+  ['[data-reveal], .hw-ch-head, .hw-help-head, .hw-steps-head, .hw-reel-head', 'rise'],
+  ['.hw-help-list > li, .hw-start > li, .hw-toolchips li, .hw-ledger > li, .hw-limits > li', 'rise'],
   ['.hw-chapters > li', 'deal'],
   ['.hw-gate, .hw-guard-col:first-child', 'left'],
   ['.hw-guard-col:last-child', 'right'],
@@ -2072,20 +2079,20 @@ function guideFirstLook(el) {
     rungs.forEach((li, i) => guideFrom(li, { opacity: 0, translate: '-12px 0' }, 420, 220 + i * 80));
     guideFrom($('#hw-verdict', el), { opacity: 0, scale: '1.3' }, 560, 300 + rungs.length * 80, { easing: GUIDE_SETTLE });
   }
+  if (el.matches('.hw-steps-tabs')) {
+    $$('.hw-step-tab .hw-ico', el).forEach((ico, i) => {
+      const rest = getComputedStyle(ico);
+      const css = getComputedStyle(el);
+      const lit = { backgroundColor: css.getPropertyValue('--primary').trim(), color: css.getPropertyValue('--primary-contrast').trim(), scale: '1.08' };
+      ico.animate([{ backgroundColor: rest.backgroundColor, color: rest.color, scale: '1' }, { ...lit, offset: 0.45 }, { backgroundColor: rest.backgroundColor, color: rest.color, scale: '1' }],
+        { duration: 700, delay: 500 + i * 150, easing: 'ease-out' });
+    });
+  }
   if (el.matches('.hw-calc')) {
     $$('#hw-receipt > li', el).forEach((li, i) => guideFrom(li, { opacity: 0, translate: '0 10px' }, 380, 200 + i * 70));
     guideFrom($('#hw-geo-budget', el), { scale: '0 0' }, 900, 360);
     guideFrom($('#hw-geo-fill', el), { scale: '0 0' }, 900, 560);
     guideFrom($('#hw-geo-v', el), { opacity: 0 }, 400, 1100);
-  }
-  if (el.matches('.hw-flow-list')) {
-    const css = getComputedStyle(el);
-    const on = { backgroundColor: css.getPropertyValue('--primary').trim(), color: css.getPropertyValue('--primary-contrast').trim(), scale: '1.08' };
-    $$('.hw-flow-node .hw-ico', el).forEach((ico, i) => {
-      const rest = getComputedStyle(ico);
-      const off = { backgroundColor: rest.backgroundColor, color: rest.color, scale: '1' };
-      ico.animate([off, { ...on, offset: 0.4 }, off], { duration: 760, delay: 700 + i * 170, easing: 'ease-out' });
-    });
   }
 }
 
@@ -2110,9 +2117,9 @@ function bindGuideReveals(root) {
       el.classList.remove('hw-armed');
       if (r.top < vh() * 0.55) return;
       const delay = Math.min(n, 8) * 70; n += 1;
-      if (el.dataset.hwFx === 'line') guideFrom(el, { scale: '0 1' }, 1100, delay, { pseudoElement: '::before' });
+      if (el.dataset.hwFx === 'line') guideFrom(el, { clipPath: 'inset(0 100% 0 0)' }, 1000, delay);
       else guideFrom(el, GUIDE_FX[el.dataset.hwFx] || GUIDE_FX.rise, el.dataset.hwFx === 'grow' ? 900 : 720, delay);
-      guideFirstLook(el);
+      if (!el.dataset.hwLooked) { el.dataset.hwLooked = '1'; guideFirstLook(el); }
     });
   }, { rootMargin: '0px 0px -8% 0px' });
   // Armed: inside the band just below the screen and not yet seen.
@@ -2124,6 +2131,64 @@ function bindGuideReveals(root) {
   items.forEach((el) => { reveal.observe(el); arm.observe(el); });
 }
 
+// Reference detail. Each chapter keeps its demo in view and folds its
+// reference lists (tabs, universes, thresholds, limits) behind one button.
+// Folded detail stays in the page and in find-in-page, which opens it
+// (hidden="until-found"); without JavaScript it is simply shown.
+function setGuideMore(btn, open, motion = false) {
+  const body = document.getElementById(btn.getAttribute('aria-controls'));
+  if (!body) return;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  const k = $('.hw-more-k', btn);
+  if (k) k.textContent = open ? 'Less detail' : 'More detail';
+  if (open) {
+    body.removeAttribute('hidden');
+    if (motion) guideFrom(body, { opacity: 0, translate: '0 -10px' }, 460);
+  } else if (TS_UNTIL_FOUND) body.setAttribute('hidden', 'until-found');
+  else body.hidden = true;
+}
+
+function bindGuideMore(motion) {
+  $$('#view-guide .hw-more').forEach((btn) => {
+    const body = document.getElementById(btn.getAttribute('aria-controls'));
+    if (!body) return;
+    btn.hidden = false;
+    setGuideMore(btn, false);
+    btn.addEventListener('click', () => setGuideMore(btn, btn.getAttribute('aria-expanded') !== 'true', motion));
+    body.addEventListener('beforematch', () => setGuideMore(btn, true));
+  });
+}
+
+// How QUANTA works, told by scroll. The steps stack in order; the step bar
+// sticks under the topbar, marks the step crossing the middle of the screen
+// (aria-current="step") and moves one azure rule under it, while CSS fills
+// the bar as the whole story is read (a view timeline on .hw-steps). A
+// button in the bar jumps to its step through the shared data-hw-jump path.
+function bindGuideSteps() {
+  const section = $('#view-guide .hw-steps');
+  const bar = section && $('.hw-steps-bar', section);
+  if (!bar) return;
+  const btns = $$('.hw-step-tab', bar);
+  const list = $('.hw-steps-tabs', bar);
+  bar.hidden = false;
+  const mark = (id) => btns.forEach((b, i) => {
+    if (b.dataset.hwJump !== id) { b.removeAttribute('aria-current'); return; }
+    b.setAttribute('aria-current', 'step');
+    section.style.setProperty('--hw-step', String(i));
+    // A phone's bar scrolls sideways: keep the current step inside it.
+    if (list && list.scrollWidth > list.clientWidth) {
+      const li = b.parentElement;
+      list.scrollTo({ left: Math.max(0, li.offsetLeft - 16), behavior: 'auto' });
+    }
+  });
+  mark(btns[0] && btns[0].dataset.hwJump);
+  if (typeof IntersectionObserver === 'undefined') return;
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((en) => { if (en.isIntersecting) mark(en.target.id); });
+  }, { rootMargin: '-45% 0px -50% 0px' });
+  $$('.hw-step', section).forEach((s_) => io.observe(s_));
+}
+
 function bindGuide() {
   const root = $('#view-guide .hw');
   if (!root || root.dataset.bound === '1') return;
@@ -2132,28 +2197,20 @@ function bindGuide() {
     && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (motion) { root.classList.add('hw-motion'); bindGuideReveals(root); }
   // Grouped items arrive in order; CSS reads each item's index.
-  ['.hw-checks-row', '.hw-proof', '.hw-flow-list', '.hw-ledger', '.hw-limits'].forEach((sel) => {
+  ['.hw-checks-row', '.hw-help-list', '.hw-start', '.hw-ledger', '.hw-limits'].forEach((sel) => {
     $$(`#view-guide ${sel} > li`).forEach((li, i) => li.style.setProperty('--i', String(i)));
   });
 
-  // The chapter rail follows the section in the middle of the screen.
-  const railBtns = $$('#view-guide .hw-rail-btn');
-  if (railBtns.length && typeof IntersectionObserver !== 'undefined') {
-    const mark = (id) => railBtns.forEach((b) => {
-      if (b.dataset.hwJump === id) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
-    });
-    const railIo = new IntersectionObserver((en) => {
-      en.forEach((e) => { if (e.isIntersecting) mark(e.target.id); });
-    }, { rootMargin: '-40% 0px -55% 0px' });
-    $$('#view-guide .hw-ch').forEach((s) => railIo.observe(s));
-  }
+  // The scroll story's step bar.
+  bindGuideSteps();
 
-  // In-page jumps from the path: scroll, then hand focus to the heading.
+  // In-page jumps from Why QUANTA and the step bar: scroll, then hand focus
+  // to the section's heading.
   $$('#view-guide [data-hw-jump]').forEach((b) => b.addEventListener('click', () => {
     const sec = document.getElementById(b.dataset.hwJump);
     if (!sec) return;
     sec.scrollIntoView({ behavior: motion ? 'smooth' : 'auto', block: 'start' });
-    const h = sec.querySelector('h2');
+    const h = sec.querySelector('h2, h3');
     if (h) { if (!h.hasAttribute('tabindex')) h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
   }));
 
@@ -2199,7 +2256,7 @@ function bindGuide() {
   const gates = $$('#view-guide .hw-gate');
   if (scrolly && typeof IntersectionObserver !== 'undefined') {
     const gateIo = new IntersectionObserver((en) => {
-      en.forEach((e) => { if (e.isIntersecting && !timer) renderGuideFunnel(e.target.dataset.gate, true); });
+      en.forEach((e_) => { if (e_.isIntersecting && !timer) renderGuideFunnel(e_.target.dataset.gate, true); });
       // Back above the first gate: the whole list again.
       if (gates[0] && gates[0].getBoundingClientRect().top > window.innerHeight * 0.55 && !timer) renderGuideFunnel(0);
     }, { rootMargin: '-45% 0px -50% 0px' });
@@ -2234,6 +2291,9 @@ function bindGuide() {
       });
     }, { threshold: [0, 0.35] }).observe(funnel);
   }
+
+  // Reference detail folds away until asked for.
+  bindGuideMore(motion);
 
   // The reel: its own player and timeline.
   bindGuideReel(motion);
@@ -12308,6 +12368,7 @@ if (typeof module !== 'undefined' && module.exports) {
     REEL_MS,
     REEL_CHAPTERS,
     REEL_FIELD,
+    REEL_POSTER_MS,
     guideMix,
     renderGuideMix,
     guideGeometry,

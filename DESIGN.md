@@ -102,12 +102,14 @@ A cool slate field, one azure voice, four semantic hues that each mean one thing
 
 **Body Font:** IBM Plex Sans (with system-ui, Segoe UI)
 **Figure Font:** IBM Plex Mono (with ui-monospace, Consolas), always `font-variant-numeric: tabular-nums`
-**Brand Font:** Playfair Display, for the wordmark, view page titles and Research chapter heads; never for tile titles, figures or body
+**Brand Font:** Playfair Display, for the wordmark, view page titles, Research chapter heads and the Guide's hero headline; never for tile titles, figures or body
 
 **Character:** One engineering skeleton in two widths: Sans names things, Mono measures them.
 
 ### Hierarchy
 - **Display** (Playfair 700, 24px `--hs-page`, 21px at 640px and below, 1.2, -0.012em): page titles ("Research", "Picks") and the wordmark. Tracking tightens as size grows; body and labels stay at 0.
+- **Guide display** (Playfair 700, `--hs-display`: 32px rising to 46px with the viewport, 1.1, -0.018em): the Guide's hero headline only. The Guide is the one page that introduces QUANTA to someone new, so its headline carries the page; every app view keeps the 24px page title. A unit test keeps `--hs-display` to `.hw-title`.
+- **Guide section** (Sans 600, `--hs-section`: 24px rising to 30px, 1.15, -0.014em): the Guide's own section titles (Why QUANTA, See it in 15 seconds, How QUANTA works, Honest about what it knows, Your first five minutes, Common questions), one clear step above a step's 20px heading.
 - **Chapter** (Playfair 700, 20px `--hs-chapter`, 1.2): chapter heads inside a Research panel that holds more than one chapter, over a hairline.
 - **Headline** (Mono 700, 24px): ticker and price in the Decision band; the call word is Sans 700 24px.
 - **Title** (Sans 600, 15px): panel titles and key figures (`--fs-lg`).
@@ -161,6 +163,9 @@ The Decision in one full-width frame, each block on a hairline: the answer to wh
 
 ### Live Price Chart
 `static/live-chart.js` over `GET /api/chart`; on Overview (under the ribbon) and Research (beside the Decision). Range tabs 1D to Max (azure when selected). Line green at or above the reference (previous close on 1D, first bar otherwise), red below, with an 18 percent fill fading to nothing; previous close dashed gray; stop red and target gold dashed; volume bars gray; extended hours shaded on Raised. Axis text is HTML (Mono 12px for prices) so it never scales; the last price and the previous close sit in hairline badges on the price axis. 1D spans the exchange's full trading day in its own time zone.
+
+### Guide Walkthrough
+The Guide's "How QUANTA works" is told by scroll: the five pages stack as steps, each opened by a 44px icon tile beside its heading. A step bar (`nav`, one button per page: page name in Sans 700 over what it does in muted Sans) sticks under the topbar on Ground with a bottom hairline. It marks the step crossing the middle of the screen (`aria-current="step"`), moves one 2px azure rule under it on the system spring, and fills a 1px azure line as the whole story is read (a CSS view timeline; absent where unsupported and under reduced motion). On phones the bar scrolls sideways and the current step carries its own rule. Each step's demo performs its rule once as it arrives (dial sweep, gates firing beside the sticky funnel, the call stepping down the ladder, the risk box growing). Reference lists fold behind one "More detail" button per step. Without JavaScript the bar is hidden and the steps read the same.
 
 ### Section Tabs
 Six names (`TS_SECTIONS`): Decision detail, Business, Valuation, Technicals, Risks & catalysts, Evidence & data. The bar sticks under the topbar on Ground with a bottom hairline; the open tab is ink over a 2px azure underline. Once the band has scrolled away (`is-stuck`) the bar leads with the ticker, the call word and the price. `role=tab` buttons in a `role=tablist`, roving tabindex, ArrowLeft/ArrowRight wrap, Home/End jump. Closed panels are `hidden="until-found"` so find-in-page opens them.

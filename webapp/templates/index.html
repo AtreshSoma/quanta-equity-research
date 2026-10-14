@@ -721,11 +721,9 @@
 
         <!-- ================= HERO ================= -->
         <header class="hw-hero">
-          <div class="hw-hero-bg" aria-hidden="true"><i class="hw-orb hw-orb--a"></i><i class="hw-orb hw-orb--b"></i><i class="hw-hero-grid"></i></div>
           <div class="hw-hero-copy">
-            <p class="hw-kicker">How QUANTA works</p>
             <h1 class="hw-title" id="guide-title">Research that <em>shows its work.</em></h1>
-            <p class="hw-lede">QUANTA reads the market, screens US and Indian stocks, and explains every call it makes, down to the share count.</p>
+            <p class="hw-lede">QUANTA researches US and Indian stocks, explains every call it makes, and sizes each idea to your own capital.</p>
             <div class="hw-cta">
               <a class="hw-btn hw-btn--primary" href="#dashboard" data-view-link="dashboard">Start with today's market</a>
               <a class="hw-btn" href="#analyze" data-view-link="analyze" data-focus="#an-ticker">Research a ticker</a>
@@ -791,24 +789,77 @@
           </figure>
         </header>
 
-        <!-- Figures that are true of the product, not of a market. -->
-        <ul class="hw-proof" aria-label="QUANTA in figures">
-          <li><b>5</b><span>pages, one path from the market to a position</span></li>
-          <li><b>8</b><span>gates a name clears before Picks funds it</span></li>
-          <li><b>6</b><span>possible calls, and rules can only lower them</span></li>
-          <li><b>7</b><span>sections in every tear sheet</span></li>
-          <li><b>0</b><span>orders QUANTA can place: read-only by design</span></li>
-        </ul>
+        <!-- ================= WHY QUANTA =================
+             Six plain promises, each a jump to the step that demonstrates it,
+             so every claim on this page carries its proof. -->
+        <section class="hw-help" aria-labelledby="hw-help-title">
+          <div class="hw-help-head">
+            <h2 class="hw-h2 hw-sec-title" id="hw-help-title">Why QUANTA</h2>
+            <p class="hw-p">It does the checking and the arithmetic, shows every step, and leaves each decision with you.</p>
+          </div>
+          <ul class="hw-help-list">
+            <li>
+              <span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.4 1.4L7.5 4.8M3.5 12l1.4 1.4 2.6-2.6M3.5 18l1.4 1.4 2.6-2.6"/></svg></span>
+              <div class="hw-help-txt">
+                <h3 class="hw-help-t">Explains every call</h3>
+                <p class="hw-help-p">Each stock gets one Decision, with the reasons behind it and any rule that held it back.</p>
+              </div>
+              <button type="button" class="hw-help-go" data-hw-jump="hw-research">How a Decision is made</button>
+            </li>
+            <li>
+              <span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16l-6 7.5V18l-4 2v-7.5z"/></svg></span>
+              <div class="hw-help-txt">
+                <h3 class="hw-help-t">Says why the others were left out</h3>
+                <p class="hw-help-p">A scan keeps the names it passes over, each with the one rule that kept it out.</p>
+              </div>
+              <button type="button" class="hw-help-go" data-hw-jump="hw-discover">How a scan narrows the list</button>
+            </li>
+            <li>
+              <span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="8" rx="1.5"/><path d="M7 8v3M11 8v4.5M15 8v3"/></svg></span>
+              <div class="hw-help-txt">
+                <h3 class="hw-help-t">Sizes a position to your capital</h3>
+                <p class="hw-help-p">Shares are worked out from your capital and the stop, so the possible loss is known first.</p>
+              </div>
+              <button type="button" class="hw-help-go" data-hw-jump="hw-picks">How a position is sized</button>
+            </li>
+            <li>
+              <span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12h8.5"/></svg></span>
+              <div class="hw-help-txt">
+                <h3 class="hw-help-t">Looks at what you already own</h3>
+                <p class="hw-help-p">A sound stock can still be too large a part of your account. It tells you when.</p>
+              </div>
+              <button type="button" class="hw-help-go" data-hw-jump="hw-holdings">How holdings are reviewed</button>
+            </li>
+            <li>
+              <span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span>
+              <div class="hw-help-txt">
+                <h3 class="hw-help-t">Keeps an honest record</h3>
+                <p class="hw-help-p">Every call is recorded and measured against the market. Until a model passes its tests, its buy calls say so.</p>
+              </div>
+              <button type="button" class="hw-help-go" data-hw-jump="hw-trust">How calls are checked</button>
+            </li>
+            <li>
+              <span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>
+              <div class="hw-help-txt">
+                <h3 class="hw-help-t">Runs on your computer</h3>
+                <p class="hw-help-p">Free and open source, with no account and no ads. Connected to Robinhood, it can read your holdings but never trade.</p>
+              </div>
+              <button type="button" class="hw-help-go" data-hw-jump="hw-guard">What it can and cannot do</button>
+            </li>
+          </ul>
+        </section>
+
 
         <!-- ================= THE REEL =================
              A 15-second motion piece, drawn live in SVG and driven by one
              Web Animations timeline (bindGuideReel in app.js), with a real
              player: play, pause, scrub, chapters. Every figure in it is one
-             the page proves below. Without JS, or under reduced motion
-             before you press play, the stage shows its closing frame. -->
+             the page proves below. Without JS the stage shows its closing
+             frame; with it, the poster is the Research frame (REEL_POSTER_MS),
+             the clearest single picture of what QUANTA produces. -->
         <section class="hw-reel" aria-labelledby="hw-reel-title">
           <div class="hw-reel-head">
-            <h2 class="hw-h2" id="hw-reel-title">QUANTA in 15 seconds</h2>
+            <h2 class="hw-h2 hw-sec-title" id="hw-reel-title">See it in 15 seconds</h2>
             <p class="hw-p hw-p--sm">The whole path in one take, from the market read to a sized, read-only decision. Every figure in it comes from the product; the stock is an example.</p>
           </div>
           <figure class="hw-reel-player">
@@ -934,6 +985,7 @@
                   <rect id="rl-fill" class="rl-o rl-bl" x="380" y="474" width="208" height="126" fill="url(#rl-hatch)" stroke="#f87171" stroke-width="2"/>
                   <path id="rl-cap" class="rl-cap-line" pathLength="1" d="M588 230V600"/>
                   <text id="rl-cap-k" class="rl-o rl-capk" x="598" y="252"><tspan data-threshold="SIZING.MAX_POSITION_PCT" data-threshold-fmt="pct"></tspan> position limit</text>
+                  <text id="rl-e0" class="rl-o rl-cap" x="962" y="316">position x stop distance</text>
                   <text id="rl-e1" class="rl-o rl-eq rl-azure" x="960" y="360">$2,500</text>
                   <text id="rl-e2" class="rl-o rl-eq" x="960" y="410">x 4.2%</text>
                   <text id="rl-e3" class="rl-o rl-eq rl-bear" x="960" y="460">= $105 at risk</text>
@@ -1025,41 +1077,34 @@
           </figure>
         </section>
 
-        <!-- ================= THE PATH ================= -->
-        <nav class="hw-flow" aria-labelledby="hw-flow-title">
-          <h2 class="hw-h2 hw-flow-title" id="hw-flow-title">From the whole market to one decision</h2>
-          <ol class="hw-flow-list">
-            <li><button type="button" class="hw-flow-node" data-hw-jump="hw-overview"><span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M12 17l4.5-5.5"/></svg></span><b>Overview</b><span class="hw-flow-q">What kind of market is it?</span><span class="hw-flow-a">A posture and an exposure range</span></button></li>
-            <li><button type="button" class="hw-flow-node" data-hw-jump="hw-discover"><span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16l-6 7.5V18l-4 2v-7.5z"/></svg></span><b>Discover</b><span class="hw-flow-q">Which names deserve a look?</span><span class="hw-flow-a">A short list, with every rejection explained</span></button></li>
-            <li><button type="button" class="hw-flow-node" data-hw-jump="hw-research"><span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg></span><b>Research</b><span class="hw-flow-q">What is the case for this stock?</span><span class="hw-flow-a">One Decision, with its reasons</span></button></li>
-            <li><button type="button" class="hw-flow-node" data-hw-jump="hw-picks"><span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V13M11 20V8M17 20V4M3 20h18"/></svg></span><b>Picks</b><span class="hw-flow-q">How much would I buy?</span><span class="hw-flow-a">Shares sized from the stop</span></button></li>
-            <li><button type="button" class="hw-flow-node" data-hw-jump="hw-holdings"><span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12h8.5"/></svg></span><b>My Portfolio</b><span class="hw-flow-q">What does it mean for what I own?</span><span class="hw-flow-a">An action for every holding</span></button></li>
-          </ol>
-          <p class="hw-flow-after">Then the <button type="button" class="hw-inline-btn" data-hw-jump="hw-trust">track record</button> checks whether the calls worked.</p>
-        </nav>
 
-        <div class="hw-story">
-          <!-- Chapter rail: where you are in the five pages. -->
-          <nav class="hw-rail" aria-label="Guide chapters">
-            <div class="hw-rail-in">
-              <span class="hw-rail-line" aria-hidden="true"><i></i></span>
-              <ol>
-                <li><button type="button" class="hw-rail-btn" data-hw-jump="hw-overview">Overview</button></li>
-                <li><button type="button" class="hw-rail-btn" data-hw-jump="hw-discover">Discover</button></li>
-                <li><button type="button" class="hw-rail-btn" data-hw-jump="hw-research">Research</button></li>
-                <li><button type="button" class="hw-rail-btn" data-hw-jump="hw-picks">Picks</button></li>
-                <li><button type="button" class="hw-rail-btn" data-hw-jump="hw-holdings">My Portfolio</button></li>
-                <li><button type="button" class="hw-rail-btn" data-hw-jump="hw-trust">Track record</button></li>
-              </ol>
-            </div>
+        <!-- ================= HOW QUANTA WORKS =================
+             The five pages told by scroll: the steps stack in order, and a
+             step bar sticks under the topbar, marks the step being read and
+             fills as the story advances (bindGuideSteps in app.js). Each
+             demo performs its own rule once as it arrives. Without
+             JavaScript the bar stays hidden; the steps read the same. -->
+        <section class="hw-steps" aria-labelledby="hw-steps-title">
+          <div class="hw-steps-head">
+            <h2 class="hw-h2 hw-sec-title" id="hw-steps-title">How QUANTA works</h2>
+            <p class="hw-p">Five steps, from the whole market to a position you can hold. Each one is a page in QUANTA, shown here working on example data.</p>
+          </div>
+          <nav class="hw-steps-bar" aria-label="How QUANTA works, step by step" hidden>
+            <ol class="hw-steps-tabs">
+              <li><button type="button" class="hw-step-tab" data-hw-jump="hw-overview"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M12 17l4.5-5.5"/></svg></span><span class="hw-step-txt"><b>Overview</b><span class="hw-step-v">Read the market</span></span></button></li>
+              <li><button type="button" class="hw-step-tab" data-hw-jump="hw-discover"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16l-6 7.5V18l-4 2v-7.5z"/></svg></span><span class="hw-step-txt"><b>Discover</b><span class="hw-step-v">Find candidates</span></span></button></li>
+              <li><button type="button" class="hw-step-tab" data-hw-jump="hw-research"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg></span><span class="hw-step-txt"><b>Research</b><span class="hw-step-v">Understand the Decision</span></span></button></li>
+              <li><button type="button" class="hw-step-tab" data-hw-jump="hw-picks"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V13M11 20V8M17 20V4M3 20h18"/></svg></span><span class="hw-step-txt"><b>Picks</b><span class="hw-step-v">Size the risk</span></span></button></li>
+              <li><button type="button" class="hw-step-tab" data-hw-jump="hw-holdings"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12h8.5"/></svg></span><span class="hw-step-txt"><b>My Portfolio</b><span class="hw-step-v">Review your portfolio</span></span></button></li>
+            </ol>
+            <span class="hw-steps-fill" aria-hidden="true"></span>
+            <span class="hw-steps-track" aria-hidden="true"></span>
           </nav>
-
-          <div class="hw-chapters-wrap">
-
+          <div class="hw-steps-panels">
           <!-- ================= OVERVIEW ================= -->
-          <section class="hw-ch" id="hw-overview" aria-labelledby="hw-overview-h">
+          <section class="hw-ch hw-step" id="hw-overview" aria-labelledby="hw-overview-h">
             <header class="hw-ch-head">
-              <p class="hw-page"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M12 17l4.5-5.5"/></svg></span>Overview</p>
+              <span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M12 17l4.5-5.5"/></svg></span>
               <h2 class="hw-h2" id="hw-overview-h">Know what kind of day it is</h2>
               <p class="hw-p">Before any single stock, Overview scores trend, volatility, participation, rates and event risk, and turns them into a market posture with an exposure range for the whole book.</p>
             </header>
@@ -1093,28 +1138,33 @@
                 <p class="hw-demo-out" id="hw-posture-out" aria-live="polite"><b>Lean long:</b> 50-70% gross exposure. Moderate starter size.</p>
               </div>
             </div>
-            <div class="hw-overview-more" data-reveal>
-              <div class="hw-ribbon">
-                <p class="hw-mini-k">The market ribbon</p>
-                <ul class="hw-tickers" aria-label="United States ribbon"><li>SPY</li><li>QQQ</li><li>DIA</li><li>IWM</li><li>VIX</li><li>10Y yield</li><li>Gold ETF</li><li>Oil ETF</li><li>Bitcoin</li></ul>
-                <ul class="hw-tickers" aria-label="India ribbon"><li>Nifty 50</li><li>Sensex</li><li>Bank Nifty</li><li>Nifty IT</li><li>India VIX</li><li>USD/INR</li></ul>
+            <button type="button" class="hw-more" aria-expanded="true" aria-controls="hw-more-overview" hidden><span class="hw-more-k">More detail</span><span class="hw-more-s">The market ribbon and briefings</span></button>
+            <div class="hw-more-body" id="hw-more-overview" data-detail>
+              <div class="hw-overview-more" data-reveal>
+                <div class="hw-ribbon">
+                  <p class="hw-mini-k">The market ribbon</p>
+                  <ul class="hw-tickers" aria-label="United States ribbon"><li>SPY</li><li>QQQ</li><li>DIA</li><li>IWM</li><li>VIX</li><li>10Y yield</li><li>Gold ETF</li><li>Oil ETF</li><li>Bitcoin</li></ul>
+                  <ul class="hw-tickers" aria-label="India ribbon"><li>Nifty 50</li><li>Sensex</li><li>Bank Nifty</li><li>Nifty IT</li><li>India VIX</li><li>USD/INR</li></ul>
+                </div>
+                <dl class="hw-facts">
+                  <div><dt>Catalysts</dt><dd>Dated events for the next seven calendar days.</dd></div>
+                  <div><dt>Signal, drivers, breadth</dt><dd>The factors behind the posture, the stories moving the tape, and how broad the move is.</dd></div>
+                  <div><dt>Market intelligence</dt><dd>Headlines from public news feeds, ranked, with what each one means.</dd></div>
+                </dl>
               </div>
-              <dl class="hw-facts">
-                <div><dt>Catalysts</dt><dd>Dated events for the next seven calendar days.</dd></div>
-                <div><dt>Signal, drivers, breadth</dt><dd>The factors behind the posture, the stories moving the tape, and how broad the move is.</dd></div>
-                <div><dt>Market intelligence</dt><dd>Headlines from public news feeds, ranked, with what each one means.</dd></div>
-              </dl>
             </div>
             <p class="hw-limit"><b>Keep in mind:</b> the posture is a rules-based read, not a forecast. Prices come from daily bars and can be delayed.</p>
-            <a class="hw-link" href="#dashboard" data-view-link="dashboard">Open Overview</a>
+            <div class="hw-step-foot">
+              <a class="hw-link" href="#dashboard" data-view-link="dashboard">Open Overview</a>
+            </div>
           </section>
 
           <!-- ================= DISCOVER ================= -->
-          <section class="hw-ch" id="hw-discover" aria-labelledby="hw-discover-h">
+          <section class="hw-ch hw-step" id="hw-discover" aria-labelledby="hw-discover-h">
             <header class="hw-ch-head">
-              <p class="hw-page"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16l-6 7.5V18l-4 2v-7.5z"/></svg></span>Discover</p>
+              <span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16l-6 7.5V18l-4 2v-7.5z"/></svg></span>
               <h2 class="hw-h2" id="hw-discover-h">Narrow hundreds of names to a few</h2>
-              <p class="hw-p">A scan, started from Picks, puts every name through the same eight gates in the same order. Discover ranks what passed, and keeps what failed with the reason. Scroll through the gates to run twelve example names through them.</p>
+              <p class="hw-p">A scan, started from Picks, puts every name through the same eight gates in the same order. Discover ranks what passed, and keeps what failed with the reason. Scroll past the gates, or run them, to follow twelve example names through.</p>
             </header>
             <div class="hw-scrolly hw-funnel">
               <ol class="hw-gate-list" aria-label="Scan gates, in order">
@@ -1165,76 +1215,48 @@
                 </div>
               </div>
             </div>
-            <div class="hw-tabcards" data-reveal>
-              <p class="hw-mini-k">What each Discover tab shows</p>
-              <dl class="hw-tabs-dl">
-                <div><dt>Top Opportunities</dt><dd>After a scan: the Buy and Accumulate picks with entry, stop, target, reward/risk, score, conviction and horizon. Before one: Street research candidates, marked Research only, with QUANTA's levels left blank.</dd></div>
-                <div><dt>Market Moves and Open = L/H</dt><dd>Today's gainers and losers on a session board, and names that opened at the day's low or high. Price conditions, not recommendations.</dd></div>
-                <div><dt>Watchlist</dt><dd>Early-momentum names from the last scan that are not picks yet: at least <span data-threshold="CHASE.EARLY_MOMENTUM_MIN_SIGNALS" data-threshold-fmt="int"></span> of six checks, such as RSI, volume and trend.</dd></div>
-                <div><dt>Extended</dt><dd>Names that ran too far, too fast: gap-ups and sharp five- or ten-day moves. Not extended-hours trading.</dd></div>
-                <div><dt>Avoid</dt><dd>Names that ranked but failed confirmation, with what would make each valid again.</dd></div>
-              </dl>
-            </div>
-            <div class="hw-universes" data-reveal>
-              <p class="hw-mini-k">What you can scan</p>
-              <ul class="hw-chips" aria-label="United States universes"><li>Quick, 100</li><li>Standard, 250</li><li>Comprehensive, 400</li><li>Full</li><li>Growth</li><li>Value</li><li>Dividend</li><li>Momentum</li><li>ETFs</li><li>Large cap</li><li>Mid cap</li><li>Small cap</li><li>Pre-momentum</li></ul>
-              <ul class="hw-chips" aria-label="India universes (NSE)"><li>Nifty 50</li><li>Nifty 50 + Sensex + Bank</li><li>Nifty 50 + Bank + IT</li><li>Nifty 500</li><li>Growth</li><li>Value</li><li>Dividend</li><li>Momentum</li><li>Large cap</li><li>Mid cap</li><li>Small cap</li></ul>
-              <ul class="hw-chips" aria-label="Either market"><li>Your own list, up to <span data-threshold="CAPITAL.MAX_CUSTOM_TICKERS" data-threshold-fmt="int"></span></li></ul>
-            </div>
-            <div class="hw-rules" id="hw-effective-rules" data-reveal>
-              <p class="hw-mini-k">Effective rules</p>
-              <dl class="hw-tabs-dl">
-                <div><dt>Chase alert: gap</dt><dd>An opening gap above the prior close of more than <span data-threshold="CHASE.GAP_PCT" data-threshold-fmt="pct"></span> on either of the last <span data-threshold="CHASE.GAP_LOOKBACK_BARS" data-threshold-fmt="int"></span> sessions.</dd></div>
-                <div><dt>Chase alert: run-up</dt><dd>A close-to-close rise of more than <span data-threshold="CHASE.MOVE_5D_PCT" data-threshold-fmt="pct"></span> in 5 sessions or <span data-threshold="CHASE.MOVE_10D_PCT" data-threshold-fmt="pct"></span> in 10. A flagged name loses <span data-threshold="CHASE.SCORE_PENALTY" data-threshold-fmt="num"></span> points of score.</dd></div>
-                <div><dt>Wider thresholds for volatile stocks</dt><dd data-chase-wide></dd></div>
-                <div><dt>Pre-momentum scan</dt><dd>At least <span data-threshold="CHASE.PREMOMENTUM_MIN_SIGNALS" data-threshold-fmt="int"></span> of six checks and a one-month move under <span data-threshold="CHASE.PREMOMENTUM_MAX_1M" data-threshold-fmt="pct"></span>.</dd></div>
-                <div><dt>India screens</dt><dd>Price <span data-threshold="UNIVERSE.INDIA_MIN_PRICE" data-threshold-fmt="inr"></span> to <span data-threshold="UNIVERSE.INDIA_MAX_PRICE" data-threshold-fmt="inr"></span>, average volume at least <span data-threshold="UNIVERSE.INDIA_MIN_AVG_VOLUME" data-threshold-fmt="int"></span> shares, market cap at least <span data-threshold="UNIVERSE.INDIA_MIN_MARKET_CAP" data-threshold-fmt="crore"></span>, traded value at least <span data-threshold="UNIVERSE.INDIA_MIN_DAILY_VALUE" data-threshold-fmt="crore"></span> a day.</dd></div>
-              </dl>
+            <button type="button" class="hw-more" aria-expanded="true" aria-controls="hw-more-discover" hidden><span class="hw-more-k">More detail</span><span class="hw-more-s">Discover tabs, scan universes and screening rules</span></button>
+            <div class="hw-more-body" id="hw-more-discover" data-detail>
+              <div class="hw-tabcards" data-reveal>
+                <p class="hw-mini-k">What each Discover tab shows</p>
+                <dl class="hw-tabs-dl">
+                  <div><dt>Top Opportunities</dt><dd>After a scan: the Buy and Accumulate picks with entry, stop, target, reward/risk, score, conviction and horizon. Before one: Street research candidates, marked Research only, with QUANTA's levels left blank.</dd></div>
+                  <div><dt>Market Moves and Open = L/H</dt><dd>Today's gainers and losers on a session board, and names that opened at the day's low or high. Price conditions, not recommendations.</dd></div>
+                  <div><dt>Watchlist</dt><dd>Early-momentum names from the last scan that are not picks yet: at least <span data-threshold="CHASE.EARLY_MOMENTUM_MIN_SIGNALS" data-threshold-fmt="int"></span> of six checks, such as RSI, volume and trend.</dd></div>
+                  <div><dt>Extended</dt><dd>Names that ran too far, too fast: gap-ups and sharp five- or ten-day moves. Not extended-hours trading.</dd></div>
+                  <div><dt>Avoid</dt><dd>Names that ranked but failed confirmation, with what would make each valid again.</dd></div>
+                </dl>
+              </div>
+              <div class="hw-universes" data-reveal>
+                <p class="hw-mini-k">What you can scan</p>
+                <ul class="hw-chips" aria-label="United States universes"><li>Quick, 100</li><li>Standard, 250</li><li>Comprehensive, 400</li><li>Full</li><li>Growth</li><li>Value</li><li>Dividend</li><li>Momentum</li><li>ETFs</li><li>Large cap</li><li>Mid cap</li><li>Small cap</li><li>Pre-momentum</li></ul>
+                <ul class="hw-chips" aria-label="India universes (NSE)"><li>Nifty 50</li><li>Nifty 50 + Sensex + Bank</li><li>Nifty 50 + Bank + IT</li><li>Nifty 500</li><li>Growth</li><li>Value</li><li>Dividend</li><li>Momentum</li><li>Large cap</li><li>Mid cap</li><li>Small cap</li></ul>
+                <ul class="hw-chips" aria-label="Either market"><li>Your own list, up to <span data-threshold="CAPITAL.MAX_CUSTOM_TICKERS" data-threshold-fmt="int"></span></li></ul>
+              </div>
+              <div class="hw-rules" id="hw-effective-rules" data-reveal>
+                <p class="hw-mini-k">Effective rules</p>
+                <dl class="hw-tabs-dl">
+                  <div><dt>Chase alert: gap</dt><dd>An opening gap above the prior close of more than <span data-threshold="CHASE.GAP_PCT" data-threshold-fmt="pct"></span> on either of the last <span data-threshold="CHASE.GAP_LOOKBACK_BARS" data-threshold-fmt="int"></span> sessions.</dd></div>
+                  <div><dt>Chase alert: run-up</dt><dd>A close-to-close rise of more than <span data-threshold="CHASE.MOVE_5D_PCT" data-threshold-fmt="pct"></span> in 5 sessions or <span data-threshold="CHASE.MOVE_10D_PCT" data-threshold-fmt="pct"></span> in 10. A flagged name loses <span data-threshold="CHASE.SCORE_PENALTY" data-threshold-fmt="num"></span> points of score.</dd></div>
+                  <div><dt>Wider thresholds for volatile stocks</dt><dd data-chase-wide></dd></div>
+                  <div><dt>Pre-momentum scan</dt><dd>At least <span data-threshold="CHASE.PREMOMENTUM_MIN_SIGNALS" data-threshold-fmt="int"></span> of six checks and a one-month move under <span data-threshold="CHASE.PREMOMENTUM_MAX_1M" data-threshold-fmt="pct"></span>.</dd></div>
+                  <div><dt>India screens</dt><dd>Price <span data-threshold="UNIVERSE.INDIA_MIN_PRICE" data-threshold-fmt="inr"></span> to <span data-threshold="UNIVERSE.INDIA_MAX_PRICE" data-threshold-fmt="inr"></span>, average volume at least <span data-threshold="UNIVERSE.INDIA_MIN_AVG_VOLUME" data-threshold-fmt="int"></span> shares, market cap at least <span data-threshold="UNIVERSE.INDIA_MIN_MARKET_CAP" data-threshold-fmt="crore"></span>, traded value at least <span data-threshold="UNIVERSE.INDIA_MIN_DAILY_VALUE" data-threshold-fmt="crore"></span> a day.</dd></div>
+                </dl>
+              </div>
             </div>
             <p class="hw-limit"><b>Keep in mind:</b> Watchlist, Extended and Avoid fill in after a scan in this session. A scan takes minutes because free data providers limit request rates.</p>
-            <a class="hw-link" href="#discover" data-view-link="discover">Open Discover</a>
+            <div class="hw-step-foot">
+              <a class="hw-link" href="#discover" data-view-link="discover">Open Discover</a>
+            </div>
           </section>
 
           <!-- ================= RESEARCH ================= -->
-          <section class="hw-ch" id="hw-research" aria-labelledby="hw-research-h">
+          <section class="hw-ch hw-step" id="hw-research" aria-labelledby="hw-research-h">
             <header class="hw-ch-head">
-              <p class="hw-page"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg></span>Research</p>
+              <span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg></span>
               <h2 class="hw-h2" id="hw-research-h">One stock, the whole case</h2>
               <p class="hw-p">Type a US or Indian ticker, or an ETF. QUANTA builds a tear sheet that opens with one Decision, why it was made, the main risk and the levels, with every supporting section one tab away.</p>
             </header>
-            <ol class="hw-chapters" aria-label="Tear sheet sections, in order">
-              <li style="--i:0"><b>Summary</b><span>The Decision, why, the main blocker and the levels</span></li>
-              <li style="--i:1"><b>Decision detail</b><span>Every rule, the plan and what would change the call</span></li>
-              <li style="--i:2"><b>Business</b><span>The business, the case and the fundamentals</span></li>
-              <li style="--i:3"><b>Valuation</b><span>DCF, multiples, analyst targets and scenarios</span></li>
-              <li style="--i:4"><b>Technicals</b><span>Session, trend, momentum and levels</span></li>
-              <li style="--i:5"><b>Risks &amp; catalysts</b><span>Risk grade, what could go wrong, dated events</span></li>
-              <li style="--i:6"><b>Evidence &amp; data</b><span>Data checks and model validation</span></li>
-            </ol>
-
-            <div class="hw-demo hw-mix" data-reveal>
-              <div class="hw-mix-head">
-                <div>
-                  <p class="hw-demo-title">What the score is made of</p>
-                  <p class="hw-demo-note">Five pillars, weighted by the trend regime QUANTA detects. Risk is graded separately and sets the risk grade and size.</p>
-                </div>
-                <fieldset class="hw-seg hw-seg--tight">
-                  <legend class="sr-only">Regime</legend>
-                  <label><input type="radio" name="hw-regime" value="sideways" checked /><span>Sideways</span></label>
-                  <label><input type="radio" name="hw-regime" value="bull" /><span>Bull</span></label>
-                  <label><input type="radio" name="hw-regime" value="bear" /><span>Bear</span></label>
-                  <label><input type="radio" name="hw-regime" value="high_vol" /><span>High volatility</span></label>
-                </fieldset>
-              </div>
-              <div class="hw-mix-bar" id="hw-mix-bar">
-                <span data-pillar="technical" style="--w:33.3"><b>33%</b>Technical</span>
-                <span data-pillar="fundamental" style="--w:27.8"><b>28%</b>Fundamental</span>
-                <span data-pillar="valuation" style="--w:16.7"><b>17%</b>Valuation</span>
-                <span data-pillar="quality" style="--w:11.1"><b>11%</b>Quality</span>
-                <span data-pillar="sentiment" style="--w:11.1"><b>11%</b>Sentiment</span>
-              </div>
-            </div>
-
             <div class="hw-lab" data-reveal>
               <div class="hw-lab-ctl">
                 <p class="hw-demo-title">A score sets the starting call. Rules can only lower it.</p>
@@ -1287,13 +1309,50 @@
                 <p class="hw-limit"><b>Keep in mind:</b> here you pick the flags. On a tear sheet they come from data, and a few more checks apply: stale prices, thin target upside, fewer than three confirmations for a Strong Buy, and Fast preview, which skips news, insider and catalyst checks.</p>
               </div>
             </div>
-            <a class="hw-link" href="#analyze" data-view-link="analyze" data-focus="#an-ticker">Research a ticker</a>
+            <button type="button" class="hw-more" aria-expanded="true" aria-controls="hw-more-research" hidden><span class="hw-more-k">More detail</span><span class="hw-more-s">Tear sheet sections and score weights</span></button>
+            <div class="hw-more-body" id="hw-more-research" data-detail>
+              <ol class="hw-chapters" aria-label="Tear sheet sections, in order">
+                <li style="--i:0"><b>Summary</b><span>The Decision, why, the main blocker and the levels</span></li>
+                <li style="--i:1"><b>Decision detail</b><span>Every rule, the plan and what would change the call</span></li>
+                <li style="--i:2"><b>Business</b><span>The business, the case and the fundamentals</span></li>
+                <li style="--i:3"><b>Valuation</b><span>DCF, multiples, analyst targets and scenarios</span></li>
+                <li style="--i:4"><b>Technicals</b><span>Session, trend, momentum and levels</span></li>
+                <li style="--i:5"><b>Risks &amp; catalysts</b><span>Risk grade, what could go wrong, dated events</span></li>
+                <li style="--i:6"><b>Evidence &amp; data</b><span>Data checks and model validation</span></li>
+              </ol>
+
+              <div class="hw-demo hw-mix" data-reveal>
+                <div class="hw-mix-head">
+                  <div>
+                    <p class="hw-demo-title">What the score is made of</p>
+                    <p class="hw-demo-note">Five pillars, weighted by the trend regime QUANTA detects. Risk is graded separately and sets the risk grade and size.</p>
+                  </div>
+                  <fieldset class="hw-seg hw-seg--tight">
+                    <legend class="sr-only">Regime</legend>
+                    <label><input type="radio" name="hw-regime" value="sideways" checked /><span>Sideways</span></label>
+                    <label><input type="radio" name="hw-regime" value="bull" /><span>Bull</span></label>
+                    <label><input type="radio" name="hw-regime" value="bear" /><span>Bear</span></label>
+                    <label><input type="radio" name="hw-regime" value="high_vol" /><span>High volatility</span></label>
+                  </fieldset>
+                </div>
+                <div class="hw-mix-bar" id="hw-mix-bar">
+                  <span data-pillar="technical" style="--w:33.3"><b>33%</b>Technical</span>
+                  <span data-pillar="fundamental" style="--w:27.8"><b>28%</b>Fundamental</span>
+                  <span data-pillar="valuation" style="--w:16.7"><b>17%</b>Valuation</span>
+                  <span data-pillar="quality" style="--w:11.1"><b>11%</b>Quality</span>
+                  <span data-pillar="sentiment" style="--w:11.1"><b>11%</b>Sentiment</span>
+                </div>
+              </div>
+            </div>
+            <div class="hw-step-foot">
+              <a class="hw-link" href="#analyze" data-view-link="analyze" data-focus="#an-ticker">Research a ticker</a>
+            </div>
           </section>
 
           <!-- ================= PICKS ================= -->
-          <section class="hw-ch" id="hw-picks" aria-labelledby="hw-picks-h">
+          <section class="hw-ch hw-step" id="hw-picks" aria-labelledby="hw-picks-h">
             <header class="hw-ch-head">
-              <p class="hw-page"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V13M11 20V8M17 20V4M3 20h18"/></svg></span>Picks</p>
+              <span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V13M11 20V8M17 20V4M3 20h18"/></svg></span>
               <h2 class="hw-h2" id="hw-picks-h">Size from the stop, not from the story</h2>
               <p class="hw-p">Enter capital and a mandate. Picks funds only names whose Decision allows new money, and sizes each one from what you would lose at its stop. The book is hypothetical: it is the capital you type in, not your holdings.</p>
             </header>
@@ -1332,21 +1391,26 @@
                 <p class="hw-geo-leg"><span class="hw-geo-sw hw-geo-sw--budget"></span>Risk budget <span class="hw-geo-sw hw-geo-sw--fill"></span>What is actually at risk</p>
               </div>
             </form>
-            <ul class="hw-limits" data-reveal>
-              <li><b><span data-threshold="SIZING.MAX_POSITION_PCT" data-threshold-fmt="pct"></span></b><span>most in one stock, up to <span data-threshold="SIZING.SMALL_ACCOUNT_MAX_POSITION_PCT" data-threshold-fmt="pct"></span> for accounts under <span data-threshold="SIZING.SMALL_ACCOUNT_THRESHOLD" data-threshold-fmt="money"></span></span></li>
-              <li><b><span data-threshold="BOOK.MAX_SECTOR_PCT" data-threshold-fmt="pct"></span></b><span>most in one sector, or <span data-threshold="@small_sector_cap" data-threshold-fmt="pct"></span> for accounts under <span data-threshold="SIZING.SMALL_ACCOUNT_THRESHOLD" data-threshold-fmt="money"></span></span></li>
-              <li><b><span data-threshold="RR.SCANNER_MIN" data-threshold-fmt="rr"></span></b><span>reward/risk for a Buy or Accumulate call, after trading costs</span></li>
-              <li><b><span data-threshold="SIZING.MAX_RISK_PER_TRADE" data-threshold-fmt="pct"></span></b><span>hard ceiling on capital at risk per trade (<span data-threshold="SIZING.MAX_RISK_STRONG_BUY" data-threshold-fmt="pct"></span> for a Strong Buy)</span></li>
-            </ul>
-            <p class="hw-p hw-p--sm">A scan returns the planned loss if every stop is hit, the positions with the cash left over, the funnel, the names Research did not confirm, and a watchlist you can copy into TradingView.</p>
+            <button type="button" class="hw-more" aria-expanded="true" aria-controls="hw-more-picks" hidden><span class="hw-more-k">More detail</span><span class="hw-more-s">Position limits and what a scan returns</span></button>
+            <div class="hw-more-body" id="hw-more-picks" data-detail>
+              <ul class="hw-limits" data-reveal>
+                <li><b><span data-threshold="SIZING.MAX_POSITION_PCT" data-threshold-fmt="pct"></span></b><span>most in one stock, up to <span data-threshold="SIZING.SMALL_ACCOUNT_MAX_POSITION_PCT" data-threshold-fmt="pct"></span> for accounts under <span data-threshold="SIZING.SMALL_ACCOUNT_THRESHOLD" data-threshold-fmt="money"></span></span></li>
+                <li><b><span data-threshold="BOOK.MAX_SECTOR_PCT" data-threshold-fmt="pct"></span></b><span>most in one sector, or <span data-threshold="@small_sector_cap" data-threshold-fmt="pct"></span> for accounts under <span data-threshold="SIZING.SMALL_ACCOUNT_THRESHOLD" data-threshold-fmt="money"></span></span></li>
+                <li><b><span data-threshold="RR.SCANNER_MIN" data-threshold-fmt="rr"></span></b><span>reward/risk for a Buy or Accumulate call, after trading costs</span></li>
+                <li><b><span data-threshold="SIZING.MAX_RISK_PER_TRADE" data-threshold-fmt="pct"></span></b><span>hard ceiling on capital at risk per trade (<span data-threshold="SIZING.MAX_RISK_STRONG_BUY" data-threshold-fmt="pct"></span> for a Strong Buy)</span></li>
+              </ul>
+              <p class="hw-p hw-p--sm">A scan returns the planned loss if every stop is hit, the positions with the cash left over, the funnel, the names Research did not confirm, and a watchlist you can copy into TradingView.</p>
+            </div>
             <p class="hw-limit"><b>Keep in mind:</b> sizing is a risk budget, not a validated edge. Planned losses exclude gaps and costs.</p>
-            <a class="hw-link" href="#picks" data-view-link="picks" data-focus="#sp-capital">Set up a scan</a>
+            <div class="hw-step-foot">
+              <a class="hw-link" href="#picks" data-view-link="picks" data-focus="#sp-capital">Set up a scan</a>
+            </div>
           </section>
 
           <!-- ================= MY PORTFOLIO ================= -->
-          <section class="hw-ch" id="hw-holdings" aria-labelledby="hw-holdings-h">
+          <section class="hw-ch hw-step" id="hw-holdings" aria-labelledby="hw-holdings-h">
             <header class="hw-ch-head">
-              <p class="hw-page"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12h8.5"/></svg></span>My Portfolio</p>
+              <span class="hw-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12h8.5"/></svg></span>
               <h2 class="hw-h2" id="hw-holdings-h">Your holdings, judged as a portfolio</h2>
               <p class="hw-p">Connect Robinhood read-only and every stock and ETF you hold goes through the same research. Then a second question: given this account's size and concentration, what should it do?</p>
             </header>
@@ -1420,9 +1484,9 @@
               </div>
             </div>
 
-            <div class="hw-guard" data-reveal>
+            <div class="hw-guard" id="hw-guard" data-reveal>
               <div class="hw-guard-head">
-                <p class="hw-demo-title">Read-only, enforced in code</p>
+                <h3 class="hw-demo-title" id="hw-guard-h">Read-only, enforced in code</h3>
                 <p class="hw-demo-note">What QUANTA may ask Robinhood's official MCP server, and what it refuses before any request leaves your computer.</p>
               </div>
               <div class="hw-guard-map">
@@ -1439,12 +1503,13 @@
               </div>
             </div>
 
-            <div class="hw-ch-cols" data-reveal>
-              <ul class="hw-promises">
-                <li><b>Your sign-in stays with Robinhood</b><span>You sign in on Robinhood's own page. The access token is kept in memory only: never on disk, in the browser or in logs. Disconnect or restart QUANTA and it is gone.</span></li>
-                <li><b>Nothing is made up</b><span>No sample portfolio is ever shown in its place. Missing data is shown as a limitation, never as a view on the stock. Hide amounts removes dollar figures from the page.</span></li>
-              </ul>
-              <dl class="hw-tabs-dl">
+            <ul class="hw-promises" data-reveal>
+              <li><b>Your sign-in stays with Robinhood</b><span>You sign in on Robinhood's own page. The access token is kept in memory only: never on disk, in the browser or in logs. Disconnect or restart QUANTA and it is gone.</span></li>
+              <li><b>Nothing is made up</b><span>No sample portfolio is ever shown in its place. Missing data is shown as a limitation, never as a view on the stock. Hide amounts removes dollar figures from the page.</span></li>
+            </ul>
+            <button type="button" class="hw-more" aria-expanded="true" aria-controls="hw-more-holdings" hidden><span class="hw-more-k">More detail</span><span class="hw-more-s">The four My Portfolio tabs</span></button>
+            <div class="hw-more-body" id="hw-more-holdings" data-detail>
+              <dl class="hw-tabs-dl hw-tabs-dl--cols" data-reveal>
                 <div><dt>Overview</dt><dd>What the account is, its top priorities and where the money sits.</dd></div>
                 <div><dt>Holdings</dt><dd>Every position with QUANTA's view and the portfolio action.</dd></div>
                 <div><dt>Analysis</dt><dd>Allocation map, what moved the account, and risk: market sensitivity, loss at model stops, volatility.</dd></div>
@@ -1452,16 +1517,29 @@
               </dl>
             </div>
             <p class="hw-limit"><b>Keep in mind:</b> Robinhood is the only broker. Stocks and ETFs are analysed; options and crypto are not. Model stops are QUANTA levels, not orders at Robinhood.</p>
-            <a class="hw-link" href="#holdings" data-view-link="holdings">Open My Portfolio</a>
+            <div class="hw-step-foot">
+              <a class="hw-link" href="#holdings" data-view-link="holdings">Open My Portfolio</a>
+            </div>
           </section>
 
-          <!-- ================= TRACK RECORD ================= -->
-          <section class="hw-ch" id="hw-trust" aria-labelledby="guide-trust-title">
+          </div>
+        </section>
+
+        <!-- ================= TRACK RECORD ================= -->
+        <section class="hw-ch hw-trust-sec" id="hw-trust" aria-labelledby="guide-trust-title">
             <header class="hw-ch-head">
-              <p class="hw-page"><span class="hw-ico hw-ico--sm" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 7 4-14 3 7h4"/></svg></span>Track record</p>
-              <h2 class="hw-h2" id="guide-trust-title">Honest about what it knows</h2>
+              <h2 class="hw-h2 hw-sec-title" id="guide-trust-title">Honest about what it knows</h2>
               <p class="hw-p">Every published call is recorded and later measured against the market. Until a model passes tests on past data, its buy calls say so.</p>
             </header>
+            <div class="hw-use" data-reveal>
+              <h3 class="hw-use-h">Using a call well</h3>
+              <ul class="hw-use-list">
+                <li><b>Read the reasons, not only the call.</b><span>The Decision comes with why it was made, the main risk and the rule that held it back, if any.</span></li>
+                <li><b>Treat it as research, not an instruction.</b><span>QUANTA does not know your goals or taxes. Check every price with your broker before you act.</span></li>
+                <li><b>Size from the stop.</b><span>A share count is a risk budget for the loss you accept, not a forecast of the gain.</span></li>
+                <li><b>Watch the tag.</b><span>"Model not yet validated" means the model has not yet passed its tests on past data.</span></li>
+              </ul>
+            </div>
             <div class="hw-ledger-wrap">
               <ol class="hw-ledger" aria-label="How a call is measured">
                 <li><b>Recorded</b><span>The call, score, levels and evidence status, stored once and never edited.</span></li>
@@ -1492,23 +1570,45 @@
                 <div><dt>Data</dt><dd>Yahoo Finance daily bars and public news feeds, plus Finnhub, Polygon or Alpha Vantage if you add keys. Quotes can be delayed.</dd></div>
                 <div><dt>Freshness</dt><dd>Every Decision dates its price. An out-of-date price blocks new money.</dd></div>
                 <div><dt>Where it runs</dt><dd>On your computer at 127.0.0.1, with no QUANTA account. It refuses to serve other machines.</dd></div>
+                <div><dt>Checkable</dt><dd>Each call stores a fingerprint of the code that made it, and each run adds a hash-chained entry, so an edit made later shows up. To check, run <code>python -m tracking verify</code> from <code>core/</code>.</dd></div>
               </dl>
             </div>
-          </section>
+        </section>
 
-          </div>
-        </div>
+        <section class="hw-end" aria-labelledby="hw-end-title" data-reveal>
+          <h2 class="hw-end-title hw-sec-title" id="hw-end-title">Your first five minutes</h2>
+          <p class="hw-p">Three short steps show most of what QUANTA does.</p>
+          <ol class="hw-start">
+            <li>
+              <h3 class="hw-start-t">Read the market</h3>
+              <p class="hw-start-p">Overview gives today's posture and how much of a portfolio it suggests putting to work.</p>
+              <a class="hw-link" href="#dashboard" data-view-link="dashboard">Open Overview</a>
+            </li>
+            <li>
+              <h3 class="hw-start-t">Research a stock you know</h3>
+              <p class="hw-start-p">Type a ticker you follow and read its Decision, the reasons behind it and its levels.</p>
+              <a class="hw-link" href="#analyze" data-view-link="analyze" data-focus="#an-ticker">Research a ticker</a>
+            </li>
+            <li>
+              <h3 class="hw-start-t">Run a Quick scan</h3>
+              <p class="hw-start-p">Enter the capital you have in mind and see a short list, sized, with every rejection explained.</p>
+              <a class="hw-link" href="#picks" data-view-link="picks" data-focus="#sp-capital">Set up a scan</a>
+            </li>
+          </ol>
+        </section>
 
         <section class="hw-faq-sec" aria-labelledby="hw-faq-title">
           <div class="hw-faq-intro">
-            <h2 class="hw-h2" id="hw-faq-title">Common questions</h2>
+            <h2 class="hw-h2 hw-sec-title" id="hw-faq-title">Common questions</h2>
             <p class="hw-p hw-p--sm">Straight answers, including what QUANTA does not do.</p>
           </div>
           <div class="hw-faq">
             <details><summary>Is this investment advice?</summary><p>No. QUANTA is a research tool for education and information. It doesn't know your goals, taxes or full finances. Check every price with your broker before you act.</p></details>
             <details><summary>Can QUANTA trade in my account?</summary><p>No. My Portfolio reads your Robinhood account and nothing else. Order tools are blocked in code before any request is sent, and order execution is switched off in the source. Every trade is yours to place.</p></details>
-            <details><summary>Why is a stock Research rates a Buy missing from Picks?</summary><p>Picks is stricter. A scan also needs reward/risk of <span data-threshold="RR.SCANNER_MIN" data-threshold-fmt="rr"></span> (Research needs <span data-threshold="RR.RESEARCH_MIN" data-threshold-fmt="rr"></span>), a risk grade of A to C, a score above the scan's floor, enough conviction, a return that covers costs, room in its sector, and a second full Research check.</p></details>
-            <details><summary>Why does My Portfolio say Do Not Add to a stock Research likes?</summary><p>Because of the account, not the stock. New money stops when one stock reaches <span data-threshold="PORTFOLIO.MAX_SINGLE_POSITION" data-threshold-fmt="pct"></span> of the account, when its sector or a group of holdings that move together reaches <span data-threshold="PORTFOLIO.MAX_SECTOR" data-threshold-fmt="pct"></span>, or when an earnings report is due within <span data-threshold="PORTFOLIO.EARNINGS_WINDOW_DAYS" data-threshold-fmt="int"></span> days. The view on the stock stays the same.</p></details>
+            <details><summary>Do I need to be an experienced investor?</summary><p>No. Each page leads with a plain answer, and the reasons and numbers sit one step away for when you want them. The examples on this page run on the same rules as the real pages, so they are a good place to learn how QUANTA thinks.</p></details>
+            <details><summary>Does QUANTA cost anything?</summary><p>No. QUANTA is free, open-source software under the MIT License. It runs on your computer with free public data; keys for other data providers are optional.</p></details>
+            <details><summary>Why is a stock that Research rates a Buy missing from Picks?</summary><p>Picks is stricter. A scan also needs reward/risk of <span data-threshold="RR.SCANNER_MIN" data-threshold-fmt="rr"></span> (Research needs <span data-threshold="RR.RESEARCH_MIN" data-threshold-fmt="rr"></span>), a risk grade of A to C, a score above the scan's floor, enough conviction, a return that covers costs, room in its sector, and a second full Research check.</p></details>
+            <details><summary>Why does My Portfolio say Do Not Add to a stock that Research likes?</summary><p>Because of the account, not the stock. New money stops when one stock reaches <span data-threshold="PORTFOLIO.MAX_SINGLE_POSITION" data-threshold-fmt="pct"></span> of the account, when its sector or a group of holdings that move together reaches <span data-threshold="PORTFOLIO.MAX_SECTOR" data-threshold-fmt="pct"></span>, or when an earnings report is due within <span data-threshold="PORTFOLIO.EARNINGS_WINDOW_DAYS" data-threshold-fmt="int"></span> days. The view on the stock stays the same.</p></details>
             <details><summary>What does "Model not yet validated" mean?</summary><p>The scoring model behind the call hasn't yet passed tests on past data. Treat those calls as research ideas, and position sizes as a risk budget, not a prediction.</p></details>
             <details><summary>How does it decide how many shares to buy?</summary><p>From the loss at the stop: <span data-threshold="SIZING.TARGET_RISK_PER_TRADE" data-threshold-fmt="pct"></span> of capital (<span data-threshold="SIZING.TARGET_RISK_STRONG_BUY" data-threshold-fmt="pct"></span> for a Strong Buy), scaled by the call and the score, divided by the distance to the stop. Limits then trim it: at most <span data-threshold="SIZING.MAX_POSITION_PCT" data-threshold-fmt="pct"></span> in one stock, the risk grade, and the mandate, which funds <span data-threshold="SIZING.MANDATE_SCALE.conservative" data-threshold-fmt="pct"></span> for Conservative. Shares are whole, with a minimum trade of <span data-threshold="SIZING.MIN_POSITION_PCT" data-threshold-fmt="pct"></span> of capital, at least <span data-threshold="SIZING.MIN_POSITION_FLOOR" data-threshold-fmt="money"></span> and at most <span data-threshold="SIZING.MIN_POSITION_SIZE" data-threshold-fmt="money"></span>.</p></details>
             <details><summary>Which markets and assets does it cover?</summary><p>US stocks and ETFs, and Indian stocks on the NSE (add .NS) or BSE (add .BO) in Research. Scans cover ready-made US and NSE universes, or up to <span data-threshold="CAPITAL.MAX_CUSTOM_TICKERS" data-threshold-fmt="int"></span> tickers of your own. My Portfolio analyses stocks and ETFs, not options or crypto.</p></details>
@@ -1517,15 +1617,6 @@
           </div>
         </section>
 
-        <section class="hw-end" aria-labelledby="hw-end-title" data-reveal>
-          <div class="hw-end-bg" aria-hidden="true"><i></i><i></i></div>
-          <h2 class="hw-end-title" id="hw-end-title">Try it on today's market</h2>
-          <p>Read the posture on Overview, then research any ticker for its Decision.</p>
-          <div class="hw-cta">
-            <a class="hw-btn hw-btn--primary" href="#dashboard" data-view-link="dashboard">Start with today's market</a>
-            <a class="hw-btn" href="#analyze" data-view-link="analyze" data-focus="#an-ticker">Research a ticker</a>
-          </div>
-        </section>
         <p class="hw-fine">Educational and informational use only. Not investment advice. Examples on this page are illustrations, not live data or recommendations.</p>
       </div>
     </section>

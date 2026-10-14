@@ -8,6 +8,12 @@ import AxeBuilder from '@axe-core/playwright';
 const WIDTHS = [360, 640, 820, 1080, 1280, 1600];
 const guide = () => `/?nocache=${Date.now()}#guide`;
 
+// The steps stack in order: bring the step that holds a demo into view.
+async function openStep(page: Page, id: string) {
+  await page.locator(`#hw-${id}`).evaluate((e) => e.scrollIntoView({ block: 'start', behavior: 'instant' }));
+  await expect(page.locator(`#hw-${id}`)).toBeVisible();
+}
+
 function trackConsole(page: Page): string[] {
   const errors: string[] = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -36,25 +42,35 @@ test('GUIDE-002 no horizontal overflow at any breakpoint', async ({ page }) => {
     await page.waitForTimeout(120);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow, `guide @ ${w}px overflows by ${overflow}px`).toBeLessThanOrEqual(1);
+    // The guide clips sideways overflow, so also check that no control is cut
+    // off at the edge (the step bar scrolls sideways on purpose).
+    const clipped = await page.evaluate(() => [...document.querySelectorAll('#view-guide button, #view-guide a, #view-guide input')]
+      .filter((e) => e.offsetParent && !e.closest('.hw-steps-tabs'))
+      .filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.right > innerWidth + 1 || r.left < -1); })
+      .map((e) => e.id || e.className || e.textContent.trim().slice(0, 30)));
+    expect(clipped, `guide @ ${w}px clips ${clipped.join(', ')}`).toEqual([]);
   }
 });
 
-test('GUIDE-003 the path jumps to each page section and moves focus to it', async ({ page }) => {
+test('GUIDE-003 the step bar jumps to each step and moves focus to it', async ({ page }) => {
   await page.goto(guide(), { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('.hw-steps-bar')).toBeVisible();
   for (const id of ['hw-picks', 'hw-holdings', 'hw-overview']) {
-    await page.locator(`.hw-flow [data-hw-jump="${id}"]`).click();
+    await page.locator(`.hw-steps-bar [data-hw-jump="${id}"]`).click();
     await expect(page.locator(`#${id} h2`)).toBeFocused();
     await expect.poll(() => page.locator(`#${id}`).evaluate((e) => {
       const r = e.getBoundingClientRect(); return r.top < window.innerHeight && r.bottom > 0;
     })).toBe(true);
   }
-  await page.locator('#hw-research .hw-link').click();
+  // Each step says where it lives in QUANTA.
+  await page.locator('#hw-research .hw-step-foot .hw-link').click();
   await expect(page.locator('#view-analyze')).toBeVisible();
   await expect(page.locator('#an-ticker')).toBeFocused();
 });
 
 test('GUIDE-004 the decision lab follows the rules from the keyboard', async ({ page }) => {
   await page.goto(guide(), { waitUntil: 'domcontentloaded' });
+  await openStep(page, 'research');
   const slider = page.locator('#hw-score');
   await slider.fill('80');
   await expect(page.locator('#hw-verdict')).toHaveText('Strong Buy');
@@ -105,18 +121,27 @@ test('GUIDE-006 the funnel follows the gates as they scroll by, and gates can be
   await expect(page.locator('.hw-row.is-cut')).toHaveCount(0);
 });
 
-test('GUIDE-006b the chapter rail marks the section being read', async ({ page }) => {
-  test.skip((page.viewportSize()?.width || 0) <= 1180, 'the rail shows on wide screens only');
+test('GUIDE-006b the step bar marks the step being read and fills with the story', async ({ page }) => {
   await page.goto(guide(), { waitUntil: 'load' });
+  await page.addStyleTag({ content: 'html { scroll-behavior: auto !important; }' });
   await page.locator('#hw-picks').evaluate((e) => e.scrollIntoView({ block: 'start', behavior: 'instant' }));
-  await expect(page.locator('.hw-rail-btn[data-hw-jump="hw-picks"]')).toHaveAttribute('aria-current', 'true');
-  await expect(page.locator('.hw-rail-in')).toBeInViewport();
-  await page.locator('.hw-rail-btn[data-hw-jump="hw-trust"]').click();
-  await expect(page.locator('#guide-trust-title')).toBeFocused();
+  await expect(page.locator('.hw-steps-bar [data-hw-jump="hw-picks"]')).toHaveAttribute('aria-current', 'step');
+  await expect(page.locator('.hw-steps-bar [aria-current="step"]')).toHaveCount(1);
+  await expect(page.locator('.hw-steps-bar')).toBeInViewport();
+  // The fill is scroll-linked where the browser supports view timelines.
+  const supported = await page.evaluate(() => CSS.supports('animation-timeline: view()'));
+  if (supported) {
+    const scale = await page.locator('.hw-steps-fill').evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).a);
+    expect(scale).toBeGreaterThan(0.3);
+    expect(scale).toBeLessThan(1);
+  }
+  await page.locator('.hw-steps-bar [data-hw-jump="hw-holdings"]').click();
+  await expect(page.locator('#hw-holdings h2')).toBeFocused();
 });
 
 test('GUIDE-007 the calculator recomputes the position as inputs change', async ({ page }) => {
   await page.goto(guide(), { waitUntil: 'domcontentloaded' });
+  await openStep(page, 'picks');
   const final = page.locator('#hw-receipt li.is-final .hw-rc-v');
   await expect(final).toHaveText('25 shares');
   await page.locator('#hw-c-mandate').selectOption('conservative');
@@ -137,6 +162,7 @@ test('GUIDE-008 posture and holdings pickers work with arrow keys', async ({ pag
   await expect(page.locator('#hw-posture-out')).toContainText('45-65% gross exposure');
   await page.locator('#view-guide input[name="hw-conf"][value="low"]').check();
   await expect(page.locator('#hw-posture-out')).toContainText('30-55% gross, in place of 45-65%');
+  await openStep(page, 'holdings');
   await page.locator('.hw-bar[data-hold="x"]').focus();
   await page.keyboard.press('ArrowUp');
   await expect(page.locator('[data-hold-panel="p"]')).toBeVisible();
@@ -167,9 +193,11 @@ test('GUIDE-009 reduced motion: nothing hidden, nothing animating, demos finishe
   const hidden = await page.locator('#view-guide [data-reveal], #view-guide .hw-ch-head, #view-guide .hw-checks-row li, #view-guide .hw-stamp, #view-guide .hw-gate')
     .evaluateAll((els) => els.filter((e) => getComputedStyle(e).opacity !== '1').length);
   expect(hidden).toBe(0);
-  // Nothing runs by itself; the reel waits, paused on its closing frame.
+  // Nothing in the guide runs by itself; the reel waits, paused on its
+  // closing frame. (The app's 160ms view fade on the section itself is a
+  // comprehension fade that reduced motion keeps, so it is not counted.)
   expect(await page.evaluate(() => document.getAnimations()
-    .filter((a) => (a.effect as KeyframeEffect)?.target?.closest?.('#view-guide'))
+    .filter((a) => (a.effect as KeyframeEffect)?.target?.closest?.('#view-guide .hw'))
     .filter((a) => a.playState === 'running').length)).toBe(0);
   await expect(page.locator('#hw-funnel-count')).toContainText('2 of 12 picked');
   await expect(page.locator('.hw-progress')).toBeHidden();
@@ -185,7 +213,7 @@ test('GUIDE-010 a full-page capture shows every section fully drawn', async ({ p
   const height = await page.evaluate(() => document.documentElement.scrollHeight);
   await page.setViewportSize({ width: 1440, height: Math.min(height + 200, 16000) });
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-  const faded = await page.evaluate(() => [...document.querySelectorAll('#view-guide [data-reveal], #view-guide .hw-ch-head, #view-guide .hw-gate, #view-guide .hw-chapters li, #view-guide .hw-proof li, #view-guide .hw-flow-list li, #view-guide .hw-ledger li, #view-guide .hw-limits li, #view-guide .hw-toolchips li, #view-guide .hw-end')]
+  const faded = await page.evaluate(() => [...document.querySelectorAll('#view-guide [data-reveal], #view-guide .hw-ch-head, #view-guide .hw-gate, #view-guide .hw-chapters li, #view-guide .hw-help-list li, #view-guide .hw-start li, #view-guide .hw-flow-list li, #view-guide .hw-ledger li, #view-guide .hw-limits li, #view-guide .hw-toolchips li, #view-guide .hw-end')]
     .filter((el) => Number(getComputedStyle(el).opacity) < 0.99)
     .map((el) => `${el.className} ${getComputedStyle(el).opacity}`));
   expect(faded, faded.join('\n')).toEqual([]);
@@ -195,7 +223,9 @@ test('GUIDE-010 a full-page capture shows every section fully drawn', async ({ p
 
 test('GUIDE-011 jumping straight to a section shows it without waiting for a timer', async ({ page }) => {
   await page.goto(guide(), { waitUntil: 'load' });
+  const step: Record<string, string> = { '.hw-posture': 'overview', '.hw-lab': 'research', '.hw-calc': 'picks', '.hw-book': 'holdings' };
   for (const sel of ['.hw-posture', '.hw-lab', '.hw-calc', '.hw-book', '.hw-trust', '.hw-end']) {
+    if (step[sel]) await openStep(page, step[sel]);
     await page.locator(sel).evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
     await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     const op = await page.locator(sel).evaluate((e) => Number(getComputedStyle(e.closest('[data-reveal]') || e).opacity));
@@ -250,6 +280,49 @@ test('GUIDE-014 a block arriving from the bottom edge animates in, and ends full
   await expect.poll(() => page.locator('#hw-verdict').evaluate((e) => Number(getComputedStyle(e).opacity))).toBeGreaterThan(0.99);
 });
 
+test('GUIDE-015 reference detail opens from its button, from the keyboard, and closes again', async ({ page }) => {
+  await page.goto(guide(), { waitUntil: 'load' });
+  await openStep(page, 'discover');
+  const btn = page.locator('#hw-discover .hw-more');
+  const body = page.locator('#hw-more-discover');
+  await expect(btn).toBeVisible();
+  await expect(btn).toHaveAttribute('aria-expanded', 'false');
+  await expect(body).toBeHidden();
+  await btn.focus();
+  await page.keyboard.press('Enter');
+  await expect(btn).toHaveAttribute('aria-expanded', 'true');
+  await expect(btn.locator('.hw-more-k')).toHaveText('Less detail');
+  await expect(page.locator('#hw-effective-rules')).toBeVisible();
+  // Thresholds inside the fold are filled from config, like everywhere else.
+  await expect(page.locator('#hw-effective-rules [data-threshold="CHASE.GAP_PCT"]')).not.toBeEmpty();
+  await btn.click();
+  await expect(body).toBeHidden();
+  // The demos never fold.
+  for (const sel of ['.hw-posture', '.hw-funnel', '.hw-lab', '.hw-calc', '.hw-book', '.hw-guard']) await expect(page.locator(`#view-guide ${sel}`)).toBeAttached();
+  expect(await page.locator('#view-guide [data-detail] .hw-lab, #view-guide [data-detail] .hw-calc').count()).toBe(0);
+});
+
+test('GUIDE-016 each promise jumps to the step that shows it and moves focus there', async ({ page }) => {
+  await page.goto(guide(), { waitUntil: 'domcontentloaded' });
+  await page.locator('.hw-help [data-hw-jump="hw-guard"]').click();
+  await expect(page.locator('#hw-guard-h')).toBeFocused();
+  await expect(page.locator('#hw-guard')).toBeInViewport();
+  await page.locator('.hw-help [data-hw-jump="hw-picks"]').click();
+  await expect(page.locator('#hw-picks h2')).toBeFocused();
+  await page.locator('.hw-help [data-hw-jump="hw-trust"]').click();
+  await expect(page.locator('#guide-trust-title')).toBeFocused();
+});
+
+test('GUIDE-017 numbers inside a sentence stay on its line', async ({ page }) => {
+  await page.goto(guide(), { waitUntil: 'load' });
+  await openStep(page, 'picks');
+  await page.locator('#hw-picks .hw-more').click();
+  // A threshold span inside a label must be inline, never its own block line.
+  const blocks = await page.locator('#view-guide li span[data-threshold], #view-guide p span[data-threshold], #view-guide dd span[data-threshold]')
+    .evaluateAll((els) => els.filter((e) => e.offsetParent && getComputedStyle(e).display === 'block').map((e) => e.dataset.threshold));
+  expect(blocks).toEqual([]);
+});
+
 test('REEL-001 the reel autoplays once in view, and pauses, scrubs and jumps by chapter', async ({ page }) => {
   await page.goto(guide(), { waitUntil: 'load' });
   await page.waitForFunction(() => (window as any).QuantaReel);
@@ -282,12 +355,28 @@ test('REEL-002 reduced motion: no autoplay, the poster waits for a press', async
   await page.locator('#hw-reel').evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await page.waitForTimeout(600);
   await expect(page.locator('.hw-reel-player')).toHaveClass(/is-idle/);
-  expect(await page.evaluate(() => (window as any).QuantaReel.time())).toBe(15000);
-  await expect(page.locator('#rl-s7')).toHaveCSS('opacity', '1');
+  // The poster is the Research frame: the call stamped, its checks and tag drawn.
+  expect(await page.evaluate(() => (window as any).QuantaReel.time())).toBe(9600);
+  await expect(page.locator('#rl-s4')).toHaveCSS('opacity', '1');
+  await expect(page.locator('#rl-stamp')).toHaveCSS('opacity', '1');
   await page.locator('#hw-reel-cover').click();
   await expect(page.locator('.hw-reel-player')).toHaveClass(/is-playing/);
-  await expect.poll(() => page.evaluate(() => (window as any).QuantaReel.time())).toBeLessThan(15000);
+  // Playing from the poster starts at the beginning.
+  await expect.poll(() => page.evaluate(() => (window as any).QuantaReel.time())).toBeLessThan(3000);
   await ctx.close();
+});
+
+test('REEL-004 the reel is full width, and its picture opens as it scrolls in', async ({ page }) => {
+  await page.goto(guide(), { waitUntil: 'load' });
+  const [stage, wrap] = await Promise.all([
+    page.locator('.hw-reel-stage').evaluate((e) => e.getBoundingClientRect().width),
+    page.locator('#view-guide .hw').evaluate((e) => e.getBoundingClientRect().width),
+  ]);
+  expect(stage).toBeGreaterThan(wrap * 0.95);
+  if (await page.evaluate(() => CSS.supports('animation-timeline: view()'))) {
+    const name = await page.locator('.hw-reel-svg').evaluate((e) => getComputedStyle(e).animationName);
+    expect(name).toBe('hw-reel-open');
+  }
 });
 
 test('REEL-003 the WebM download is served', async ({ page, request }) => {

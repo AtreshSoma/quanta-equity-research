@@ -70,7 +70,7 @@ test('a validated engine is named; an unreachable ledger is never shown as valid
 // ---------------------------------------------------------------------------
 test('the path names exactly the five primary pages, in navigation order', () => {
   const nav = $$('.nav-tabs .nav-tab').map((b) => b.getAttribute('aria-label') || b.textContent.trim());
-  const path_ = $$('#view-guide .hw-flow-node b').map((b) => b.textContent);
+  const path_ = $$('#view-guide .hw-step-tab b').map((b) => b.textContent);
   assert.deepEqual(path_, nav);
   assert.deepEqual(path_, ['Overview', 'Discover', 'Research', 'Picks', 'My Portfolio']);
   // Each node jumps to a section that exists, and each page section links to its view.
@@ -78,6 +78,25 @@ test('the path names exactly the five primary pages, in navigation order', () =>
   const linked = new Set($$('#view-guide .hw-ch [data-view-link]').map((a) => a.dataset.viewLink));
   for (const v of ['dashboard', 'discover', 'analyze', 'picks', 'holdings', 'track']) assert.ok(linked.has(v), `section link to ${v}`);
   assert.doesNotMatch(guideText(), /Four pages/);
+});
+
+test('the step bar names the five pages in order and jumps to each step', () => {
+  const btns = $$('#view-guide .hw-steps-bar .hw-step-tab');
+  assert.deepEqual(btns.map((b) => b.dataset.hwJump), ['hw-overview', 'hw-discover', 'hw-research', 'hw-picks', 'hw-holdings']);
+  assert.ok($('#view-guide .hw-steps-bar').getAttribute('aria-label'));
+  for (const b of btns) {
+    const step = document.getElementById(b.dataset.hwJump);
+    assert.ok(step.classList.contains('hw-step'), step.id);
+    assert.equal(step.getAttribute('aria-labelledby'), step.querySelector('h2').id, `${step.id} is named by its heading`);
+    assert.ok(step.querySelector('.hw-step-foot [data-view-link]'), `${step.id} says where it lives in QUANTA`);
+  }
+  // A story, not tabs: no step is hidden and nothing claims a tab role.
+  assert.equal($$('#view-guide [role="tab"], #view-guide [role="tabpanel"], #view-guide [role="tablist"]').length, 0);
+  const raw = new JSDOM(html).window.document;
+  assert.ok(raw.querySelector('#view-guide .hw-steps-bar').hasAttribute('hidden'), 'without JavaScript the bar stays hidden');
+  for (const s of raw.querySelectorAll('#view-guide .hw-step')) assert.ok(!s.hasAttribute('hidden'), s.id);
+  // The track record stands after the story.
+  assert.ok(!$('#hw-trust').closest('.hw-steps'));
 });
 
 test('the guide is a secondary view with links only to real views', () => {
@@ -262,14 +281,37 @@ test('the hero chart draws the example levels where their prices are', () => {
   assert.match($('.hw-inst').textContent, /\+\$8\.40.*-\$4\.20/s);
 });
 
-test('the headline figures are counts of the product itself', () => {
-  const proof = Object.fromEntries($$('.hw-proof li').map((li) => [li.querySelector('span').textContent, Number(li.querySelector('b').textContent)]));
-  const get = (re) => Object.entries(proof).find(([k]) => re.test(k))[1];
-  assert.equal(get(/^pages/), $$('.nav-tabs .nav-tab').length);
-  assert.equal(get(/^gates/), $$('#view-guide .hw-gate').length);
-  assert.equal(get(/^possible calls/), $$('#view-guide .hw-ladder [data-call]').length);
-  assert.equal(get(/^sections/), $$('#view-guide .hw-chapters li').length);
-  assert.equal(get(/^orders/), 0);
+test('each promise in "What it does for you" jumps to the part of the page that shows it', () => {
+  const items = $$('#view-guide .hw-help-list > li');
+  assert.equal(items.length, 6);
+  const targets = items.map((li) => li.querySelector('[data-hw-jump]').dataset.hwJump);
+  assert.deepEqual(targets, ['hw-research', 'hw-discover', 'hw-picks', 'hw-holdings', 'hw-trust', 'hw-guard']);
+  for (const id of targets) {
+    const sec = document.getElementById(id);
+    assert.ok(sec && sec.querySelector('h2, h3'), `${id} has a heading to take focus`);
+    assert.ok(!sec.closest('[data-detail]'), `${id} is never folded away`);
+  }
+  // Plain words, no claims: nothing about returns, beating or winning.
+  const text = spaced($('#view-guide .hw-help'));
+  assert.doesNotMatch(text, /\b(beat|beats|outperform|best|guarantee|returns?)\b/i);
+  assert.match(text, /never trade/);
+});
+
+test('reference detail folds behind one button per chapter and stays in the page', () => {
+  const buttons = $$('#view-guide .hw-more');
+  assert.deepEqual(buttons.map((b) => b.closest('.hw-ch').id), ['hw-overview', 'hw-discover', 'hw-research', 'hw-picks', 'hw-holdings']);
+  for (const b of buttons) {
+    const body = document.getElementById(b.getAttribute('aria-controls'));
+    assert.ok(body && body.hasAttribute('data-detail'), b.getAttribute('aria-controls'));
+    assert.equal(body.previousElementSibling, b, 'the button sits right above what it opens');
+    assert.ok(b.querySelector('.hw-more-s').textContent.trim(), 'the button says what it opens');
+  }
+  // The demos themselves are never folded.
+  for (const sel of ['.hw-posture', '.hw-funnel', '.hw-lab', '.hw-calc', '.hw-book', '.hw-guard', '.hw-ledger', '.hw-trust']) {
+    assert.ok(!$(`#view-guide ${sel}`).closest('[data-detail]'), sel);
+  }
+  // Every threshold the folds hold is still filled from config.
+  for (const s of $$('#view-guide [data-detail] [data-threshold]')) assert.ok(s.textContent.trim(), s.dataset.threshold);
 });
 
 test('the ladder marks the start, the rules walked and the landing rung', () => {
@@ -327,6 +369,12 @@ test('the reel is 15 seconds with ordered chapters, and its player is labelled',
   assert.ok($('label[for="hw-reel-seek"]'));
   assert.match($('#hw-reel svg').getAttribute('aria-labelledby'), /hw-reel-desc/);
   assert.ok(reelText('hw-reel-desc').length > 200, 'a full text description of the reel');
+});
+
+test('the reel poster is the Research frame, with the call and its tag drawn', () => {
+  assert.equal(app.reelSceneAt(app.REEL_POSTER_MS), '04 RESEARCH');
+  // The stamp lands by 9.2 s and the tag by 9.6 s; the scene leaves at 9.65 s.
+  assert.ok(app.REEL_POSTER_MS >= 9600 && app.REEL_POSTER_MS < 9650, String(app.REEL_POSTER_MS));
 });
 
 test('reel keyframes span the whole reel and hold at both ends', () => {
@@ -579,6 +627,13 @@ test('the guide follows its design rules', () => {
   assert.doesNotMatch(block, /background-clip:\s*text/, 'no gradient-clipped text');
   assert.doesNotMatch(block.replace(/[/][*][^]*?[*][/]/g, ''), /\d+vh/, 'no viewport-height spacing');
   assert.doesNotMatch(block, /backdrop-filter/, 'no glass');
+  assert.doesNotMatch(block, /hw-orb|hw-glow|hw-hero-bg|hw-end-bg/, 'no decorative glows');
+  // The Floor Rule: no page text below 12px (the reel's SVG type scales with the stage).
+  for (const line of block.replace(/[/][*][^]*?[*][/]/g, '').split('\n')) {
+    if (/^\s*\.rl-/.test(line)) continue;
+    const m = line.match(/font-size:\s*(\d+(?:\.\d+)?)px/);
+    if (m) assert.ok(Number(m[1]) >= 12, `below the 12px floor: ${line.trim().slice(0, 80)}`);
+  }
   assert.match(block, /@media \(prefers-reduced-motion: reduce\) \{\s*\.hw-progress \{ display: none !important; \}\s*\.hw \*, \.hw \*::before, \.hw \*::after \{ animation: none !important; transition: none !important; \}/);
   // Every keyframe animation is gated behind .hw-motion.
   const bare = block.replace(/[/][*][^]*?[*][/]/g, '');
@@ -594,8 +649,9 @@ test('the guide follows its design rules', () => {
   assert.doesNotMatch(bind, /requestAnimationFrame/);
 
   // Hero: headline, promise (20 words or fewer), actions; then the example.
+  // No eyebrow above the headline (DESIGN.md).
   const copy = $('#view-guide .hw-hero-copy');
-  assert.deepEqual([...copy.children].map((c) => c.className.split(' ')[0]), ['hw-kicker', 'hw-title', 'hw-lede', 'hw-cta']);
+  assert.deepEqual([...copy.children].map((c) => c.className.split(' ')[0]), ['hw-title', 'hw-lede', 'hw-cta']);
   assert.ok($('#view-guide .hw-lede').textContent.trim().split(/\s+/).length <= 20);
   // No em or en dashes in visible copy; at most one middle dot per line.
   assert.doesNotMatch($('#view-guide').textContent, /[–—]/);

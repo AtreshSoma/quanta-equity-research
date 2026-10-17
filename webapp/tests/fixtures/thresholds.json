@@ -649,8 +649,8 @@
    "D": 0.5,
    "F": 0.0
   },
-  "SCORE_MULT_BASE": 0.7,
-  "SCORE_MULT_SPAN": 0.5,
+  "SCORE_MULT_BASE": 1.0,
+  "SCORE_MULT_SPAN": 0.0,
   "SIGNAL_SIZE_MULT": {
    "ACCUMULATE": 0.6,
    "BUY": 0.8,

@@ -169,3 +169,24 @@ def test_conviction_floor_that_empties_the_pool_funds_nothing(monkeypatch):
     sysm._apply_event_gate = lambda c, **k: list(c)
     recs = sysm.get_top_recommendations(max_positions=5)
     assert not [r for r in recs if float(getattr(r, "allocation", 0) or 0) > 0]
+
+
+# --- #19: FOMC proximity is measured on the New York calendar ---------------
+
+def test_fomc_proximity_uses_the_new_york_date():
+    from freezegun import freeze_time
+    from test_elite_pro_review2_fixes import _bare_system
+    # 02:00 UTC on 25 Oct is still 24 Oct in New York: 4 days to the 28 Oct
+    # meeting (the 15% band), not 3 (the 30% band) as the UTC/local date said.
+    with freeze_time("2026-10-25 02:00:00"):
+        mult, _note = _bare_system()._get_event_risk_factor()
+    assert mult == pytest.approx(0.85)
+
+
+# --- #23: a scorer that fails reports "unknown", not a partial or worst case --
+
+def test_a_failing_factor_scores_neutral_not_partial_or_zero():
+    neutral = pro.ScoringEngine.MISSING_DATA_NEUTRAL
+    broken = _ti(rsi="n/a")                     # comparison raises mid-sum
+    assert pro.ScoringEngine.calculate_technical_score(broken) == neutral
+    assert pro.ScoringEngine.calculate_quality_score(None, pro.RiskMetrics()) == neutral

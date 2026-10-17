@@ -5672,6 +5672,25 @@ class UniverseStats:
 
 class ScoringEngine:
 
+    # Neutral value a factor shrinks toward in proportion to its missing inputs.
+    MISSING_DATA_NEUTRAL = 4.0
+
+    @staticmethod
+    def _coverage_scaled(earned: float, max_present: float, max_total: float) -> float:
+        """Put a factor's earned points on the 0-10 scale, judged only on the
+        inputs that were actually measured.
+
+        A missing input is unknown, not bad: the earned points are rescaled to
+        the points that were available, then shrunk toward a neutral value in
+        proportion to what is missing, so thin data can never outscore complete
+        data and absent data never scores as a weak company (audit #10).
+        """
+        if max_present <= 0 or max_total <= 0:
+            return 0.0
+        coverage = max_present / max_total
+        scaled = earned * 10.0 / max_present
+        return coverage * scaled + (1.0 - coverage) * ScoringEngine.MISSING_DATA_NEUTRAL
+
     @staticmethod
     def calculate_technical_score(indicators: TechnicalIndicators) -> float:
         """Enhanced technical scoring (0-10 scale)"""
@@ -5724,19 +5743,22 @@ class ScoringEngine:
             if indicators.macd > 0:
                 score += 0.4
 
-            # Stochastic Oscillator (1.0 point)
+            # Stochastic Oscillator (1.0 point). [Audit #7] Oversold no longer
+            # earns 0.8: like the RSI and Bollinger legs, this score has one
+            # thesis (constructive trend), and oversold is the opposite.
             if 20 <= indicators.stoch_k <= 80:
                 score += 1.0
-            elif indicators.stoch_k < 20:  # Oversold
-                score += 0.8
 
-            # Volume Confirmation (1.5 points)
+            # Volume Confirmation (1.5 points). [Audit #7] Heavy volume only
+            # confirms a move UP. It used to score the same on a selloff, so
+            # distribution read as accumulation.
             vol_ratio = indicators.volume_ratio
-            if vol_ratio > 2.0:
+            rising = float(getattr(indicators, 'momentum_1w', 0.0) or 0.0) > 0
+            if rising and vol_ratio > 2.0:
                 score += 1.5
-            elif vol_ratio > 1.5:
+            elif rising and vol_ratio > 1.5:
                 score += 1.2
-            elif vol_ratio > 1.0:
+            elif rising and vol_ratio > 1.0:
                 score += 0.7
 
             # Bollinger Bands Position (1.0 point)
@@ -5785,20 +5807,20 @@ class ScoringEngine:
     def calculate_fundamental_score(metrics: FundamentalMetrics) -> float:
         """Score based on fundamental metrics (0-10 scale)"""
         score = 0.0
-        data_fields_present = 0
-        data_fields_total = 7  # rev growth, eps growth, margin, ROE, D/E, ROIC, gross margin
 
         try:
             availability = getattr(metrics, 'data_available', {}) or {}
 
-            # Maximum points each field can earn below. Coverage must be
-            # normalised by the points AVAILABLE, not the field count: the
-            # fields are worth 1.0-2.0 points each, so "score / coverage" let a
-            # name with ONLY ROIC = 25% score 10.0 while a perfect company with
-            # all seven fields topped out at 9.5.
+            # Maximum points each field can earn below. Coverage is normalised
+            # by the points AVAILABLE, not the field count (see _coverage_scaled).
+            # [Audit #6] ROIC, gross margin and debt/equity are scored ONCE, in
+            # quality_score. They used to be paid here as well, so a profitable,
+            # low-debt company was paid two or three times for the same fact and
+            # the stated regime weights were not the effective weights. This
+            # sub-score is growth and profitability.
             MAX_POINTS = {
                 'revenue_growth': 1.5, 'earnings_growth': 1.0, 'profit_margin': 1.0,
-                'roe': 1.0, 'debt_to_equity': 1.5, 'roic': 2.0, 'gross_margin': 1.5,
+                'roe': 1.0,
             }
             present_fields: List[str] = []
 
@@ -5831,7 +5853,6 @@ class ScoringEngine:
             # 1. Revenue Growth
             rev_growth = metrics.revenue_growth
             if present('revenue_growth', rev_growth):
-                data_fields_present += 1
                 if rev_growth > 0.30:
                     score += 1.5
                 elif rev_growth > 0.20:
@@ -5844,7 +5865,6 @@ class ScoringEngine:
             # 2. Earnings Growth
             earn_growth = metrics.earnings_growth
             if present('earnings_growth', earn_growth):
-                data_fields_present += 1
                 if earn_growth > 0.25:
                     score += 1.0
                 elif earn_growth > 0.15:
@@ -5855,7 +5875,6 @@ class ScoringEngine:
             # 3. Profit Margin
             margin = metrics.profit_margin
             if present('profit_margin', margin):
-                data_fields_present += 1
                 if margin > 0.20:
                     score += 1.0
                 elif margin > 0.10:
@@ -5864,65 +5883,16 @@ class ScoringEngine:
             # 4. ROE (Return on Equity)
             roe = metrics.roe
             if present('roe', roe):
-                data_fields_present += 1
                 if roe > 0.20:
                     score += 1.0
                 elif roe > 0.15:
                     score += 0.5
 
-            # 5. Debt to Equity
-            de = metrics.debt_to_equity
-            if present('debt_to_equity', de):
-                data_fields_present += 1
-                if de < 0.5:
-                    score += 1.5
-                elif de < 1.0:
-                    score += 0.8
-                elif de > 2.0:
-                    score -= 0.8  # Bearish: highly leveraged
-
-            # 6. ROIC — real return on invested capital. [M5 FIX] made this
-            # computable; it is the single best quality metric available here.
-            roic = metrics.roic
-            if present('roic', roic):
-                data_fields_present += 1
-                if roic > 0.20:
-                    score += 2.0
-                elif roic > 0.12:
-                    score += 1.2
-                elif roic > 0.06:
-                    score += 0.5
-                elif roic < 0:
-                    score -= 1.0
-
-            # 7. Gross margin — pricing power, and far more stable than the
-            # bottom line.
-            gm = metrics.gross_margin
-            if present('gross_margin', gm):
-                data_fields_present += 1
-                if gm > 0.50:
-                    score += 1.5
-                elif gm > 0.35:
-                    score += 1.0
-                elif gm > 0.20:
-                    score += 0.4
-
-            # **Scale by data completeness.**
-            # [M1 FIX] The old form multiplied the accumulated score by 0.5 or
-            # 0.8, which double-penalised: a stock with less data had already
-            # accumulated fewer points, and then had those points cut again.
-            # Normalising by points AVAILABLE compares like with like.
-            if data_fields_present == 0:
+            # **Scale by data completeness** onto the full 0-10 range.
+            if not present_fields:
                 return 0.0
-            coverage = data_fields_present / data_fields_total
-            if coverage < 1.0:
-                # Rescale earned points to the full-coverage scale, then shrink
-                # toward a neutral 4.0 in proportion to what is missing, so
-                # thin data can never outscore complete data.
-                full_points = sum(MAX_POINTS.values())
-                max_present = sum(MAX_POINTS.get(f, 1.0) for f in present_fields) or full_points
-                scaled = score * full_points / max_present
-                score = coverage * scaled + (1.0 - coverage) * 4.0
+            score = ScoringEngine._coverage_scaled(
+                score, sum(MAX_POINTS[f] for f in present_fields), sum(MAX_POINTS.values()))
 
         except Exception as e:
             logger.debug(f"Error in fundamental scoring: {e}")
@@ -6067,6 +6037,10 @@ class ScoringEngine:
         argued explicitly, and this sub-score measures what its name claims.
         """
         score = 0.0
+        # [Audit #10] Points available per input; only measured inputs count.
+        MAX_POINTS = {'roic': 2.5, 'gross_margin': 1.5, 'operating_margin': 1.0,
+                      'debt_to_equity': 1.0, 'sharpe': 2.0, 'max_drawdown': 2.0}
+        max_present = 0.0
 
         try:
             # ── Business quality (6.0 points) ──────────────────────────────
@@ -6074,6 +6048,7 @@ class ScoringEngine:
 
             # Return on invested capital — the core quality metric.
             if avail.get('roic', False):
+                max_present += MAX_POINTS['roic']
                 roic = metrics.roic
                 if roic > 0.25:
                     score += 2.5
@@ -6085,27 +6060,33 @@ class ScoringEngine:
                     score -= 1.0
 
             # Gross margin — pricing power, and the most persistent margin line.
-            gm = metrics.gross_margin
-            if gm > 0.50:
-                score += 1.5
-            elif gm > 0.35:
-                score += 1.0
-            elif gm > 0.20:
-                score += 0.4
+            # Gated on availability: a missing margin used to score as 0%.
+            if avail.get('gross_margin', False) if avail else bool(metrics.gross_margin):
+                max_present += MAX_POINTS['gross_margin']
+                gm = metrics.gross_margin
+                if gm > 0.50:
+                    score += 1.5
+                elif gm > 0.35:
+                    score += 1.0
+                elif gm > 0.20:
+                    score += 0.4
 
             # Operating margin — operating leverage actually realised.
-            om = metrics.operating_margin
-            if om > 0.25:
-                score += 1.0
-            elif om > 0.15:
-                score += 0.7
-            elif om > 0.05:
-                score += 0.3
-            elif om < 0:
-                score -= 0.8
+            if avail.get('operating_margin', False) if avail else bool(metrics.operating_margin):
+                max_present += MAX_POINTS['operating_margin']
+                om = metrics.operating_margin
+                if om > 0.25:
+                    score += 1.0
+                elif om > 0.15:
+                    score += 0.7
+                elif om > 0.05:
+                    score += 0.3
+                elif om < 0:
+                    score -= 0.8
 
             # Balance-sheet strength.
             if avail.get('debt_to_equity', False):
+                max_present += MAX_POINTS['debt_to_equity']
                 de = metrics.debt_to_equity
                 if de < 0.3:
                     score += 1.0
@@ -6117,28 +6098,32 @@ class ScoringEngine:
             # ── Risk quality (4.0 points) ─────────────────────────────────
             # Risk-adjusted return still belongs in quality — a business that
             # compounds without wild equity swings is genuinely higher quality —
-            # but it no longer dominates the sub-score.
-            sharpe = risk_metrics.sharpe_ratio
-            if sharpe > 2.0:
-                score += 2.0
-            elif sharpe > 1.5:
-                score += 1.6
-            elif sharpe > 1.0:
-                score += 1.1
-            elif sharpe > 0.5:
-                score += 0.6
-            elif sharpe < 0:
-                score -= 1.0
+            # but it no longer dominates the sub-score. A zero-volatility
+            # RiskMetrics is the "could not compute" default (UniverseStats uses
+            # the same test): its 0.0 drawdown used to earn the full 2.0.
+            if float(getattr(risk_metrics, 'volatility', 0.0) or 0.0) > 0:
+                max_present += MAX_POINTS['sharpe'] + MAX_POINTS['max_drawdown']
+                sharpe = risk_metrics.sharpe_ratio
+                if sharpe > 2.0:
+                    score += 2.0
+                elif sharpe > 1.5:
+                    score += 1.6
+                elif sharpe > 1.0:
+                    score += 1.1
+                elif sharpe > 0.5:
+                    score += 0.6
+                elif sharpe < 0:
+                    score -= 1.0
 
-            max_dd = risk_metrics.max_drawdown
-            if max_dd > -0.15:
-                score += 2.0
-            elif max_dd > -0.25:
-                score += 1.3
-            elif max_dd > -0.35:
-                score += 0.6
-            elif max_dd < -0.50:
-                score -= 1.0
+                max_dd = risk_metrics.max_drawdown
+                if max_dd > -0.15:
+                    score += 2.0
+                elif max_dd > -0.25:
+                    score += 1.3
+                elif max_dd > -0.35:
+                    score += 0.6
+                elif max_dd < -0.50:
+                    score -= 1.0
 
             # [M2/M4 FIX] Beta is deliberately NOT scored here. The old code
             # paid for beta near 1.0 while calculate_betting_against_beta paid
@@ -6146,6 +6131,8 @@ class ScoringEngine:
             # one input. Beta exposure is a portfolio-construction decision,
             # not a mark of business quality, so it is left to the BAB factor
             # and the risk grade.
+
+            score = ScoringEngine._coverage_scaled(score, max_present, sum(MAX_POINTS.values()))
 
         except Exception as e:
             logger.error(f"❌ Error in quality scoring: {type(e).__name__}: {str(e)}")
@@ -6155,12 +6142,30 @@ class ScoringEngine:
 
     @staticmethod
     def calculate_value_score(metrics: FundamentalMetrics) -> float:
-        """Value investing score (0-10 scale)"""
+        """Valuation score (0-10 scale): what the market charges for the business.
+
+        [Audit #6] ROE is profitability and is scored once, in
+        fundamental_score; it used to be paid here too. [Audit #10] Each input
+        counts only when the provider supplied it, and the score is judged on
+        the inputs present (see _coverage_scaled).
+        """
         score = 0.0
+        MAX_POINTS = {'peg_ratio': 3.0, 'pb_ratio': 2.0, 'ps_ratio': 2.0, 'free_cash_flow': 1.5}
+        max_present = 0.0
+        avail = getattr(metrics, 'data_available', {}) or {}
+
+        def present(name: str, value: float) -> bool:
+            # Engine metrics carry provenance; a legacy/manual instance falls
+            # back to "non-zero means supplied".
+            if avail:
+                return bool(avail.get(name, False))
+            return bool(value)
 
         try:
             # P/E Relative to Growth
-            if metrics.pe_ratio > 0 and metrics.peg_ratio > 0:
+            if (present('pe_ratio', metrics.pe_ratio) and present('peg_ratio', metrics.peg_ratio)
+                    and metrics.pe_ratio > 0 and metrics.peg_ratio > 0):
+                max_present += MAX_POINTS['peg_ratio']
                 if metrics.peg_ratio < 0.7:
                     score += 3.0
                 elif metrics.peg_ratio < 1.0:
@@ -6170,33 +6175,35 @@ class ScoringEngine:
                 elif metrics.peg_ratio < 2.0:
                     score += 0.8
 
-            # Price to Book
+            # Price to Book (negative book value is supplied and earns nothing)
             pb = metrics.pb_ratio
-            if 0 < pb < 1.5:
-                score += 2.0
-            elif 1.5 <= pb < 3.0:
-                score += 1.5
-            elif 3.0 <= pb < 5.0:
-                score += 0.8
+            if present('pb_ratio', pb):
+                max_present += MAX_POINTS['pb_ratio']
+                if 0 < pb < 1.5:
+                    score += 2.0
+                elif 1.5 <= pb < 3.0:
+                    score += 1.5
+                elif 3.0 <= pb < 5.0:
+                    score += 0.8
 
             # Price to Sales
             ps = metrics.ps_ratio
-            if 0 < ps < 2.0:
-                score += 2.0
-            elif 2.0 <= ps < 4.0:
-                score += 1.5
-            elif 4.0 <= ps < 8.0:
-                score += 0.8
+            if present('ps_ratio', ps):
+                max_present += MAX_POINTS['ps_ratio']
+                if 0 < ps < 2.0:
+                    score += 2.0
+                elif 2.0 <= ps < 4.0:
+                    score += 1.5
+                elif 4.0 <= ps < 8.0:
+                    score += 0.8
 
             # Free Cash Flow
-            if metrics.free_cash_flow > 0:
-                score += 1.5
+            if present('free_cash_flow', metrics.free_cash_flow):
+                max_present += MAX_POINTS['free_cash_flow']
+                if metrics.free_cash_flow > 0:
+                    score += 1.5
 
-            # ROE vs Industry Average (simplified)
-            if metrics.roe > 0.20:
-                score += 1.5
-            elif metrics.roe > 0.15:
-                score += 1.0
+            score = ScoringEngine._coverage_scaled(score, max_present, sum(MAX_POINTS.values()))
 
         except Exception as e:
             logger.debug(f"Error in value scoring: {e}")
@@ -6260,8 +6267,7 @@ class ScoringEngine:
                 fund_z.append(stats._zscore(fm.profit_margin, stats.profit_margins))
             if fm.has_metric('roe') and len(stats.roe_values) >= 5:
                 fund_z.append(stats._zscore(fm.roe, stats.roe_values))
-            if fm.has_metric('debt_to_equity') and len(stats.debt_to_equity) >= 5:
-                fund_z.append(stats._zscore(fm.debt_to_equity, stats.debt_to_equity, invert=True))
+            # Leverage is a quality input (audit #6): scored below, once.
             fund = blend(fund, fund_z)
 
             # --- Technical: volume and RSI distance from neutral. ADX is
@@ -6293,6 +6299,8 @@ class ScoringEngine:
                 qual_z.append(stats._zscore(rm.sharpe_ratio, stats.sharpe_ratios))
             if getattr(rm, 'volatility', 0.0) and len(stats.max_drawdowns) >= 5:
                 qual_z.append(stats._zscore(rm.max_drawdown, stats.max_drawdowns))
+            if fm.has_metric('debt_to_equity') and len(stats.debt_to_equity) >= 5:
+                qual_z.append(stats._zscore(fm.debt_to_equity, stats.debt_to_equity, invert=True))
             qual = blend(qual, qual_z)
 
             # --- Value: P/E (sector-relative), P/B, P/S, FCF yield ---
@@ -8738,10 +8746,30 @@ class QuantaEliteTradingSystem:
                 except Exception as e:
                     logger.debug(f"{ticker}: earnings-revision scoring failed - {e}")
 
+            # ── Risk events are not netted away ───────────────────────────
+            # [Audit #11] A bearish catalyst (contract loss, guidance cut,
+            # investigation) or a run of estimate cuts is a risk EVENT, not a
+            # score point that insider buying or a bullish consensus can cancel:
+            # "contract terminated" -1.0 plus insider +0.8 used to net to -0.2.
+            # When one is present the positive adjustments are dropped, and the
+            # name cannot be a STRONG_BUY.
+            bearish_event = (
+                any(name == 'catalyst' and delta < 0 for name, delta in adjustments)
+                or revision_info.get("sentiment") == "DOWNGRADING"
+            )
+            cap = TradingConfig.SCORE_ADJUSTMENT_CAP
+            net_adjustment, adjustments, dropped = self.bounded_adjustment(
+                adjustments, cap, bearish_event)
+            if bearish_event:
+                block_strong_buy = True
+                if dropped:
+                    logger.info(
+                        f"{ticker}: bearish event present; positive adjustments not applied "
+                        f"({', '.join(f'{n} {d:+.2f}' for n, d in dropped)})"
+                    )
+
             # ── Apply the bounded net adjustment ──────────────────────────
             raw_adjustment = sum(delta for _name, delta in adjustments)
-            cap = TradingConfig.SCORE_ADJUSTMENT_CAP
-            net_adjustment = max(-cap, min(cap, raw_adjustment))
             if adjustments:
                 detail = ', '.join(f"{n} {d:+.2f}" for n, d in adjustments)
                 clipped = " (clipped to cap)" if abs(raw_adjustment) > cap else ""
@@ -9540,7 +9568,10 @@ class QuantaEliteTradingSystem:
             has_quality = score > good_threshold
             trend_confirmed = indicators.current_price >= indicators.sma_20
 
-            if is_recovering and has_quality and trend_confirmed:
+            # [Audit #13] The bounce path now needs the same risk-adjusted floor
+            # as the regular BUY (Sharpe > 0). It used to skip it, so a falling,
+            # negative-Sharpe name could reach BUY through the oversold door.
+            if is_recovering and has_quality and trend_confirmed and risk_metrics.sharpe_ratio > 0:
                 sharpe_ok = risk_metrics.sharpe_ratio > TradingConfig.MIN_SHARPE_RATIO
                 vol_ok = risk_metrics.volatility < TradingConfig.HIGH_VOLATILITY
                 if vol_ratio > 1.3 and sharpe_ok and vol_ok and score > excellent_threshold:
@@ -9761,6 +9792,20 @@ class QuantaEliteTradingSystem:
         cache[ticker] = items
         return items
 
+    @staticmethod
+    def bounded_adjustment(adjustments: List[Tuple[str, float]], cap: float,
+                           bearish_event: bool) -> Tuple[float, List[Tuple[str, float]],
+                                                         List[Tuple[str, float]]]:
+        """Net score adjustment, bounded to +/-``cap``: (net, kept, dropped).
+
+        [Audit #11] With a bearish risk event present the positive adjustments
+        are dropped, not netted against it.
+        """
+        dropped = [(n, d) for n, d in adjustments if d > 0] if bearish_event else []
+        kept = [(n, d) for n, d in adjustments if not (bearish_event and d > 0)]
+        raw = sum(d for _n, d in kept)
+        return max(-cap, min(cap, raw)), kept, dropped
+
     def _fetch_catalyst_boost(self, ticker: str, stock: Any, info: Dict,
                               hist: pd.DataFrame, current_price: float,
                               market_cap: float, avg_volume: float,
@@ -9775,21 +9820,30 @@ class QuantaEliteTradingSystem:
         """
         catalyst_boost = 0.0
         institutional_signals: List[Any] = []
+        # [Audit #12] Each tier now falls through to the next when it is
+        # unavailable OR raises. It used to be an if/elif chain, so an installed
+        # institutional engine that threw left the name with no catalyst read
+        # at all (logged at debug), and "no news" looked like "news feed down".
+        done = False
+        _headlines_cache: List[List[str]] = []
 
-        def _relevant(headlines: List[str]) -> List[str]:
-            return _headlines_about(ticker, info, headlines)
+        def _headlines() -> List[str]:
+            if not _headlines_cache:     # one fetch, shared by every tier
+                _headlines_cache.append(_headlines_about(
+                    ticker, info, [i["title"] for i in self._company_news(ticker, stock)]))
+            return _headlines_cache[0]
         # [INSTITUTIONAL CATALYST ENGINE] Professional 4-tier catalyst detection
         # Tier 1: SEC EDGAR, News Wires, FDA | Tier 2: NLP Entity Extraction
         # Tier 3: Multi-Source Validation | Tier 4: Signal Generation
-        
+
         # Priority 1: Use Institutional Catalyst Engine (professional-grade)
         if HAS_INSTITUTIONAL_CATALYST and InstitutionalCatalystEngine:
             try:
                 engine = InstitutionalCatalystEngine()
-                
+
                 # Get news headlines from yfinance
-                headlines = _relevant([i["title"] for i in self._company_news(ticker, stock)])
-                
+                headlines = _headlines()
+
                 # Run full 4-tier institutional analysis
                 institutional_signals = engine.analyze(
                     ticker=ticker,
@@ -9830,15 +9884,16 @@ class QuantaEliteTradingSystem:
                         f"🏛️ {ticker}: INSTITUTIONAL CATALYST - {top_signal.catalyst_type} "
                         f"({top_signal.action}) Confidence: {top_signal.confidence:.0%}"
                     )
-                    
+                done = True
+
             except Exception as e:
-                logger.debug(f"{ticker}: Institutional catalyst engine failed - {e}")
-        
+                logger.warning(f"{ticker}: institutional catalyst engine failed, falling back - {e}")
+
         # Priority 2: Fallback to CatalystAwareSignalGenerator
-        elif HAS_CATALYST and CatalystAwareSignalGenerator:
+        if not done and HAS_CATALYST and CatalystAwareSignalGenerator:
             try:
                 generator = CatalystAwareSignalGenerator()
-                headlines = _relevant([i["title"] for i in self._company_news(ticker, stock)])
+                headlines = _headlines()
                 # [P2 FIX] Use today's volume vs 20-day avg, not avg/avg which is always ~1.0
                 volume_ratio = float(hist['Volume'].iloc[-1]) / (avg_volume + 1) if avg_volume > 0 else 1.0
                 
@@ -9854,14 +9909,15 @@ class QuantaEliteTradingSystem:
                 catalyst_boost = max(-1.0, min(0.5, float(catalyst_boost or 0.0)))
                 if catalyst_signal and catalyst_boost:
                     logger.info(f"📰 {ticker}: Catalyst detected ({catalyst_boost:+.1f} pts)")
+                done = True
             except Exception as e:
-                logger.debug(f"{ticker}: CatalystAware scan failed - {e}")
-        
+                logger.warning(f"{ticker}: catalyst signal generator failed, falling back - {e}")
+
         # Priority 3: Basic scanner fallback
-        elif HAS_CATALYST and CatalystScanner:
+        if not done and HAS_CATALYST and CatalystScanner:
             try:
                 scanner = CatalystScanner()
-                headlines = _relevant([i["title"] for i in self._company_news(ticker, stock)])
+                headlines = _headlines()
                 
                 if headlines:
                     catalysts = scanner.scan_headlines(ticker, headlines)
@@ -9869,9 +9925,16 @@ class QuantaEliteTradingSystem:
                         volume_ratio = float(hist['Volume'].iloc[-1]) / (avg_volume + 1)
                         catalyst_signal = scanner.generate_signal(ticker, catalysts, volume_ratio)
                         
-                        if catalyst_signal and catalyst_signal.recommended_action == "BUY":
-                            catalyst_boost = min(0.5, max(0.0, catalyst_signal.aggregate_weight * 2.5))
-                            logger.info(f"📰 {ticker}: Basic catalyst detected (+{catalyst_boost:.1f} pts)")
+                        weight = max(0.0, float(getattr(catalyst_signal, 'aggregate_weight', 0.0) or 0.0))
+                        action = str(getattr(catalyst_signal, 'recommended_action', '') or '')
+                        if action == "BUY":
+                            catalyst_boost = min(0.5, weight * 2.5)
+                        elif action == "AVOID":
+                            # Bearish headlines used to be ignored here: the
+                            # basic tier could only ever add points.
+                            catalyst_boost = -min(1.0, weight * 2.5)
+                        if catalyst_boost:
+                            logger.info(f"📰 {ticker}: Basic catalyst detected ({catalyst_boost:+.1f} pts)")
             except Exception as e:
                 logger.debug(f"{ticker}: Basic catalyst scan failed - {e}")
         
@@ -12211,26 +12274,18 @@ class QuantaEliteTradingSystem:
 
         logger.info(f"Quality Gate #5: {len(conviction_filtered)} stocks with conviction ≥{MIN_CONVICTION}/5 (adaptive threshold)")
         
-        # Use conviction-filtered results if any, otherwise fall back to pre-conviction results
-        if conviction_filtered:
-            qualified_results = conviction_filtered
-        elif qualified_results:
-            # Conviction is a derived, adaptive ranking, not a risk rule: every
-            # risk gate above already passed. Publish the survivors flagged, so
-            # "our confidence ranking was strict" is never reported as "there
-            # are no opportunities".
+        # [Audit #14] The conviction floor binds whether it removes some names or
+        # all of them. When it emptied the pool the survivors used to be funded
+        # anyway ("published flagged"), so the gate only ever bound when it did
+        # not matter, and a weak day still produced funded picks. A funding
+        # threshold is never loosened (PRODUCT.md): an empty book is the honest
+        # answer, and the gate stage records how many names it held back.
+        if not conviction_filtered and qualified_results:
             logger.warning(
                 f"Conviction floor ≥{MIN_CONVICTION}/5 removed all "
-                f"{len(qualified_results)} remaining candidate(s); publishing them "
-                f"flagged. Every risk gate above still passed."
+                f"{len(qualified_results)} remaining candidate(s); nothing is funded."
             )
-            self._gate_stats['conviction_relaxed'] = True
-            for r in qualified_results:
-                r.final_action_reasons.append(
-                    f"Below the adaptive conviction floor (conviction "
-                    f"{getattr(r, 'conviction', 'N/A')}/5 < {MIN_CONVICTION}/5): passed "
-                    f"every risk gate but ranks as a lower-confidence idea."
-                )
+        qualified_results = conviction_filtered
 
         self._book_stage('conviction', num_candidates, len(qualified_results), value=int(MIN_CONVICTION),
                          relaxed=bool(self._gate_stats['conviction_relaxed']))

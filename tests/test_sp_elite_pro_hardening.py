@@ -28,7 +28,10 @@ else:
 
 
 def price_history(rows: int = 200, *, end=None) -> pd.DataFrame:
-    index = pd.bdate_range(end=end or pd.Timestamp.now().normalize(), periods=rows)
+    # Anchor on a business day: with a weekend `end` this pandas returns
+    # rows - 1 dates, so the fixture failed every Saturday and Sunday.
+    end = pd.offsets.BDay().rollback(end or pd.Timestamp.now().normalize())
+    index = pd.bdate_range(end=end, periods=rows)
     close = np.linspace(100.0, 120.0, rows)
     return pd.DataFrame(
         {

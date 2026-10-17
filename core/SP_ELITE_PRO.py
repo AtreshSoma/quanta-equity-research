@@ -5115,10 +5115,11 @@ class EliteQuantEngine:
 
 class MarketRegimeDetector:
     """Detect and classify market regime for dynamic strategy adjustment"""
-    _last_good_vix_by_market: Dict[str, float] = {
-        "US": 20.0,
-        "INDIA": 18.0,
-    }
+    # Only a real quote may enter this cache (see detect_regime). It used to
+    # start pre-seeded with US 20.0 / INDIA 18.0, so a failed fetch published
+    # those invented figures as a "last good" VIX reading and the "default"
+    # placeholder branch was unreachable (audit 2026-10-17 #1).
+    _last_good_vix_by_market: Dict[str, float] = {}
 
     @staticmethod
     def detect_regime(vix: float = 0.0, spy_hist: Optional[pd.DataFrame] = None, market: str = "US") -> MarketRegime:
@@ -5223,7 +5224,7 @@ class MarketRegimeDetector:
                     # Neither is a current measurement: both are flagged, so
                     # exposure stays capped and no surface prints them as VIX.
                     vix_is_proxy = True
-                    if 5 <= cached_vix <= 100 and market in MarketRegimeDetector._last_good_vix_by_market:
+                    if market in MarketRegimeDetector._last_good_vix_by_market and 5 <= cached_vix <= 100:
                         vix_value = cached_vix
                         vix_source = "last_good"
                         logger.warning(f"⚠️  Using cached last-good VIX for {market}: {vix_value:.2f}")
@@ -5305,11 +5306,15 @@ class MarketRegimeDetector:
                     if not (np.isfinite(sma_50) and np.isfinite(sma_200)):
                         raise ValueError("moving averages are not finite")
 
-                    # Regime classification
-                    if current_price > sma_50 > sma_200 and vix_value < R.VIX_VOLATILE:
+                    # Regime classification. Price must clear the 50-day by
+                    # TREND_BAND_PCT, so a close a hair either side of the
+                    # average does not flip every weight in the scan.
+                    band = float(R.TREND_BAND_PCT)
+                    if (current_price > sma_50 * (1 + band) and sma_50 > sma_200
+                            and vix_value < R.VIX_VOLATILE):
                         regime.regime_type = "BULL"
                         regime.confidence = 0.8
-                    elif current_price < sma_50 < sma_200:
+                    elif current_price < sma_50 * (1 - band) and sma_50 < sma_200:
                         regime.regime_type = "BEAR"
                         regime.confidence = 0.8
                     elif vix_value > R.VIX_VOLATILE:
@@ -5349,54 +5354,24 @@ class MarketRegimeDetector:
             regime.volatility_regime = "NORMAL"
             regime.regime_type = "NEUTRAL"
             regime.recommended_exposure = _T.REGIME.EXPOSURE_ERROR_FALLBACK  # Conservative
-            regime.recommended_cash_pct = 0.35  # 35% cash in error case
             regime.confidence = 0.3
+            detection_failed = True
+        else:
+            detection_failed = False
 
-        # **v6.0 PROPHET FIX #7.3: Set cash recommendations based on regime**
-        if regime.regime_type == "BULL":
-            regime.recommended_cash_pct = 0.15  # 15% cash in bull market - aggressive
-        elif regime.regime_type == "RANGING":
-            regime.recommended_cash_pct = 0.35  # 35% cash when sideways - patient
-        elif regime.regime_type == "VOLATILE":
-            regime.recommended_cash_pct = 0.50  # 50% cash - capital preservation
-        elif regime.regime_type == "BEAR":
-            regime.recommended_cash_pct = 0.60  # 60% cash in bear market - defensive
-        elif regime.regime_type == "UNKNOWN":
-            # Trend could not be determined. Hold more cash than NEUTRAL:
-            # "we don't know" is not the same as "conditions are balanced".
-            regime.recommended_cash_pct = 0.40
-        else:  # NEUTRAL
-            regime.recommended_cash_pct = 0.25  # 25% cash - balanced
+        # Cash by regime, from config. A failed detection keeps its own (larger)
+        # share; it used to be set to 35% and then overwritten by the NEUTRAL
+        # branch's 25% (audit 2026-10-17 #2).
+        cash = _T.REGIME.CASH_PCT
+        regime.recommended_cash_pct = cash["ERROR"] if detection_failed else cash.get(
+            regime.regime_type, cash["NEUTRAL"])
 
-        # Dynamic factor weights based on regime
-        if regime.regime_type == "BULL":
-            regime.factor_weights = {
-                'momentum': 0.35,
-                'quality': 0.25,
-                'growth': 0.25,
-                'value': 0.15
-            }
-        elif regime.regime_type == "BEAR":
-            regime.factor_weights = {
-                'value': 0.35,
-                'quality': 0.35,
-                'momentum': 0.15,
-                'growth': 0.15
-            }
-        elif regime.regime_type == "VOLATILE":
-            regime.factor_weights = {
-                'quality': 0.40,
-                'value': 0.30,
-                'momentum': 0.15,
-                'growth': 0.15
-            }
-        else:  # RANGING, NEUTRAL
-            regime.factor_weights = {
-                'quality': 0.30,
-                'value': 0.30,
-                'momentum': 0.20,
-                'growth': 0.20
-            }
+        # A cash account cannot hold more than its capital (audit #3).
+        regime.recommended_exposure = min(regime.recommended_exposure, _T.REGIME.EXPOSURE_MAX)
+
+        # The weights scoring actually uses. This used to be a second,
+        # different table (momentum/quality/growth/value) that nothing read.
+        regime.factor_weights = dict(_REGIME_WEIGHTS.get(regime.regime_type, _REGIME_WEIGHTS["NEUTRAL"]))
 
         return regime
 
@@ -10362,6 +10337,12 @@ class QuantaEliteTradingSystem:
         has_structure = bool(target_candidates)
         _lo, _hi = _T.LEVELS.ANALYST_TARGET_SANE_RANGE
         if price * _lo < at < price * _hi:
+            # Consensus is a 12-month number, so this pre-filter R:R is
+            # optimistic. The PUBLISHED levels are the Research engine's, whose
+            # target is pro-rated to its horizon and must clear RR.RESEARCH_MIN
+            # before a pick is funded (_deep_confirm_final_picks, audit
+            # 2026-10-17 #5). Pro-rating here too empties the book (1 of 50
+            # large caps clears 1.8) and is an owner funding decision.
             target_candidates.append(at)
             if not has_structure:
                 target_candidates.append(price + atr * TradingConfig.TARGET_ATR_MULTIPLIER)
@@ -11740,6 +11721,22 @@ class QuantaEliteTradingSystem:
                 recon_codes = recon_codes + [
                     c for c in (getattr(res, 'final_action_codes', []) or []) if c not in recon_codes
                 ] + ["RESEARCH_DECISION_CAP"]
+
+            # [Audit 2026-10-17 #5] The Research levels govern (F2), so they must
+            # clear the Research hurdle they are published against. The book
+            # admitted this name on the scanner's levels; a funded call beside a
+            # "needs 1.50" remedy is the page contradicting itself. Fail closed.
+            _bind = getattr(pick, 'binding_levels', None) or {}
+            if (_bind.get('source') == 'research' and deep_fa not in _non_allocating
+                    and deep_fa != FinalAction.INVALID.value
+                    and float(_bind.get('risk_reward') or 0.0) < _T.RR.RESEARCH_MIN):
+                deep_fa = FinalAction.WATCHLIST.value
+                deep_reasons = deep_reasons + [
+                    _bind.get('remedy') or (
+                        f"Research R:R {float(_bind.get('risk_reward') or 0.0):.2f} is below "
+                        f"the {_T.RR.RESEARCH_MIN:.2f} hurdle on the published levels")]
+                if 'LOW_REWARD_RISK' not in recon_codes:
+                    recon_codes = recon_codes + ['LOW_REWARD_RISK']
 
             if self._rank_action(deep_fa) < self._rank_action(scan_fa):
                 reason_txt = '; '.join(deep_reasons) or 'deep analyzer more conservative'

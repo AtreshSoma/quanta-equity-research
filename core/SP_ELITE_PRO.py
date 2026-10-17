@@ -5530,6 +5530,7 @@ class UniverseStats:
         # Sector-bucketed PE distributions
         self.sector_pe: Dict[str, List[float]] = defaultdict(list)
         self.sector_pb: Dict[str, List[float]] = defaultdict(list)
+        self.sector_ps: Dict[str, List[float]] = defaultdict(list)
 
         # Raw score distributions for final normalization
         self.raw_tech_scores: List[float] = []
@@ -5566,6 +5567,7 @@ class UniverseStats:
                 stats.sector_pb[sector].append(fm.pb_ratio)
             if fm.has_metric('ps_ratio') and fm.ps_ratio > 0:
                 stats.ps_ratios.append(fm.ps_ratio)
+                stats.sector_ps[sector].append(fm.ps_ratio)
             if fm.has_metric('revenue_growth'):
                 stats.revenue_growth.append(fm.revenue_growth)
             if fm.has_metric('earnings_growth'):
@@ -6324,8 +6326,14 @@ class ScoringEngine:
                 pb_pop = stats.pb_ratios
             if fm.has_metric('pb_ratio') and fm.pb_ratio > 0 and len(pb_pop) >= 5:
                 val_z.append(stats._zscore(fm.pb_ratio, pb_pop, invert=True))
-            if fm.has_metric('ps_ratio') and fm.ps_ratio > 0 and len(stats.ps_ratios) >= 5:
-                val_z.append(stats._zscore(fm.ps_ratio, stats.ps_ratios, invert=True))
+            # Sales multiples differ by an order of magnitude across sectors
+            # (software vs retail), so P/S ranks against sector peers when there
+            # are enough of them, like P/E and P/B (audit #9).
+            ps_pop = stats.sector_ps.get(sector) or []
+            if len(ps_pop) < 5:
+                ps_pop = stats.ps_ratios
+            if fm.has_metric('ps_ratio') and fm.ps_ratio > 0 and len(ps_pop) >= 5:
+                val_z.append(stats._zscore(fm.ps_ratio, ps_pop, invert=True))
             if (fm.has_metric('free_cash_flow') and fm.market_cap and fm.market_cap > 0
                     and len(stats.fcf_yields) >= 5):
                 val_z.append(stats._zscore(fm.free_cash_flow / fm.market_cap, stats.fcf_yields))

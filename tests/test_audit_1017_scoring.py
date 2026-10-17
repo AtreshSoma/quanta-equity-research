@@ -210,3 +210,15 @@ def test_price_to_sales_is_ranked_within_its_sector():
     stats.sector_ps = {}                     # force the whole-universe population
     universe_rank = pro.ScoringEngine.normalize_scores(target, stats, weights).ranking_score
     assert sector_rank > universe_rank
+
+
+# --- #15: no size tilt from an unvalidated score -----------------------------
+
+def test_position_size_does_not_scale_with_an_unvalidated_score():
+    from engine.evidence import ELITE_PRO, get_evidence
+    from test_elite_pro_review2_fixes import _bare_system
+    assert not get_evidence(ELITE_PRO).to_dict()["permits_recommendation"]
+    sysm = _bare_system(capital=100_000.0)
+    low = sysm._calculate_position_size("BUY", 5.6, 100.0, 97.0, 0.25)
+    high = sysm._calculate_position_size("BUY", 9.4, 100.0, 97.0, 0.25)
+    assert low == pytest.approx(high) and low > 0

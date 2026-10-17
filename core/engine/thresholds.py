@@ -398,8 +398,13 @@ class SIZING(_Group):
     # Risk budget = capital x TARGET_RISK x signal mult x score mult (audit 5.5)
     SIGNAL_SIZE_MULT = {"STRONG_BUY": 1.00, "BUY": 0.80, "ACCUMULATE": 0.60}
     OTHER_SIGNAL_SIZE_MULT = 0.50
-    SCORE_MULT_BASE = 0.7               # score mult = BASE + score/10 x SPAN
-    SCORE_MULT_SPAN = 0.5
+    # score mult = BASE + score/10 x SPAN. Flat (1.0, 0.0) while the evidence
+    # registry reports elite_pro.composite as unvalidated: sizing by a score
+    # with no demonstrated edge adds risk without adding expected return
+    # (audit 2026-10-17 #15). Was 0.7 / 0.5; restore once the ledger shows the
+    # score is calibrated. The call tier (SIGNAL_SIZE_MULT) still applies.
+    SCORE_MULT_BASE = 1.0
+    SCORE_MULT_SPAN = 0.0
     DEEP_ACCUMULATE_SCALE = 0.5     # Research ACCUMULATE on a scanner BUY
     EARNINGS_IMMINENT_SIZE_MULT = 0.25
     EARNINGS_NEAR_SIZE_MULT = 0.50

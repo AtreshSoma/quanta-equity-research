@@ -234,7 +234,7 @@ test('the calculator reproduces the worked example and the static receipt', () =
   assert.match(app.guideSize({ capital: 600, entry: 900, stop: 880 }).none, /needs more capital/);
   assert.ok(app.guideSize({ stop: 101 }).error);
   const values = $$('#hw-receipt .hw-rc-v').map((b) => b.textContent);
-  assert.deepEqual(values, ['$124.80', '4.2%', '$2,971', '$2,500', '$2,500', '25 shares']);
+  assert.deepEqual(values, ['$120.00', '4.2%', '$2,857', '$2,500', '$2,500', '25 shares']);
   const before = $('#hw-receipt').innerHTML;
   app.renderGuideSize(false);
   assert.equal($('#hw-receipt').innerHTML.replace(/\s+/g, ''), before.replace(/\s+/g, ''), 'JS renders the same receipt as the markup');

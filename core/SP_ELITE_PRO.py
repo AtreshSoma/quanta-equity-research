@@ -5799,7 +5799,9 @@ class ScoringEngine:
                 score -= 0.3
 
         except Exception as e:
-            logger.debug(f"Error in technical scoring: {e}")
+            # [Audit #23] A partial sum is not a score: the factor is unknown.
+            logger.warning(f"technical scoring failed ({type(e).__name__}: {e}); scored neutral")
+            return ScoringEngine.MISSING_DATA_NEUTRAL
 
         return min(10.0, max(0.0, score))
 
@@ -5895,7 +5897,9 @@ class ScoringEngine:
                 score, sum(MAX_POINTS[f] for f in present_fields), sum(MAX_POINTS.values()))
 
         except Exception as e:
-            logger.debug(f"Error in fundamental scoring: {e}")
+            # [Audit #23] A partial sum is not a score: the factor is unknown.
+            logger.warning(f"fundamental scoring failed ({type(e).__name__}: {e}); scored neutral")
+            return ScoringEngine.MISSING_DATA_NEUTRAL
 
         return min(10.0, max(0.0, score))
 
@@ -6015,7 +6019,9 @@ class ScoringEngine:
                 logger.debug(f"Applied momentum crash protection: {mom_1m:.1%} momentum, score reduced by {(1-crash_penalty)*100:.0f}%")
 
         except Exception as e:
-            logger.debug(f"Error in momentum scoring: {e}")
+            # [Audit #23] A partial sum is not a score: the factor is unknown.
+            logger.warning(f"momentum scoring failed ({type(e).__name__}: {e}); scored neutral")
+            return ScoringEngine.MISSING_DATA_NEUTRAL
 
         return min(10.0, max(0.0, score))
 
@@ -6135,8 +6141,9 @@ class ScoringEngine:
             score = ScoringEngine._coverage_scaled(score, max_present, sum(MAX_POINTS.values()))
 
         except Exception as e:
-            logger.error(f"❌ Error in quality scoring: {type(e).__name__}: {str(e)}")
-            return 0.0
+            # [Audit #23] Unknown, not worst-case: it used to return 0.0.
+            logger.warning(f"quality scoring failed ({type(e).__name__}: {e}); scored neutral")
+            return ScoringEngine.MISSING_DATA_NEUTRAL
 
         return min(10.0, max(0.0, score))
 
@@ -6206,7 +6213,9 @@ class ScoringEngine:
             score = ScoringEngine._coverage_scaled(score, max_present, sum(MAX_POINTS.values()))
 
         except Exception as e:
-            logger.debug(f"Error in value scoring: {e}")
+            # [Audit #23] A partial sum is not a score: the factor is unknown.
+            logger.warning(f"value scoring failed ({type(e).__name__}: {e}); scored neutral")
+            return ScoringEngine.MISSING_DATA_NEUTRAL
 
         return min(10.0, max(0.0, score))
 
@@ -10269,9 +10278,12 @@ class QuantaEliteTradingSystem:
         
         Fed week = smaller positions. Returns (multiplier, reason).
         """
-        from datetime import datetime, timedelta
-        
-        today = datetime.now().date()
+        from datetime import datetime
+        from engine.market_calendar import now_new_york
+
+        # FOMC dates are New York dates. The server's local date used to be
+        # used, so an evening scan in Asia ran a day ahead (audit #19).
+        today = now_new_york().date()
 
         # [M11 FIX] A hardcoded calendar silently expires. Once `today` passed
         # the last known date this function returned 1.0 forever with no

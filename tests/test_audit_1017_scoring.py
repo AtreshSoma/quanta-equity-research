@@ -190,3 +190,23 @@ def test_a_failing_factor_scores_neutral_not_partial_or_zero():
     broken = _ti(rsi="n/a")                     # comparison raises mid-sum
     assert pro.ScoringEngine.calculate_technical_score(broken) == neutral
     assert pro.ScoringEngine.calculate_quality_score(None, pro.RiskMetrics()) == neutral
+
+
+# --- #9: P/S ranks against sector peers -------------------------------------
+
+def test_price_to_sales_is_ranked_within_its_sector():
+    def name(t, sector, ps):
+        a = pro.StockAnalysis(ticker=t, company=t, sector=sector, industry="x")
+        a.fundamental_metrics = _fm(ps_ratio=ps)
+        return a
+    # Software trades at 8-12x sales, retail at 0.3-0.7x. A 6x software name is
+    # cheap for software; ranked against the whole universe it looked dear.
+    pool = ([name(f"S{i}", "Software", 8.0 + i) for i in range(5)]
+            + [name(f"R{i}", "Retail", 0.3 + 0.1 * i) for i in range(5)])
+    target = name("SW", "Software", 6.0)
+    stats = pro.UniverseStats.from_analyses(pool + [target])
+    weights = pro._REGIME_WEIGHTS["NEUTRAL"]
+    sector_rank = pro.ScoringEngine.normalize_scores(target, stats, weights).ranking_score
+    stats.sector_ps = {}                     # force the whole-universe population
+    universe_rank = pro.ScoringEngine.normalize_scores(target, stats, weights).ranking_score
+    assert sector_rank > universe_rank

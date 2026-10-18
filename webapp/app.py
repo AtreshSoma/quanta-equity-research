@@ -89,6 +89,7 @@ from engine import research_cache as _research_cache  # noqa: E402
 from engine import why_picked as _why_picked  # noqa: E402
 from engine import valuation_view as _valuation_view  # noqa: E402
 from engine import scan_filters as _scan_filters  # noqa: E402
+import saved_scans  # noqa: E402  (sibling module: the saved-scans store)
 
 
 def _display_path(path: Path) -> str:
@@ -5429,42 +5430,57 @@ def track_record():
         return jsonify({"error": "Track record is unavailable", "detail": type(exc).__name__}), 503
 
 
-# The last completed Picks scan per market, so a restart (or a new tab) opens on
-# the most recent book instead of an empty page. Beside the response cache, so
-# the test suite's temporary cache directory isolates it too.
+# Completed Picks scans, kept for SAVED_SCANS.RETENTION_HOURS (one per distinct
+# setting, newest MAX_SAVED per market), so a restart, a new tab or a switch of
+# scan universe reopens a book instead of rescanning. Beside the response cache,
+# so the test suite's temporary cache directory isolates it too. The store
+# itself is saved_scans.py.
 _LAST_SCAN_DIR = Path(os.environ.get("QUANTA_CACHE_DIR", str(PROJECT_ROOT / "data" / "cache"))) / "last_scan"
-
-
-def _last_scan_path(market: str) -> Path:
-    return _LAST_SCAN_DIR / f"{'IN' if str(market).upper() == 'IN' else 'US'}.json.gz"
 
 
 def _save_last_scan(params: Dict[str, Any], result: Dict[str, Any]) -> None:
     """Best effort: a failed save never fails the scan that produced the result."""
-    path = _last_scan_path(params.get("market", "US"))
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"saved_at": _now_iso(), "params": _safe_serialize(params),
-                   "result": _safe_serialize(result)}
-        tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
-        tmp.write_bytes(gzip.compress(json.dumps(payload, default=str).encode("utf-8")))
-        tmp.replace(path)
+        saved_scans.save(_LAST_SCAN_DIR, _safe_serialize(params), _safe_serialize(result))
     except Exception as exc:  # noqa: BLE001
-        logger.warning("last scan not saved: %s", exc)
+        logger.warning("scan not saved: %s", exc)
+
+
+@app.route("/api/stock-picks/recent")
+def stock_picks_recent():
+    """The saved scans for a market, newest first: settings and headline counts
+    only (``/recent/<id>`` has the result). Empty list when there are none."""
+    market = (request.args.get("market") or "US").strip().upper()
+    try:
+        return jsonify({"retention_hours": _T.SAVED_SCANS.RETENTION_HOURS,
+                        "scans": saved_scans.list_entries(_LAST_SCAN_DIR, market)})
+    except Exception as exc:  # noqa: BLE001 - the switcher is optional, never an error page
+        logger.warning("saved scans unreadable: %s", exc)
+        return jsonify({"retention_hours": _T.SAVED_SCANS.RETENTION_HOURS, "scans": []})
+
+
+@app.route("/api/stock-picks/recent/<scan_id>")
+def stock_picks_recent_one(scan_id: str):
+    """One saved scan in full, or 404 when it is unknown or past retention."""
+    market = (request.args.get("market") or "US").strip().upper()
+    saved = saved_scans.load(_LAST_SCAN_DIR, market, scan_id)
+    if saved is None:
+        return jsonify({"error": "That scan is no longer saved"}), 404
+    return jsonify(saved)
 
 
 @app.route("/api/stock-picks/last")
 def stock_picks_last():
     """The most recent completed Picks scan for a market, or 404 when there is none."""
     market = (request.args.get("market") or "US").strip().upper()
-    path = _last_scan_path(market)
-    if not path.exists():
-        return jsonify({"error": "No completed scan yet"}), 404
     try:
-        return jsonify(json.loads(gzip.decompress(path.read_bytes())))
+        saved = saved_scans.newest(_LAST_SCAN_DIR, market)
     except Exception as exc:  # noqa: BLE001 - a corrupt file reads as "no scan"
         logger.warning("last scan unreadable: %s", exc)
-        return jsonify({"error": "The saved scan could not be read"}), 404
+        saved = None
+    if saved is None:
+        return jsonify({"error": "No completed scan yet"}), 404
+    return jsonify(saved)
 
 
 _TRACK_RESOLVE_LOCK = threading.Lock()
@@ -6919,11 +6935,13 @@ def _run_stock_picks(job_id: str, params: dict):
         if "research_check" not in stage_log:
             _notes["research_check"] = ("skipped: turned off for this scan" if not dc_enabled
                                         else "skipped: no name was selected for it")
+        # Saved BEFORE the job reads "complete": the page refreshes its Recent
+        # scans list the moment it sees that status, and must find this scan in it.
+        _save_last_scan(params, result)
         _update_job(job_id, progress=100, message="Complete", status="complete", result=result,
                     finished_at=time.time(),
                     stage=_terminal_stage("complete", stage_log, _notes,
                                           round(time.time() - _scan_started, 1)))
-        _save_last_scan(params, result)
 
         # [SCAN-HEALTH] Record telemetry for the dashboard health panel.
         with _last_scan_meta_lock:

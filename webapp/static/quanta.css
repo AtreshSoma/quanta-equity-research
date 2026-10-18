@@ -7770,3 +7770,25 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 2px; cur
   /* A Watchlist card has no capital line to show. */
   .pk-table tr.pk-row td.pk-c-pos:has(> .pk-na:only-child) { display: none; }
 }
+
+/* ── Recent scans: reopen a scan from the last day ───────────────────────────
+   A quiet strip above the report. The chip styling follows the call chips
+   (.pk-chip-f); it scrolls sideways on a phone instead of wrapping into rows. */
+.pk-recent-wrap { padding: var(--sp-3) var(--sp-4) 0; }
+.pk-recent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.pk-recent-l { font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.02em; color: var(--text-secondary); white-space: nowrap; }
+.pk-recent-list { display: flex; gap: 6px; margin: 0; padding: 2px 0 6px; list-style: none; overflow-x: auto; scrollbar-width: thin; max-width: 100%; }
+.pk-recent-list li { flex: none; }
+.pk-recent-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: baseline; gap: 8px; min-height: 30px; padding: 4px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-pill); background: var(--bg-elev-1); color: var(--text-secondary); font-size: var(--fs-xs); cursor: pointer; white-space: nowrap; }
+.pk-recent-chip b { font-weight: 600; color: var(--text-primary); }
+.pk-recent-chip span { font-family: var(--pk-num); font-size: var(--fs-2xs); color: var(--text-secondary); }
+.pk-recent-chip.is-stale span { color: var(--warn); }
+.pk-recent-chip[aria-pressed="true"] { background: var(--bg-elev-2); border-color: var(--primary); }
+.pk-recent-chip:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+@media (hover: hover) { .pk-recent-chip:hover { background: var(--bg-elev-2); } }
+.pk-recent-note { flex-basis: 100%; min-height: 0; font-size: var(--fs-2xs); color: var(--text-secondary); }
+.pk-recent-note:empty { display: none; }
+@media (max-width: 640px) {
+  .pk-recent-wrap { padding: var(--sp-3) var(--sp-3) 0; }
+  .pk-recent-l { flex-basis: 100%; }
+}

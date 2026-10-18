@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 import time
 from typing import Callable, Dict, List, Optional, Tuple
@@ -39,13 +40,16 @@ _SUB_INDUSTRY = {"sub_industry": "GICS Sub-Industry"}
 INDEXES: Dict[str, Dict[str, object]] = {
     "sp500": {"label": "S&P 500",
               "url": "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
-              "columns": ("Symbol",), "attrs": _SUB_INDUSTRY},
+              "columns": ("Symbol",), "attrs": {**_SUB_INDUSTRY, "name": "Security"}},
     "nasdaq100": {"label": "NASDAQ-100",
                   "url": "https://en.wikipedia.org/wiki/List_of_NASDAQ-100_companies",
                   "columns": ("Ticker", "Symbol"), "attrs": _SUB_INDUSTRY},
+    # The Dow page dropped its components table (2026-10); its navigation box
+    # still names the 30 companies, which are resolved to tickers through the
+    # S&P 500 table's company names (every Dow member is an S&P 500 company).
     "dow30": {"label": "Dow 30",
               "url": "https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average",
-              "columns": ("Symbol",)},
+              "columns": ("Symbol",), "navbox": "Components of the Dow Jones"},
     "sp400": {"label": "S&P 400 mid-cap",
               "url": "https://en.wikipedia.org/wiki/List_of_S%26P_400_companies",
               "columns": ("Symbol",), "attrs": _SUB_INDUSTRY},
@@ -147,6 +151,87 @@ def _snapshot(key: str) -> Tuple[List[str], Optional[str]]:
         return [], None
 
 
+_NAME_NOISE = {"inc", "corp", "corporation", "company", "co", "the", "plc", "ltd", "limited",
+               "holdings", "group", "class", "a", "b", "c", "incorporated", "international"}
+
+
+def _name_key(name: str) -> List[str]:
+    """Company name as comparable words: lower case, punctuation and legal
+    suffixes removed ("The Walt Disney Company" -> ["walt", "disney"])."""
+    words = re.sub(r"[^a-z0-9& ]+", " ", str(name).lower()).split()
+    return [w for w in words if w not in _NAME_NOISE]
+
+
+def _navbox_names(tables: List[pd.DataFrame], title: str) -> List[str]:
+    """The entries of a Wikipedia navigation box whose heading starts with ``title``."""
+    for table in tables:
+        head = " ".join(str(c) for c in table.columns)
+        if title.lower() not in head.lower():
+            continue
+        cells: List[str] = []
+        for v in table.values.ravel():
+            text = str(v).strip()
+            if text and text.lower() != "nan" and title.lower() not in text.lower():
+                cells.append(text)
+        # The box renders its list as one space-separated cell, repeated.
+        return cells
+    return []
+
+
+def _resolve_names(cell_text: str, by_name: Dict[str, str]) -> List[str]:
+    """Tickers for the company names packed in a navbox cell, matched against
+    ``by_name`` (ticker -> company name).
+
+    Walks the cell's words; at each position the company whose name opens
+    with the longest run of those words wins ("Johnson & Johnson" beats
+    "Johnson Controls"). One leading word on the company side may be skipped
+    ("Disney" matches "Walt Disney"). A tie keeps every share class of one
+    company (Alphabet: GOOGL and GOOG).
+    """
+    names = {t: _name_key(n) for t, n in by_name.items()}
+    words = _name_key(cell_text)
+    found: List[str] = []
+    i = 0
+    while i < len(words):
+        best_len, best = 0, []
+        for t, nk in names.items():
+            for skip in (0, 1):
+                rest = nk[skip:]
+                n = 0
+                while n < len(rest) and i + n < len(words) and words[i + n] == rest[n]:
+                    n += 1
+                if n > best_len:
+                    best_len, best = n, [t]
+                elif n and n == best_len and t not in best:
+                    best.append(t)
+        if best_len:
+            found.extend(t for t in best if t not in found)
+            i += best_len
+        else:
+            i += 1
+    return found
+
+
+def _from_navbox(key: str, spec: Dict[str, object], read_tables: Callable[[str], List[pd.DataFrame]],
+                 floor: int, now: float) -> Optional[Dict[str, object]]:
+    """An index whose page lists its members only in a navigation box: the
+    company names there, resolved to tickers through the S&P 500 table."""
+    names = _navbox_names(read_tables(str(spec["url"])), str(spec["navbox"]))
+    sp = constituents("sp500", read_tables, now)
+    by_name = dict((sp.get("attrs") or {}).get("name") or {})
+    if not names or not by_name:
+        return None
+    tickers = _resolve_names(names[0], by_name)
+    if len(tickers) < floor:
+        return None
+    out = {"key": key, "label": spec["label"], "tickers": tickers, "source": "live",
+           "as_of": time.strftime("%Y-%m-%d", time.localtime(now)),
+           "cause": "", "attrs": {}, "method": "navbox names resolved through the S&P 500 table"}
+    with _lock:
+        _cache[key] = (now, out)
+    return dict(out)
+
+
 def constituents(key: str, read_tables: Callable[[str], List[pd.DataFrame]],
                  now: Optional[float] = None) -> Dict[str, object]:
     """``{"key", "label", "tickers", "source": live|snapshot|none, "as_of", "cause", "attrs"}``.
@@ -172,6 +257,11 @@ def constituents(key: str, read_tables: Callable[[str], List[pd.DataFrame]],
                 _cache[key] = (now, out)
             return dict(out)
         cause = f"the live list parsed only {len(tickers)} names (at least {floor} expected)"
+        if spec.get("navbox"):
+            resolved = _from_navbox(key, spec, read_tables, floor, now)
+            if resolved:
+                return resolved
+            cause += "; the navigation box did not resolve either"
     except Exception as exc:  # network, parse or layout failure
         cause = f"the live list could not be read ({str(exc)[:120]})"
     tickers, as_of = _snapshot(key)

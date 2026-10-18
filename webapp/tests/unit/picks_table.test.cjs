@@ -64,10 +64,15 @@ test('each row states its call, labelled levels, score bar and capital fit', () 
   assert.doesNotMatch(box.querySelector('[data-picks-v2]').textContent, /[–—]/, 'no en or em dashes in the report');
 });
 
-test('the header counts the calls; the Overview cards hold the figures, once each', () => {
+test('one report head: the scan on one line, the verdict once, then the figures, each once', () => {
   const box = render(payload());
   const head = box.querySelector('[data-picks-head]');
-  assert.equal(T(head.querySelector('[data-result-heading]')), '2 Buy or Accumulate, 2 Watchlist, from 100 scanned');
+  const report = box.querySelector('.pk-report-head');
+  // The verdict is the heading (and where focus lands after a run); the
+  // scanned count lives in the figures, not repeated in the verdict.
+  assert.equal(T(report.querySelector('[data-result-heading]')), '2 Buy or Accumulate, 2 Watchlist');
+  assert.equal(head.querySelector('[data-result-heading]'), null, 'the settings strip is not a second heading');
+  assert.ok(report.querySelector('[data-pk-summary]'), 'the figures describe the whole scan, above the tabs');
   const meta = [...head.querySelectorAll('.pk-meta li')].map((li) => T(li));
   assert.equal(meta[0], 'Quick scan');
   assert.deepEqual(meta.slice(2), ['US', 'Balanced mandate', 'Up to 5 positions']);
@@ -80,8 +85,9 @@ test('the header counts the calls; the Overview cards hold the figures, once eac
   assert.match(T(cards[1].querySelector('dd > span:last-child')), /^10\.1% of \$2,500/);
   assert.equal(cards[1].querySelector('.pk-meter-fill').style.width, '10.1%');
   assert.deepEqual([T(cards[2].querySelector('dd b')), T(cards[2].querySelector('dd span'))], ['Bull', 'VIX 15.6']);
-  const all = head.textContent + panel(box, 'overview').textContent;
-  for (const once of ['10.1%', 'from 100 scanned', 'VIX 15.6', 'Model not yet validated']) {
+  const all = box.querySelector('[data-picks-v2]').textContent.replace(panel(box, 'analysis').textContent, '')
+    .replace(panel(box, 'risk').textContent, '').replace(panel(box, 'method').textContent, '').replace(panel(box, 'signals').textContent, '');
+  for (const once of ['10.1%', '100 scanned', 'VIX 15.6', 'Model not yet validated', '2 Buy or Accumulate']) {
     assert.equal(all.split(once).length - 1, 1, `${once} appears once`);
   }
 });
@@ -127,7 +133,7 @@ test('the report is five sections; a row opens its analysis beside the list of c
   Object.assign(rows[0], { volatility: 0.38, beta: 1.6, risk_grade: 'C', sma_50: 240, atr: 5.4, trailing_stop: 244.51, days_to_earnings: 20 });
   const box = render(payload({ stock_picks: rows }));
   const tabs = [...box.querySelectorAll('.pk-tabs [role="tab"]')];
-  assert.deepEqual(tabs.map((t) => T(t)), ['Overview', 'Analysis4', 'Momentum alerts', 'Risk and execution', 'Method']);
+  assert.deepEqual(tabs.map((t) => T(t)), ['Calls', 'Analysis4', 'Momentum alerts', 'Risk and execution', 'Method']);
   assert.equal(panel(box, 'overview').hidden, false);
   assert.ok(['analysis', 'signals', 'risk', 'method'].every((k) => panel(box, k).hidden));
   const groups = [...panel(box, 'analysis').querySelectorAll('.pk-alist-h')].map((h) => T(h));
@@ -701,4 +707,23 @@ test('B-89: a held name says "already held" on its row and card; the table says 
   const off = render(payload({ stock_picks: ROWS(), holdings_check: { state: 'not_checked', text: 'Holdings not checked: load your broker account in My Portfolio to size picks around what you already own.' } }));
   assert.equal(T(off.querySelector('[data-pk-holdings]')), 'Holdings not checked: load your broker account in My Portfolio to size picks around what you already own.');
   assert.equal(render(payload({ stock_picks: ROWS() })).querySelector('[data-pk-holdings]'), null, 'no check reported, no line');
+});
+
+test('a book of Watchlist calls drops the Your capital column; any size or need brings it back', () => {
+  const watch = ROWS().filter((r) => r.call === 'watchlist');
+  const box = render(payload({ stock_picks: watch }));
+  const heads = [...box.querySelectorAll('table.pk-table thead th')].map((th) => T(th));
+  assert.ok(!heads.includes('Your capital'), 'every cell would be a dash');
+  assert.equal(box.querySelectorAll('td.pk-c-pos').length, 0);
+  const span = Number(box.querySelector('tr.pk-grp th').getAttribute('colspan'));
+  assert.equal(span, box.querySelectorAll('table.pk-table thead th').length, 'the group row still spans the table');
+  // An Accumulate row that says what one share needs keeps the column.
+  const withNeed = render(payload({ stock_picks: ROWS().slice(1) }));
+  assert.ok([...withNeed.querySelectorAll('table.pk-table thead th')].map((th) => T(th)).includes('Your capital'));
+});
+
+test('the broker-holdings note sits under Risk and execution, not above the table', () => {
+  const off = render(payload({ holdings_check: { state: 'off', text: 'Holdings not checked: load your broker account in My Portfolio to size picks around what you already own.' } }));
+  assert.ok(panel(off, 'risk').querySelector('[data-pk-holdings]'));
+  assert.equal(panel(off, 'overview').querySelector('[data-pk-holdings]'), null);
 });

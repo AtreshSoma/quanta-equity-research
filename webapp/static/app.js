@@ -8595,32 +8595,42 @@ function pkHeadHtml(data, rows, sym) {
     </header>`;
 }
 
-/* One row of figures; each appears once in the report. */
+/* Three figures, each with one job; the header already counts the calls and
+   the table lists them, so neither is repeated here.
+   Scan to calls: where the universe went (scanned, ranked, sized).
+   Deployment: capital used against the regime's exposure ceiling.
+   Regime: the market read the scan ran under. */
 function pkSummaryCardsHtml(data, rows, sym) {
   const capital = Number(data.capital || 0);
-  const ba = rows.filter((r) => ['buy', 'accumulate'].includes(pkGroupOf(r)));
-  const watch = rows.filter((r) => pkGroupOf(r) === 'watchlist');
   const sized = rows.filter(pkIsSized);
   const invested = sized.reduce((a, r) => a + Number(r.allocation || 0), 0);
-  const names = (list) => (list.length ? list.slice(0, 3).map((r) => r.ticker).join(', ') + (list.length > 3 ? ` and ${list.length - 3} more` : '') : 'None');
   const scanned = Number(data.total_scanned || (data.accounting || {}).universe || 0);
   const out = (data.screened_out || []).length + Number(((data.accounting || {}).rule_rejected || {}).count || 0);
   const ex = (data.excluded_for_safety || []).length;
   const failed = Number(((data.accounting || {}).could_not_analyse || {}).count || 0);
-  const pct = (v) => (capital > 0 ? `${(v / capital * 100).toFixed(1)}%` : '');
   const regime = data.regime || {};
   const unknown = /UNKNOWN/i.test(regime.type || '');
-  const cell = (k, v, sub, cls = '') => `<div class="pk-sc${cls}"><dt>${escapeHtml(k)}</dt><dd><b>${escapeHtml(v)}</b>${sub ? `<span>${escapeHtml(sub)}</span>` : ''}</dd></div>`;
+  const exposure = pkNum(regime.exposure);
+  const usedPct = capital > 0 ? (invested / capital) * 100 : null;
+  const cell = (k, body, cls = '') => `<div class="pk-sc${cls}"><dt>${escapeHtml(k)}</dt><dd>${body}</dd></div>`;
+  const sub = (t) => (t ? `<span>${escapeHtml(t)}</span>` : '');
+
+  const steps = [[scanned, 'scanned'], [rows.length, 'ranked'], [sized.length, 'sized']];
+  const funnel = scanned ? `<ol class="pk-fun" aria-label="${escapeHtml(steps.map(([n, l]) => `${n} ${l}`).join(', '))}">${steps.map(([n, l]) => `<li><b>${escapeHtml(String(n))}</b><small>${escapeHtml(l)}</small></li>`).join('')}</ol>` : '<b>-</b>';
+  const funnelSub = [out ? `${out} screened out` : '', ex ? `${ex} excluded for safety` : '', failed ? `${failed} not analysed` : ''].filter(Boolean).join(', ');
+
+  // The meter is the one place exposure appears: fill = capital used, tick = the
+  // share of capital the regime allows.
+  const clampPct = (v) => Math.max(0, Math.min(100, v));
+  const meter = usedPct !== null ? `<span class="pk-meter" aria-hidden="true"><span class="pk-meter-fill" style="width:${clampPct(usedPct).toFixed(1)}%"></span>${exposure !== null ? `<span class="pk-meter-cap" style="left:${clampPct(exposure).toFixed(1)}%"></span>` : ''}</span>` : '';
+  const deploySub = capital ? `${usedPct.toFixed(1)}% of ${fmtMoney(capital, sym, 0)}${exposure !== null ? `, regime allows ${Number(exposure)}%` : ''}` : '';
+
   const regimeSub = [pkNum(regime.vix) > 0 ? `${pkIsIndia(data) ? 'India VIX' : 'VIX'} ${Number(regime.vix).toFixed(1)}${regime.vix_is_proxy ? ' (est.)' : ''}` : '',
-    pkNum(regime.exposure) !== null ? `exposure ${Number(regime.exposure)}%` : '',
     unknown ? 'trend unread: benchmark history unavailable' : ''].filter(Boolean).join(', ');
   return `<dl class="pk-scards" data-pk-summary>
-      ${cell('Buy and Accumulate', String(ba.length), names(ba))}
-      ${cell('Watchlist', String(watch.length), names(watch))}
-      ${cell('Scanned', String(scanned), [out ? `${out} screened out` : '', ex ? `${ex} excluded for safety` : '',
-    failed ? `${failed} not analysed` : ''].filter(Boolean).join(' · '))}
-      ${cell('Suggested deployment', fmtMoney(invested, sym, 0), capital ? `${pct(invested)} of ${fmtMoney(capital, sym, 0)} capital` : '')}
-      ${regime.type ? cell('Regime', unknown ? 'Unknown' : titleLabel(regime.type), regimeSub) : ''}
+      ${cell('Scan to calls', `${funnel}${sub(funnelSub)}`, ' pk-sc-funnel')}
+      ${cell('Suggested deployment', `<b>${escapeHtml(fmtMoney(invested, sym, 0))}</b>${meter}${sub(deploySub)}`, ' pk-sc-deploy')}
+      ${regime.type ? cell('Regime', `<b>${escapeHtml(unknown ? 'Unknown' : titleLabel(regime.type))}</b>${sub(regimeSub)}`) : ''}
     </dl>`;
 }
 
@@ -8631,14 +8641,19 @@ function pkResultFiltersHtml(rows) {
   const sectors = uniq(rows.map((r) => r.sector));
   const grades = uniq(rows.map((r) => r.risk_grade));
   const opt = (v, l) => `<option value="${escapeHtml(v)}">${escapeHtml(l)}</option>`;
-  return `<div class="pk-rf" role="group" aria-label="Filter the calls">
+  // Folded behind one control: four fields are clutter for a short list, and
+  // the call chips already cover the common cut.
+  return `<details class="pk-rf-wrap">
+      <summary class="btn-mini">Filters</summary>
+      <div class="pk-rf" role="group" aria-label="Filter the calls">
       ${sectors.length > 1 ? `<label class="pk-rf-f"><span>Sector</span><select data-pk-rf="sector">${opt('', 'All')}${sectors.map((s) => opt(s, s)).join('')}</select></label>` : ''}
       ${grades.length > 1 ? `<label class="pk-rf-f"><span>Risk grade</span><select data-pk-rf="grade">${opt('', 'Any')}${grades.map((g) => opt(g, `${g} or better`)).join('')}</select></label>` : ''}
       <label class="pk-rf-f"><span>Score at least</span><input type="number" inputmode="numeric" min="0" max="100" step="5" placeholder="Any" data-pk-rf="score"></label>
       <label class="pk-rf-f"><span>R:R at least</span><input type="number" inputmode="decimal" min="0" step="0.1" placeholder="Any" data-pk-rf="rr"></label>
       <button type="button" class="btn-mini" data-pk-rf-clear hidden>Clear</button>
-      <span class="pk-rf-count" data-pk-rf-count aria-live="polite"></span>
-    </div>`;
+      </div>
+    </details>
+    <span class="pk-rf-count" data-pk-rf-count aria-live="polite"></span>`;
 }
 
 /* The scan filters a result ran with, in words ("" when none). */
@@ -8668,12 +8683,18 @@ function pkStatusChipsHtml(rows) {
     </div>`;
 }
 
+/* The sentence every Watchlist row would otherwise repeat; its group header
+   states it once. */
+const PK_WATCH_CAPITAL = 'No new money on a Watchlist call';
+
 function pkRowHtml(r, i, sym) {
   const sized = pkIsSized(r);
   const rr = pkNum(r.risk_reward);
   const dec = Number(thr('UI.RR_DECIMALS')) || 2;
   const sub = r.status !== 'avoid' ? r.setup || '' : '';
-  const position = pkCapital(r, sym).html;
+  const cap = pkCapital(r, sym);
+  const position = !cap.sized && cap.text === PK_WATCH_CAPITAL
+    ? `<span class="pk-na" aria-label="${escapeHtml(PK_WATCH_CAPITAL)}">-</span>` : cap.html;
   return `
     <tr class="pk-row${sized ? ' is-sized' : ''}" data-pk-ticker="${escapeHtml(r.ticker)}" data-pk-outcome="${cssToken(pkGroupOf(r))}" data-pk-sector="${escapeHtml(r.sector || '')}" data-pk-grade="${escapeHtml(r.risk_grade || '')}" data-pk-score="${score100(r.score) ?? ''}" data-pk-rr="${pkNum(r.risk_reward) ?? ''}">
       <td class="pk-c-rank num">${escapeHtml(String(r.rank))}</td>
@@ -8695,7 +8716,7 @@ function pkOverviewHtml(data, rows, sym, foot) {
   return `${pkSummaryCardsHtml(data, rows, sym)}
     ${hasBuy ? '' : pkEmptyHtml(data, rows)}
     ${rows.length ? `<div class="pk-ov-tools">${pkStatusChipsHtml(rows)}${pkResultFiltersHtml(rows)}
-      <div class="pk-ov-sub"><p class="pk-note">Buy, then Accumulate, then Watchlist; by score within each.</p>${note}</div>${pkHoldingsNoteHtml(data)}</div>
+      ${note || pkHoldingsNoteHtml(data) ? `<div class="pk-ov-sub">${note}${pkHoldingsNoteHtml(data)}</div>` : ''}</div>
       ${pkTableHtml(rows, sym)}<p class="pk-nomatch" data-pk-nomatch hidden>No call matches these filters.</p>${pkWarningsHtml(data, rows)}` : ''}
     ${foot}`;
 }
@@ -9046,6 +9067,27 @@ function pkScoreCellHtml(r) {
 }
 
 
+/* Rows arrive ranked (Buy, then Accumulate, then Watchlist). Each call kind
+   opens with a group row naming it and its count; the Watchlist group says
+   once what its rows mean for capital. */
+const PK_GROUP_NOTE = { watchlist: 'No new money on these calls. Open a row for what holds it back.' };
+function pkGroupHeadHtml(key, label, n) {
+  const note = PK_GROUP_NOTE[key];
+  return `<tr class="pk-grp" data-pk-grp="${cssToken(key)}"><th scope="rowgroup" colspan="${PK_COLS.length + 1}"><span class="pk-grp-l">${escapeHtml(label)}</span><span class="pk-grp-n">${n}</span>${note ? `<span class="pk-grp-note">${escapeHtml(note)}</span>` : ''}</th></tr>`;
+}
+function pkGroupedRowsHtml(rows, sym) {
+  const labels = Object.fromEntries(PK_GROUPS);
+  const counts = {};
+  rows.forEach((r) => { const k = pkGroupOf(r); counts[k] = (counts[k] || 0) + 1; });
+  let last = null;
+  return rows.map((r, i) => {
+    const k = pkGroupOf(r);
+    const head = k !== last && labels[k] ? pkGroupHeadHtml(k, labels[k], counts[k]) : '';
+    last = k;
+    return head + pkRowHtml(r, i, sym);
+  }).join('');
+}
+
 function pkTableHtml(rows, sym) {
   const head = PK_COLS.map(([k, label]) => {
     const sortable = Object.prototype.hasOwnProperty.call(PK_SORT, k);
@@ -9057,7 +9099,7 @@ function pkTableHtml(rows, sym) {
       <table class="pk-table">
         <caption class="sr-only">QUANTA's calls: Buy, then Accumulate, then Watchlist, by score within each</caption>
         <thead><tr>${head}<th scope="col" class="pk-c-more"><span class="sr-only">Analysis</span></th></tr></thead>
-        <tbody>${rows.map((r, i) => pkRowHtml(r, i, sym)).join('')}</tbody>
+        <tbody>${pkGroupedRowsHtml(rows, sym)}</tbody>
       </table>
     </div>`;
 }
@@ -9195,6 +9237,17 @@ function wirePicksTable(container, data) {
   }
   const openAnalysis = (ticker) => { showTab('analysis'); showPick(ticker, true); };
   const rf = { call: 'all', sector: '', grade: '', score: null, rr: null };
+  // A group row is shown only in rank order and only while one of its rows is
+  // visible; sorted by another column the groups no longer mean anything.
+  let ranked = true;
+  const syncGroupHeads = () => {
+    const tbody = table && table.querySelector('tbody');
+    if (!tbody) return;
+    tbody.querySelectorAll('tr.pk-grp').forEach((g) => {
+      const key = g.dataset.pkGrp;
+      g.hidden = !ranked || ![...tbody.querySelectorAll('tr.pk-row')].some((tr) => !tr.hidden && cssToken(tr.dataset.pkOutcome) === key);
+    });
+  };
   const applyRf = () => {
     const trs = [...view.querySelectorAll('tr.pk-row')];
     let shown = 0;
@@ -9207,6 +9260,7 @@ function wirePicksTable(container, data) {
       tr.hidden = !ok;
       if (ok) shown += 1;
     });
+    syncGroupHeads();
     const active = rf.call !== 'all' || rf.sector || rf.grade || rf.score != null || rf.rr != null;
     const count = view.querySelector('[data-pk-rf-count]');
     if (count) count.textContent = active ? `Showing ${shown} of ${trs.length}` : '';
@@ -9267,6 +9321,16 @@ function wirePicksTable(container, data) {
           return dir === 'descending' ? vb - va : va - vb;
         });
         trs.forEach((row) => tbody.appendChild(row));
+        // Back in rank order: put each group row before its first row again.
+        const ranks = trs.map((tr) => Number((rowsData.get(tr.dataset.pkTicker) || {}).rank));
+        ranked = ranks.every((n, i) => i === 0 || n >= ranks[i - 1]);
+        if (ranked) {
+          tbody.querySelectorAll('tr.pk-grp').forEach((g) => {
+            const first = trs.find((tr) => cssToken(tr.dataset.pkOutcome) === g.dataset.pkGrp);
+            if (first) tbody.insertBefore(g, first);
+          });
+        }
+        syncGroupHeads();
       });
     });
   }

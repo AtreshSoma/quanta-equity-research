@@ -5650,7 +5650,8 @@ def start_stock_picks():
             if not re.fullmatch(r"[A-Z0-9^.=-]{1,32}", symbol):
                 return jsonify({"error": f"invalid ticker symbol: {symbol[:32]}"}), 400
             normalized.append(symbol)
-        custom_tickers = normalized
+        # "AAPL, aapl" is one name: duplicates used to be analysed and listed twice.
+        custom_tickers = list(dict.fromkeys(normalized))
 
     # The Client Mandate validates to one of the offered profiles
     # (SIZING.MANDATE_SCALE) and is applied in the worker. A retired profile

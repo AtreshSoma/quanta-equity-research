@@ -219,7 +219,11 @@ class REGIME(_Group):
     VIX_NORMAL_MAX = 20.0           # below: NORMAL
     VIX_HIGH_MAX = 30.0             # below: HIGH, else EXTREME
     VIX_VOLATILE = 25.0             # trend classifier: BULL needs VIX below, VOLATILE above
-    EXPOSURE_LOW_VOL = 1.2
+    # The book is a cash account: exposure is a fraction of capital and may
+    # never exceed it. 1.2 here used to let a calm BULL tape propose 120% of
+    # the user's capital (audit 2026-10-17 #3).
+    EXPOSURE_MAX = 1.0
+    EXPOSURE_LOW_VOL = 1.0
     EXPOSURE_NORMAL = 1.0
     EXPOSURE_HIGH = 0.7
     EXPOSURE_EXTREME = 0.5
@@ -228,6 +232,21 @@ class REGIME(_Group):
     EXPOSURE_CAP_VOLATILE = 0.70
     EXPOSURE_CAP_BEAR = 0.75
     EXPOSURE_CAP_UNKNOWN = 0.60
+    # Recommended cash share by trend regime. ERROR is a failed detection: it
+    # holds more cash than NEUTRAL, and is never overwritten by it.
+    CASH_PCT = {
+        "BULL": 0.15,
+        "NEUTRAL": 0.25,
+        "RANGING": 0.35,
+        "ERROR": 0.35,
+        "UNKNOWN": 0.40,
+        "VOLATILE": 0.50,
+        "BEAR": 0.60,
+    }
+    # Trend hysteresis: price must clear the 50-day average by this fraction
+    # before the trend reads BULL or BEAR, so one close a hair either side of
+    # the average cannot flip every weight and threshold in the scan.
+    TREND_BAND_PCT = 0.01
     # (STRONG_BUY, BUY) scanner-score bars by regime. None = use SCORE.GOOD/EXCELLENT.
     SIGNAL_THRESHOLDS = {
         "BEAR": (9.0, 8.0),
@@ -379,8 +398,13 @@ class SIZING(_Group):
     # Risk budget = capital x TARGET_RISK x signal mult x score mult (audit 5.5)
     SIGNAL_SIZE_MULT = {"STRONG_BUY": 1.00, "BUY": 0.80, "ACCUMULATE": 0.60}
     OTHER_SIGNAL_SIZE_MULT = 0.50
-    SCORE_MULT_BASE = 0.7               # score mult = BASE + score/10 x SPAN
-    SCORE_MULT_SPAN = 0.5
+    # score mult = BASE + score/10 x SPAN. Flat (1.0, 0.0) while the evidence
+    # registry reports elite_pro.composite as unvalidated: sizing by a score
+    # with no demonstrated edge adds risk without adding expected return
+    # (audit 2026-10-17 #15). Was 0.7 / 0.5; restore once the ledger shows the
+    # score is calibrated. The call tier (SIGNAL_SIZE_MULT) still applies.
+    SCORE_MULT_BASE = 1.0
+    SCORE_MULT_SPAN = 0.0
     DEEP_ACCUMULATE_SCALE = 0.5     # Research ACCUMULATE on a scanner BUY
     EARNINGS_IMMINENT_SIZE_MULT = 0.25
     EARNINGS_NEAR_SIZE_MULT = 0.50

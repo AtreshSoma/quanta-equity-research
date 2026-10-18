@@ -7771,24 +7771,51 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 2px; cur
   .pk-table tr.pk-row td.pk-c-pos:has(> .pk-na:only-child) { display: none; }
 }
 
-/* ── Recent scans: reopen a scan from the last day ───────────────────────────
-   A quiet strip above the report. The chip styling follows the call chips
-   (.pk-chip-f); it scrolls sideways on a phone instead of wrapping into rows. */
-.pk-recent-wrap { padding: var(--sp-3) var(--sp-4) 0; }
-.pk-recent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
-.pk-recent-l { font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.02em; color: var(--text-secondary); white-space: nowrap; }
-.pk-recent-list { display: flex; gap: 6px; margin: 0; padding: 2px 0 6px; list-style: none; overflow-x: auto; scrollbar-width: thin; max-width: 100%; }
-.pk-recent-list li { flex: none; }
-.pk-recent-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: baseline; gap: 8px; min-height: 30px; padding: 4px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-pill); background: var(--bg-elev-1); color: var(--text-secondary); font-size: var(--fs-xs); cursor: pointer; white-space: nowrap; }
-.pk-recent-chip b { font-weight: 600; color: var(--text-primary); }
-.pk-recent-chip span { font-family: var(--pk-num); font-size: var(--fs-2xs); color: var(--text-secondary); }
-.pk-recent-chip.is-stale span { color: var(--warn); }
-.pk-recent-chip[aria-pressed="true"] { background: var(--bg-elev-2); border-color: var(--primary); }
-.pk-recent-chip:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
-@media (hover: hover) { .pk-recent-chip:hover { background: var(--bg-elev-2); } }
-.pk-recent-note { flex-basis: 100%; min-height: 0; font-size: var(--fs-2xs); color: var(--text-secondary); }
-.pk-recent-note:empty { display: none; }
-@media (max-width: 640px) {
-  .pk-recent-wrap { padding: var(--sp-3) var(--sp-3) 0; }
-  .pk-recent-l { flex-basis: 100%; }
+/* ── Picks report, 2026-10-18 redesign ───────────────────────────────────────
+   One report head (which scan, the verdict, the scan figures) above the tabs;
+   the Calls tab holds only the toolbar and the table. Recent scans moved to the
+   setup panel. Hairlines and tokens only; both themes follow. */
+.picks-v2 .pk-report-head { border: 1px solid var(--border-soft); border-radius: var(--pk-r); background: var(--bg-elev-1); overflow: hidden; }
+.picks-v2 .pk-report-head .pk-head { min-height: var(--hs-strip); padding: 6px var(--pk-pad); border: 0; border-bottom: 1px solid var(--border-soft); border-radius: 0; background: var(--bg-elev-2); }
+.picks-v2 .pk-report-head .pk-meta li:first-child { color: var(--text-primary); font-weight: 600; }
+.pk-meta li.is-saved { color: var(--text-secondary); }
+.pk-meta li.is-stale { color: var(--warn-bright); font-weight: 600; }
+
+/* The verdict: the answer, then why, in body text (no tinted box). */
+.picks-v2 .pk-verdict { padding: 14px var(--pk-pad) 12px; border: 0; border-radius: 0; background: none; }
+.pk-verdict-h { margin: 0; font-size: var(--fs-xl); font-weight: 600; line-height: 1.3; color: var(--text-primary); }
+.pk-verdict-h:focus, .pk-verdict-h:focus-visible { outline: none; }
+.pk-verdict-why { margin: 4px 0 0; max-width: 110ch; font-size: var(--fs-sm); line-height: 1.5; color: var(--text-secondary); }
+
+/* Scan figures close the head, on one hairline. */
+.picks-v2 .pk-report-head .pk-scards { margin: 0; border: 0; border-top: 1px solid var(--border-soft); border-radius: 0; background: none; }
+
+/* Tabs read as the section nav under the head, on the page ground. */
+.picks-v2 .pk-report-head + .pk-tabs { margin: 0; padding: 0 2px; border: 0; border-bottom: 1px solid var(--border-soft); border-radius: 0; background: none; }
+
+/* Recent scans, in the setup panel under the form. */
+.recent-scans { padding: var(--sp-3) var(--sp-4) var(--sp-4); border-top: 1px solid var(--border-soft); }
+.recent-scans-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); margin-bottom: 6px; }
+.recent-scans-title { margin: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--text-primary); }
+.recent-scans-keep { font-size: var(--fs-2xs); color: var(--text-muted); }
+.recent-scans-list { max-height: 312px; margin: 0; padding: 0; list-style: none; overflow-y: auto; scrollbar-width: thin; }
+.recent-scans-list li + li { border-top: 1px solid var(--border-soft); }
+.recent-scan { all: unset; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 1px var(--sp-2); width: 100%; padding: 8px; border-radius: var(--r-xs); cursor: pointer; }
+.recent-scan-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); font-weight: 600; color: var(--text-primary); }
+.recent-scan-age { font-family: var(--pk-num); font-size: var(--fs-2xs); color: var(--text-secondary); white-space: nowrap; }
+.recent-scan-sub { grid-column: 1 / -1; font-size: var(--fs-2xs); color: var(--text-secondary); }
+.recent-scan.is-stale .recent-scan-age { color: var(--warn-bright); }
+.recent-scan[aria-current="true"] { background: var(--bg-elev-2); }
+.recent-scan[aria-current="true"] .recent-scan-name { color: var(--primary); }
+.recent-scan:focus-visible { outline: 2px solid var(--border-focus); outline-offset: -2px; }
+.recent-scan:active { background: var(--bg-elev-3); }
+@media (hover: hover) { .recent-scan:hover { background: var(--bg-elev-2); } }
+@media (pointer: coarse) { .recent-scan { min-height: 44px; } }
+.recent-scans-note { margin: 6px 0 0; font-size: var(--fs-2xs); color: var(--text-secondary); }
+.recent-scans-note:empty { display: none; }
+/* Narrow report: the settings line stays first and wraps beside Export (the
+   old strip ordered it after a title that no longer exists). */
+@container pkv (max-width: 760px) {
+  .picks-v2 .pk-report-head .pk-head { flex-wrap: nowrap; align-items: flex-start; }
+  .picks-v2 .pk-report-head .pk-meta { order: 0; flex: 1 1 0; }
 }

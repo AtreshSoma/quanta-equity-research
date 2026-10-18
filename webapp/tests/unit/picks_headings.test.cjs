@@ -85,12 +85,14 @@ test('pre-scan notices are one line, with the steps or the reason behind a discl
   }
 });
 
-test('the report header is one strip: the count, the run settings on one line, one Export menu', () => {
+test('the report header is one strip: the scan and its settings on one line, one Export menu; one verdict below', () => {
   const { payload } = require('../fixtures/picks_calls.cjs');
   global.window = {};
   try { app.renderPicks(payload()); } finally { global.window = undefined; }
   const head = document.querySelector('#picks-results .pk-head');
-  assert.equal(head.querySelectorAll('h3').length, 1, 'one title');
+  const report = document.querySelector('#picks-results .pk-report-head');
+  assert.equal(head.querySelectorAll('h3').length, 0, 'the strip names the scan; the verdict is the heading');
+  assert.equal(report.querySelectorAll('h3').length, 1, 'one heading in the report head: the verdict');
   const meta = head.querySelector('.pk-meta');
   assert.equal(meta.getAttribute('title'), [...meta.querySelectorAll('li')].map(words).join(' \u00b7 '),
     'the settings line carries its full text, in case it truncates');

@@ -597,6 +597,16 @@
 
             <p class="form-foot">Only Buy and Accumulate calls are sized, as a risk budget rather than a validated edge: <a href="#track" data-view-link="track">model evidence</a>.</p>
           </form>
+
+          <!-- Recent scans: outside the form, so it stays when the setup folds on a phone. -->
+          <section class="recent-scans" id="pk-recent" aria-labelledby="pk-recent-h" hidden>
+            <header class="recent-scans-head">
+              <h3 class="recent-scans-title" id="pk-recent-h">Recent scans</h3>
+              <span class="recent-scans-keep" data-pk-recent-keep></span>
+            </header>
+            <div class="recent-scans-body" data-pk-recent-body></div>
+            <p class="recent-scans-note" data-pk-recent-note role="status" aria-live="polite"></p>
+          </section>
         </aside>
 
         <section class="card results-card">
@@ -606,7 +616,6 @@
             </div>
             <span class="q-head-meta" id="picks-meta" role="status" aria-live="polite">No scan yet</span>
           </header>
-          <div id="pk-recent" class="pk-recent-wrap" hidden></div>
           <div id="picks-results" class="results-body">
             <div class="empty-state large">
               <h3>Nothing scanned yet</h3>

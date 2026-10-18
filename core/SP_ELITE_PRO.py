@@ -2661,6 +2661,20 @@ _LEVERAGED_NAME_TOKENS = (
 )
 
 
+# Plain inverse funds are named "<Issuer> Short <index>" or "... Bear ..."
+# with no leverage token ("ProShares Short QQQ", PSQ). "Short" also names bond
+# duration and hedged long/short equity, which are not bets against a market.
+_INVERSE_NAME = re.compile(r"\b(short|bear)\b")
+_NOT_INVERSE_NAME = re.compile(
+    r"long\s*[/-]?\s*short"
+    r"|\bultra[- ]short\b"
+    r"|\bshort[- ]?(term|duration|maturity|treasury|dated|horizon|interval|end)\b"
+    r"|\bshort\b[\w\s-]{0,24}\b(muni|municipal)")
+# "Ultra-Short" / "Ultra Short" (two words) names a cash-like bond fund (JPST,
+# ICSH, GSY); ProShares' leveraged inverse funds are one word, "UltraShort".
+_ULTRA_SHORT_BOND = re.compile(r"\bultra[- ]short\b")
+
+
 def is_leveraged_or_inverse(ticker: str, info: Optional[dict] = None) -> bool:
     """True for leveraged/inverse/volatility ETPs (unsuitable for swing scans).
 
@@ -2671,8 +2685,14 @@ def is_leveraged_or_inverse(ticker: str, info: Optional[dict] = None) -> bool:
         return True
     if info:
         name = str(info.get("longName") or info.get("shortName") or "").lower()
-        if any(tok in name for tok in _LEVERAGED_NAME_TOKENS):
+        tokens = [tok for tok in _LEVERAGED_NAME_TOKENS if tok in name]
+        if tokens == ["ultra"] and _ULTRA_SHORT_BOND.search(name):
+            tokens = []
+        if tokens:
             # Avoid false positives on ordinary names containing "daily"
+            if any(k in name for k in ("etf", "etn", "trust", "fund", "shares")):
+                return True
+        if _INVERSE_NAME.search(name) and not _NOT_INVERSE_NAME.search(name):
             if any(k in name for k in ("etf", "etn", "trust", "fund", "shares")):
                 return True
     return False
@@ -4082,6 +4102,22 @@ class MarketDataProvider:
         tickers = self._index_tickers("us_etfs")
         return {"tickers": tickers, "names": dict(self.last_index_attrs.get("us_etfs", {}).get("name") or {}),
                 **self.last_index_sources["us_etfs"]}
+
+    def get_most_active_etfs(self, count: int = 250) -> Dict[str, Any]:
+        """US ETFs ranked by trading volume (Yahoo's "most_actives_etfs"
+        screener, one request). ``{"tickers", "names", "source", "cause"}``;
+        the order is Yahoo's, most active first."""
+        try:
+            res = yf.screen("most_actives_etfs", count=max(1, min(int(count), 250))) or {}
+            quotes = [q for q in (res.get("quotes") or []) if str(q.get("quoteType") or "").upper() == "ETF"]
+            tickers = [str(q["symbol"]).upper() for q in quotes if q.get("symbol")]
+            names = {str(q["symbol"]).upper(): str(q.get("longName") or q.get("shortName") or "")
+                     for q in quotes if q.get("symbol")}
+            return {"tickers": tickers, "names": names, "source": "yahoo_screener" if tickers else "none",
+                    "cause": "" if tickers else "the screener returned no ETFs"}
+        except Exception as exc:  # network, rate limit or API change
+            return {"tickers": [], "names": {}, "source": "none",
+                    "cause": f"the most-active ETF screener could not be read ({str(exc)[:120]})"}
 
     def index_sub_industries(self, keys: List[str]) -> Dict[str, str]:
         """GICS sub-industry per symbol from the live tables already read."""
@@ -8172,8 +8208,33 @@ class QuantaEliteTradingSystem:
             if not etfs:
                 self._note_selection(cause=f"the ETF directory could not be read ({directory.get('cause') or 'no ETFs listed'})")
                 return []
+            # [Audit 2026-10-17] The directory lists ~5,700 ETFs, mostly tiny;
+            # the pre-filter can download 1,000, so an even sample of the
+            # directory left out 24 of the 25 largest funds (SPY, QQQ, the
+            # sector SPDRs) and "most liquid" ranked obscure ETFs. Start from
+            # the most-traded ETFs instead, each confirmed in the directory
+            # and screened again by name for leverage or inverse exposure.
+            active = self.market_data.get_most_active_etfs()
+            listed = set(etfs)
+            ranked = [t for t in active.get("tickers") or []
+                      if t in listed and not is_leveraged_or_inverse(t, {"longName": (active.get("names") or {}).get(t, "")})]
+            if len(ranked) >= limit:
+                self._note_selection(method="most_active_etfs", candidates=len(ranked),
+                                     pool_label="most-traded US ETFs (no leveraged or inverse)",
+                                     etf_directory_total=len(etfs))
+                logger.info(f"Focused ETF universe: {len(ranked)} most-traded ETFs of {len(etfs)} listed")
+                return self._select_broad_universe(ranked, limit)
+            self._note_selection(cause=(f"the most-traded ETF list gave {len(ranked)} usable funds "
+                                        f"({active.get('cause') or 'fewer than the scan size'}); "
+                                        "ranked across the directory instead"))
             logger.info(f"Focused ETF universe from the symbol directory: {len(etfs)} ETFs")
-            return self._select_broad_universe(etfs, limit)
+            # Keep every most-traded name that did come back, and fill the
+            # pre-filter's download cap with an even sample of the rest, so
+            # the pre-filter does not sample them away.
+            cap = int(_T.UNIVERSE.PREFILTER_MAX_TICKERS)
+            rest = [t for t in etfs if t not in set(ranked)]
+            pool = ranked + self._even_sample(rest, max(0, cap - len(ranked)))
+            return self._select_broad_universe(pool, limit)
 
         # Growth, Value and Dividend no longer come here: they read index
         # lists and apply a fundamental screen (build_stock_universe).
@@ -10694,7 +10755,9 @@ class QuantaEliteTradingSystem:
             budget = TradingConfig.PREFILTER_TIMEOUT_SECONDS
             logger.info(
                 "  Downloading bulk data for pre-screening "
-                f"({len(tickers)} names, budget {budget:.0f}s)..."
+                f"({len(ticker_str)} names"
+                + (f", an even sample of {len(tickers)}" if len(ticker_str) < len(tickers) else "")
+                + f", budget {budget:.0f}s)..."
             )
             # [B8][A01] Bound the wall clock in an owned child process: past the
             # budget the download is killed and reaped, then the scan falls back

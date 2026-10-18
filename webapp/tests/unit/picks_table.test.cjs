@@ -55,7 +55,10 @@ test('each row states its call, labelled levels, score bar and capital fit', () 
   assert.equal(sb.querySelector('.pk-sb-track span').style.width, '69%');
   assert.match(T(row('AMZN').querySelector('.pk-c-pos')), /^\$253 ?1 share$/);
   assert.equal(T(row('MSFT').querySelector('.pk-c-pos')), 'Needs about $2,900 for one share within the position cap');
-  assert.equal(T(row('CSCO').querySelector('.pk-c-pos')), 'No new money on a Watchlist call');
+  // A Watchlist row carries no capital line; its group row says it once.
+  const none = row('CSCO').querySelector('.pk-c-pos .pk-na');
+  assert.equal(none.getAttribute('aria-label'), 'No new money on a Watchlist call');
+  assert.match(T(box.querySelector('tr.pk-grp[data-pk-grp="watchlist"]')), /^Watchlist ?2 ?No new money on these calls\./);
   assert.ok(row('AMZN').classList.contains('is-sized'));
   assert.equal(box.querySelectorAll('tr.pk-row .pk-stars').length, 0, 'conviction lives in the analysis, not the table');
   assert.doesNotMatch(box.querySelector('[data-picks-v2]').textContent, /[–—]/, 'no en or em dashes in the report');
@@ -68,14 +71,15 @@ test('the header counts the calls; the Overview cards hold the figures, once eac
   const meta = [...head.querySelectorAll('.pk-meta li')].map((li) => T(li));
   assert.equal(meta[0], 'Quick scan');
   assert.deepEqual(meta.slice(2), ['US', 'Balanced mandate', 'Up to 5 positions']);
-  const cards = [...box.querySelectorAll('[data-pk-summary] .pk-sc')].map((c) => [T(c.querySelector('dt')), T(c.querySelector('dd b')), T(c.querySelector('dd span'))]);
-  assert.deepEqual(cards, [
-    ['Buy and Accumulate', '2', 'AMZN, MSFT'],
-    ['Watchlist', '2', 'CSCO, JPM'],
-    ['Scanned', '100', '95 screened out · 1 excluded for safety'],
-    ['Suggested deployment', '$253', '10.1% of $2,500 capital'],
-    ['Regime', 'Bull', 'VIX 15.6'],
-  ]);
+  // Three figures with one job each; the call counts live in the header only.
+  const cards = [...box.querySelectorAll('[data-pk-summary] .pk-sc')];
+  assert.deepEqual(cards.map((c) => T(c.querySelector('dt'))), ['Scan to calls', 'Suggested deployment', 'Regime']);
+  assert.equal(cards[0].querySelector('.pk-fun').getAttribute('aria-label'), '100 scanned, 4 ranked, 1 sized');
+  assert.equal(T(cards[0].querySelector('dd > span')), '95 screened out, 1 excluded for safety');
+  assert.equal(T(cards[1].querySelector('dd b')), '$253');
+  assert.match(T(cards[1].querySelector('dd > span:last-child')), /^10\.1% of \$2,500/);
+  assert.equal(cards[1].querySelector('.pk-meter-fill').style.width, '10.1%');
+  assert.deepEqual([T(cards[2].querySelector('dd b')), T(cards[2].querySelector('dd span'))], ['Bull', 'VIX 15.6']);
   const all = head.textContent + panel(box, 'overview').textContent;
   for (const once of ['10.1%', 'from 100 scanned', 'VIX 15.6', 'Model not yet validated']) {
     assert.equal(all.split(once).length - 1, 1, `${once} appears once`);
@@ -93,11 +97,23 @@ test('the call chips filter the table; the note states the order', () => {
   assert.equal(chips[0].getAttribute('aria-pressed'), 'false');
   chips[0].click();
   assert.equal(order().length, 4);
-  assert.match(T(box.querySelector('.pk-note')), /^Buy, then Accumulate, then Watchlist; by score within each\./);
+  // The order is shown, not explained: a group row opens each call kind.
+  const heads = () => [...box.querySelectorAll('tbody tr.pk-grp')].filter((g) => !g.hidden).map((g) => T(g.querySelector('.pk-grp-l')));
+  assert.deepEqual(heads(), ['Buy', 'Accumulate', 'Watchlist']);
+  chips[3].click();
+  assert.deepEqual(heads(), ['Watchlist'], 'a filtered-out group drops its row');
+  chips[0].click();
   const th = [...box.querySelectorAll('thead th')].find((x) => T(x) === 'Levels');
   th.querySelector('button').click();
   assert.equal(th.getAttribute('aria-sort'), 'descending');
   assert.deepEqual(order(), ['MSFT', 'AMZN', 'JPM', 'CSCO'], 'by upside to target');
+  assert.deepEqual(heads(), [], 'sorted by another column the groups step aside');
+  const rank = [...box.querySelectorAll('thead th')].find((x) => T(x) === '#');
+  rank.querySelector('button').click();
+  assert.deepEqual(order(), ['AMZN', 'MSFT', 'CSCO', 'JPM']);
+  assert.deepEqual(heads(), ['Buy', 'Accumulate', 'Watchlist'], 'back in rank order the groups return in place');
+  const tbodyRows = [...box.querySelectorAll('tbody tr')].map((tr) => tr.dataset.pkGrp || tr.dataset.pkTicker);
+  assert.deepEqual(tbodyRows, ['buy', 'AMZN', 'accumulate', 'MSFT', 'watchlist', 'CSCO', 'JPM']);
 });
 
 test('the model line shows until the evidence is validated', () => {
@@ -261,7 +277,8 @@ test('case: an empty scan says so, with the reasons, and has nothing to analyse'
   assert.equal(box.querySelector('.pk-chips'), null);
   assert.equal(box.querySelector('[data-pk-copy]'), null);
   assert.equal(box.querySelector('[data-pk-csv]'), null);
-  assert.match(T(box.querySelector('[data-pk-summary]')), /Buy and Accumulate ?0 ?None ?Watchlist ?0 ?None/);
+  assert.match(T(box.querySelector('[data-pk-summary]')), /Suggested deployment ?\$0/);
+  assert.doesNotMatch(T(box.querySelector('[data-pk-summary]')), /Watchlist/, 'the counts live in the header');
   assert.match(T(box.querySelector('[data-pk-empty]')), /Hold signal, no buy setup \(50\), reward-to-risk below the hurdle \(44\)/);
   assert.match(T(panel(box, 'analysis')), /No Buy, Accumulate or Watchlist call in this scan, so there is nothing to analyse\./);
   assert.equal(panel(box, 'method').querySelector('[data-pk-excluded]'), null);
@@ -551,8 +568,9 @@ test('india: the header names India, the regime quotes India VIX, every scanned 
   assert.ok([...render(old).querySelectorAll('.pk-meta li')].map((li) => T(li)).includes('India'), 'an older payload is read from its currency');
   assert.ok([...render(payload()).querySelectorAll('.pk-meta li')].map((li) => T(li)).includes('US'));
   const cards = T(render(INDIA()).querySelector('[data-pk-summary]'));
-  assert.match(cards, /Scanned ?50 ?49 screened out · 1 not analysed/);
-  assert.match(cards, /Regime ?Bear ?India VIX 13\.6, exposure 75%/);
+  assert.match(cards, /Scan to calls ?50 ?scanned ?0 ?ranked ?0 ?sized ?49 screened out, 1 not analysed/);
+  assert.match(cards, /regime allows 75%/);
+  assert.match(cards, /Regime ?Bear ?India VIX 13\.6$/);
 });
 
 test('india: the empty state says no name passed and why no Buy call is possible', () => {

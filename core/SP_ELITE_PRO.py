@@ -4131,11 +4131,23 @@ class MarketDataProvider:
 
     @classmethod
     def _read_index_tables(cls, url: str) -> List[pd.DataFrame]:
-        """An index source as tables: NSE publishes CSV files, Wikipedia HTML."""
-        if url.lower().endswith(".csv"):
+        """An index source as tables: NSE publishes CSV files, Nasdaq Trader a
+        pipe-delimited text directory, Wikipedia HTML.
+
+        The ETF directory (.txt) used to go to the HTML reader, which found "no
+        tables", so the ETF Sleeve scan never had a single name to analyse.
+        """
+        lower = url.lower()
+        if lower.endswith(".csv") or lower.endswith(".txt"):
             from io import StringIO
             response = NetworkSession.rate_limited_get(url)
             response.raise_for_status()
+            if lower.endswith(".txt"):
+                # Last line is a "File Creation Time" footer, not a security.
+                frame = pd.read_csv(StringIO(response.text), sep="|", dtype=str, keep_default_na=False)
+                first = frame.columns[0]
+                frame = frame[~frame[first].astype(str).str.startswith("File Creation Time")]
+                return [frame]
             return [pd.read_csv(StringIO(response.text))]
         return cls._read_html_tables(url)
 
@@ -10918,6 +10930,8 @@ class QuantaEliteTradingSystem:
         _sel_started = time.time()
         self._report_progress("selecting", 0, 0)
         if custom_tickers:
+            # One entry per symbol, in the order given (any caller, not only the webapp).
+            custom_tickers = list(dict.fromkeys(str(t).strip().upper() for t in custom_tickers if str(t).strip()))
             universe = custom_tickers
             self._universe_selection = {"scan_type": scan_type, "method": "custom_list", "cause": None,
                                         "seconds": None, "budget_seconds": None,

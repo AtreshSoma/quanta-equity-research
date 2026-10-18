@@ -370,6 +370,9 @@ const state = {
   dashboard: null,
   newsGroup: 'high-impact',
   picks: null,
+  /** Saved scans for the market on screen (newest first) and the id of the one shown. */
+  recentScans: [],
+  picksViewId: null,
   analysis: null,
   market: (typeof localStorage !== 'undefined' && localStorage && typeof localStorage.getItem === 'function' && localStorage.getItem('quanta_market')) || 'US',
   /** ISO timestamp of last successful dashboard payload (for freshness chip). */
@@ -7803,6 +7806,7 @@ const MARKET_DEPENDENT_PANELS = [
  *  never replaces a scan the user has run or started since. */
 async function restoreLastScan(market) {
   const m = market === 'IN' ? 'IN' : 'US';
+  refreshRecentScans(m);                       // the switcher fills in beside it, independently
   // Any scan started (or failed) while this request is in flight wins.
   const scanToken = _jobTokens.scan;
   let saved;
@@ -7815,7 +7819,16 @@ async function restoreLastScan(market) {
   const marketNow = ($('#sp-market')?.value || 'US') === 'IN' ? 'IN' : 'US';
   if (!saved || !saved.result || state.picks || marketNow !== m || (scanBtn && scanBtn.disabled)
       || !jobTokenCurrent('scan', scanToken)) return false;
+  showSavedScan(saved);
+  return true;
+}
+
+/** Show a saved scan: its report, a header line and the note that it is a snapshot. */
+function showSavedScan(saved) {
+  // The form describes the scan on screen, so "Run Picks scan" refreshes exactly it.
+  fillScanForm(saved.params);
   renderPicks(saved.result, { savedAt: saved.saved_at || 'unknown' });
+  state.picksViewId = saved.id || null;
   const when = saved.saved_at ? new Date(saved.saved_at) : null;
   const whenText = when && !Number.isNaN(when.getTime())
     ? when.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -7823,8 +7836,145 @@ async function restoreLastScan(market) {
   setPicksMeta(`Saved scan · ${whenText}`);
   const results = document.getElementById('picks-results');
   if (results) {
-    results.insertAdjacentHTML('afterbegin', `<p class="q-note picks-restored" role="status">Showing your last scan, from <b>${escapeHtml(whenText)}</b>. Prices and calls may have moved since: run a new scan before acting on it.</p>`);
+    results.insertAdjacentHTML('afterbegin', `<p class="q-note picks-restored" role="status">${savedScanNoteHtml(saved, whenText)}</p>`);
   }
+  renderRecentScans();
+}
+
+/** The sentence above a saved scan. When the US market has closed since its
+ *  prices were final, it says so, with the session the prices are from. */
+function savedScanNoteHtml(saved, whenText) {
+  const head = `Showing a saved scan from <b>${escapeHtml(whenText)}</b>.`;
+  if (saved.closed_since === true && saved.as_of_session) {
+    const [y, mo, d] = String(saved.as_of_session).split('-').map(Number);
+    const day = y ? new Date(y, mo - 1, d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : saved.as_of_session;
+    return `${head} Its prices are from the <b>${escapeHtml(day)}</b> close and the market has closed since: run a new scan before acting on it.`;
+  }
+  return `${head} Prices and calls may have moved since: run a new scan before acting on it.`;
+}
+
+/* ── Recent scans: reopen a scan from the last day without running it again ── */
+
+/** "just now", "12m ago", "5h ago". */
+function savedScanAge(iso, now = Date.now()) {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '';
+  const mins = Math.max(0, Math.floor((now - t) / 60000));
+  if (mins < 1) return 'just now';
+  return mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`;
+}
+
+const savedScanName = (s) => (s.scan_type === 'custom' && s.custom_count ? `Custom (${s.custom_count})` : scanTypeName(s.scan_type));
+
+/** What a saved scan was run with and found, for the chip's tooltip. */
+function savedScanDetail(s) {
+  const sym = s.market === 'IN' ? '₹' : '$';
+  const bits = [savedScanName(s), fmtMoney(s.capital, sym, 0), s.risk_profile ? `${titleLabel(s.risk_profile)} mandate` : '',
+    s.max_positions ? `up to ${Number(s.max_positions)} positions` : '', s.has_filters ? 'with filters' : '',
+    `${s.buy_accumulate || 0} Buy or Accumulate, ${s.watchlist || 0} Watchlist`,
+    s.closed_since === true ? 'prices from before the last market close' : ''];
+  return bits.filter(Boolean).join(', ');
+}
+
+/** The switcher: one chip per saved scan, newest first. Fewer than two scans
+ *  leave nothing to switch between, so nothing is drawn. */
+function recentScansHtml(scans, activeId, now = Date.now()) {
+  if (!Array.isArray(scans) || scans.length < 2) return '';
+  const names = scans.map(savedScanName);
+  const chips = scans.map((s, i) => {
+    const sym = s.market === 'IN' ? '₹' : '$';
+    // Two scans of one universe differ in capital or mandate: say which.
+    const twin = names.indexOf(names[i]) !== names.lastIndexOf(names[i]);
+    const meta = [twin ? `${fmtMoney(s.capital, sym, 0)}, ${titleLabel(s.risk_profile || '')}` : '', savedScanAge(s.saved_at, now)].filter(Boolean).join(' · ');
+    return `<li><button type="button" class="pk-recent-chip${s.closed_since === true ? ' is-stale' : ''}" data-pk-recent="${escapeHtml(s.id)}" aria-pressed="${s.id === activeId}" title="${escapeHtml(savedScanDetail(s))}"><b>${escapeHtml(names[i])}</b> <span>${escapeHtml(meta)}</span></button></li>`;
+  }).join('');
+  return `<nav class="pk-recent" aria-label="Recent scans"><span class="pk-recent-l">Recent scans</span><ul class="pk-recent-list">${chips}</ul><span class="pk-recent-note" data-pk-recent-note role="status" aria-live="polite"></span></nav>`;
+}
+
+function renderRecentScans() {
+  const box = document.getElementById('pk-recent');
+  if (!box) return;
+  const html = recentScansHtml(state.recentScans, state.picksViewId);
+  box.innerHTML = html;
+  box.hidden = !html;
+}
+
+function recentScansNote(text) {
+  const el = document.querySelector('#pk-recent [data-pk-recent-note]');
+  if (el) el.textContent = text;
+}
+
+const picksMarketNow = () => (($('#sp-market')?.value || 'US') === 'IN' ? 'IN' : 'US');
+
+/** Fetch the list for a market. ``selectNewest`` marks the newest chip as the
+ *  one on screen (a scan just finished, so it is the newest). */
+async function refreshRecentScans(market, { selectNewest = false } = {}) {
+  const m = market === 'IN' ? 'IN' : 'US';
+  let body;
+  try {
+    const res = await fetch(`/api/stock-picks/recent?market=${m}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    body = await res.json();
+  } catch (_) { return; }
+  if (picksMarketNow() !== m) return;          // the market changed while this was in flight
+  state.recentScans = Array.isArray(body && body.scans) ? body.scans : [];
+  if (selectNewest && state.recentScans.length) state.picksViewId = state.recentScans[0].id;
+  renderRecentScans();
+}
+
+/** Put a saved scan's settings back in the form, so "Run Picks scan" refreshes exactly that view. */
+function fillScanForm(p) {
+  if (!p) return;
+  const set = (sel, v) => { const el = $(sel); if (el && v !== undefined && v !== null) el.value = String(v); };
+  const sc = $('#sp-scan');
+  if (sc && p.scan_type && sc.querySelector(`option[value="${String(p.scan_type).replace(/"/g, '')}"]`)) {
+    sc.value = p.scan_type;
+    $('#custom-tickers-field')?.classList.toggle('hidden', sc.value !== 'custom');
+    syncScanHint();
+  }
+  set('#sp-capital', p.capital);
+  set('#sp-risk', p.risk_profile);
+  applyMandateHint();
+  set('#sp-positions', p.max_positions);
+  const div = $('#sp-diversify');
+  if (div) div.checked = p.diversify !== false;
+  const custom = $('#sp-custom-tickers');
+  if (custom) custom.value = (p.custom_tickers || []).join(', ');
+  applyScanFilters(p.filters || {});
+  collapseSetupAfterRun();
+}
+
+/** The inverse of pickScanFilters: write a saved filter set back into its fields. */
+function applyScanFilters(f) {
+  const u = SCAN_FILTER_UNITS[picksMarketNow()];
+  document.querySelectorAll('#sp-sectors input').forEach((i) => { i.checked = (f.sectors || []).includes(i.value); });
+  const put = (sel, v, unit) => { const el = $(sel); if (el) el.value = v ? String(v / unit) : ''; };
+  put('#sp-f-capmin', f.min_market_cap, u.cap[1]); put('#sp-f-capmax', f.max_market_cap, u.cap[1]);
+  put('#sp-f-pmin', f.min_price, 1); put('#sp-f-pmax', f.max_price, 1);
+  put('#sp-f-value', f.min_daily_value, u.value[1]);
+  updateScanFiltersCount();
+}
+
+/** Open one saved scan. A scan that is running wins: switching waits for it. */
+async function openRecentScan(id) {
+  const m = picksMarketNow();
+  const scanBtn = document.getElementById('btn-scan');
+  if (scanBtn && scanBtn.disabled) { recentScansNote('A scan is running. It joins this list when it finishes.'); return false; }
+  const scanToken = _jobTokens.scan;
+  let saved;
+  try {
+    const res = await fetch(`/api/stock-picks/recent/${encodeURIComponent(id)}?market=${m}`, { cache: 'no-store' });
+    if (res.status === 404) {
+      await refreshRecentScans(m);
+      recentScansNote('That scan has expired. Run it again to bring it back.');
+      return false;
+    }
+    if (!res.ok) { recentScansNote('That scan could not be opened.'); return false; }
+    saved = await res.json();
+  } catch (_) { recentScansNote('That scan could not be opened.'); return false; }
+  const busy = document.getElementById('btn-scan');
+  if (!saved || !saved.result || picksMarketNow() !== m || (busy && busy.disabled) || !jobTokenCurrent('scan', scanToken)) return false;
+  showSavedScan(saved);
   return true;
 }
 
@@ -7844,6 +7994,9 @@ function clearMarketDependentPanels(market) {
   }
   state.picks = null;
   state.picksSavedAt = null;
+  state.picksViewId = null;
+  state.recentScans = [];
+  renderRecentScans();
   state.dashboard = null;
   state.shownSymbols = new Set();
   const label = market === 'IN' ? 'India' : 'United States';
@@ -7986,6 +8139,8 @@ function dataDatesLineHtml(data) {
    market switch) go through renderPicks alone and never move focus. */
 function onUserScanComplete(data, isPhone) {
   renderPicks(data);
+  state.picksViewId = null;                    // set again once the list shows this scan as the newest
+  refreshRecentScans(picksMarketNow(), { selectNewest: true });
   collapseSetupAfterRun(!!isPhone);
   const heading = document.querySelector('#picks-results [data-result-heading]');
   if (heading && typeof heading.focus === 'function') heading.focus({ preventScroll: false });
@@ -12321,6 +12476,17 @@ function bindEvents() {
   $('#sp-risk')?.addEventListener('change', applyMandateHint);
   applyMandateHint();
 
+  // Recent scans: a click opens a saved scan; the ages tick and the list is
+  // re-read when the tab comes back, so an expired scan does not linger.
+  $('#pk-recent')?.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-pk-recent]');
+    if (chip) openRecentScan(chip.dataset.pkRecent);
+  });
+  if (typeof setInterval === 'function') setInterval(() => { if (!document.hidden) renderRecentScans(); }, 60000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && state.recentScans.length) refreshRecentScans(picksMarketNow());
+  });
+
   // The empty Proposed Allocation panel explains what a scan returns and offers to run one,
   // so the largest area on the page is not a dead box.
   // Delegated: the failed-scan state renders its own copy of the button.
@@ -12412,6 +12578,7 @@ if (typeof module !== 'undefined' && module.exports) {
     technicalSignalsHtml,
     selectionText,
     pkCardHtml, pkGauge, pkChartHtml, pkTechHtml, pkValuationHtml, pkCompareHtml, pkSma, pkMethodHtml, pkCopyText, pkCapital, pkGroupOf,
+    recentScansHtml, savedScanAge, savedScanDetail, savedScanNoteHtml, renderRecentScans, refreshRecentScans, openRecentScan, fillScanForm, applyScanFilters, restoreLastScan, onUserScanComplete,
     pkFiltersText, pickScanFilters, initScanFilters, scanTypeName, pkAnalysisHtml, pkSignedPct, pkDecision, setupSummaryText,
     thr, fmtThreshold, applyThresholds, fmtRR, bindingLevels,
     researchDiagnosticHtml,

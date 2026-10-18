@@ -728,8 +728,17 @@ class WHY(_Group):
     GAUGE_BETA_GAP = 0.6            # |beta - 1| at or above this adds a point
 
 
+# ── Saved scans (the Recent scans switcher) ─────────────────────────────────
+# Every completed Picks scan is kept, one per distinct setting, so switching
+# between Standard, Growth and ETF Sleeve does not mean running them again.
+
+class SAVED_SCANS(_Group):
+    RETENTION_HOURS = 24            # a saved scan can be reopened for this long
+    MAX_SAVED = 12                  # newest kept per market; older ones are removed
+
+
 GROUPS = (CAPITAL, UNIVERSE, CHASE, SCORE, RR, INSIDER, COMMITTEE, REGIME, MARKET, BOOK, SIZING, COSTS, LEVELS,
-          RISK_GRADE, LADDER, RESEARCH, PORTFOLIO, EVENTS, EVIDENCE, UI, CHECKLIST, STYLE, ETF, WHY)
+          RISK_GRADE, LADDER, RESEARCH, PORTFOLIO, EVENTS, EVIDENCE, UI, CHECKLIST, STYLE, ETF, WHY, SAVED_SCANS)
 
 
 def as_dict() -> Dict[str, Dict[str, Any]]:

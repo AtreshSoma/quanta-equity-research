@@ -7823,32 +7823,44 @@ async function restoreLastScan(market) {
   return true;
 }
 
-/** Show a saved scan: its report, a header line and the note that it is a snapshot. */
+/** Show a saved scan: its report, marked as a snapshot in the report header. */
 function showSavedScan(saved) {
   // The form describes the scan on screen, so "Run Picks scan" refreshes exactly it.
   fillScanForm(saved.params);
+  // Read by pkHeadHtml: the header states it is a saved scan, and from when.
+  state.picksSavedMeta = { closed_since: saved.closed_since === true, as_of_session: saved.as_of_session || null };
   renderPicks(saved.result, { savedAt: saved.saved_at || 'unknown' });
   state.picksViewId = saved.id || null;
-  const when = saved.saved_at ? new Date(saved.saved_at) : null;
-  const whenText = when && !Number.isNaN(when.getTime())
-    ? when.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-    : 'an earlier session';
+  const whenText = savedScanWhen(saved.saved_at);
   setPicksMeta(`Saved scan · ${whenText}`);
   const results = document.getElementById('picks-results');
-  if (results) {
+  // The report header carries the saved state; only a result without that
+  // header (an older payload shape) needs the standalone note.
+  if (results && !results.querySelector('[data-picks-head]')) {
     results.insertAdjacentHTML('afterbegin', `<p class="q-note picks-restored" role="status">${savedScanNoteHtml(saved, whenText)}</p>`);
   }
   renderRecentScans();
 }
 
-/** The sentence above a saved scan. When the US market has closed since its
+function savedScanWhen(iso) {
+  const when = iso ? new Date(iso) : null;
+  return when && !Number.isNaN(when.getTime())
+    ? when.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : 'an earlier session';
+}
+
+/** The day a saved scan's prices are from, as "Wed, Oct 14". */
+function savedSessionDay(session) {
+  const [y, mo, d] = String(session || '').split('-').map(Number);
+  return y ? new Date(y, mo - 1, d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : String(session || '');
+}
+
+/** The sentence a saved scan carries. When the US market has closed since its
  *  prices were final, it says so, with the session the prices are from. */
 function savedScanNoteHtml(saved, whenText) {
   const head = `Showing a saved scan from <b>${escapeHtml(whenText)}</b>.`;
   if (saved.closed_since === true && saved.as_of_session) {
-    const [y, mo, d] = String(saved.as_of_session).split('-').map(Number);
-    const day = y ? new Date(y, mo - 1, d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : saved.as_of_session;
-    return `${head} Its prices are from the <b>${escapeHtml(day)}</b> close and the market has closed since: run a new scan before acting on it.`;
+    return `${head} Its prices are from the <b>${escapeHtml(savedSessionDay(saved.as_of_session))}</b> close and the market has closed since: run a new scan before acting on it.`;
   }
   return `${head} Prices and calls may have moved since: run a new scan before acting on it.`;
 }
@@ -7876,26 +7888,36 @@ function savedScanDetail(s) {
   return bits.filter(Boolean).join(', ');
 }
 
-/** The switcher: one chip per saved scan, newest first. Fewer than two scans
- *  leave nothing to switch between, so nothing is drawn. */
+/** The Recent scans list in the setup panel: one row per saved scan, newest
+ *  first, the one on screen marked. Fewer than two scans leave nothing to
+ *  switch between, so nothing is drawn. */
 function recentScansHtml(scans, activeId, now = Date.now()) {
   if (!Array.isArray(scans) || scans.length < 2) return '';
   const names = scans.map(savedScanName);
-  const chips = scans.map((s, i) => {
+  const rows = scans.map((s, i) => {
     const sym = s.market === 'IN' ? '₹' : '$';
     // Two scans of one universe differ in capital or mandate: say which.
     const twin = names.indexOf(names[i]) !== names.lastIndexOf(names[i]);
-    const meta = [twin ? `${fmtMoney(s.capital, sym, 0)}, ${titleLabel(s.risk_profile || '')}` : '', savedScanAge(s.saved_at, now)].filter(Boolean).join(' · ');
-    return `<li><button type="button" class="pk-recent-chip${s.closed_since === true ? ' is-stale' : ''}" data-pk-recent="${escapeHtml(s.id)}" aria-pressed="${s.id === activeId}" title="${escapeHtml(savedScanDetail(s))}"><b>${escapeHtml(names[i])}</b> <span>${escapeHtml(meta)}</span></button></li>`;
+    const sub = [twin ? `${fmtMoney(s.capital, sym, 0)}, ${titleLabel(s.risk_profile || '')}` : '',
+      `${s.buy_accumulate || 0} Buy or Accumulate, ${s.watchlist || 0} Watchlist`].filter(Boolean).join(' · ');
+    const on = s.id === activeId;
+    return `<li><button type="button" class="recent-scan${s.closed_since === true ? ' is-stale' : ''}" data-pk-recent="${escapeHtml(s.id)}"${on ? ' aria-current="true"' : ''} title="${escapeHtml(savedScanDetail(s))}">
+        <span class="recent-scan-name">${escapeHtml(names[i])}</span> <span class="recent-scan-age">${escapeHtml(savedScanAge(s.saved_at, now))}</span>
+        <span class="recent-scan-sub">${escapeHtml(sub)}</span>
+      </button></li>`;
   }).join('');
-  return `<nav class="pk-recent" aria-label="Recent scans"><span class="pk-recent-l">Recent scans</span><ul class="pk-recent-list">${chips}</ul><span class="pk-recent-note" data-pk-recent-note role="status" aria-live="polite"></span></nav>`;
+  return `<ol class="recent-scans-list">${rows}</ol>`;
 }
 
 function renderRecentScans() {
   const box = document.getElementById('pk-recent');
   if (!box) return;
+  const body = box.querySelector('[data-pk-recent-body]');
   const html = recentScansHtml(state.recentScans, state.picksViewId);
-  box.innerHTML = html;
+  if (body) body.innerHTML = html;
+  const keep = box.querySelector('[data-pk-recent-keep]');
+  const hours = Number(thr('SAVED_SCANS.RETENTION_HOURS'));
+  if (keep) keep.textContent = hours > 0 ? `Kept ${hours} hours` : '';
   box.hidden = !html;
 }
 
@@ -8451,10 +8473,14 @@ function pkEmptyHtml(data, rows) {
   const uncovered = ((data.event_check || {}).reasons || []).find((x) => x.reason === 'not_covered' && Number(x.count) > 0);
   const exchanges = Object.values(thr('EVENTS.UNCOVERED_LISTINGS') || {});
   const reached = Number(acc.reached_book);
-  return `<div class="pk-empty" data-pk-empty>
-      <p class="pk-empty-h"><b>No Buy or Accumulate picks right now.</b>${wl ? ` ${wl} name${wl === 1 ? ' is' : 's are'} on the Watchlist.` : ''}</p>
-      ${reasons.length ? `<p>${reached === 0 ? 'No name passed the per-name rules. ' : ''}Top reasons: ${escapeHtml(reasons.join(', '))}.</p>` : ''}
-      ${uncovered ? `<p data-pk-uncovered>${escapeHtml(`${exchanges.length ? exchanges.join(' and ') : 'These'} listings get no Buy or Accumulate call: no corporate-event source covers them yet, so the best call a name can reach is Watchlist.`)}</p>` : ''}
+  // The verdict for an empty book: a plain heading, then why, in body text.
+  // It used to be an amber box; an empty book is a normal outcome, not a caution.
+  const why = [wl ? `${wl} name${wl === 1 ? ' is' : 's are'} on the Watchlist.` : '',
+    reasons.length ? `${reached === 0 ? 'No name passed the per-name rules. ' : ''}Top reasons: ${reasons.join(', ')}.` : ''].filter(Boolean).join(' ');
+  return `<div class="pk-verdict pk-empty" data-pk-empty>
+      <h3 class="pk-verdict-h" data-result-heading tabindex="-1">No Buy or Accumulate picks right now.</h3>
+      ${why ? `<p class="pk-verdict-why">${escapeHtml(why)}</p>` : ''}
+      ${uncovered ? `<p class="pk-verdict-why" data-pk-uncovered>${escapeHtml(`${exchanges.length ? exchanges.join(' and ') : 'These'} listings get no Buy or Accumulate call: no corporate-event source covers them yet, so the best call a name can reach is Watchlist.`)}</p>` : ''}
     </div>`;
 }
 
@@ -8727,27 +8753,55 @@ const PK_TIPS = {
 /* The market a result scanned: its own field, else the currency it priced in. */
 const pkIsIndia = (data) => /^IN(DIA)?$/i.test(String(data.market || '')) || (!data.market && data.currency === '\u20b9');
 
+/* The report header: which scan this is, where it came from and what it was
+   run with, on one line, beside Export. A saved scan says so here (the page
+   used to add a separate note above the report for that). */
 function pkHeadHtml(data, rows, sym) {
   void sym;
   const when = data.timestamp && !Number.isNaN(Date.parse(data.timestamp)) ? fmtStamp(data.timestamp) : '';
-  const meta = [when ? `Run ${when}` : '', pkIsIndia(data) ? 'India' : 'US',
+  const meta = [pkProvenance(when), pkIsIndia(data) ? 'India' : 'US',
     (data.risk_profile || {}).profile ? `${titleLabel(data.risk_profile.profile)} mandate` : '',
     data.max_positions ? `Up to ${Number(data.max_positions)} positions` : '',
     pkFiltersText(data) ? `Filters: ${pkFiltersText(data)}` : ''].filter(Boolean);
   const ba = rows.filter((r) => ['buy', 'accumulate'].includes(pkGroupOf(r))).length;
   const wl = rows.filter((r) => pkGroupOf(r) === 'watchlist').length;
-  const scanned = Number(data.total_scanned || (data.accounting || {}).universe || 0);
   if (data.scan_type) meta.unshift(`${scanTypeName(data.scan_type)} scan`);
   const copy = [ba ? '<button type="button" class="btn-mini" data-pk-copy="ba">Copy Buy and Accumulate</button>' : '',
     wl ? '<button type="button" class="btn-mini" data-pk-copy="watchlist">Copy Watchlist</button>' : ''].join('');
-  // One strip: the count, the run settings on one line, and one Export menu.
   const tools = rows.length ? `<details class="pk-export"><summary class="btn-mini">Export</summary>
       <div class="pk-actions pk-export-menu" role="group" aria-label="Export">${copy}<button type="button" class="btn-mini" data-pk-csv>Download CSV</button></div></details>` : '';
+  const item = (m) => (typeof m === 'string' ? `<li>${escapeHtml(m)}</li>`
+    : `<li class="${m.cls}" title="${escapeHtml(m.title)}">${escapeHtml(m.text)}</li>`);
   return `<header class="pk-head" data-picks-head>
-      <h3 class="pk-title" data-result-heading tabindex="-1">${escapeHtml(`${ba} Buy or Accumulate, ${wl} Watchlist${scanned ? `, from ${scanned} scanned` : ''}`)}</h3>
-      <ul class="pk-meta" aria-label="Scan settings" title="${escapeHtml(meta.join(' \u00b7 '))}">${meta.map((m) => `<li>${escapeHtml(m)}</li>`).join('')}</ul>
+      <ul class="pk-meta" aria-label="Scan settings" title="${escapeHtml(meta.map((m) => (typeof m === 'string' ? m : m.text)).join(' · '))}">${meta.map(item).join('')}</ul>
       ${tools}
     </header>`;
+}
+
+/* When the report on screen was made: "Run 2026-10-18 09:50" for a scan just
+   run; "Saved 40m ago" for one reopened from Recent scans, in amber once the
+   market has closed since its prices were final. */
+function pkProvenance(when) {
+  if (!state.picksSavedAt) return when ? `Run ${when}` : '';
+  const savedMeta = state.picksSavedMeta || {};
+  const age = savedScanAge(state.picksSavedAt);
+  const note = savedScanNoteHtml({ closed_since: savedMeta.closed_since, as_of_session: savedMeta.as_of_session },
+    savedScanWhen(state.picksSavedAt)).replace(/<[^>]+>/g, '');
+  if (savedMeta.closed_since && savedMeta.as_of_session) {
+    return { cls: 'is-stale', title: note, text: `Saved, prices from the ${savedSessionDay(savedMeta.as_of_session)} close` };
+  }
+  return { cls: 'is-saved', title: note, text: age ? `Saved ${age}` : 'Saved scan' };
+}
+
+/* The answer, once: what there is to buy. With no Buy or Accumulate call the
+   verdict is the empty-book reading (pkEmptyHtml), which carries the reasons. */
+function pkVerdictHtml(data, rows) {
+  const ba = rows.filter((r) => ['buy', 'accumulate'].includes(pkGroupOf(r))).length;
+  if (!ba) return pkEmptyHtml(data, rows);
+  const wl = rows.filter((r) => pkGroupOf(r) === 'watchlist').length;
+  return `<div class="pk-verdict" data-pk-verdict>
+      <h3 class="pk-verdict-h" data-result-heading tabindex="-1">${escapeHtml(`${ba} Buy or Accumulate${wl ? `, ${wl} Watchlist` : ''}`)}</h3>
+    </div>`;
 }
 
 /* Three figures, each with one job; the header already counts the calls and
@@ -8771,7 +8825,7 @@ function pkSummaryCardsHtml(data, rows, sym) {
   const sub = (t) => (t ? `<span>${escapeHtml(t)}</span>` : '');
 
   const steps = [[scanned, 'scanned'], [rows.length, 'ranked'], [sized.length, 'sized']];
-  const funnel = scanned ? `<ol class="pk-fun" aria-label="${escapeHtml(steps.map(([n, l]) => `${n} ${l}`).join(', '))}">${steps.map(([n, l]) => `<li><b>${escapeHtml(String(n))}</b><small>${escapeHtml(l)}</small></li>`).join('')}</ol>` : '<b>-</b>';
+  const funnel = scanned ? `<ol class="pk-fun" aria-label="${escapeHtml(steps.map(([n, l]) => `${n} ${l}`).join(', '))}">${steps.map(([n, l]) => `<li><b>${escapeHtml(String(n))}</b> <small>${escapeHtml(l)}</small></li>`).join('')}</ol>` : '<b>-</b>';
   const funnelSub = [out ? `${out} screened out` : '', ex ? `${ex} excluded for safety` : '', failed ? `${failed} not analysed` : ''].filter(Boolean).join(', ');
 
   // The meter is the one place exposure appears: fill = capital used, tick = the
@@ -8842,7 +8896,7 @@ function pkStatusChipsHtml(rows) {
    states it once. */
 const PK_WATCH_CAPITAL = 'No new money on a Watchlist call';
 
-function pkRowHtml(r, i, sym) {
+function pkRowHtml(r, i, sym, showCap = true) {
   const sized = pkIsSized(r);
   const rr = pkNum(r.risk_reward);
   const dec = Number(thr('UI.RR_DECIMALS')) || 2;
@@ -8859,20 +8913,21 @@ function pkRowHtml(r, i, sym) {
       <td class="pk-c-levels">${pkLevelsCellHtml(r, sym)}</td>
       <td class="pk-c-rr num" data-label="R:R">${r.status !== 'avoid' && rr ? escapeHtml(rr.toFixed(dec)) : PK_NA}</td>
       <td class="pk-c-score" data-label="Score">${pkScoreCellHtml(r)}</td>
-      <td class="pk-c-pos">${position}</td>
+      ${showCap ? `<td class="pk-c-pos">${position}</td>` : ''}
       <td class="pk-c-more"><button type="button" class="pk-expand" data-pk-open="${escapeHtml(r.ticker)}" aria-label="Open the ${escapeHtml(r.ticker)} analysis"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
     </tr>`;
 }
 
+/* The Calls tab: the call filters with the model flag on one toolbar row, then
+   the table. The verdict and the scan figures sit above the tabs (they describe
+   the whole scan); the broker-holdings note lives under Risk and execution. */
 function pkOverviewHtml(data, rows, sym, foot) {
-  const hasBuy = rows.some((r) => ['buy', 'accumulate'].includes(pkGroupOf(r)));
   const ev = (rows.find((r) => r.evidence) || {}).evidence;
   const note = modelFlagHtml(ev, 'data-pk-valid');
-  return `${pkSummaryCardsHtml(data, rows, sym)}
-    ${hasBuy ? '' : pkEmptyHtml(data, rows)}
-    ${rows.length ? `<div class="pk-ov-tools">${pkStatusChipsHtml(rows)}${pkResultFiltersHtml(rows)}
-      ${note || pkHoldingsNoteHtml(data) ? `<div class="pk-ov-sub">${note}${pkHoldingsNoteHtml(data)}</div>` : ''}</div>
-      ${pkTableHtml(rows, sym)}<p class="pk-nomatch" data-pk-nomatch hidden>No call matches these filters.</p>${pkWarningsHtml(data, rows)}` : ''}
+  if (!rows.length) return `<p class="pk-panel-empty">No Buy, Accumulate or Watchlist call in this scan. Method lists every name and the rule it stopped at.</p>${foot}`;
+  return `<div class="pk-ov-tools">${pkStatusChipsHtml(rows)}${pkResultFiltersHtml(rows)}
+      ${note ? `<div class="pk-ov-sub">${note}</div>` : ''}</div>
+      ${pkTableHtml(rows, sym)}<p class="pk-nomatch" data-pk-nomatch hidden>No call matches these filters.</p>${pkWarningsHtml(data, rows)}
     ${foot}`;
 }
 
@@ -9226,25 +9281,29 @@ function pkScoreCellHtml(r) {
    opens with a group row naming it and its count; the Watchlist group says
    once what its rows mean for capital. */
 const PK_GROUP_NOTE = { watchlist: 'No new money on these calls. Open a row for what holds it back.' };
-function pkGroupHeadHtml(key, label, n) {
+function pkGroupHeadHtml(key, label, n, cols = PK_COLS.length + 1) {
   const note = PK_GROUP_NOTE[key];
-  return `<tr class="pk-grp" data-pk-grp="${cssToken(key)}"><th scope="rowgroup" colspan="${PK_COLS.length + 1}"><span class="pk-grp-l">${escapeHtml(label)}</span><span class="pk-grp-n">${n}</span>${note ? `<span class="pk-grp-note">${escapeHtml(note)}</span>` : ''}</th></tr>`;
+  return `<tr class="pk-grp" data-pk-grp="${cssToken(key)}"><th scope="rowgroup" colspan="${cols}"><span class="pk-grp-l">${escapeHtml(label)}</span><span class="pk-grp-n">${n}</span>${note ? `<span class="pk-grp-note">${escapeHtml(note)}</span>` : ''}</th></tr>`;
 }
-function pkGroupedRowsHtml(rows, sym) {
+function pkGroupedRowsHtml(rows, sym, showCap = true) {
   const labels = Object.fromEntries(PK_GROUPS);
   const counts = {};
   rows.forEach((r) => { const k = pkGroupOf(r); counts[k] = (counts[k] || 0) + 1; });
   let last = null;
   return rows.map((r, i) => {
     const k = pkGroupOf(r);
-    const head = k !== last && labels[k] ? pkGroupHeadHtml(k, labels[k], counts[k]) : '';
+    const head = k !== last && labels[k] ? pkGroupHeadHtml(k, labels[k], counts[k], PK_COLS.length + (showCap ? 1 : 0)) : '';
     last = k;
-    return head + pkRowHtml(r, i, sym);
+    return head + pkRowHtml(r, i, sym, showCap);
   }).join('');
 }
 
 function pkTableHtml(rows, sym) {
-  const head = PK_COLS.map(([k, label]) => {
+  // "Your capital" earns a column only when a row has something to say in it:
+  // a size, or what one share would need. A Watchlist row has nothing (its
+  // group row says so once), so a book of Watchlist calls drops the column.
+  const showCap = rows.some((r) => { const c = pkCapital(r, sym); return c.sized || (c.text && c.text !== PK_WATCH_CAPITAL); });
+  const head = PK_COLS.filter(([k]) => showCap || k !== 'pos').map(([k, label]) => {
     const sortable = Object.prototype.hasOwnProperty.call(PK_SORT, k);
     const num = ['rank', 'price', 'rr'].includes(k) ? ' num' : '';
     return `<th scope="col" class="pk-c-${k}${num}"${k === 'rank' ? ' aria-sort="ascending"' : ''}>${sortable
@@ -9254,7 +9313,7 @@ function pkTableHtml(rows, sym) {
       <table class="pk-table">
         <caption class="sr-only">QUANTA's calls: Buy, then Accumulate, then Watchlist, by score within each</caption>
         <thead><tr>${head}<th scope="col" class="pk-c-more"><span class="sr-only">Analysis</span></th></tr></thead>
-        <tbody>${pkGroupedRowsHtml(rows, sym)}</tbody>
+        <tbody>${pkGroupedRowsHtml(rows, sym, showCap)}</tbody>
       </table>
     </div>`;
 }
@@ -9265,7 +9324,7 @@ function pkTableHtml(rows, sym) {
 
 
 
-/* The report's sections. Each is a tab; the Overview opens first. */
+/* The report's sections. Each is a tab; Calls (the table) opens first. */
 function pkSectionsHtml(data, rows, sym) {
   const chase = data.chase_alerts || [];
   const early = data.early_momentum || [];
@@ -9273,7 +9332,7 @@ function pkSectionsHtml(data, rows, sym) {
   const sized = rows.filter(pkIsSized);
   const nSignals = chase.length + early.length + filled.length;
   const tabs = [
-    ['overview', 'Overview', ''],
+    ['overview', 'Calls', ''],
     ['analysis', 'Analysis', rows.length ? String(rows.length) : ''],
     ['signals', 'Momentum alerts', nSignals ? String(nSignals) : ''],
     ['risk', 'Risk and execution', ''],
@@ -9289,7 +9348,7 @@ function pkSectionsHtml(data, rows, sym) {
     ${panel('overview', pkOverviewHtml(data, rows, sym, foot))}
     ${panel('analysis', pkAnalysisHtml(rows, data, sym))}
     ${panel('signals', signals)}
-    ${panel('risk', `${eventCheckBannerHtml(data)}${eventHeldDiagnosticsHtml(data)}${deepConfirmSummaryHtml(data, sym)}<div class="pk-pro" data-pro-slot></div>${sized.length ? '' : '<p class="pk-panel-empty">No suggested position in this scan, so there is nothing to size or execute.</p>'}`)}
+    ${panel('risk', `${pkHoldingsNoteHtml(data)}${eventCheckBannerHtml(data)}${eventHeldDiagnosticsHtml(data)}${deepConfirmSummaryHtml(data, sym)}<div class="pk-pro" data-pro-slot></div>${sized.length ? '' : '<p class="pk-panel-empty">No suggested position in this scan, so there is nothing to size or execute.</p>'}`)}
     ${panel('method', `${pkExcludedHtml(data)}${pkScreenedHtml(data)}${data.scan_status === 'provider_rate_limited' || Number(data.provider_rate_limited_count || 0) > 0 ? '' : pkStatusLineHtml(data)}${pkMethodHtml(data)}${coverageLineHtml(data)}${dataDatesLineHtml(data)}${sharedResultsNoteHtml((data.recommendations || []).filter(isFundedPick))}${errorDetailsCardHtml(data)}`, ' portfolio-diagnostics')}`;
 }
 
@@ -9307,7 +9366,11 @@ function renderPicksTableView(container, data) {
   view.innerHTML = `
       ${data.scan_status === 'provider_rate_limited' || Number(data.provider_rate_limited_count || 0) > 0 ? pkStatusLineHtml(data) : ''}
       ${pkAlertHtml(data)}
-      ${pkHeadHtml(data, rows, sym)}
+      <div class="pk-report-head">
+        ${pkHeadHtml(data, rows, sym)}
+        ${pkVerdictHtml(data, rows)}
+        ${pkSummaryCardsHtml(data, rows, sym)}
+      </div>
       ${pkSectionsHtml(data, rows, sym)}`;
   wireErrorExport(container, data);
   wireSafeModeRetry(container);

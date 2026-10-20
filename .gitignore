@@ -74,3 +74,6 @@ core/apex_quant/_cache/
 # Local-only files
 core/SP_ELITE_PRO_Main.py
 .impeccable/
+
+# Generated knowledge-graph output (large, regenerable)
+graphify-out/

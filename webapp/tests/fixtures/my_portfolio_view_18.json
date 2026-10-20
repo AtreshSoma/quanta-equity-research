@@ -25,9 +25,9 @@
    "handle": "5a7c1e9b3d2f4a60",
    "label": "Individual",
    "account_type": "individual",
-   "portfolio_value": 37686.45,
-   "cash": 371.64,
-   "buying_power": 371.64,
+   "portfolio_value": 52310.0,
+   "cash": 523.1,
+   "buying_power": 523.1,
    "realized_pnl": 30.34,
    "realized_pnl_period": "3month",
    "can_trade_via_agent": false
@@ -36,10 +36,10 @@
   "data_state": "complete",
   "reconciliation": {
    "status": "ok",
-   "reported": 37686.45,
-   "computed": 37686.450083899996,
-   "difference": 8.38999985717237e-05,
-   "difference_pct": 2.2262643091011149e-07,
+   "reported": 52310.0,
+   "computed": 52309.9999171,
+   "difference": -8.289999823318794e-05,
+   "difference_pct": 1.5847829905025414e-07,
    "note": ""
   },
   "freshness": {
@@ -55,15 +55,15 @@
    "latest_analysis": "2026-09-26T14:02:00+00:00"
   },
   "overview": {
-   "total_value": 37686.45,
-   "reported_total": 37686.45,
-   "cash": 371.64,
-   "buying_power": 371.64,
-   "invested_value": 37314.810083899996,
-   "day_change": 67.84497344509998,
-   "day_change_pct": 0.18034951959863568,
+   "total_value": 52310.0,
+   "reported_total": 52310.0,
+   "cash": 523.1,
+   "buying_power": 523.1,
+   "invested_value": 51786.8999171,
+   "day_change": 94.15781347699996,
+   "day_change_pct": 0.18032422639216236,
    "unrealized_pnl": {
-    "total": 13719.751970219999,
+    "total": 19040.78891384,
     "coverage": 1.0,
     "positions_missing_basis": []
    },
@@ -72,214 +72,216 @@
    "holdings": 18,
    "concentration": {
     "top": {
-     "symbol": "AAPL",
-     "weight": 0.22007526630924376
+     "symbol": "HD",
+     "weight": 0.22004445345058304
     },
-    "top5_weight": 0.5932028772410243,
-    "hhi": 0.09970117077898333,
-    "effective_names": 10.029972488656037,
+    "top5_weight": 0.5931198203536608,
+    "hhi": 0.09970117101717837,
+    "effective_names": 10.029972464693532,
     "over_cap": [
      {
-      "symbol": "AAPL",
-      "weight": 0.22007526630924376
+      "symbol": "HD",
+      "weight": 0.22004445345058304
      },
      {
-      "symbol": "MSFT",
-      "weight": 0.10903729118555876
+      "symbol": "PG",
+      "weight": 0.10902202407379086
      },
      {
-      "symbol": "VOO",
-      "weight": 0.10103455499257691
+      "symbol": "SCHB",
+      "weight": 0.10102040826228255
      }
     ],
     "label": "Diversified"
    },
    "risk": {
-    "level": "Elevated",
-    "points": 4,
+    "level": "Moderate",
+    "points": 2,
     "drivers": [
-     "Largest position is 22% of the portfolio",
-     "Technology is 52% of the portfolio"
+     "Largest position is 22% of the portfolio"
     ],
-    "note": ""
+    "note": "",
+    "partial": false,
+    "unmeasured": []
    }
   },
   "metrics": {
-   "total_value": 37686.45,
-   "invested_value": 37314.810083899996,
-   "cash": 371.64,
-   "cash_weight": 0.009861369271979717,
+   "total_value": 52310.0,
+   "invested_value": 51786.8999171,
+   "cash": 523.1,
+   "cash_weight": 0.01,
    "weights": {
-    "AAPL": 0.22007526630924376,
-    "MSFT": 0.10903729118555876,
-    "VOO": 0.10103455499257691,
-    "GOOGL": 0.09103113278114548,
-    "JNJ": 0.07202463197249939,
-    "AMZN": 0.055018817081470925,
-    "META": 0.0390133393673323,
-    "TSM": 0.03601231565721898,
-    "NVDA": 0.0358122523931015,
-    "LRCX": 0.03501197870852787,
-    "LLY": 0.030010262654083894,
-    "COST": 0.030010261897843924,
-    "ORCL": 0.030010266246887147,
-    "MU": 0.028009579668554618,
-    "AVGO": 0.028009578376312978,
-    "NBIX": 0.024008210165722695,
-    "QQQM": 0.023007868090520602,
-    "RVII": 0.0030010254056829443
+    "HD": 0.22004445345058304,
+    "PG": 0.10902202407379086,
+    "SCHB": 0.10102040826228255,
+    "CRM": 0.09101838707704073,
+    "PFE": 0.07201454748996367,
+    "NKE": 0.05501111280825846,
+    "NFLX": 0.03900788057732747,
+    "AMD": 0.036007271728159054,
+    "SMCI": 0.035807235450200724,
+    "KLAC": 0.03500707385777098,
+    "ABBV": 0.0300060645765628,
+    "WMT": 0.03000606029822214,
+    "ADBE": 0.03000606134964634,
+    "MRVL": 0.028005657853182948,
+    "ON": 0.02800565785509463,
+    "VRTX": 0.024004849770598354,
+    "SCHG": 0.023004646270311603,
+    "ZZTX": 0.003000605666220608
    },
    "sectors": [
     {
      "sector": "Technology",
-     "value": 19671.5177171,
+     "value": 14848.577725899999,
      "symbols": [
-      "AAPL",
-      "MSFT",
-      "TSM",
-      "NVDA",
-      "LRCX",
-      "ORCL",
-      "MU",
-      "AVGO"
+      "CRM",
+      "AMD",
+      "SMCI",
+      "KLAC",
+      "ADBE",
+      "MRVL",
+      "ON"
      ],
-     "weight": 0.5219785285454056
-    },
-    {
-     "sector": "Communication Services",
-     "value": 4900.9144974,
-     "symbols": [
-      "GOOGL",
-      "META"
-     ],
-     "weight": 0.13004447214847778
-    },
-    {
-     "sector": "Healthcare",
-     "value": 4750.117166599999,
-     "symbols": [
-      "JNJ",
-      "LLY",
-      "NBIX"
-     ],
-     "weight": 0.126043104792306
-    },
-    {
-     "sector": "Unclassified",
-     "value": 4674.7185754,
-     "symbols": [
-      "VOO",
-      "QQQM"
-     ],
-     "weight": 0.12404242308309751
+     "weight": 0.28385734517109534
     },
     {
      "sector": "Consumer Cyclical",
-     "value": 2073.463899,
+     "value": 14388.156671,
      "symbols": [
-      "AMZN"
+      "HD",
+      "NKE"
      ],
-     "weight": 0.055018817081470925
+     "weight": 0.27505556625884153
     },
     {
      "sector": "Consumer Defensive",
-     "value": 1130.9802345,
+     "value": 7272.5590935,
      "symbols": [
-      "COST"
+      "PG",
+      "WMT"
      ],
-     "weight": 0.030010261897843924
+     "weight": 0.139028084372013
+    },
+    {
+     "sector": "Healthcare",
+     "value": 6592.3919086999995,
+     "symbols": [
+      "PFE",
+      "ABBV",
+      "VRTX"
+     ],
+     "weight": 0.12602546183712482
+    },
+    {
+     "sector": "Unclassified",
+     "value": 6487.7506026,
+     "symbols": [
+      "SCHB",
+      "SCHG"
+     ],
+     "weight": 0.12402505453259416
+    },
+    {
+     "sector": "Communication Services",
+     "value": 2040.5022330000002,
+     "symbols": [
+      "NFLX"
+     ],
+     "weight": 0.03900788057732747
     },
     {
      "sector": "Miscellaneous",
-     "value": 113.09799389999999,
+     "value": 156.9616824,
      "symbols": [
-      "RVII"
+      "ZZTX"
      ],
-     "weight": 0.0030010254056829443
+     "weight": 0.003000605666220608
     },
     {
      "sector": "Cash",
-     "value": 371.64,
+     "value": 523.1,
      "symbols": [],
-     "weight": 0.009861369271979717
+     "weight": 0.01
     }
    ],
    "concentration": {
     "top": {
-     "symbol": "AAPL",
-     "weight": 0.22007526630924376
+     "symbol": "HD",
+     "weight": 0.22004445345058304
     },
-    "top5_weight": 0.5932028772410243,
-    "hhi": 0.09970117077898333,
-    "effective_names": 10.029972488656037,
+    "top5_weight": 0.5931198203536608,
+    "hhi": 0.09970117101717837,
+    "effective_names": 10.029972464693532,
     "over_cap": [
      {
-      "symbol": "AAPL",
-      "weight": 0.22007526630924376
+      "symbol": "HD",
+      "weight": 0.22004445345058304
      },
      {
-      "symbol": "MSFT",
-      "weight": 0.10903729118555876
+      "symbol": "PG",
+      "weight": 0.10902202407379086
      },
      {
-      "symbol": "VOO",
-      "weight": 0.10103455499257691
+      "symbol": "SCHB",
+      "weight": 0.10102040826228255
      }
     ],
     "label": "Diversified"
    },
    "beta": {
-    "equity_beta": 1.0944872379024155,
-    "portfolio_beta": 1.0836940975226086,
-    "coverage": 0.9969690856352825
+    "equity_beta": 1.0367044998555965,
+    "portfolio_beta": 1.026337453214089,
+    "coverage": 0.9969690851807839
    },
    "volatility": {
-    "volatility": 0.18841050438571785,
+    "volatility": 0.17809925163286966,
     "coverage": 1.0,
     "days": 250,
     "correlated_pairs": [],
-    "avg_correlation": 0.18643974251107226
+    "avg_correlation": 0.1829818582084763
    },
    "stops": {
-    "loss": 1674.3371661299989,
-    "loss_pct": 0.04442809461039708,
-    "coverage": 0.9969690856352825,
+    "loss": 2323.708227789999,
+    "loss_pct": 0.044421873978015655,
+    "coverage": 0.9969690851807839,
     "below_stop": []
    },
    "earnings": {
     "window_days": 14,
     "upcoming": [
      {
-      "symbol": "GOOGL",
+      "symbol": "CRM",
       "date": "2026-10-02",
       "days": 3,
-      "weight": 0.09103113278114548
+      "weight": 0.09101838707704073
      },
      {
-      "symbol": "AMZN",
+      "symbol": "NKE",
       "date": "2026-10-02",
       "days": 3,
-      "weight": 0.055018817081470925
+      "weight": 0.05501111280825846
      }
     ],
-    "weight": 0.1460499498626164,
+    "weight": 0.14602949988529917,
     "dates_known": 2
    },
    "risk": {
-    "level": "Elevated",
-    "points": 4,
+    "level": "Moderate",
+    "points": 2,
     "drivers": [
-     "Largest position is 22% of the portfolio",
-     "Technology is 52% of the portfolio"
+     "Largest position is 22% of the portfolio"
     ],
-    "note": ""
+    "note": "",
+    "partial": false,
+    "unmeasured": []
    },
    "unrealized_pnl": {
-    "total": 13719.751970219999,
+    "total": 19040.78891384,
     "coverage": 1.0,
     "positions_missing_basis": []
    },
-   "day_change": 67.84497344509998,
+   "day_change": 94.15781347699996,
    "policy": {
     "max_single_position": 0.1,
     "trim_review_position": 0.2,
@@ -301,12 +303,12 @@
     "key": "trim_review",
     "title": "Trim / Risk Review",
     "symbols": [
-     "AAPL",
-     "TSM",
-     "NVDA",
-     "LRCX",
-     "MU",
-     "AVGO"
+     "HD",
+     "AMD",
+     "SMCI",
+     "KLAC",
+     "MRVL",
+     "ON"
     ],
     "count": 6
    },
@@ -320,15 +322,15 @@
     "key": "do_not_add",
     "title": "Do Not Add",
     "symbols": [
-     "MSFT",
-     "VOO",
-     "GOOGL",
-     "JNJ",
-     "AMZN",
-     "META",
-     "LLY",
-     "COST",
-     "NBIX"
+     "PG",
+     "SCHB",
+     "CRM",
+     "PFE",
+     "NKE",
+     "NFLX",
+     "ABBV",
+     "WMT",
+     "VRTX"
     ],
     "count": 9
    },
@@ -336,8 +338,8 @@
     "key": "hold",
     "title": "Hold",
     "symbols": [
-     "ORCL",
-     "QQQM"
+     "ADBE",
+     "SCHG"
     ],
     "count": 2
    },
@@ -345,38 +347,38 @@
     "key": "unavailable",
     "title": "Analysis Unavailable",
     "symbols": [
-     "RVII"
+     "ZZTX"
     ],
     "count": 1
    }
   ],
   "positions": [
    {
-    "symbol": "AAPL",
+    "symbol": "HD",
     "broker": {
-     "symbol": "AAPL",
-     "name": "Apple",
+     "symbol": "HD",
+     "name": "Home Depot",
      "instrument_type": "equity",
-     "quantity": 207.346388,
+     "quantity": 287.763134,
      "average_cost": 15.64,
-     "cost_basis": 3242.89750832,
+     "cost_basis": 4500.615415759999,
      "last_price": 40.0,
      "previous_close": 39.8724,
-     "market_value": 8293.85552,
-     "day_change": 26.457399108800217,
-     "unrealized_pnl": 5050.958011679999,
-     "unrealized_pnl_pct": 155.7544757033248,
+     "market_value": 11510.52536,
+     "day_change": 36.718575898400296,
+     "unrealized_pnl": 7009.90994424,
+     "unrealized_pnl_pct": 155.75447570332483,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 207.346388,
+       "quantity": 287.763134,
        "cost_per_share": 15.64,
        "acquired_on": "2026-01-10",
        "term": null
       }
      ],
-     "sector": "Technology",
+     "sector": "Consumer Cyclical",
      "industry": "",
      "earnings_date": null,
      "earnings_verified": null,
@@ -387,7 +389,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.22007526630924376,
+     "weight": 0.22004445345058304,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -395,10 +397,10 @@
      }
     },
     "market": {
-     "sector": "Technology",
+     "sector": "Consumer Cyclical",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 1.2,
+     "beta": 1.05,
      "beta_status": "measured",
      "earnings_date": null,
      "earnings_source": "",
@@ -408,13 +410,13 @@
      "state": "done",
      "error": null,
      "finished_at": null,
-     "sector": "Technology",
+     "sector": "Consumer Cyclical",
      "industry": "",
-     "company_name": "Apple",
+     "company_name": "Home Depot",
      "risk": {
-      "beta": 1.2,
+      "beta": 1.05,
       "beta_status": "measured",
-      "annualized_volatility": 0.27,
+      "annualized_volatility": 0.25,
       "max_drawdown": -0.22,
       "risk_grade": "B"
      },
@@ -511,7 +513,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "AAPL",
+     "symbol": "HD",
      "status": "ok",
      "stance": "Bullish",
      "stance_code": "BULLISH",
@@ -528,14 +530,14 @@
       "kind": "concentration",
       "text": "Position is 22.0% of the portfolio, past the 20% review level"
      },
-     "next_step": "Consider trimming toward the 10% single-name limit; the size scenarios show the effect.",
+     "next_step": "Consider trimming toward the 10% single-name limit; the size scenarios show the effect. The limit and the 20% review level are QUANTA defaults, not a target set for your goals, time horizon or tax position.",
      "target": {
-      "weight": 0.10000000000000002,
+      "weight": 0.1,
       "text": "About 10.0% if trimmed to the 10% single-name limit",
       "basis": "QUANTA default limit (10%), not a personal target"
      },
      "why": [
-      "QUANTA is still willing to hold AAPL (score 66), but at 22.0% it is past the 20% review level. Trimming is about single-name risk, not a change of view on the stock.",
+      "QUANTA is still willing to hold HD (score 66), but at 22.0% it is past the 20% review level. Trimming is about single-name risk, not a change of view on the stock.",
       "You are up 155.8% on a cost of $15.64 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -552,13 +554,6 @@
        "kind": "portfolio_limit"
       },
       {
-       "code": "SECTOR_AT_CAP",
-       "text": "Technology is already 52% of the portfolio (limit 30%)",
-       "remedy": "Technology exposure falling below 30%",
-       "source": "portfolio",
-       "kind": "portfolio_limit"
-      },
-      {
        "code": "PORTFOLIO_DATA_INCOMPLETE",
        "text": "Portfolio stop-risk coverage is incomplete",
        "remedy": "Complete portfolio analysis and risk coverage",
@@ -568,7 +563,6 @@
      ],
      "would_change": [
       "The position falling below 10% of the portfolio",
-      "Technology exposure falling below 30%",
       "Complete portfolio analysis and risk coverage",
       "A daily close below the stop"
      ],
@@ -586,33 +580,33 @@
       "qualifier": "Unproven model",
       "caveat": "Treat as research."
      },
-     "tax_note": "0 shares long-term, 207.346 short-term. Informational only, not tax advice.",
+     "tax_note": "0 shares long-term, 287.763 short-term. Informational only, not tax advice.",
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "AAPL",
-       "delta_value": -8293.85552,
-       "weight_before": 0.22007526630924376,
+       "symbol": "HD",
+       "delta_value": -11510.52536,
+       "weight_before": 0.22004445345058304,
        "weight_after": 0.0,
-       "sector": "Technology",
-       "sector_weight_before": 0.5219785285454056,
-       "sector_weight_after": 0.3019032622361618,
-       "cash_after": 8665.495519999999,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 0.8163191939443754
+       "sector": "Consumer Cyclical",
+       "sector_weight_before": 0.27505556625884153,
+       "sector_weight_after": 0.05501111280825848,
+       "cash_after": 12033.62536,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.7921800356945135
       },
       "room_to_cap": 0.0,
       "trim_to_cap": {
-       "symbol": "AAPL",
-       "delta_value": -4525.210519999999,
-       "weight_before": 0.22007526630924376,
-       "weight_after": 0.10000000000000002,
-       "sector": "Technology",
-       "sector_weight_before": 0.5219785285454056,
-       "sector_weight_after": 0.40190326223616185,
-       "cash_after": 4896.850519999999,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 0.9363191939443753,
+       "symbol": "HD",
+       "delta_value": -6279.52536,
+       "weight_before": 0.22004445345058304,
+       "weight_after": 0.1,
+       "sector": "Consumer Cyclical",
+       "sector_weight_before": 0.27505556625884153,
+       "sector_weight_after": 0.15501111280825847,
+       "cash_after": 6802.62536,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.8971800356945134,
        "basis": "Selling down to the 10% single-name limit"
       }
      },
@@ -621,25 +615,25 @@
     "no_call": null
    },
    {
-    "symbol": "TSM",
+    "symbol": "AMD",
     "broker": {
-     "symbol": "TSM",
-     "name": "Taiwan Semiconductor",
+     "symbol": "AMD",
+     "name": "Advanced Micro Devices",
      "instrument_type": "equity",
-     "quantity": 4.507394,
+     "quantity": 6.255531,
      "average_cost": 281.14,
-     "cost_basis": 1267.2087491599998,
+     "cost_basis": 1758.67998534,
      "last_price": 301.1,
      "previous_close": 300.8894,
-     "market_value": 1357.1763334,
-     "day_change": 0.9492571763999975,
-     "unrealized_pnl": 89.96758424000018,
-     "unrealized_pnl_pct": 7.099665647008623,
+     "market_value": 1883.5403841000002,
+     "day_change": 1.3174148285999967,
+     "unrealized_pnl": 124.86039876000018,
+     "unrealized_pnl_pct": 7.099665647008618,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 4.507394,
+       "quantity": 6.255531,
        "cost_per_share": 281.14,
        "acquired_on": "2026-08-17",
        "term": null
@@ -656,7 +650,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.03601231565721898,
+     "weight": 0.036007271728159054,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -667,7 +661,7 @@
      "sector": "Technology",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 1.35,
+     "beta": 1.7,
      "beta_status": "measured",
      "earnings_date": null,
      "earnings_source": "",
@@ -679,11 +673,11 @@
      "finished_at": null,
      "sector": "Technology",
      "industry": "",
-     "company_name": "Taiwan Semiconductor",
+     "company_name": "Advanced Micro Devices",
      "risk": {
-      "beta": 1.35,
+      "beta": 1.7,
       "beta_status": "measured",
-      "annualized_volatility": 0.46,
+      "annualized_volatility": 0.5,
       "max_drawdown": -0.22,
       "risk_grade": "F"
      },
@@ -786,7 +780,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "TSM",
+     "symbol": "AMD",
      "status": "ok",
      "stance": "Neutral",
      "stance_code": "NEUTRAL",
@@ -810,7 +804,7 @@
       "basis": "The right size depends on your own risk tolerance; see the scenarios"
      },
      "why": [
-      "QUANTA's score 62 for TSM is in its accumulate band, so this is not a negative view of the stock. Its risk grade is F (very high volatility or drawdown), and the engine sends every grade-F holding to a trim review because the swings are large.",
+      "QUANTA's score 62 for AMD is in its accumulate band, so this is not a negative view of the stock. Its risk grade is F (very high volatility or drawdown), and the engine sends every grade-F holding to a trim review because the swings are large.",
       "You are up 7.1% on a cost of $281.14 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -844,47 +838,47 @@
       "qualifier": "Unproven model",
       "caveat": "Treat as research."
      },
-     "tax_note": "0 shares long-term, 4.50739 short-term. Informational only, not tax advice.",
+     "tax_note": "0 shares long-term, 6.25553 short-term. Informational only, not tax advice.",
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "TSM",
-       "delta_value": -1357.1763334,
-       "weight_before": 0.03601231565721898,
+       "symbol": "AMD",
+       "delta_value": -1883.5403841000002,
+       "weight_before": 0.036007271728159054,
        "weight_after": 0.0,
        "sector": "Technology",
-       "sector_weight_before": 0.5219785285454056,
-       "sector_weight_after": 0.48596621288818664,
-       "cash_after": 1728.8163334,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0317928873782223
+       "sector_weight_before": 0.2838573451710954,
+       "sector_weight_after": 0.24785007344293633,
+       "cash_after": 2406.6403841,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9620143498797553
       },
-      "room_to_cap": 2411.4686666
+      "room_to_cap": 3347.4596159
      },
      "unavailable_reason": ""
     },
     "no_call": null
    },
    {
-    "symbol": "NVDA",
+    "symbol": "SMCI",
     "broker": {
-     "symbol": "NVDA",
-     "name": "NVIDIA",
+     "symbol": "SMCI",
+     "name": "Super Micro Computer",
      "instrument_type": "equity",
-     "quantity": 3.988288,
+     "quantity": 5.535096,
      "average_cost": 176.99,
-     "cost_basis": 705.88709312,
+     "cost_basis": 979.6566410400001,
      "last_price": 338.4,
      "previous_close": 334.8837,
-     "market_value": 1349.6366592,
-     "day_change": 14.024017094400003,
-     "unrealized_pnl": 643.7495660799999,
+     "market_value": 1873.0764864,
+     "day_change": 19.463058064800006,
+     "unrealized_pnl": 893.41984536,
      "unrealized_pnl_pct": 91.19724278207806,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 3.988288,
+       "quantity": 5.535096,
        "cost_per_share": 176.99,
        "acquired_on": "2026-01-18",
        "term": null
@@ -901,7 +895,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.0358122523931015,
+     "weight": 0.035807235450200724,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -912,7 +906,7 @@
      "sector": "Technology",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 1.8,
+     "beta": 1.9,
      "beta_status": "measured",
      "earnings_date": null,
      "earnings_source": "",
@@ -924,11 +918,11 @@
      "finished_at": null,
      "sector": "Technology",
      "industry": "",
-     "company_name": "NVIDIA",
+     "company_name": "Super Micro Computer",
      "risk": {
-      "beta": 1.8,
+      "beta": 1.9,
       "beta_status": "measured",
-      "annualized_volatility": 0.55,
+      "annualized_volatility": 0.7,
       "max_drawdown": -0.22,
       "risk_grade": "F"
      },
@@ -1031,7 +1025,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "NVDA",
+     "symbol": "SMCI",
      "status": "ok",
      "stance": "Neutral",
      "stance_code": "NEUTRAL",
@@ -1055,7 +1049,7 @@
       "basis": "The right size depends on your own risk tolerance; see the scenarios"
      },
      "why": [
-      "QUANTA's score 68 for NVDA is in its buy band, so this is not a negative view of the stock. Its risk grade is F (very high volatility or drawdown), and the engine sends every grade-F holding to a trim review because the swings are large.",
+      "QUANTA's score 68 for SMCI is in its buy band, so this is not a negative view of the stock. Its risk grade is F (very high volatility or drawdown), and the engine sends every grade-F holding to a trim review because the swings are large.",
       "You are up 91.2% on a cost of $176.99 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -1089,47 +1083,47 @@
       "qualifier": "Unproven model",
       "caveat": "Treat as research."
      },
-     "tax_note": "0 shares long-term, 3.98829 short-term. Informational only, not tax advice.",
+     "tax_note": "0 shares long-term, 5.5351 short-term. Informational only, not tax advice.",
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "NVDA",
-       "delta_value": -1349.6366592,
-       "weight_before": 0.0358122523931015,
+       "symbol": "SMCI",
+       "delta_value": -1873.0764864,
+       "weight_before": 0.035807235450200724,
        "weight_after": 0.0,
        "sector": "Technology",
-       "sector_weight_before": 0.5219785285454056,
-       "sector_weight_after": 0.48616627615230407,
-       "cash_after": 1721.2766591999998,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0159474592078852
+       "sector_weight_before": 0.2838573451710954,
+       "sector_weight_after": 0.2480501097208947,
+       "cash_after": 2396.1764864,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9551929644622443
       },
-      "room_to_cap": 2419.0083408
+      "room_to_cap": 3357.9235135999998
      },
      "unavailable_reason": ""
     },
     "no_call": null
    },
    {
-    "symbol": "LRCX",
+    "symbol": "KLAC",
     "broker": {
-     "symbol": "LRCX",
-     "name": "Lam Research",
+     "symbol": "KLAC",
+     "name": "KLA Corporation",
      "instrument_type": "equity",
-     "quantity": 3.51205,
+     "quantity": 4.874155,
      "average_cost": 270.68,
-     "cost_basis": 950.641694,
+     "cost_basis": 1319.3362754,
      "last_price": 375.7,
      "previous_close": 377.2467,
-     "market_value": 1319.477185,
-     "day_change": -5.432087734999954,
-     "unrealized_pnl": 368.83549099999993,
-     "unrealized_pnl_pct": 38.79858135067237,
+     "market_value": 1831.2200335,
+     "day_change": -7.538855538499937,
+     "unrealized_pnl": 511.8837581,
+     "unrealized_pnl_pct": 38.798581350672386,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 3.51205,
+       "quantity": 4.874155,
        "cost_per_share": 270.68,
        "acquired_on": "2026-02-19",
        "term": null
@@ -1146,7 +1140,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.03501197870852787,
+     "weight": 0.03500707385777098,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -1157,7 +1151,7 @@
      "sector": "Technology",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 1.6,
+     "beta": 1.5,
      "beta_status": "measured",
      "earnings_date": null,
      "earnings_source": "",
@@ -1169,11 +1163,11 @@
      "finished_at": null,
      "sector": "Technology",
      "industry": "",
-     "company_name": "Lam Research",
+     "company_name": "KLA Corporation",
      "risk": {
-      "beta": 1.6,
+      "beta": 1.5,
       "beta_status": "measured",
-      "annualized_volatility": 0.52,
+      "annualized_volatility": 0.45,
       "max_drawdown": -0.22,
       "risk_grade": "F"
      },
@@ -1276,7 +1270,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "LRCX",
+     "symbol": "KLAC",
      "status": "ok",
      "stance": "Neutral",
      "stance_code": "NEUTRAL",
@@ -1300,7 +1294,7 @@
       "basis": "The right size depends on your own risk tolerance; see the scenarios"
      },
      "why": [
-      "QUANTA's score 59 for LRCX is in its accumulate band, so this is not a negative view of the stock. Its risk grade is F (very high volatility or drawdown), and the engine sends every grade-F holding to a trim review because the swings are large.",
+      "QUANTA's score 59 for KLAC is in its accumulate band, so this is not a negative view of the stock. Its risk grade is F (very high volatility or drawdown), and the engine sends every grade-F holding to a trim review because the swings are large.",
       "You are up 38.8% on a cost of $270.68 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -1334,292 +1328,47 @@
       "qualifier": "Unproven model",
       "caveat": "Treat as research."
      },
-     "tax_note": "0 shares long-term, 3.51205 short-term. Informational only, not tax advice.",
+     "tax_note": "0 shares long-term, 4.87416 short-term. Informational only, not tax advice.",
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "LRCX",
-       "delta_value": -1319.477185,
-       "weight_before": 0.03501197870852787,
+       "symbol": "KLAC",
+       "delta_value": -1831.2200335,
+       "weight_before": 0.03500707385777098,
        "weight_after": 0.0,
        "sector": "Technology",
-       "sector_weight_before": 0.5219785285454056,
-       "sector_weight_after": 0.48696654983687776,
-       "cash_after": 1691.117185,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0243903475818232
+       "sector_weight_before": 0.2838573451710954,
+       "sector_weight_after": 0.24885027131332443,
+       "cash_after": 2354.3200335,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9707161010309693
       },
-      "room_to_cap": 2449.167815
+      "room_to_cap": 3399.7799665000002
      },
      "unavailable_reason": ""
     },
     "no_call": null
    },
    {
-    "symbol": "MU",
+    "symbol": "ON",
     "broker": {
-     "symbol": "MU",
-     "name": "Micron Technology",
+     "symbol": "ON",
+     "name": "ON Semiconductor",
      "instrument_type": "equity",
-     "quantity": 23.509613,
-     "average_cost": 47.97,
-     "cost_basis": 1127.75613561,
-     "last_price": 44.9,
-     "previous_close": 45.2986,
-     "market_value": 1055.5816237000001,
-     "day_change": -9.370931741800044,
-     "unrealized_pnl": -72.17451190999986,
-     "unrealized_pnl_pct": -6.399833229101509,
-     "quote_as_of": "2026-09-29T20:30:00+00:00",
-     "quote_source": "broker",
-     "tax_lots": [
-      {
-       "quantity": 23.509613,
-       "cost_per_share": 47.97,
-       "acquired_on": "2026-06-23",
-       "term": null
-      }
-     ],
-     "sector": "Technology",
-     "industry": "",
-     "earnings_date": null,
-     "earnings_verified": null,
-     "earnings_timing": null,
-     "eps_estimate": null,
-     "ex_dividend_date": null,
-     "payable_date": null,
-     "dividend_per_share": null,
-     "distribution_frequency": null,
-     "missing": [],
-     "weight": 0.028009579668554618,
-     "quote_freshness": {
-      "status": "last_close",
-      "age_minutes": 240.0,
-      "text": "Latest session"
-     }
-    },
-    "market": {
-     "sector": "Technology",
-     "sector_source": "quanta",
-     "industry": "",
-     "beta": 1.7,
-     "beta_status": "measured",
-     "earnings_date": null,
-     "earnings_source": "",
-     "correlated_with": []
-    },
-    "analysis": {
-     "state": "done",
-     "error": null,
-     "finished_at": null,
-     "sector": "Technology",
-     "industry": "",
-     "company_name": "Micron Technology",
-     "risk": {
-      "beta": 1.7,
-      "beta_status": "measured",
-      "annualized_volatility": 0.58,
-      "max_drawdown": -0.22,
-      "risk_grade": "F"
-     },
-     "analysis_timestamp": "2026-09-26T14:02:00+00:00",
-     "data_provider": "yfinance",
-     "thesis": {
-      "summary": "Durable franchise; valuation is the debate.",
-      "bull_case": [
-       "Services mix lifts margins",
-       "Buybacks shrink the share count"
-      ],
-      "bear_case": [
-       "Hardware cycle is maturing"
-      ]
-     },
-     "fundamental": {
-      "roe": 148.7,
-      "net_margin": 24.3,
-      "revenue_growth_yoy": 6.1,
-      "debt_to_equity": 1.8,
-      "pe_ratio": 31.2,
-      "forward_pe": 28.4,
-      "dividend_yield": 0.0045,
-      "quality_score": 71
-     },
-     "valuation": {
-      "dcf_status": "measured",
-      "dcf_upside": -8.5,
-      "valuation_label": "fairly_valued",
-      "target_base": 238.0
-     },
-     "market_intel": {
-      "target_mean": 245.0,
-      "analyst_count": 38
-     },
-     "technical": {
-      "trend_direction": "UP",
-      "rsi": 58,
-      "adx": 24,
-      "support_level": 212.0,
-      "resistance_level": 236.0,
-      "week_52_low": 164.1,
-      "week_52_high": 237.5
-     },
-     "catalysts": {
-      "last_earnings_result": "beat",
-      "last_earnings_surprise_pct": 3.2
-     },
-     "account_context": {
-      "note": "Sized against a $128,400 account."
-     },
-     "is_etf": false,
-     "decision": {
-      "action": "WATCHLIST",
-      "stance": "NEUTRAL",
-      "model_stance": "NEUTRAL",
-      "new_money": "WATCH",
-      "holder_action": "TRIM",
-      "score": 55,
-      "risk_grade": "F",
-      "horizon": {
-       "key": "position",
-       "trading_days": 63,
-       "label": "Position (~3 months)"
-      },
-      "blockers": [
-       {
-        "code": "RISK_GRADE_F",
-        "text": "Risk grade F (very high volatility/drawdown) allows no new money",
-        "remedy": "Risk grade improving to D or better"
-       }
-      ],
-      "reasons": [
-       "Earnings momentum and margin expansion"
-      ],
-      "risks": [
-       "Valuation is rich"
-      ],
-      "invalidation": [
-       "A daily close below the stop"
-      ],
-      "levels": {
-       "stop": 42.88,
-       "reference_price": 100.0
-      },
-      "evidence": {
-       "status": "UNTESTED",
-       "status_text": "Never validated",
-       "permits_recommendation": false
-      },
-      "qualifier": "Unproven model",
-      "caveat": "Treat as research.",
-      "freshness": {
-       "status": "fresh"
-      },
-      "sizing": {
-       "position_value": 5000.0
-      }
-     }
-    },
-    "interpretation": null,
-    "guidance": {
-     "symbol": "MU",
-     "status": "ok",
-     "stance": "Neutral",
-     "stance_code": "NEUTRAL",
-     "score_leaning": "",
-     "new_money": "Hold / No New Money",
-     "existing": "Trim",
-     "action": "Trim",
-     "group": "trim_review",
-     "priority": 1,
-     "headline": "Review size for risk",
-     "key_reason": "Risk grade F triggers a trim review at any score",
-     "basis": {
-      "code": "RISK_GRADE_F",
-      "kind": "risk",
-      "text": "Risk grade F triggers a trim review at any score"
-     },
-     "next_step": "Check the position size against how large a swing you can accept.",
-     "target": {
-      "weight": null,
-      "text": "No target size: QUANTA does not size reductions",
-      "basis": "The right size depends on your own risk tolerance; see the scenarios"
-     },
-     "why": [
-      "QUANTA's score 55 for MU is in its accumulate band, so this is not a negative view of the stock. Its risk grade is F (very high volatility or drawdown), and the engine sends every grade-F holding to a trim review because the swings are large.",
-      "You are down 6.4% on a cost of $47.97 a share. QUANTA's view does not depend on your entry price."
-     ],
-     "supports": [
-      "Earnings momentum and margin expansion",
-      "Services mix lifts margins",
-      "Buybacks shrink the share count"
-     ],
-     "blocks": [
-      {
-       "code": "RISK_GRADE_F",
-       "text": "Risk grade F (very high volatility/drawdown) allows no new money",
-       "remedy": "Risk grade improving to D or better",
-       "source": "quanta",
-       "kind": "risk"
-      }
-     ],
-     "would_change": [
-      "Risk grade improving to D or better",
-      "A daily close below the stop"
-     ],
-     "risks": [
-      "Valuation is rich",
-      "Hardware cycle is maturing"
-     ],
-     "horizon": "Position (~3 months)",
-     "conviction": 55,
-     "evidence": {
-      "status": "UNTESTED",
-      "text": "Never validated",
-      "permits_recommendation": false,
-      "qualifier": "Unproven model",
-      "caveat": "Treat as research."
-     },
-     "tax_note": "0 shares long-term, 23.5096 short-term. Informational only, not tax advice.",
-     "trace": [],
-     "impact": {
-      "remove": {
-       "symbol": "MU",
-       "delta_value": -1055.5816237000001,
-       "weight_before": 0.028009579668554618,
-       "weight_after": 0.0,
-       "sector": "Technology",
-       "sector_weight_before": 0.5219785285454056,
-       "sector_weight_after": 0.493968948876851,
-       "cash_after": 1427.2216237000002,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.032793228078925
-      },
-      "room_to_cap": 2713.0633762999996
-     },
-     "unavailable_reason": ""
-    },
-    "no_call": null
-   },
-   {
-    "symbol": "AVGO",
-    "broker": {
-     "symbol": "AVGO",
-     "name": "Broadcom",
-     "instrument_type": "equity",
-     "quantity": 12.841625,
+     "quantity": 17.822092,
      "average_cost": 37.3,
-     "cost_basis": 478.9926125,
+     "cost_basis": 664.7640316,
      "last_price": 82.2,
      "previous_close": 81.7748,
-     "market_value": 1055.5815750000002,
-     "day_change": 5.460258950000049,
-     "unrealized_pnl": 576.5889625000002,
+     "market_value": 1464.9759624,
+     "day_change": 7.577953518400069,
+     "unrealized_pnl": 800.2119308000001,
      "unrealized_pnl_pct": 120.37533512064347,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 12.841625,
+       "quantity": 17.822092,
        "cost_per_share": 37.3,
        "acquired_on": "2026-07-24",
        "term": null
@@ -1636,7 +1385,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.028009578376312978,
+     "weight": 0.02800565785509463,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -1647,7 +1396,7 @@
      "sector": "Technology",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 1.45,
+     "beta": 1.6,
      "beta_status": "measured",
      "earnings_date": null,
      "earnings_source": "",
@@ -1659,11 +1408,11 @@
      "finished_at": null,
      "sector": "Technology",
      "industry": "",
-     "company_name": "Broadcom",
+     "company_name": "ON Semiconductor",
      "risk": {
-      "beta": 1.45,
+      "beta": 1.6,
       "beta_status": "measured",
-      "annualized_volatility": 0.44,
+      "annualized_volatility": 0.48,
       "max_drawdown": -0.22,
       "risk_grade": "F"
      },
@@ -1766,7 +1515,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "AVGO",
+     "symbol": "ON",
      "status": "ok",
      "stance": "Neutral",
      "stance_code": "NEUTRAL",
@@ -1790,7 +1539,7 @@
       "basis": "The right size depends on your own risk tolerance; see the scenarios"
      },
      "why": [
-      "QUANTA's score 63 for AVGO is in its accumulate band, so this is not a negative view of the stock. Its risk grade is F (very high volatility or drawdown), and the engine sends every grade-F holding to a trim review because the swings are large.",
+      "QUANTA's score 63 for ON is in its accumulate band, so this is not a negative view of the stock. Its risk grade is F (very high volatility or drawdown), and the engine sends every grade-F holding to a trim review because the swings are large.",
       "You are up 120.4% on a cost of $37.30 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -1824,49 +1573,49 @@
       "qualifier": "Unproven model",
       "caveat": "Treat as research."
      },
-     "tax_note": "0 shares long-term, 12.8416 short-term. Informational only, not tax advice.",
+     "tax_note": "0 shares long-term, 17.8221 short-term. Informational only, not tax advice.",
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "AVGO",
-       "delta_value": -1055.5815750000002,
-       "weight_before": 0.028009578376312978,
+       "symbol": "ON",
+       "delta_value": -1464.9759624,
+       "weight_before": 0.02800565785509463,
        "weight_after": 0.0,
        "sector": "Technology",
-       "sector_weight_before": 0.5219785285454056,
-       "sector_weight_after": 0.49396895016909265,
-       "cash_after": 1427.221575,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0397956248698141
+       "sector_weight_before": 0.2838573451710954,
+       "sector_weight_after": 0.2558516873160008,
+       "cash_after": 1988.0759624000002,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9784176592494743
       },
-      "room_to_cap": 2713.063425
+      "room_to_cap": 3766.0240376
      },
      "unavailable_reason": ""
     },
     "no_call": null
    },
    {
-    "symbol": "MSFT",
+    "symbol": "MRVL",
     "broker": {
-     "symbol": "MSFT",
-     "name": "Microsoft",
+     "symbol": "MRVL",
+     "name": "Marvell Technology",
      "instrument_type": "equity",
-     "quantity": 53.159488,
-     "average_cost": 41.85,
-     "cost_basis": 2224.7245728000003,
-     "last_price": 77.3,
-     "previous_close": 77.1226,
-     "market_value": 4109.2284224,
-     "day_change": 9.430493171199553,
-     "unrealized_pnl": 1884.5038496000002,
-     "unrealized_pnl_pct": 84.70728793309439,
+     "quantity": 32.627527,
+     "average_cost": 47.97,
+     "cost_basis": 1565.14247019,
+     "last_price": 44.9,
+     "previous_close": 45.2986,
+     "market_value": 1464.9759623,
+     "day_change": -13.00533226220006,
+     "unrealized_pnl": -100.16650789000005,
+     "unrealized_pnl_pct": -6.3998332291015245,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 53.159488,
-       "cost_per_share": 41.85,
-       "acquired_on": "2026-02-11",
+       "quantity": 32.627527,
+       "cost_per_share": 47.97,
+       "acquired_on": "2026-06-23",
        "term": null
       }
      ],
@@ -1881,7 +1630,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.10903729118555876,
+     "weight": 0.028005657853182948,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -1892,7 +1641,7 @@
      "sector": "Technology",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 0.9,
+     "beta": 1.8,
      "beta_status": "measured",
      "earnings_date": null,
      "earnings_source": "",
@@ -1904,11 +1653,256 @@
      "finished_at": null,
      "sector": "Technology",
      "industry": "",
-     "company_name": "Microsoft",
+     "company_name": "Marvell Technology",
      "risk": {
-      "beta": 0.9,
+      "beta": 1.8,
       "beta_status": "measured",
-      "annualized_volatility": 0.24,
+      "annualized_volatility": 0.6,
+      "max_drawdown": -0.22,
+      "risk_grade": "F"
+     },
+     "analysis_timestamp": "2026-09-26T14:02:00+00:00",
+     "data_provider": "yfinance",
+     "thesis": {
+      "summary": "Durable franchise; valuation is the debate.",
+      "bull_case": [
+       "Services mix lifts margins",
+       "Buybacks shrink the share count"
+      ],
+      "bear_case": [
+       "Hardware cycle is maturing"
+      ]
+     },
+     "fundamental": {
+      "roe": 148.7,
+      "net_margin": 24.3,
+      "revenue_growth_yoy": 6.1,
+      "debt_to_equity": 1.8,
+      "pe_ratio": 31.2,
+      "forward_pe": 28.4,
+      "dividend_yield": 0.0045,
+      "quality_score": 71
+     },
+     "valuation": {
+      "dcf_status": "measured",
+      "dcf_upside": -8.5,
+      "valuation_label": "fairly_valued",
+      "target_base": 238.0
+     },
+     "market_intel": {
+      "target_mean": 245.0,
+      "analyst_count": 38
+     },
+     "technical": {
+      "trend_direction": "UP",
+      "rsi": 58,
+      "adx": 24,
+      "support_level": 212.0,
+      "resistance_level": 236.0,
+      "week_52_low": 164.1,
+      "week_52_high": 237.5
+     },
+     "catalysts": {
+      "last_earnings_result": "beat",
+      "last_earnings_surprise_pct": 3.2
+     },
+     "account_context": {
+      "note": "Sized against a $128,400 account."
+     },
+     "is_etf": false,
+     "decision": {
+      "action": "WATCHLIST",
+      "stance": "NEUTRAL",
+      "model_stance": "NEUTRAL",
+      "new_money": "WATCH",
+      "holder_action": "TRIM",
+      "score": 55,
+      "risk_grade": "F",
+      "horizon": {
+       "key": "position",
+       "trading_days": 63,
+       "label": "Position (~3 months)"
+      },
+      "blockers": [
+       {
+        "code": "RISK_GRADE_F",
+        "text": "Risk grade F (very high volatility/drawdown) allows no new money",
+        "remedy": "Risk grade improving to D or better"
+       }
+      ],
+      "reasons": [
+       "Earnings momentum and margin expansion"
+      ],
+      "risks": [
+       "Valuation is rich"
+      ],
+      "invalidation": [
+       "A daily close below the stop"
+      ],
+      "levels": {
+       "stop": 42.88,
+       "reference_price": 100.0
+      },
+      "evidence": {
+       "status": "UNTESTED",
+       "status_text": "Never validated",
+       "permits_recommendation": false
+      },
+      "qualifier": "Unproven model",
+      "caveat": "Treat as research.",
+      "freshness": {
+       "status": "fresh"
+      },
+      "sizing": {
+       "position_value": 5000.0
+      }
+     }
+    },
+    "interpretation": null,
+    "guidance": {
+     "symbol": "MRVL",
+     "status": "ok",
+     "stance": "Neutral",
+     "stance_code": "NEUTRAL",
+     "score_leaning": "",
+     "new_money": "Hold / No New Money",
+     "existing": "Trim",
+     "action": "Trim",
+     "group": "trim_review",
+     "priority": 1,
+     "headline": "Review size for risk",
+     "key_reason": "Risk grade F triggers a trim review at any score",
+     "basis": {
+      "code": "RISK_GRADE_F",
+      "kind": "risk",
+      "text": "Risk grade F triggers a trim review at any score"
+     },
+     "next_step": "Check the position size against how large a swing you can accept.",
+     "target": {
+      "weight": null,
+      "text": "No target size: QUANTA does not size reductions",
+      "basis": "The right size depends on your own risk tolerance; see the scenarios"
+     },
+     "why": [
+      "QUANTA's score 55 for MRVL is in its accumulate band, so this is not a negative view of the stock. Its risk grade is F (very high volatility or drawdown), and the engine sends every grade-F holding to a trim review because the swings are large.",
+      "You are down 6.4% on a cost of $47.97 a share. QUANTA's view does not depend on your entry price."
+     ],
+     "supports": [
+      "Earnings momentum and margin expansion",
+      "Services mix lifts margins",
+      "Buybacks shrink the share count"
+     ],
+     "blocks": [
+      {
+       "code": "RISK_GRADE_F",
+       "text": "Risk grade F (very high volatility/drawdown) allows no new money",
+       "remedy": "Risk grade improving to D or better",
+       "source": "quanta",
+       "kind": "risk"
+      }
+     ],
+     "would_change": [
+      "Risk grade improving to D or better",
+      "A daily close below the stop"
+     ],
+     "risks": [
+      "Valuation is rich",
+      "Hardware cycle is maturing"
+     ],
+     "horizon": "Position (~3 months)",
+     "conviction": 55,
+     "evidence": {
+      "status": "UNTESTED",
+      "text": "Never validated",
+      "permits_recommendation": false,
+      "qualifier": "Unproven model",
+      "caveat": "Treat as research."
+     },
+     "tax_note": "0 shares long-term, 32.6275 short-term. Informational only, not tax advice.",
+     "trace": [],
+     "impact": {
+      "remove": {
+       "symbol": "MRVL",
+       "delta_value": -1464.9759623,
+       "weight_before": 0.028005657853182948,
+       "weight_after": 0.0,
+       "sector": "Technology",
+       "sector_weight_before": 0.2838573451710954,
+       "sector_weight_after": 0.2558516873179124,
+       "cash_after": 1988.0759623,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9728165276818964
+      },
+      "room_to_cap": 3766.0240377
+     },
+     "unavailable_reason": ""
+    },
+    "no_call": null
+   },
+   {
+    "symbol": "PG",
+    "broker": {
+     "symbol": "PG",
+     "name": "Procter & Gamble",
+     "instrument_type": "equity",
+     "quantity": 73.776741,
+     "average_cost": 41.85,
+     "cost_basis": 3087.55661085,
+     "last_price": 77.3,
+     "previous_close": 77.1226,
+     "market_value": 5702.9420793,
+     "day_change": 13.087993853399379,
+     "unrealized_pnl": 2615.3854684499997,
+     "unrealized_pnl_pct": 84.70728793309436,
+     "quote_as_of": "2026-09-29T20:30:00+00:00",
+     "quote_source": "broker",
+     "tax_lots": [
+      {
+       "quantity": 73.776741,
+       "cost_per_share": 41.85,
+       "acquired_on": "2026-02-11",
+       "term": null
+      }
+     ],
+     "sector": "Consumer Defensive",
+     "industry": "",
+     "earnings_date": null,
+     "earnings_verified": null,
+     "earnings_timing": null,
+     "eps_estimate": null,
+     "ex_dividend_date": null,
+     "payable_date": null,
+     "dividend_per_share": null,
+     "distribution_frequency": null,
+     "missing": [],
+     "weight": 0.10902202407379086,
+     "quote_freshness": {
+      "status": "last_close",
+      "age_minutes": 240.0,
+      "text": "Latest session"
+     }
+    },
+    "market": {
+     "sector": "Consumer Defensive",
+     "sector_source": "quanta",
+     "industry": "",
+     "beta": 0.45,
+     "beta_status": "measured",
+     "earnings_date": null,
+     "earnings_source": "",
+     "correlated_with": []
+    },
+    "analysis": {
+     "state": "done",
+     "error": null,
+     "finished_at": null,
+     "sector": "Consumer Defensive",
+     "industry": "",
+     "company_name": "Procter & Gamble",
+     "risk": {
+      "beta": 0.45,
+      "beta_status": "measured",
+      "annualized_volatility": 0.17,
       "max_drawdown": -0.22,
       "risk_grade": "B"
      },
@@ -2011,7 +2005,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "MSFT",
+     "symbol": "PG",
      "status": "ok",
      "stance": "Bullish",
      "stance_code": "BULLISH",
@@ -2022,20 +2016,20 @@
      "group": "do_not_add",
      "priority": 3,
      "headline": "Keep it, but do not add",
-     "key_reason": "Reward/risk to the horizon target is below the 1.5:1 minimum",
+     "key_reason": "Research reward/risk to the horizon target is below the 1.50:1 minimum",
      "basis": {
       "code": "LOW_REWARD_RISK",
       "kind": "investment",
-      "text": "Reward/risk to the horizon target is below the 1.5:1 minimum"
+      "text": "Research reward/risk to the horizon target is below the 1.50:1 minimum"
      },
-     "next_step": "Keep the position. Do not add until: reward/risk of at least 1.5:1 (a better entry or a higher target).",
+     "next_step": "Keep the position. Do not add until: research reward/risk of at least 1.50:1 (a better entry or a higher target).",
      "target": {
-      "weight": 0.10903729118555876,
+      "weight": 0.10902202407379086,
       "text": "Current weight, 10.9%",
       "basis": "No change indicated"
      },
      "why": [
-      "Keep the position; the research engine does not support adding right now: reward/risk to the horizon target is below the 1.5:1 minimum.",
+      "Keep the position; the research engine does not support adding right now: research reward/risk to the horizon target is below the 1.50:1 minimum.",
       "You are up 84.7% on a cost of $41.85 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -2046,14 +2040,14 @@
      "blocks": [
       {
        "code": "LOW_REWARD_RISK",
-       "text": "Reward/risk to the horizon target is below the 1.5:1 minimum",
-       "remedy": "Reward/risk of at least 1.5:1 (a better entry or a higher target)",
+       "text": "Research reward/risk to the horizon target is below the 1.50:1 minimum",
+       "remedy": "Research reward/risk of at least 1.50:1 (a better entry or a higher target)",
        "source": "quanta",
        "kind": "investment"
       }
      ],
      "would_change": [
-      "Reward/risk of at least 1.5:1 (a better entry or a higher target)",
+      "Research reward/risk of at least 1.50:1 (a better entry or a higher target)",
       "A daily close below the stop"
      ],
      "risks": [
@@ -2074,29 +2068,29 @@
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "MSFT",
-       "delta_value": -4109.2284224,
-       "weight_before": 0.10903729118555876,
+       "symbol": "PG",
+       "delta_value": -5702.9420793,
+       "weight_before": 0.10902202407379086,
        "weight_after": 0.0,
-       "sector": "Technology",
-       "sector_weight_before": 0.5219785285454056,
-       "sector_weight_after": 0.4129412373598469,
-       "cash_after": 4480.868422400001,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 0.982275951448465
+       "sector": "Consumer Defensive",
+       "sector_weight_before": 0.139028084372013,
+       "sector_weight_after": 0.03000606029822214,
+       "cash_after": 6226.0420793,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9741668009844198
       },
       "room_to_cap": 0.0,
       "trim_to_cap": {
-       "symbol": "MSFT",
-       "delta_value": -340.5834224000005,
-       "weight_before": 0.10903729118555876,
+       "symbol": "PG",
+       "delta_value": -471.94207929999993,
+       "weight_before": 0.10902202407379086,
        "weight_after": 0.1,
-       "sector": "Technology",
-       "sector_weight_before": 0.5219785285454056,
-       "sector_weight_after": 0.5129412373598469,
-       "cash_after": 712.2234224000005,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.072275951448465,
+       "sector": "Consumer Defensive",
+       "sector_weight_before": 0.139028084372013,
+       "sector_weight_after": 0.13000606029822215,
+       "cash_after": 995.0420793,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 1.01916680098442,
        "basis": "Selling down to the 10% single-name limit"
       }
      },
@@ -2105,25 +2099,25 @@
     "no_call": null
    },
    {
-    "symbol": "VOO",
+    "symbol": "SCHB",
     "broker": {
-     "symbol": "VOO",
-     "name": "Vanguard S&P 500 ETF",
+     "symbol": "SCHB",
+     "name": "Schwab US Broad Market ETF",
      "instrument_type": "equity",
-     "quantity": 33.225425,
+     "quantity": 46.111497,
      "average_cost": 90.88,
-     "cost_basis": 3019.526624,
+     "cost_basis": 4190.61284736,
      "last_price": 114.6,
      "previous_close": 114.3484,
-     "market_value": 3807.6337049999997,
-     "day_change": 8.359516929999877,
-     "unrealized_pnl": 788.1070809999997,
-     "unrealized_pnl_pct": 26.100352112676045,
+     "market_value": 5284.3775562,
+     "day_change": 11.601652645199827,
+     "unrealized_pnl": 1093.76470884,
+     "unrealized_pnl_pct": 26.10035211267605,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 33.225425,
+       "quantity": 46.111497,
        "cost_per_share": 90.88,
        "acquired_on": "2026-03-12",
        "term": null
@@ -2140,7 +2134,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.10103455499257691,
+     "weight": 0.10102040826228255,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -2163,7 +2157,7 @@
      "finished_at": null,
      "sector": "",
      "industry": "",
-     "company_name": "Vanguard S&P 500 ETF",
+     "company_name": "Schwab US Broad Market ETF",
      "risk": {
       "beta": 1.0,
       "beta_status": "measured",
@@ -2270,7 +2264,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "VOO",
+     "symbol": "SCHB",
      "status": "ok",
      "stance": "Bullish",
      "stance_code": "BULLISH",
@@ -2289,7 +2283,7 @@
      },
      "next_step": "Keep the position. Do not add until: an analyst consensus target or a valid DCF.",
      "target": {
-      "weight": 0.10103455499257691,
+      "weight": 0.10102040826228255,
       "text": "Current weight, 10.1%",
       "basis": "No change indicated"
      },
@@ -2333,29 +2327,29 @@
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "VOO",
-       "delta_value": -3807.6337049999997,
-       "weight_before": 0.10103455499257691,
+       "symbol": "SCHB",
+       "delta_value": -5284.3775562,
+       "weight_before": 0.10102040826228255,
        "weight_after": 0.0,
        "sector": "Unclassified",
-       "sector_weight_before": 0.12404242308309751,
-       "sector_weight_after": 0.023007868090520613,
-       "cash_after": 4179.273705,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 0.979374958522891
+       "sector_weight_before": 0.12402505453259416,
+       "sector_weight_after": 0.023004646270311603,
+       "cash_after": 5807.4775562,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9222063035553432
       },
       "room_to_cap": 0.0,
       "trim_to_cap": {
-       "symbol": "VOO",
-       "delta_value": -38.988704999999754,
-       "weight_before": 0.10103455499257691,
+       "symbol": "SCHB",
+       "delta_value": -53.37755620000007,
+       "weight_before": 0.10102040826228255,
        "weight_after": 0.1,
        "sector": "Unclassified",
-       "sector_weight_before": 0.12404242308309751,
-       "sector_weight_after": 0.12300786809052063,
-       "cash_after": 410.62870499999974,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.079374958522891,
+       "sector_weight_before": 0.12402505453259416,
+       "sector_weight_after": 0.1230046462703116,
+       "cash_after": 576.4775562000001,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 1.0222063035553433,
        "basis": "Selling down to the 10% single-name limit"
       }
      },
@@ -2364,31 +2358,31 @@
     "no_call": null
    },
    {
-    "symbol": "GOOGL",
+    "symbol": "CRM",
     "broker": {
-     "symbol": "GOOGL",
-     "name": "Alphabet",
+     "symbol": "CRM",
+     "name": "Salesforce",
      "instrument_type": "equity",
-     "quantity": 22.58486,
+     "quantity": 31.34412,
      "average_cost": 88.11,
-     "cost_basis": 1989.9520146,
+     "cost_basis": 2761.7304132,
      "last_price": 151.9,
      "previous_close": 151.8089,
-     "market_value": 3430.640234,
-     "day_change": 2.0574807460002598,
-     "unrealized_pnl": 1440.6882194,
-     "unrealized_pnl_pct": 72.39813869027351,
+     "market_value": 4761.1718280000005,
+     "day_change": 2.8554493320003607,
+     "unrealized_pnl": 1999.4414148000005,
+     "unrealized_pnl_pct": 72.39813869027354,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 22.58486,
+       "quantity": 31.34412,
        "cost_per_share": 88.11,
        "acquired_on": "2026-04-13",
        "term": null
       }
      ],
-     "sector": "Communication Services",
+     "sector": "Technology",
      "industry": "",
      "earnings_date": "2026-10-02",
      "earnings_verified": null,
@@ -2399,7 +2393,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.09103113278114548,
+     "weight": 0.09101838707704073,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -2407,10 +2401,10 @@
      }
     },
     "market": {
-     "sector": "Communication Services",
+     "sector": "Technology",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 1.05,
+     "beta": 1.15,
      "beta_status": "measured",
      "earnings_date": "2026-10-02",
      "earnings_source": "broker",
@@ -2420,13 +2414,13 @@
      "state": "done",
      "error": null,
      "finished_at": null,
-     "sector": "Communication Services",
+     "sector": "Technology",
      "industry": "",
-     "company_name": "Alphabet",
+     "company_name": "Salesforce",
      "risk": {
-      "beta": 1.05,
+      "beta": 1.15,
       "beta_status": "measured",
-      "annualized_volatility": 0.29,
+      "annualized_volatility": 0.3,
       "max_drawdown": -0.22,
       "risk_grade": "B"
      },
@@ -2523,7 +2517,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "GOOGL",
+     "symbol": "CRM",
      "status": "ok",
      "stance": "Bullish",
      "stance_code": "BULLISH",
@@ -2542,7 +2536,7 @@
      },
      "next_step": "Keep the position. Do not add until: the earnings report passing.",
      "target": {
-      "weight": 0.09103113278114548,
+      "weight": 0.09101838707704073,
       "text": "Current weight, 9.1%",
       "basis": "No change indicated"
      },
@@ -2594,29 +2588,29 @@
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "GOOGL",
-       "delta_value": -3430.640234,
-       "weight_before": 0.09103113278114548,
+       "symbol": "CRM",
+       "delta_value": -4761.1718280000005,
+       "weight_before": 0.09101838707704073,
        "weight_after": 0.0,
-       "sector": "Communication Services",
-       "sector_weight_before": 0.13004447214847778,
-       "sector_weight_after": 0.0390133393673323,
-       "cash_after": 3802.280234,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 0.9848268240952651
+       "sector": "Technology",
+       "sector_weight_before": 0.2838573451710954,
+       "sector_weight_after": 0.19283895809405469,
+       "cash_after": 5284.271828000001,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9185555666790288
       },
-      "room_to_cap": 338.004766,
+      "room_to_cap": 469.82817199999954,
       "add": {
-       "symbol": "GOOGL",
-       "delta_value": 338.004766,
-       "weight_before": 0.09103113278114548,
+       "symbol": "CRM",
+       "delta_value": 469.82817199999954,
+       "weight_before": 0.09101838707704073,
        "weight_after": 0.1,
-       "sector": "Communication Services",
-       "sector_weight_before": 0.13004447214847778,
-       "sector_weight_after": 0.13901333936733232,
-       "cash_after": 33.63523399999997,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.089826824095265,
+       "sector": "Technology",
+       "sector_weight_before": 0.2838573451710954,
+       "sector_weight_after": 0.2928389580940547,
+       "cash_after": 53.27182800000048,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 1.0335555666790288,
        "basis": "QUANTA's risk-budget size for this account, capped by the single-name limit and buying power"
       }
      },
@@ -2625,25 +2619,25 @@
     "no_call": null
    },
    {
-    "symbol": "JNJ",
+    "symbol": "PFE",
     "broker": {
-     "symbol": "JNJ",
-     "name": "Johnson & Johnson",
+     "symbol": "PFE",
+     "name": "Pfizer",
      "instrument_type": "equity",
-     "quantity": 14.346473,
+     "quantity": 19.910576,
      "average_cost": 128.71,
-     "cost_basis": 1846.53453983,
+     "cost_basis": 2562.69023696,
      "last_price": 189.2,
      "previous_close": 189.2378,
-     "market_value": 2714.3526915999996,
-     "day_change": -0.5422966794000613,
-     "unrealized_pnl": 867.8181517699995,
+     "market_value": 3767.0809791999995,
+     "day_change": -0.7526197728000851,
+     "unrealized_pnl": 1204.3907422399993,
      "unrealized_pnl_pct": 46.99712532048789,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 14.346473,
+       "quantity": 19.910576,
        "cost_per_share": 128.71,
        "acquired_on": "2026-05-14",
        "term": null
@@ -2660,7 +2654,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.07202463197249939,
+     "weight": 0.07201454748996367,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -2671,7 +2665,7 @@
      "sector": "Healthcare",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 0.5,
+     "beta": 0.6,
      "beta_status": "measured",
      "earnings_date": null,
      "earnings_source": "",
@@ -2683,11 +2677,11 @@
      "finished_at": null,
      "sector": "Healthcare",
      "industry": "",
-     "company_name": "Johnson & Johnson",
+     "company_name": "Pfizer",
      "risk": {
-      "beta": 0.5,
+      "beta": 0.6,
       "beta_status": "measured",
-      "annualized_volatility": 0.17,
+      "annualized_volatility": 0.2,
       "max_drawdown": -0.22,
       "risk_grade": "B"
      },
@@ -2790,7 +2784,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "JNJ",
+     "symbol": "PFE",
      "status": "ok",
      "stance": "Bullish",
      "stance_code": "BULLISH",
@@ -2801,20 +2795,20 @@
      "group": "do_not_add",
      "priority": 3,
      "headline": "Keep it, but do not add",
-     "key_reason": "Reward/risk to the horizon target is below the 1.5:1 minimum",
+     "key_reason": "Research reward/risk to the horizon target is below the 1.50:1 minimum",
      "basis": {
       "code": "LOW_REWARD_RISK",
       "kind": "investment",
-      "text": "Reward/risk to the horizon target is below the 1.5:1 minimum"
+      "text": "Research reward/risk to the horizon target is below the 1.50:1 minimum"
      },
-     "next_step": "Keep the position. Do not add until: reward/risk of at least 1.5:1 (a better entry or a higher target).",
+     "next_step": "Keep the position. Do not add until: research reward/risk of at least 1.50:1 (a better entry or a higher target).",
      "target": {
-      "weight": 0.07202463197249939,
+      "weight": 0.07201454748996367,
       "text": "Current weight, 7.2%",
       "basis": "No change indicated"
      },
      "why": [
-      "Keep the position; the research engine does not support adding right now: reward/risk to the horizon target is below the 1.5:1 minimum.",
+      "Keep the position; the research engine does not support adding right now: research reward/risk to the horizon target is below the 1.50:1 minimum.",
       "You are up 47.0% on a cost of $128.71 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -2825,14 +2819,14 @@
      "blocks": [
       {
        "code": "LOW_REWARD_RISK",
-       "text": "Reward/risk to the horizon target is below the 1.5:1 minimum",
-       "remedy": "Reward/risk of at least 1.5:1 (a better entry or a higher target)",
+       "text": "Research reward/risk to the horizon target is below the 1.50:1 minimum",
+       "remedy": "Research reward/risk of at least 1.50:1 (a better entry or a higher target)",
        "source": "quanta",
        "kind": "investment"
       }
      ],
      "would_change": [
-      "Reward/risk of at least 1.5:1 (a better entry or a higher target)",
+      "Research reward/risk of at least 1.50:1 (a better entry or a higher target)",
       "A daily close below the stop"
      ],
      "risks": [
@@ -2852,43 +2846,43 @@
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "JNJ",
-       "delta_value": -2714.3526915999996,
-       "weight_before": 0.07202463197249939,
+       "symbol": "PFE",
+       "delta_value": -3767.0809791999995,
+       "weight_before": 0.07201454748996367,
        "weight_after": 0.0,
        "sector": "Healthcare",
-       "sector_weight_before": 0.126043104792306,
-       "sector_weight_after": 0.05401847281980658,
-       "cash_after": 3085.9926915999995,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0443971975292181
+       "sector_weight_before": 0.12602546183712482,
+       "sector_weight_after": 0.054010914347161154,
+       "cash_after": 4290.1809791999995,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9800179833236475
       },
-      "room_to_cap": 1054.2923084000004
+      "room_to_cap": 1463.9190208000005
      },
      "unavailable_reason": ""
     },
     "no_call": null
    },
    {
-    "symbol": "AMZN",
+    "symbol": "NKE",
     "broker": {
-     "symbol": "AMZN",
-     "name": "Amazon",
+     "symbol": "NKE",
+     "name": "Nike",
      "instrument_type": "equity",
-     "quantity": 9.154366,
+     "quantity": 12.704774,
      "average_cost": 183.4,
-     "cost_basis": 1678.9107244,
+     "cost_basis": 2330.0555516,
      "last_price": 226.5,
      "previous_close": 226.1833,
-     "market_value": 2073.463899,
-     "day_change": 2.8991877121999754,
-     "unrealized_pnl": 394.5531745999999,
-     "unrealized_pnl_pct": 23.500545256270446,
+     "market_value": 2877.631311,
+     "day_change": 4.023601925799966,
+     "unrealized_pnl": 547.5757594000002,
+     "unrealized_pnl_pct": 23.500545256270456,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 9.154366,
+       "quantity": 12.704774,
        "cost_per_share": 183.4,
        "acquired_on": "2026-06-15",
        "term": null
@@ -2905,7 +2899,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.055018817081470925,
+     "weight": 0.05501111280825846,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -2916,7 +2910,7 @@
      "sector": "Consumer Cyclical",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 1.25,
+     "beta": 1.1,
      "beta_status": "measured",
      "earnings_date": "2026-10-02",
      "earnings_source": "broker",
@@ -2928,11 +2922,11 @@
      "finished_at": null,
      "sector": "Consumer Cyclical",
      "industry": "",
-     "company_name": "Amazon",
+     "company_name": "Nike",
      "risk": {
-      "beta": 1.25,
+      "beta": 1.1,
       "beta_status": "measured",
-      "annualized_volatility": 0.33,
+      "annualized_volatility": 0.31,
       "max_drawdown": -0.22,
       "risk_grade": "B"
      },
@@ -3029,7 +3023,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "AMZN",
+     "symbol": "NKE",
      "status": "ok",
      "stance": "Bullish",
      "stance_code": "BULLISH",
@@ -3048,7 +3042,7 @@
      },
      "next_step": "Keep the position. Do not add until: the earnings report passing.",
      "target": {
-      "weight": 0.055018817081470925,
+      "weight": 0.05501111280825846,
       "text": "Current weight, 5.5%",
       "basis": "No change indicated"
      },
@@ -3100,29 +3094,29 @@
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "AMZN",
-       "delta_value": -2073.463899,
-       "weight_before": 0.055018817081470925,
+       "symbol": "NKE",
+       "delta_value": -2877.631311,
+       "weight_before": 0.05501111280825846,
        "weight_after": 0.0,
        "sector": "Consumer Cyclical",
-       "sector_weight_before": 0.055018817081470925,
-       "sector_weight_after": 0.0,
-       "cash_after": 2445.1038989999997,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0116359921636293
+       "sector_weight_before": 0.27505556625884153,
+       "sector_weight_after": 0.22004445345058304,
+       "cash_after": 3400.731311,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9627144877285414
       },
-      "room_to_cap": 1695.1811010000001,
+      "room_to_cap": 2353.368689,
       "add": {
-       "symbol": "AMZN",
-       "delta_value": 371.6399999999999,
-       "weight_before": 0.055018817081470925,
-       "weight_after": 0.06488018635345064,
+       "symbol": "NKE",
+       "delta_value": 523.0999999999999,
+       "weight_before": 0.05501111280825846,
+       "weight_after": 0.06501111280825846,
        "sector": "Consumer Cyclical",
-       "sector_weight_before": 0.055018817081470925,
-       "sector_weight_after": 0.06488018635345064,
+       "sector_weight_before": 0.27505556625884153,
+       "sector_weight_after": 0.2850555662588415,
        "cash_after": 1.1368683772161603e-13,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0927362251054424,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 1.0342267118176256,
        "basis": "QUANTA's risk-budget size for this account, capped by the single-name limit and buying power"
       }
      },
@@ -3131,25 +3125,25 @@
     "no_call": null
    },
    {
-    "symbol": "META",
+    "symbol": "NFLX",
     "broker": {
-     "symbol": "META",
-     "name": "Meta Platforms",
+     "symbol": "NFLX",
+     "name": "Netflix",
      "instrument_type": "equity",
-     "quantity": 5.573443,
+     "quantity": 7.735035,
      "average_cost": 161.54,
-     "cost_basis": 900.3339822199999,
+     "cost_basis": 1249.5175539,
      "last_price": 263.8,
      "previous_close": 261.9923,
-     "market_value": 1470.2742634,
-     "day_change": 10.075112911100062,
-     "unrealized_pnl": 569.9402811800002,
+     "market_value": 2040.5022330000002,
+     "day_change": 13.982622769500086,
+     "unrealized_pnl": 790.9846791000002,
      "unrealized_pnl_pct": 63.3032066361273,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 5.573443,
+       "quantity": 7.735035,
        "cost_per_share": 161.54,
        "acquired_on": "2026-07-16",
        "term": null
@@ -3166,7 +3160,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.0390133393673323,
+     "weight": 0.03900788057732747,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -3189,7 +3183,7 @@
      "finished_at": null,
      "sector": "Communication Services",
      "industry": "",
-     "company_name": "Meta Platforms",
+     "company_name": "Netflix",
      "risk": {
       "beta": 1.3,
       "beta_status": "measured",
@@ -3296,7 +3290,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "META",
+     "symbol": "NFLX",
      "status": "ok",
      "stance": "Bullish",
      "stance_code": "BULLISH",
@@ -3315,7 +3309,7 @@
      },
      "next_step": "Keep the position. Do not add until: complete portfolio analysis and risk coverage.",
      "target": {
-      "weight": 0.0390133393673323,
+      "weight": 0.03900788057732747,
       "text": "Current weight, 3.9%",
       "basis": "No change indicated"
      },
@@ -3366,29 +3360,29 @@
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "META",
-       "delta_value": -1470.2742634,
-       "weight_before": 0.0390133393673323,
+       "symbol": "NFLX",
+       "delta_value": -2040.5022330000002,
+       "weight_before": 0.03900788057732747,
        "weight_after": 0.0,
        "sector": "Communication Services",
-       "sector_weight_before": 0.13004447214847778,
-       "sector_weight_after": 0.09103113278114548,
-       "cash_after": 1841.9142634,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.029692172337936
+       "sector_weight_before": 0.03900788057732747,
+       "sector_weight_after": 0.0,
+       "cash_after": 2563.602233,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9725164670670999
       },
-      "room_to_cap": 2298.3707366,
+      "room_to_cap": 3190.497767,
       "add": {
-       "symbol": "META",
-       "delta_value": 371.6399999999999,
-       "weight_before": 0.0390133393673323,
-       "weight_after": 0.04887470863931201,
+       "symbol": "NFLX",
+       "delta_value": 523.0999999999999,
+       "weight_before": 0.03900788057732747,
+       "weight_after": 0.049007880577327474,
        "sector": "Communication Services",
-       "sector_weight_before": 0.13004447214847778,
-       "sector_weight_after": 0.1399058414204575,
+       "sector_weight_before": 0.03900788057732747,
+       "sector_weight_after": 0.049007880577327474,
        "cash_after": 1.1368683772161603e-13,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0932292935690415,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 1.0362267118176256,
        "basis": "QUANTA's risk-budget size for this account, capped by the single-name limit and buying power"
       }
      },
@@ -3397,25 +3391,25 @@
     "no_call": null
    },
    {
-    "symbol": "LLY",
+    "symbol": "ABBV",
     "broker": {
-     "symbol": "LLY",
-     "name": "Eli Lilly",
+     "symbol": "ABBV",
+     "name": "AbbVie",
      "instrument_type": "equity",
-     "quantity": 2.738451,
+     "quantity": 3.800526,
      "average_cost": 340.2,
-     "cost_basis": 931.6210302,
+     "cost_basis": 1292.9389452,
      "last_price": 413.0,
      "previous_close": 411.5595,
-     "market_value": 1130.980263,
-     "day_change": 3.9447386654999614,
-     "unrealized_pnl": 199.35923279999997,
-     "unrealized_pnl_pct": 21.399176954732507,
+     "market_value": 1569.617238,
+     "day_change": 5.474657702999947,
+     "unrealized_pnl": 276.6782928,
+     "unrealized_pnl_pct": 21.39917695473251,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 2.738451,
+       "quantity": 3.800526,
        "cost_per_share": 340.2,
        "acquired_on": "2026-03-20",
        "term": null
@@ -3432,7 +3426,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.030010262654083894,
+     "weight": 0.0300060645765628,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -3443,7 +3437,7 @@
      "sector": "Healthcare",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 0.45,
+     "beta": 0.5,
      "beta_status": "measured",
      "earnings_date": null,
      "earnings_source": "",
@@ -3455,11 +3449,11 @@
      "finished_at": null,
      "sector": "Healthcare",
      "industry": "",
-     "company_name": "Eli Lilly",
+     "company_name": "AbbVie",
      "risk": {
-      "beta": 0.45,
+      "beta": 0.5,
       "beta_status": "measured",
-      "annualized_volatility": 0.31,
+      "annualized_volatility": 0.29,
       "max_drawdown": -0.22,
       "risk_grade": "D"
      },
@@ -3562,7 +3556,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "LLY",
+     "symbol": "ABBV",
      "status": "ok",
      "stance": "Bullish",
      "stance_code": "BULLISH",
@@ -3581,7 +3575,7 @@
      },
      "next_step": "Keep the position. Do not add until: complete portfolio analysis and risk coverage.",
      "target": {
-      "weight": 0.030010262654083894,
+      "weight": 0.0300060645765628,
       "text": "Current weight, 3.0%",
       "basis": "No change indicated"
      },
@@ -3632,29 +3626,29 @@
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "LLY",
-       "delta_value": -1130.980263,
-       "weight_before": 0.030010262654083894,
+       "symbol": "ABBV",
+       "delta_value": -1569.617238,
+       "weight_before": 0.0300060645765628,
        "weight_after": 0.0,
        "sector": "Healthcare",
-       "sector_weight_before": 0.126043104792306,
-       "sector_weight_after": 0.09603284213822208,
-       "cash_after": 1502.6202629999998,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0669048953211302
+       "sector_weight_before": 0.12602546183712482,
+       "sector_weight_after": 0.09601939726056202,
+       "cash_after": 2092.717238,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 1.0082236795293442
       },
-      "room_to_cap": 2637.664737,
+      "room_to_cap": 3661.382762,
       "add": {
-       "symbol": "LLY",
-       "delta_value": 371.6399999999999,
-       "weight_before": 0.030010262654083894,
-       "weight_after": 0.03987163192606361,
+       "symbol": "ABBV",
+       "delta_value": 523.1000000000001,
+       "weight_before": 0.0300060645765628,
+       "weight_after": 0.040006064576562805,
        "sector": "Healthcare",
-       "sector_weight_before": 0.126043104792306,
-       "sector_weight_after": 0.13590447406428569,
-       "cash_after": 1.1368683772161603e-13,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0848471296878588,
+       "sector_weight_before": 0.12602546183712482,
+       "sector_weight_after": 0.13602546183712483,
+       "cash_after": -1.1368683772161603e-13,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 1.0282267118176256,
        "basis": "QUANTA's risk-budget size for this account, capped by the single-name limit and buying power"
       }
      },
@@ -3663,25 +3657,25 @@
     "no_call": null
    },
    {
-    "symbol": "COST",
+    "symbol": "WMT",
     "broker": {
-     "symbol": "COST",
-     "name": "Costco",
+     "symbol": "WMT",
+     "name": "Walmart",
      "instrument_type": "equity",
-     "quantity": 2.511615,
+     "quantity": 3.485714,
      "average_cost": 321.18,
-     "cost_basis": 806.6805057,
+     "cost_basis": 1119.5416225200001,
      "last_price": 450.3,
      "previous_close": 449.8052,
-     "market_value": 1130.9802345,
-     "day_change": 1.2427471019999947,
-     "unrealized_pnl": 324.2997288,
-     "unrealized_pnl_pct": 40.20175602465907,
+     "market_value": 1569.6170142,
+     "day_change": 1.724731287199993,
+     "unrealized_pnl": 450.07539167999994,
+     "unrealized_pnl_pct": 40.201756024659055,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 2.511615,
+       "quantity": 3.485714,
        "cost_per_share": 321.18,
        "acquired_on": "2026-04-21",
        "term": null
@@ -3698,7 +3692,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.030010261897843924,
+     "weight": 0.03000606029822214,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -3709,7 +3703,7 @@
      "sector": "Consumer Defensive",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 0.75,
+     "beta": 0.55,
      "beta_status": "measured",
      "earnings_date": null,
      "earnings_source": "",
@@ -3721,11 +3715,11 @@
      "finished_at": null,
      "sector": "Consumer Defensive",
      "industry": "",
-     "company_name": "Costco",
+     "company_name": "Walmart",
      "risk": {
-      "beta": 0.75,
+      "beta": 0.55,
       "beta_status": "measured",
-      "annualized_volatility": 0.22,
+      "annualized_volatility": 0.19,
       "max_drawdown": -0.22,
       "risk_grade": "B"
      },
@@ -3828,7 +3822,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "COST",
+     "symbol": "WMT",
      "status": "ok",
      "stance": "Bullish",
      "stance_code": "BULLISH",
@@ -3839,20 +3833,20 @@
      "group": "do_not_add",
      "priority": 3,
      "headline": "Keep it, but do not add",
-     "key_reason": "Reward/risk to the horizon target is below the 1.5:1 minimum",
+     "key_reason": "Research reward/risk to the horizon target is below the 1.50:1 minimum",
      "basis": {
       "code": "LOW_REWARD_RISK",
       "kind": "investment",
-      "text": "Reward/risk to the horizon target is below the 1.5:1 minimum"
+      "text": "Research reward/risk to the horizon target is below the 1.50:1 minimum"
      },
-     "next_step": "Keep the position. Do not add until: reward/risk of at least 1.5:1 (a better entry or a higher target).",
+     "next_step": "Keep the position. Do not add until: research reward/risk of at least 1.50:1 (a better entry or a higher target).",
      "target": {
-      "weight": 0.030010261897843924,
+      "weight": 0.03000606029822214,
       "text": "Current weight, 3.0%",
       "basis": "No change indicated"
      },
      "why": [
-      "Keep the position; the research engine does not support adding right now: reward/risk to the horizon target is below the 1.5:1 minimum.",
+      "Keep the position; the research engine does not support adding right now: research reward/risk to the horizon target is below the 1.50:1 minimum.",
       "You are up 40.2% on a cost of $321.18 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -3863,14 +3857,14 @@
      "blocks": [
       {
        "code": "LOW_REWARD_RISK",
-       "text": "Reward/risk to the horizon target is below the 1.5:1 minimum",
-       "remedy": "Reward/risk of at least 1.5:1 (a better entry or a higher target)",
+       "text": "Research reward/risk to the horizon target is below the 1.50:1 minimum",
+       "remedy": "Research reward/risk of at least 1.50:1 (a better entry or a higher target)",
        "source": "quanta",
        "kind": "investment"
       }
      ],
      "would_change": [
-      "Reward/risk of at least 1.5:1 (a better entry or a higher target)",
+      "Research reward/risk of at least 1.50:1 (a better entry or a higher target)",
       "A daily close below the stop"
      ],
      "risks": [
@@ -3890,43 +3884,43 @@
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "COST",
-       "delta_value": -1130.9802345,
-       "weight_before": 0.030010261897843924,
+       "symbol": "WMT",
+       "delta_value": -1569.6170142,
+       "weight_before": 0.03000606029822214,
        "weight_after": 0.0,
        "sector": "Consumer Defensive",
-       "sector_weight_before": 0.030010261897843924,
-       "sector_weight_after": 0.0,
-       "cash_after": 1502.6202345000002,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0579018170920849
+       "sector_weight_before": 0.139028084372013,
+       "sector_weight_after": 0.10902202407379086,
+       "cash_after": 2092.7170142,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 1.0067233786536036
       },
-      "room_to_cap": 2637.6647654999997
+      "room_to_cap": 3661.3829858
      },
      "unavailable_reason": ""
     },
     "no_call": null
    },
    {
-    "symbol": "NBIX",
+    "symbol": "VRTX",
     "broker": {
-     "symbol": "NBIX",
-     "name": "Neurocrine Biosciences",
+     "symbol": "VRTX",
+     "name": "Vertex Pharmaceuticals",
      "instrument_type": "equity",
-     "quantity": 7.571416,
+     "quantity": 10.507897,
      "average_cost": 106.89,
-     "cost_basis": 809.30865624,
+     "cost_basis": 1123.18911033,
      "last_price": 119.5,
      "previous_close": 119.9197,
-     "market_value": 904.784212,
-     "day_change": -3.177723295200045,
-     "unrealized_pnl": 95.47555576000002,
-     "unrealized_pnl_pct": 11.79717466554402,
+     "market_value": 1255.6936914999999,
+     "day_change": -4.410164370900063,
+     "unrealized_pnl": 132.50458116999994,
+     "unrealized_pnl_pct": 11.797174665544013,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 7.571416,
+       "quantity": 10.507897,
        "cost_per_share": 106.89,
        "acquired_on": "2026-08-25",
        "term": null
@@ -3943,7 +3937,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.024008210165722695,
+     "weight": 0.024004849770598354,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -3954,7 +3948,7 @@
      "sector": "Healthcare",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 0.6,
+     "beta": 0.55,
      "beta_status": "measured",
      "earnings_date": null,
      "earnings_source": "",
@@ -3966,11 +3960,11 @@
      "finished_at": null,
      "sector": "Healthcare",
      "industry": "",
-     "company_name": "Neurocrine Biosciences",
+     "company_name": "Vertex Pharmaceuticals",
      "risk": {
-      "beta": 0.6,
+      "beta": 0.55,
       "beta_status": "measured",
-      "annualized_volatility": 0.34,
+      "annualized_volatility": 0.3,
       "max_drawdown": -0.22,
       "risk_grade": "D"
      },
@@ -4073,7 +4067,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "NBIX",
+     "symbol": "VRTX",
      "status": "ok",
      "stance": "Bullish",
      "stance_code": "BULLISH",
@@ -4092,7 +4086,7 @@
      },
      "next_step": "Keep the position. Do not add until: complete portfolio analysis and risk coverage.",
      "target": {
-      "weight": 0.024008210165722695,
+      "weight": 0.024004849770598354,
       "text": "Current weight, 2.4%",
       "basis": "No change indicated"
      },
@@ -4143,29 +4137,29 @@
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "NBIX",
-       "delta_value": -904.784212,
-       "weight_before": 0.024008210165722695,
+       "symbol": "VRTX",
+       "delta_value": -1255.6936914999999,
+       "weight_before": 0.024004849770598354,
        "weight_after": 0.0,
        "sector": "Healthcare",
-       "sector_weight_before": 0.126043104792306,
-       "sector_weight_after": 0.10203489462658327,
-       "cash_after": 1276.424212,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0660045874160342
+       "sector_weight_before": 0.12602546183712482,
+       "sector_weight_after": 0.10202061206652648,
+       "cash_after": 1778.7936915,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 1.0100240444437967
       },
-      "room_to_cap": 2863.860788,
+      "room_to_cap": 3975.3063085000003,
       "add": {
-       "symbol": "NBIX",
-       "delta_value": 371.6399999999999,
-       "weight_before": 0.024008210165722695,
-       "weight_after": 0.03386957943770241,
+       "symbol": "VRTX",
+       "delta_value": 523.1000000000001,
+       "weight_before": 0.024004849770598354,
+       "weight_after": 0.03400484977059836,
        "sector": "Healthcare",
-       "sector_weight_before": 0.126043104792306,
-       "sector_weight_after": 0.13590447406428569,
-       "cash_after": 1.1368683772161603e-13,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0863263350786556,
+       "sector_weight_before": 0.12602546183712482,
+       "sector_weight_after": 0.13602546183712483,
+       "cash_after": -1.1368683772161603e-13,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 1.0287267118176258,
        "basis": "QUANTA's risk-budget size for this account, capped by the single-name limit and buying power"
       }
      },
@@ -4174,25 +4168,25 @@
     "no_call": null
    },
    {
-    "symbol": "ORCL",
+    "symbol": "ADBE",
     "broker": {
-     "symbol": "ORCL",
-     "name": "Oracle",
+     "symbol": "ADBE",
+     "name": "Adobe",
      "instrument_type": "equity",
-     "quantity": 2.319484,
+     "quantity": 3.219067,
      "average_cost": 321.21,
-     "cost_basis": 745.04145564,
+     "cost_basis": 1033.99651107,
      "last_price": 487.6,
      "previous_close": 488.9201,
-     "market_value": 1130.9803984,
-     "day_change": -3.061950828399926,
-     "unrealized_pnl": 385.93894276000003,
+     "market_value": 1569.6170692,
+     "day_change": -4.249490346699897,
+     "unrealized_pnl": 535.6205581300001,
      "unrealized_pnl_pct": 51.80100245945021,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 2.319484,
+       "quantity": 3.219067,
        "cost_per_share": 321.21,
        "acquired_on": "2026-05-22",
        "term": null
@@ -4209,7 +4203,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.030010266246887147,
+     "weight": 0.03000606134964634,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -4220,7 +4214,7 @@
      "sector": "Technology",
      "sector_source": "quanta",
      "industry": "",
-     "beta": 1.1,
+     "beta": 1.2,
      "beta_status": "measured",
      "earnings_date": null,
      "earnings_source": "",
@@ -4232,11 +4226,11 @@
      "finished_at": null,
      "sector": "Technology",
      "industry": "",
-     "company_name": "Oracle",
+     "company_name": "Adobe",
      "risk": {
-      "beta": 1.1,
+      "beta": 1.2,
       "beta_status": "measured",
-      "annualized_volatility": 0.35,
+      "annualized_volatility": 0.34,
       "max_drawdown": -0.22,
       "risk_grade": "B"
      },
@@ -4333,7 +4327,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "ORCL",
+     "symbol": "ADBE",
      "status": "ok",
      "stance": "Neutral",
      "stance_code": "NEUTRAL",
@@ -4352,7 +4346,7 @@
      },
      "next_step": "No change warranted.",
      "target": {
-      "weight": 0.030010266246887147,
+      "weight": 0.03000606134964634,
       "text": "Current weight, 3.0%",
       "basis": "No change indicated"
      },
@@ -4386,43 +4380,43 @@
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "ORCL",
-       "delta_value": -1130.9803984,
-       "weight_before": 0.030010266246887147,
+       "symbol": "ADBE",
+       "delta_value": -1569.6170692,
+       "weight_before": 0.03000606134964634,
        "weight_after": 0.0,
        "sector": "Technology",
-       "sector_weight_before": 0.5219785285454056,
-       "sector_weight_after": 0.4919682622985185,
-       "cash_after": 1502.6203983999999,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.047398220643892
+       "sector_weight_before": 0.2838573451710954,
+       "sector_weight_after": 0.25385128382144906,
+       "cash_after": 2092.7170692,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9872194381980501
       },
-      "room_to_cap": 2637.6646016
+      "room_to_cap": 3661.3829308
      },
      "unavailable_reason": ""
     },
     "no_call": null
    },
    {
-    "symbol": "QQQM",
+    "symbol": "SCHG",
     "broker": {
-     "symbol": "QQQM",
-     "name": "Invesco Nasdaq 100 ETF",
+     "symbol": "SCHG",
+     "name": "Schwab US Large-Cap Growth ETF",
      "instrument_type": "equity",
-     "quantity": 5.529878,
+     "quantity": 7.674573,
      "average_cost": 131.1,
-     "cost_basis": 724.9670057999999,
+     "cost_basis": 1006.1365202999999,
      "last_price": 156.8,
      "previous_close": 156.3622,
-     "market_value": 867.0848704000001,
-     "day_change": 2.420980588400055,
-     "unrealized_pnl": 142.1178646000002,
-     "unrealized_pnl_pct": 19.603356216628555,
+     "market_value": 1203.3730464,
+     "day_change": 3.3599280594000764,
+     "unrealized_pnl": 197.2365261000001,
+     "unrealized_pnl_pct": 19.60335621662854,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 5.529878,
+       "quantity": 7.674573,
        "cost_per_share": 131.1,
        "acquired_on": "2026-01-26",
        "term": null
@@ -4439,7 +4433,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.023007868090520602,
+     "weight": 0.023004646270311603,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -4462,7 +4456,7 @@
      "finished_at": null,
      "sector": "",
      "industry": "",
-     "company_name": "Invesco Nasdaq 100 ETF",
+     "company_name": "Schwab US Large-Cap Growth ETF",
      "risk": {
       "beta": 1.1,
       "beta_status": "measured",
@@ -4563,7 +4557,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "QQQM",
+     "symbol": "SCHG",
      "status": "ok",
      "stance": "Neutral",
      "stance_code": "NEUTRAL",
@@ -4582,7 +4576,7 @@
      },
      "next_step": "No change warranted.",
      "target": {
-      "weight": 0.023007868090520602,
+      "weight": 0.023004646270311603,
       "text": "Current weight, 2.3%",
       "basis": "No change indicated"
      },
@@ -4616,43 +4610,43 @@
      "trace": [],
      "impact": {
       "remove": {
-       "symbol": "QQQM",
-       "delta_value": -867.0848704000001,
-       "weight_before": 0.023007868090520602,
+       "symbol": "SCHG",
+       "delta_value": -1203.3730464,
+       "weight_before": 0.023004646270311603,
        "weight_after": 0.0,
        "sector": "Unclassified",
-       "sector_weight_before": 0.12404242308309751,
-       "sector_weight_after": 0.10103455499257692,
-       "cash_after": 1238.7248704,
-       "portfolio_beta_before": 1.0804095135154679,
-       "portfolio_beta_after": 1.0551008586158952
+       "sector_weight_before": 0.12402505453259416,
+       "sector_weight_after": 0.10102040826228255,
+       "cash_after": 1726.4730464,
+       "portfolio_beta_before": 1.0232267118176257,
+       "portfolio_beta_after": 0.9979216009202829
       },
-      "room_to_cap": 2901.5601296
+      "room_to_cap": 4027.6269536
      },
      "unavailable_reason": ""
     },
     "no_call": null
    },
    {
-    "symbol": "RVII",
+    "symbol": "ZZTX",
     "broker": {
-     "symbol": "RVII",
-     "name": "Rise Vision II",
+     "symbol": "ZZTX",
+     "name": "Example Holding",
      "instrument_type": "equity",
-     "quantity": 0.582679,
+     "quantity": 0.808664,
      "average_cost": 247.26,
-     "cost_basis": 144.07320954,
+     "cost_basis": 199.95026064,
      "last_price": 194.1,
      "previous_close": 190.4809,
-     "market_value": 113.09799389999999,
-     "day_change": 2.1087735689000016,
-     "unrealized_pnl": -30.975215640000002,
+     "market_value": 156.9616824,
+     "day_change": 2.9266358824000025,
+     "unrealized_pnl": -42.98857824000001,
      "unrealized_pnl_pct": -21.499636010677023,
      "quote_as_of": "2026-09-29T20:30:00+00:00",
      "quote_source": "broker",
      "tax_lots": [
       {
-       "quantity": 0.582679,
+       "quantity": 0.808664,
        "cost_per_share": 247.26,
        "acquired_on": "2026-02-27",
        "term": null
@@ -4669,7 +4663,7 @@
      "dividend_per_share": null,
      "distribution_frequency": null,
      "missing": [],
-     "weight": 0.0030010254056829443,
+     "weight": 0.003000605666220608,
      "quote_freshness": {
       "status": "last_close",
       "age_minutes": 240.0,
@@ -4698,7 +4692,7 @@
     },
     "interpretation": null,
     "guidance": {
-     "symbol": "RVII",
+     "symbol": "ZZTX",
      "status": "unavailable",
      "stance": "Not rated",
      "stance_code": "NONE",

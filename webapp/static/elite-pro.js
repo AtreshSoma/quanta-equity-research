@@ -506,12 +506,13 @@
       const sig = String((p.decision && p.decision.label) || p.display_action || p.final_action || '').toUpperCase().replace(/_/g, ' ');
       const sigCls = /BUY|ACCUMULATE/.test(sig) ? 'bull' : /SELL|REDUCE|AVOID|INVALID/.test(sig) ? 'bear' : 'warn';
       const qual = String((p.decision && p.decision.qualifier) || '');
+      const noEdge = String(((p.decision && p.decision.evidence) || {}).status || '').toUpperCase() === 'NO_EDGE';
       return `
         <tr>
           <td class="mono">${i + 1}</td>
           <td class="ticker">${esc(p.ticker || '')}</td>
           <td>${esc(p.sector || '')}</td>
-          <td><span class="qpro-conflict-tag ${sigCls}">${esc(sig || '--')}</span>${qual ? `<span class="qpro-qual" title="${esc(qual)}">Model not yet validated</span>` : ''}</td>
+          <td><span class="qpro-conflict-tag ${sigCls}">${esc(sig || '--')}</span>${qual ? `<span class="qpro-qual" title="${esc(qual)}">${noEdge ? 'Tested: no edge found' : 'Model not yet validated'}</span>` : ''}</td>
           <td class="mono">${shares ? shares.toLocaleString() : dash}</td>
           <td class="mono">${entry ? fmtCur(entry, sym, 2) : dash}</td>
           <td class="mono">${value ? fmtCur(value, sym, 0) : dash}</td>
@@ -675,18 +676,21 @@
           const ta = document.createElement('textarea');
           ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
           document.body.appendChild(ta); ta.select();
-          try { document.execCommand('copy'); } catch (_) {}
+          let ok = false;
+          try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
           document.body.removeChild(ta);
+          return ok;
         };
-        const done = () => {
-          const orig = btn.textContent;
-          btn.textContent = 'Copied \u2713';
-          btn.classList.add('copied');
+        // "Copied" only when a copy went through; a blocked copy says so.
+        const done = (ok) => {
+          const orig = btn.dataset.qproLabel || (btn.dataset.qproLabel = btn.textContent);
+          btn.textContent = ok ? 'Copied' : 'Copy blocked';
+          btn.classList.toggle('copied', ok);
           setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1400);
         };
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(txt).then(done).catch(() => { fallback(); done(); });
-        } else { fallback(); done(); }
+          navigator.clipboard.writeText(txt).then(() => done(true)).catch(() => done(fallback()));
+        } else { done(fallback()); }
       });
     }
   }
@@ -714,7 +718,7 @@
       case 'cost': return { label: 'Covers trading costs', rule: `Expected return at least ${v}× the round-trip cost` };
       case 'selection': return { label: 'Fits portfolio limits', rule: 'Position, sector, correlation and stop-risk limits, up to the maximum positions' };
       case 'final_review': return { label: 'Confirmed by the Research check', rule: 'Research check and final decision' };
-      case 'mandate': return { label: 'Kept under your mandate', rule: 'Client mandate sizing' };
+      case 'mandate': return { label: 'Kept under your mandate', rule: 'Risk profile sizing' };
       default: return { label: String(s.key || '').replace(/_/g, ' '), rule: '' };
     }
   }

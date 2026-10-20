@@ -241,17 +241,43 @@ function wireResearchSearch() {
 
 // [PURE] A model evidence record (object, or its status string) counts as
 // validated only at the configured status (LADDER.STRONG_BUY_EVIDENCE).
+// [PURE] The market saved last visit, or US. Reading storage can throw when
+// site data is blocked, and the page must still start.
+// [PURE] The form's capital default for a market: an INR budget for India,
+// never the US dollar figure read as rupees.
+function defaultCapital(market) {
+  return thr(market === 'IN' ? 'CAPITAL.DEFAULT_INDIA' : 'CAPITAL.DEFAULT_US');
+}
+
+function savedMarket() {
+  try {
+    const m = localStorage.getItem('quanta_market');
+    return m === 'US' || m === 'IN' ? m : 'US';
+  } catch (_) {
+    return 'US';
+  }
+}
+
 function evidenceValidated(ev) {
   const status = String((ev && typeof ev === 'object' ? ev.status : ev) || '').toUpperCase();
   const need = String(thr('LADDER.STRONG_BUY_EVIDENCE') || '').toUpperCase();
   return !!need && status === need;
+}
+// [PURE] The flag's words: a model that was tested and showed no edge says so;
+// anything else short of validated is "not yet validated".
+// The not-advice line that sits beside every call (Picks report, Research decision).
+const NOT_ADVICE_HTML = '<p class="q-note not-advice" data-not-advice>Model output for research, not personal investment advice. Check every price with your broker before you place an order.</p>';
+
+function modelFlagWords(ev) {
+  const status = String((ev && typeof ev === 'object' ? ev.status : ev) || '').toUpperCase();
+  return status === 'NO_EDGE' ? 'Tested: no edge found' : 'Model not yet validated';
 }
 // The flag every call carries until its model is validated: Picks, Research and
 // My Portfolio show the same words and link to the evidence page.
 function modelFlagHtml(ev, attrs = '') {
   if (evidenceValidated(ev)) return '';
   const why = (ev && typeof ev === 'object' && (ev.status_text || ev.text)) || 'not validated out of sample';
-  return `<a class="pk-valid model-flag" href="#track" data-view-link="track" data-model-flag ${attrs} title="Model evidence: ${escapeHtml(why)}. Open the evidence page.">Model not yet validated</a>`;
+  return `<a class="pk-valid model-flag" href="#track" data-view-link="track" data-model-flag ${attrs} title="Model evidence: ${escapeHtml(why)}. Open the evidence page.">${modelFlagWords(ev)}</a>`;
 }
 
 // [PURE] Names a preset scan analyses (UNIVERSE.US_SCAN_LIMITS / INDIA_SCAN_LIMITS), or null.
@@ -368,10 +394,12 @@ function renderTargetQuality(val) {
 
 const state = {
   dashboard: null,
-  newsGroup: 'high-impact',
   picks: null,
+  /** Saved scans for the market on screen (newest first) and the id of the one shown. */
+  recentScans: [],
+  picksViewId: null,
   analysis: null,
-  market: (typeof localStorage !== 'undefined' && localStorage && typeof localStorage.getItem === 'function' && localStorage.getItem('quanta_market')) || 'US',
+  market: savedMarket(),
   /** ISO timestamp of last successful dashboard payload (for freshness chip). */
   lastUpdated: null,
   /** Symbols rendered in the Security Monitor this cycle — cross-section dedup hints. */
@@ -449,6 +477,7 @@ const fmtPct = (v, dec = 1, fraction = true) => {
   let n = Number(v);
   if (!Number.isFinite(n)) return '--';
   if (fraction) n *= 100;
+  if (Math.abs(n) < 0.5 * 10 ** -dec) n = 0;
   const sign = n > 0 ? '+' : '';
   return `${sign}${n.toFixed(dec)}%`;
 };
@@ -481,9 +510,9 @@ const safeUrl = (u) => (/^https?:\/\//i.test(String(u || '')) ? String(u) : '');
 // Every badge, card, table, and export derives its label / colour / behaviour
 // from final_action through this map — NEVER from the raw scanner signal.
 const ACTION_META = {
-  STRONG_BUY: { label: 'STRONG BUY', key: 'strong_buy', tone: 'bull', funded: true, guidance: 'Full-size entry. Execute the plan below.' },
-  BUY: { label: 'BUY', key: 'buy', tone: 'bull', funded: true, guidance: 'Standard entry. Execute the plan below.' },
-  ACCUMULATE: { label: 'ACCUMULATE · SCALE-IN', key: 'accumulate', tone: 'bull', funded: true, guidance: 'Scale in gradually. Do NOT treat as a full-size BUY.' },
+  STRONG_BUY: { label: 'STRONG BUY', key: 'strong_buy', tone: 'bull', funded: true, guidance: 'Strongest setup. The entry, stop and target shown are the plan if you act; the model is not proven.' },
+  BUY: { label: 'BUY', key: 'buy', tone: 'bull', funded: true, guidance: 'Standard setup. The entry, stop and target shown are the plan if you act; the model is not proven.' },
+  ACCUMULATE: { label: 'ACCUMULATE · SCALE-IN', key: 'accumulate', tone: 'bull', funded: true, guidance: 'Scale in gradually, not a full position at once.' },
   WATCHLIST: { label: 'WATCHLIST', key: 'watchlist', tone: 'warn', funded: false, guidance: 'No new entry. Re-run the Decision after the blocking issue clears.' },
   HOLD_EXISTING: { label: 'HOLD EXISTING', key: 'hold_existing', tone: 'neutral', funded: false, guidance: 'Holders only, no new capital. Monitor the stop.' },
   HOLD: { label: 'HOLD EXISTING', key: 'hold_existing', tone: 'neutral', funded: false, guidance: 'Holders only, no new capital. Monitor the stop.' },
@@ -507,7 +536,7 @@ const ACTION_MEANING = {
 const actionKey = (a) => String(a || '').toUpperCase().replace(/[\s-]+/g, '_');
 // The model's track record in words a reader does not need a glossary for.
 const EVIDENCE_PLAIN = {
-  VALIDATED: 'Proven on past data', PARTIAL: 'Partly tested', NO_EDGE: 'Tested: no proven edge',
+  VALIDATED: 'Proven on past data', PARTIAL: 'Partly tested', NO_EDGE: 'Tested: no edge found',
   UNTESTED: 'Not yet tested', STALE: 'Test out of date',
 };
 const evidencePlain = (ev) => {
@@ -586,8 +615,8 @@ const PLAIN_REASON_RULES = [
   [/^Composite score ([\d.]+) → candidate ([A-Z_]+)$/, (m) => {
     return `Overall score ${m[1]}/100 is in the ${actionWord(m[2])} range (${scoreBandRange(m[1])})`;
   }],
-  [/^Risk Grade D — hold at ACCUMULATE \(reduced size\)$/, () => 'Risk grade D (high risk): kept at Accumulate, with a smaller position'],
-  [/^Risk Grade D blocks fresh BUY — ([A-Z_]+) → ACCUMULATE \(reduced size\)$/, (m) => `Risk grade D (high risk): lowered from ${actionWord(m[1])} to Accumulate, with a smaller position`],
+  [/^Risk Grade D(?: \u2014|:) hold at ACCUMULATE \(reduced size\)$/, () => 'Risk grade D (high risk): kept at Accumulate, with a smaller position'],
+  [/^Risk Grade D blocks fresh BUY(?: \u2014|:) ([A-Z_]+) → ACCUMULATE \(reduced size\)$/, (m) => `Risk grade D (high risk): lowered from ${actionWord(m[1])} to Accumulate, with a smaller position`],
   [/^Risk Grade F blocks new-money BUY → ([A-Z_]+)$/, (m) => `Risk grade F (very high risk): no new money, moved to ${actionWord(m[1])}`],
   [/^Heavy insider selling → ([A-Z_]+) \(no new money\)$/, (m) => `Heavy insider selling: no new money, moved to ${actionWord(m[1])}`],
   [/^HOLD_EXISTING but no existing position → WATCHLIST$/, () => 'Neutral call and you do not hold it: Watchlist until the setup improves'],
@@ -1378,7 +1407,7 @@ function renderGuideEvidence(data) {
   const model = !engines.length
     ? 'No model has an evidence record yet.'
     : !validated.length
-      ? 'No QUANTA model is proven yet, so every Buy and Accumulate call carries the <span class="hw-tag">Model not yet validated</span> flag.'
+      ? 'No QUANTA model is proven yet, so every Buy and Accumulate call carries a flag: <span class="hw-tag">Tested: no edge found</span> where its model was tested and showed no edge, <span class="hw-tag">Model not yet validated</span> otherwise.'
       : validated.length === engines.length
         ? 'Every QUANTA model shown in the track record is validated on past data.'
         : `${escapeHtml(validated.map((e) => e.label || e.engine).join(', '))} ${validated.length === 1 ? 'is' : 'are'} validated; the other models are not.`;
@@ -1633,26 +1662,37 @@ function renderGuideGeometry(capital, r) {
 }
 
 // app.py _market_posture_guidance: the band each posture carries, and the
-// band that replaces it when confidence is low or the data is stale.
+// band that replaces it when confidence is low or the data is stale. Both read
+// MARKET.EXPOSURE_BANDS, the one source the engine and Picks also use.
+const postureBand = (key) => [...((thr('MARKET.EXPOSURE_BANDS') || {})[key] || [0, 0])].map(Number);
 const GUIDE_POSTURES = {
-  offensive: { name: 'Offensive', band: [65, 95], sizing: 'Normal size with staged adds.' },
-  'selective-offensive': { name: 'Selective offensive', band: [65, 95], sizing: 'Normal size with staged adds.' },
-  'lean-long': { name: 'Lean long', band: [50, 70], sizing: 'Moderate starter size.' },
-  neutral: { name: 'Neutral', band: [45, 65], sizing: 'Measured size with staggered entries.' },
-  'lean-defensive': { name: 'Lean defensive', band: [20, 50], sizing: 'Light exposure with higher cash buffer.' },
-  'selective-defensive': { name: 'Selective defensive', band: [20, 50], sizing: 'Light exposure with higher cash buffer.' },
-  defensive: { name: 'Defensive', band: [20, 50], sizing: 'Light exposure with higher cash buffer.' },
+  offensive: { name: 'Offensive', get band() { return postureBand('offensive'); }, sizing: 'Normal size with staged adds.' },
+  'selective-offensive': { name: 'Selective offensive', get band() { return postureBand('offensive'); }, sizing: 'Normal size with staged adds.' },
+  'lean-long': { name: 'Lean long', get band() { return postureBand('lean_long'); }, sizing: 'Moderate starter size.' },
+  neutral: { name: 'Neutral', get band() { return postureBand('neutral'); }, sizing: 'Measured size with staggered entries.' },
+  'lean-defensive': { name: 'Lean defensive', get band() { return postureBand('defensive'); }, sizing: 'Light exposure with higher cash buffer.' },
+  'selective-defensive': { name: 'Selective defensive', get band() { return postureBand('defensive'); }, sizing: 'Light exposure with higher cash buffer.' },
+  defensive: { name: 'Defensive', get band() { return postureBand('defensive'); }, sizing: 'Light exposure with higher cash buffer.' },
 };
-const GUIDE_POSTURE_CAP = { low: [30, 55], stale: [20, 45] };
+const GUIDE_POSTURE_CAP = {
+  get low() { return postureBand('cap_low_confidence'); },
+  get stale() { return postureBand('cap_stale'); },
+};
 
 function guidePosture(key, conf = 'normal') {
   const p = GUIDE_POSTURES[key] || GUIDE_POSTURES['lean-long'];
   const cap = GUIDE_POSTURE_CAP[conf];
-  const band = cap || p.band;
-  const text = cap
-    ? `<b>${p.name}, ${conf === 'stale' ? 'stale data' : 'low confidence'}:</b> ${band[0]}-${band[1]}% gross, in place of ${p.band[0]}-${p.band[1]}%. Stay cautious while data confidence is low.`
-    : `<b>${p.name}:</b> ${band[0]}-${band[1]}% gross exposure. ${p.sizing}`;
-  return { key, band, capped: !!cap, text };
+  // A cap only lowers, as the engine does: each end is the lower of the two,
+  // so a defensive band is never lifted by a low-confidence read.
+  const band = cap ? [Math.min(p.band[0], cap[0]), Math.min(p.band[1], cap[1])] : p.band;
+  const capped = !!cap && (band[0] !== p.band[0] || band[1] !== p.band[1]);
+  const why = conf === 'stale' ? 'stale data' : 'low confidence';
+  const text = capped
+    ? `<b>${p.name}, ${why}:</b> held to ${band[0]}-${band[1]}% gross, under its usual ${p.band[0]}-${p.band[1]}%. Stay cautious while data confidence is low.`
+    : cap
+      ? `<b>${p.name}, ${why}:</b> ${band[0]}-${band[1]}% gross, already inside the ${cap[0]}-${cap[1]}% cap. ${p.sizing}`
+      : `<b>${p.name}:</b> ${band[0]}-${band[1]}% gross exposure. ${p.sizing}`;
+  return { key, band, capped, text };
 }
 
 function renderGuidePosture() {
@@ -2353,6 +2393,15 @@ function trackFreezeNote(e) {
   return `<small class="muted track-freeze" title="Fingerprint of the engine code running now: ${escapeHtml(fp)}"><br>code <span class="mono">${escapeHtml(fp.slice(0, 8))}</span>${total ? ` · ${current} on it${changed}` : ''}</small>`;
 }
 
+// [PURE] One plain sentence ahead of the statistics ("IC -0.003 (t -0.26)"),
+// so a reader without the jargon still gets the result.
+function trackPlainLine(ev) {
+  const status = String((ev && ev.status) || '').toUpperCase();
+  if (status === 'NO_EDGE') return '<b>In plain terms: on past data, higher scores were not followed by better returns.</b> ';
+  if (status === 'VALIDATED') return '<b>In plain terms: on past data, higher scores were followed by better returns.</b> ';
+  return '';
+}
+
 function renderTrackRecord(data = {}) {
   const body = $('#track-body');
   if (!body) return;
@@ -2383,16 +2432,16 @@ function renderTrackRecord(data = {}) {
   const anyValidated = engines.some((e) => (e.evidence || {}).permits_recommendation);
   const evidenceRows = engines.map((e) => {
     const ev = e.evidence || {};
-    const tone = ev.permits_recommendation ? 'bull' : (ev.status === 'NO_EDGE' ? 'warn' : 'warn');
+    const tone = ev.permits_recommendation ? 'bull' : 'warn';
     return `<tr>
       <td class="track-engine">${escapeHtml(e.label || e.engine)}</td>
       <td><span class="q-status-cell ${tone}">${escapeHtml(ev.status_text || ev.status || 'Unknown')}</span></td>
       <td class="num">${ev.tested_through ? escapeHtml(ev.tested_through) : '<span class="q-na">--</span>'}</td>
       <td class="num">${Number(e.recorded) || 0}${trackFreezeNote(e)}</td>
-      <td class="track-means">${escapeHtml(ev.summary || '')}</td>
+      <td class="track-means">${trackPlainLine(ev)}${escapeHtml(ev.summary || '')}</td>
     </tr>${(ev.lineage || []).map((l) => `<tr class="track-lineage" data-lineage="${escapeHtml(l.strategy || '')}">
       <td class="track-engine muted">↳ earlier version <span class="mono">${escapeHtml(l.strategy || '')}</span></td>
-      <td><span class="q-status-cell ${l.status === 'NO_EDGE' ? 'warn' : 'warn'}">${escapeHtml(l.status_text || l.status || '')}</span></td>
+      <td><span class="q-status-cell warn">${escapeHtml(l.status_text || l.status || '')}</span></td>
       <td class="num">${l.tested_through ? escapeHtml(l.tested_through) : '<span class="q-na">--</span>'}</td>
       <td class="num"><span class="q-na">--</span></td>
       <td class="track-means">${escapeHtml(l.summary || '')}${l.change ? ` <small class="muted">(${escapeHtml(l.change)})</small>` : ''}</td>
@@ -2406,7 +2455,7 @@ function renderTrackRecord(data = {}) {
         : 'No model has been validated out of sample yet. Treat every Decision as a ranked research candidate, not a proven signal.'}</p>
     </div></header>
     ${engines.length ? `<div class="q-tablewrap" tabindex="0" role="region" aria-label="Model evidence by engine">
-      <table class="q-table"><thead><tr><th>Engine</th><th>Validation</th><th class="num">Tested through</th><th class="num">Decisions recorded</th><th>What it means</th></tr></thead>
+      <table class="q-table q-table--evidence"><thead><tr><th>Engine</th><th>Validation</th><th class="num">Tested through</th><th class="num">Decisions recorded</th><th>What it means</th></tr></thead>
       <tbody>${evidenceRows}</tbody></table>
     </div>` : '<div class="q-empty">No engines reported evidence.</div>'}
   </section>`;
@@ -2488,7 +2537,7 @@ function renderTrackRecord(data = {}) {
         <td>${escapeHtml(r.outcome || (r.state === 'awaiting_resolution' ? 'Awaiting resolution' : (r.state === 'awaiting_maturity' ? `Awaiting maturity${fmtDay(r.expected_exit) ? ` · exit ~${fmtDay(r.expected_exit)}` : ''}` : 'Pending')))}</td>
       </tr>`).join('');
   const recentTable = recent.length ? `<div class="q-tablewrap" tabindex="0" role="region" aria-label="Latest recorded Decisions">
-      <table class="q-table"><thead><tr>
+      <table class="q-table q-table--ledger"><thead><tr>
         <th>As of</th><th>Ticker</th><th>Engine</th><th>Decision</th><th class="num">Horizon</th>
         <th class="num">Return</th><th class="num">${benchMixed ? 'Excess vs benchmark' : `vs ${bench}`}</th><th>Outcome</th>
       </tr></thead><tbody>${recentRows}</tbody></table>
@@ -2553,15 +2602,18 @@ function renderTrackRecord(data = {}) {
 async function loadTrackRecord() {
   const body = $('#track-body');
   if (body) body.setAttribute('aria-busy', 'true');
+  // Only the latest request renders: an older, slower read must not replace it.
+  const token = nextJobToken('track');
+  const current = () => jobTokenCurrent('track', token);
   try {
     const res = await fetch('/api/track-record', { cache: 'no-store' });
     const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-    renderTrackRecord(res.ok ? data : { error: data.error || `HTTP ${res.status}` });
+    if (current()) renderTrackRecord(res.ok ? data : { error: data.error || `HTTP ${res.status}` });
   } catch (err) {
-    // A thrown fetch means no response at all — distinct from an empty ledger.
-    renderTrackRecord({ error: 'The backend could not be reached', unreachable: true });
+    // A thrown fetch means no response at all, distinct from an empty ledger.
+    if (current()) renderTrackRecord({ error: 'The backend could not be reached', unreachable: true });
   } finally {
-    if (body) body.removeAttribute('aria-busy');
+    if (body && current()) body.removeAttribute('aria-busy');
   }
 }
 
@@ -2628,12 +2680,16 @@ function applyTheme(theme, { persist = false } = {}) {
   const next = theme === 'light' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
   document.documentElement.style.colorScheme = next;
+  // The browser chrome takes the page background token, so the two never drift.
   const meta = $('#theme-color-meta');
-  if (meta) meta.setAttribute('content', next === 'light' ? '#F6F8FC' : '#070A12');
+  const bg = typeof getComputedStyle === 'function' ? getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() : '';
+  if (meta && bg) meta.setAttribute('content', bg);
   const themeBtn = $('#theme-toggle');
   if (themeBtn) {
     const isDark = next === 'dark';
-    themeBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    // An action label ("Switch to light mode") and a pressed state would
+    // describe the button two ways; it carries the label only.
+    themeBtn.removeAttribute('aria-pressed');
     themeBtn.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
     themeBtn.setAttribute('title', isDark ? 'Switch to light mode' : 'Switch to dark mode');
   }
@@ -2884,7 +2940,7 @@ function exchangeSession(marketKey = state.market, now = new Date()) {
     else if (marketKey !== 'IN' && minutes >= 4 * 60 && minutes < open) phase = 'pre';
     else if (marketKey !== 'IN' && minutes >= close && minutes < 20 * 60) phase = 'after';
   }
-  return { today: `${parts.year}-${parts.month}-${parts.day}`, phase, tzLabel: cfg.label };
+  return { today: `${parts.year}-${parts.month}-${parts.day}`, phase, tzLabel: cfg.label, weekend };
 }
 
 // What a quote's price actually is: the session it belongs to, kept apart from
@@ -2951,7 +3007,7 @@ function setFreshness(iso) {
     const degraded = !!state.dashboard?.market?.market_regime_engine?.dataFreshness?.stale;
     timeEl.textContent = degraded ? 'data incomplete' : rel;
     chip.title = degraded
-      ? `Market inputs are missing or stale (read ${rel}) — the Overview withholds guidance`
+      ? `Market inputs are missing or stale (read ${rel}), so the Overview withholds guidance`
       : `Age of the current dashboard read: ${rel}`;
     const ageMs = Date.now() - new Date(state.lastUpdated).getTime();
     const ageMin = ageMs / 60000;
@@ -2986,7 +3042,19 @@ function setRefreshLoading(loading) {
 async function clearDataCache() {
   const btn = $('#clear-cache');
   const label = btn?.querySelector('.clear-cache-label');
-  const restore = label ? label.textContent : '';
+  // Two steps, no dialog: the first click arms the button for a few seconds,
+  // the second clears. Clearing makes the next scan refetch everything.
+  if (btn && !btn.dataset.armed) {
+    const idle = label ? label.textContent : '';
+    btn.dataset.armed = '1';
+    if (label) label.textContent = 'Click again to clear';
+    setTimeout(() => {
+      if (btn.dataset.armed && !btn.disabled) { delete btn.dataset.armed; if (label) label.textContent = idle; }
+    }, 4000);
+    return;
+  }
+  if (btn) delete btn.dataset.armed;
+  const restore = 'Clear data cache';
   if (btn) { btn.disabled = true; btn.classList.add('is-busy', 'has-status'); }
   if (label) label.textContent = 'Clearing\u2026';
   try {
@@ -3050,11 +3118,14 @@ function renderIntelPanels(intel) {
   renderTopMovers(intel);
   renderOpenExtremes(intel);
   renderSetupStatusCard(intel);
-  renderBreadthPanel(state.dashboard?.market || {}, intel);
-  renderCatalystCalendar(intel, state.dashboard?.news || {});
-  // The risk card counts the same earnings list: redraw it with the list that
-  // just arrived, or it keeps the 0 it read while intel was still loading.
-  if (state.dashboard) renderRiskPanel(state.dashboard.market || {}, state.dashboard.news || {}, intel);
+  renderMoversRail(intel);
+  // The mood's reasons count the same earnings list, and the news matches
+  // company names from it: redraw both with the list that just arrived.
+  if (state.dashboard) {
+    renderNews((state.dashboard.news || {}).groups || {});
+    renderMarketRegime(state.dashboard.market || {}, state.dashboard.news || {}, intel);
+    renderSignalCheck(state.dashboard.market || {}, state.dashboard.news || {}, intel);
+  }
   // The book and the week read the movers and the earnings list too.
   renderBookPanel();
   renderWeekCalendar();
@@ -3150,29 +3221,28 @@ async function loadDashboard(force = false) {
       const market = data.market || {};
       const news = data.news || {};
       const intel = data.market_intel || {};
-      // Render order mirrors the page's information architecture: context first
-      // (tape → regime → playbook → risk → ribbon), then execution, then detail.
-      renderTopHeadlines(market, news);
-      renderMarketRegime(market, news, intel);
-      renderPlaybook(market, news, intel);
-      renderRiskPanel(market, news, intel);
+      // Render order mirrors the page: the session, the call (its factor table
+      // lives inside it), the board and chart, then ideas, movers and headlines.
+      state.weekChart = state.weekChart && state.weekChart.key.endsWith(`|${state.market}`) ? state.weekChart : null;
+      renderBulletin(news);
+      renderSessionBar(market);
       renderMarketPulse(market);
-      renderOverviewChart(market);
+      renderWeekHero(market);
+      renderMarketRegime(market, news, intel);
+      renderSignalCheck(market, news, intel);
+      if (document.getElementById('ov-pro-chart')?.open) renderOverviewChart(market);
+      renderMinis(market);
       renderTopOpportunities(intel);
       renderOpportunityBrief(intel);
-      renderSignalCheck(market, news, intel);
-      renderMarketDrivers(market, news, intel);
-      renderBreadthPanel(market, intel);
-      renderCatalystCalendar(intel, news);
+      renderMoversRail(intel);
       renderTopMovers(intel);
       renderOpenExtremes(intel);
       renderSetupStatusCard(intel);
       renderNews(news.groups || {});
       renderSourceLedger(news);
       renderRegimeDebugPanel(market, news, intel);
-      // October 2026 context: what changed, what would change the call, then the
-      // market context and the book, which load on their own.
-      renderWhatChanged(market, news, intel);
+      // The market context (sectors, levels, cross-asset, the week, triggers)
+      // and the book load on their own.
       renderMarketContext();
       // Browser-only enrichments: they never run in the test harnesses, which
       // answer requests in a fixed order.
@@ -3195,7 +3265,7 @@ async function loadDashboard(force = false) {
         // Keep the compact global status compact; the full explanation and retry
         // action live in the prominent stale-data banner directly below it.
         if (timeEl) timeEl.textContent = 'refresh failed';
-        if (chip) chip.title = 'Refresh failed — showing the last good dashboard read';
+        if (chip) chip.title = 'Refresh failed: showing the last good dashboard read';
         if (_freshnessTimer) { clearInterval(_freshnessTimer); _freshnessTimer = null; }
         // A corner chip is too quiet for stale trading guidance: put an explicit
         // banner on the Decision Brief so nobody acts on old data unknowingly.
@@ -3205,7 +3275,7 @@ async function loadDashboard(force = false) {
             ? new Date(state.dashboard.generated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             : null;
           hero.insertAdjacentHTML('afterbegin', `<div class="cc-stale-banner" role="alert">
-            Refresh failed — showing the last good read${lastTs ? ` from ${escapeHtml(lastTs)}` : ''}.
+            Refresh failed: showing the last good read${lastTs ? ` from ${escapeHtml(lastTs)}` : ''}.
             Treat this guidance as stale and size conservatively.
             <button type="button" class="link-btn" data-retry="dashboard">Retry</button>
           </div>`);
@@ -3237,17 +3307,16 @@ function renderDashboardError(err) {
   });
   // Decision Brief takes the primary error
   const hero = $('#decision-brief');
-  if (hero) hero.innerHTML = `<div class="error-box" role="alert">
+  if (hero) hero.innerHTML = `<h2 class="ovx-kick" id="mood-h">Market mood</h2><div class="error-box" role="alert">
     <strong>Dashboard temporarily unreachable.</strong>
     <button type="button" class="link-btn" data-retry="dashboard">Retry</button>
-    <div class="muted" style="margin-top:6px;font-size:11px">${escapeHtml(msg)}</div>
+    <div class="muted" style="margin-top:6px;font-size:var(--fs-2xs)">${escapeHtml(msg)}</div>
   </div>`;
   // Quiet the loading shimmers in dependent cards
   const offline = '<div class="empty-state">Offline \u2014 retry once the backend is reachable.</div>';
-  ['#news-body', '#trends-body', '#signal-check-body', '#market-drivers-body',
-   '#portfolio-scan-body', '#setup-status-body', '#allocator-body', '#source-ledger-body',
-   '#event-risk-body', '#top-headlines', '#top-movers-body', '#open-extremes-body',
-   '#market-pulse', '#breadth-body', '#playbook-body', '#risk-body'].forEach((sel) => {
+  ['#news-body', '#trends-body', '#portfolio-scan-body', '#setup-status-body',
+   '#source-ledger-body', '#top-movers-body', '#open-extremes-body', '#movers-body',
+   '#market-pulse', '#triggers-body', '#ov-session'].forEach((sel) => {
     const node = $(sel);
     if (node) node.innerHTML = offline;
   });
@@ -3271,13 +3340,13 @@ function regimeLadder(bull, bear, net) {
   if (net <= -2 && bear >= 3 && bull === 0)
     return { posture: 'Defensive', signal: 'Risk-Off', label: 'Defensive Market', tone: 'bear' };
   if (net <= -2)
-    return { posture: 'Selective Defensive', signal: 'Selective Risk-Off', label: 'Defensive — Selective', tone: 'bear' };
+    return { posture: 'Selective Defensive', signal: 'Selective Risk-Off', label: 'Defensive, selective', tone: 'bear' };
   if (net === -1)
     return { posture: 'Lean Defensive', signal: 'Neutral-to-Negative', label: 'Cautious Market', tone: 'bear' };
   if (net >= 2 && bull >= 3 && bear === 0)
     return { posture: 'Offensive', signal: 'Risk-On', label: 'Constructive Market', tone: 'bull' };
   if (net >= 2)
-    return { posture: 'Selective Offensive', signal: 'Selective Risk-On', label: 'Constructive — Selective', tone: 'bull' };
+    return { posture: 'Selective Offensive', signal: 'Selective Risk-On', label: 'Constructive, selective', tone: 'bull' };
   if (net === 1)
     return { posture: 'Lean Long', signal: 'Neutral-to-Positive', label: 'Mildly Constructive', tone: 'bull' };
   return { posture: 'Neutral', signal: 'Mixed', label: 'Mixed Market', tone: 'neutral' };
@@ -3311,9 +3380,10 @@ function computeRegimeModel(market = {}, news = {}, intel = {}) {
     const tnx = firstUsable(market.ten_year_yield);
     const breadth = firstUsable(market.participation_pct);
     const earningsCount = earningsAhead(intel);
-    const highImpact = Object.values(news.groups || {})
-      .flatMap((g) => (Array.isArray(g) ? g : []))
-      .filter((n) => Number(n && n.impact || 0) >= 6).length;
+    // One count of high-impact headlines on every panel: the engine's own.
+    const highImpact = engine.newsImpact && engine.newsImpact.highImpactCount != null
+      ? Number(engine.newsImpact.highImpactCount) || 0
+      : highImpactNews(news.groups || {}).length;
 
     const primary = engine.primaryAction || {};
     const guidance = engine.portfolioGuidance || {};
@@ -3390,6 +3460,10 @@ function computeRegimeModel(market = {}, news = {}, intel = {}) {
     };
     model.exposure = {
       band: guidance.band || null,
+      // Set by the engine only when a low-confidence or stale read held the
+      // posture's band lower; the page never infers a cap from a second table.
+      cappedFrom: guidance.cappedFrom || null,
+      capReason: guidance.capReason || null,
       headline: guidance.headline || '',
       headlineTone: normalizeToneClass(guidance.headlineTone || postureTone),
       actions: Array.isArray(guidance.actions) ? guidance.actions : [],
@@ -3414,7 +3488,7 @@ function computeRegimeModel(market = {}, news = {}, intel = {}) {
     rung = {
       posture: 'Lean Long',
       signal: 'Neutral-to-Positive (Unverified)',
-      label: 'Mildly Constructive — Limited Data',
+      label: 'Mildly constructive, limited data',
       tone: 'neutral',
     };
   }
@@ -3471,7 +3545,7 @@ function computeRegimeModel(market = {}, news = {}, intel = {}) {
   ).map((f) => f.note).filter(Boolean);
   const keyReason = driverNotes.length
     ? driverNotes.slice(0, 3).join('  ·  ')
-    : (market.tone_detail || 'Signals are split across the model — wait for confirmation.');
+    : (market.tone_detail || 'Signals are split across the model; wait for confirmation.');
 
   const changes = Array.isArray(market.regime_changes) ? market.regime_changes : [];
   const changeBaseline = !!market.regime_baseline;
@@ -3487,13 +3561,13 @@ function computeRegimeModel(market = {}, news = {}, intel = {}) {
     confidenceScore: null,
     confidenceLabel: 'Low',
     confidenceReasons: [
-      'Regime engine data unavailable — using the limited 4-factor fallback',
+      'Regime engine data unavailable: using the limited 4-factor fallback',
       'Risk-veto checks (volatility, news, stale data) could not run',
     ],
     aggressiveTrigger: `Lead index reclaims its 50-DMA, participation reaches ${mkt('PARTICIPATION_BROAD_PCT')}%, and VIX falls back under ${mkt('VIX_CONTAINED_MAX')}.`,
     defensiveTrigger: `Index loses its 200-DMA, participation falls to ${mkt('PARTICIPATION_WEAK_PCT')}%, or VIX reaches ${mkt('VIX_STRESS')}.`,
     nextReview: vix != null
-      ? `Next session close — sooner if VIX crosses ${vix >= mkt('VIX_CALM_MAX') ? mkt('VIX_CALM_MAX') : mkt('VIX_STRESS')} or a high-impact print lands.`
+      ? `Next session close, or sooner if VIX crosses ${vix >= mkt('VIX_CALM_MAX') ? mkt('VIX_CALM_MAX') : mkt('VIX_STRESS')} or a high-impact print lands.`
       : 'Next session close, or sooner on a high-impact macro print.',
     timeframe: market.tone_timeframe || 'Swing-to-position horizon (days to weeks)',
     basis: market.tone_basis || '',
@@ -3514,21 +3588,21 @@ function regimeAction(model) {
   const elevatedVix = vix != null && vix >= mkt('VIX_CALM_MAX');
   let a;
   if (p === 'Offensive') {
-    a = { primary: 'Press leaders — add to confirmed breakouts on volume.', avoid: 'Paying up for late, extended names.', risk: 'Trail stops up as volatility compresses.', sizing: 'Full-to-normal size; keep single-name caps.' };
+    a = { primary: 'Press leaders: add to confirmed breakouts on volume.', avoid: 'Paying up for late, extended names.', risk: 'Trail stops up as volatility compresses.', sizing: 'Full-to-normal size; keep single-name caps.' };
   } else if (p === 'Selective Offensive') {
-    a = { primary: 'Stay selective — buy only confirmed breakouts with volume.', avoid: 'Chasing extended names and low-volume entries.', risk: 'Define stop and invalidation before entry.', sizing: 'Normal-to-moderate size; scale in, don\u2019t front-load.' };
+    a = { primary: 'Stay selective: buy only confirmed breakouts with volume.', avoid: 'Chasing extended names and low-volume entries.', risk: 'Define stop and invalidation before entry.', sizing: 'Normal-to-moderate size; scale in, don\u2019t front-load.' };
   } else if (p === 'Lean Long') {
     a = { primary: 'Lean long, but demand clean reward-to-risk before adding.', avoid: 'Oversized bets on a not-yet-confirmed tape.', risk: 'Starter positions with room to add on confirmation.', sizing: 'Moderate size; keep dry powder.' };
   } else if (p === 'Lean Defensive') {
-    a = { primary: 'Tighten up — trade only A-grade setups, keep size light.', avoid: 'Adding beta or averaging down on weak names.', risk: 'Honor stops; no new risk without confirmation.', sizing: 'Reduced size; raise the quality bar.' };
+    a = { primary: 'Tighten up: trade only A-grade setups, keep size light.', avoid: 'Adding beta or averaging down on weak names.', risk: 'Honor stops; no new risk without confirmation.', sizing: 'Reduced size; raise the quality bar.' };
   } else if (p === 'Selective Defensive' || p === 'Defensive') {
-    a = { primary: 'Preserve capital — no new initiations until risk cools.', avoid: 'Catching knives and averaging into losers.', risk: 'Cut weak longs; keep stops visible and tight.', sizing: 'Light exposure; larger cash buffer.' };
+    a = { primary: 'Preserve capital: no new initiations until risk cools.', avoid: 'Catching knives and averaging into losers.', risk: 'Cut weak longs; keep stops visible and tight.', sizing: 'Light exposure; larger cash buffer.' };
   } else {
-    a = { primary: 'Stay selective — require multiple confirmations before risk.', avoid: 'Forcing trades from a mixed, low-conviction tape.', risk: 'Define stop and invalidation before entry.', sizing: 'Measured size; staged entries.' };
+    a = { primary: 'Stay selective: require multiple confirmations before risk.', avoid: 'Forcing trades from a mixed, low-conviction tape.', risk: 'Define stop and invalidation before entry.', sizing: 'Measured size; staged entries.' };
   }
   // Risk modifiers (do not flip the regime, just tighten the plan).
   if (hotVix) { a.risk = `VIX at or above ${mkt('VIX_STRESS')}: halve size, keep stops visible before entry.`; a.sizing = 'Light exposure until volatility cools.'; }
-  else if (elevatedVix && (p === 'Offensive' || p === 'Selective Offensive')) { a.sizing = 'Normal-to-moderate size — trim for elevated VIX.'; }
+  else if (elevatedVix && (p === 'Offensive' || p === 'Selective Offensive')) { a.sizing = 'Normal-to-moderate size; trim for elevated VIX.'; }
   if (model.earningsCount > 0) { a.avoid = `${a.avoid} No oversized bets into ${model.earningsCount} upcoming earnings.`; }
   return a;
 }
@@ -3554,7 +3628,7 @@ function regimeExposure(model) {
   if (p === 'Lean Defensive') {
     return { band: '40–55% gross', headline: 'Tighten up · Raise the bar', headlineTone: 'warn', actions: [
       { tone: 'warn', text: 'Trim weak or extended longs into strength' }, { tone: 'neutral', text: 'Hold only high-quality core' },
-      { tone: 'neutral', text: 'Build a watchlist — do not initiate yet' }, { tone: 'bull', text: 'Add only above the upgrade trigger' } ] };
+      { tone: 'neutral', text: 'Build a watchlist; do not initiate yet' }, { tone: 'bull', text: 'Add only above the upgrade trigger' } ] };
   }
   if (p === 'Selective Defensive' || p === 'Defensive') {
     return { band: '25–45% gross', headline: 'Reduce exposure · Capital preservation', headlineTone: 'bear', actions: [
@@ -3613,7 +3687,7 @@ function qTable(headHtml, bodyHtml, cls = '') {
 /** Ticker + company name cell (the identity column of every securities table). */
 function qTickerCell(ticker, name) {
   return `<div class="q-tick">
-    <span class="q-tick-s">${escapeHtml(ticker || '—')}</span>
+    <span class="q-tick-s">${escapeHtml(ticker || 'N/A')}</span>
     ${name ? `<span class="q-tick-n">${escapeHtml(name)}</span>` : ''}
   </div>`;
 }
@@ -3692,173 +3766,1562 @@ function wireScrollTargets(root = document) {
 }
 
 /* =========================================================================
-   ROW 0 — TAPE. The high-impact drivers already feeding the regime engine,
-   on one line. Never a second, hand-picked headline list.
+   THE SESSION. One line above the call: is the market open, which close the
+   board's prices are from, how complete the inputs are, when the page read
+   them. It replaces the ribbon footnote and the topbar caveat.
+   ========================================================================= */
+
+/* =========================================================================
+   OVERVIEW, revision 2 (2026-10-18). News first, plain English first.
+   Order: bulletin, session status, market pulse, the week beside the market
+   mood, market news, where the money moved (sector heatmap), fear/rates/oil,
+   the week ahead, ideas, and the pro detail. Every figure comes from the
+   dashboard payload, the market context or the chart endpoint; a missing
+   figure leaves its element out rather than printing a stand-in.
    ========================================================================= */
 // Feed titles occasionally arrive with a doubled possessive ("Iran's 's").
 function cleanHeadline(t) {
-  return String(t || '').replace(/(\w)(['\u2019]s)\s+['\u2019]s\b/g, '$1$2').replace(/\s{2,}/g, ' ').trim();
+  return String(t || '').replace(/(\w)(['’]s)\s+['’]s\b/g, '$1$2').replace(/\s{2,}/g, ' ').trim();
 }
 
-function renderTopHeadlines(market = {}, news = {}) {
-  const el = $('#top-headlines');
+// [PURE] A trading date in words: "2026-10-16" -> "Fri Oct 16".
+function sessionDay(ymd) {
+  const t = Date.parse(`${String(ymd || '').slice(0, 10)}T12:00:00Z`);
+  if (!Number.isFinite(t)) return '';
+  const d = new Date(t);
+  return `${d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })} ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`;
+}
+const weekdayLong = (ymd) => { const t = Date.parse(`${String(ymd || '').slice(0, 10)}T12:00:00Z`); return Number.isFinite(t) ? new Date(t).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }) : ''; };
+
+// [PURE] The session the prices belong to: the first non-crypto quote's bar date.
+function priceSession(market = {}, today = exchangeSession().today) {
+  const q = (market.quotes || []).find((x) => x && x.quote_date && !isCryptoSymbol(x.symbol, x.label));
+  const date = q ? String(q.quote_date).slice(0, 10) : null;
+  const isToday = !!(date && today && date === today);
+  return {
+    date, isToday, day: date ? sessionDay(date) : '',
+    phrase: !date ? 'in the last session' : isToday ? 'today' : `on ${sessionDay(date)}`,
+    label: !date ? 'Last session' : isToday ? 'Today' : sessionDay(date),
+    short: !date ? 'Last' : isToday ? 'Today' : sessionDay(date).split(' ')[0],
+  };
+}
+
+// [PURE] The volatility line for pros: level, band, and a sharp session move.
+function volatilityLine(market = {}, model = {}, ps = { phrase: 'in the last session' }) {
+  const q = (market.quotes || []).find((x) => isVolIndex(x.symbol) && numOrNull(x.price) != null);
+  const vix = numOrNull(q ? q.price : model.vix);
+  if (vix == null) return null;
+  const ch = numOrNull(q && q.change_pct);
+  const label = (q && q.label) || 'VIX';
+  const band = vix >= mkt('VIX_EXTREME') ? 'in the extreme band'
+    : vix >= mkt('VIX_STRESS') ? 'in the stress band'
+      : vix >= mkt('VIX_CALM_MAX') ? 'above its calm band'
+        : `under ${fmtNumber(mkt('VIX_CALM_MAX'), 0)}, inside its calm band`;
+  const jump = ch != null && Math.abs(ch) >= mkt('VIX_SESSION_JUMP_PCT');
+  const move = jump ? `, ${ch > 0 ? 'up' : 'down'} ${fmtNumber(Math.abs(ch), 0)}% ${ps.phrase}` : '';
+  const caveat = jump && ch > 0 && vix < mkt('VIX_CALM_MAX') ? ', but rising fast' : '';
+  return `${label} ${fmtNumber(vix, 2)}${move}: ${band}${caveat}`;
+}
+
+// [PURE] A line through values in a w x h box: the path and the last point.
+function sparkPath(vals = [], w = 120, h = 36, pad = 2, lo = null, hi = null) {
+  const v = vals.filter((x) => Number.isFinite(Number(x))).map(Number);
+  if (v.length < 2) return null;
+  const a = lo == null ? Math.min(...v) : lo;
+  const b = hi == null ? Math.max(...v) : hi;
+  const rng = (b - a) || 1;
+  const pts = v.map((x, i) => [pad + (i * (w - 2 * pad)) / (v.length - 1), pad + (1 - (x - a) / rng) * (h - 2 * pad)]);
+  return { d: `M${pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' L')}`, x: pts[pts.length - 1][0], y: pts[pts.length - 1][1], pts };
+}
+
+const signedPct = (v, dec = 1) => (v == null || !Number.isFinite(Number(v)) ? '' : `${v > 0 ? '+' : v < 0 ? '-' : ''}${Math.abs(v).toFixed(dec)}%`);
+const dirClass = (v) => (v > 0 ? 'up' : v < 0 ? 'down' : 'flat');
+
+// ---- Plain English or Pro ---------------------------------------------------
+const OV_MODE_KEY = 'quanta.overview.mode';
+function overviewMode() { try { return localStorage.getItem(OV_MODE_KEY) === 'pro' ? 'pro' : 'plain'; } catch (_) { return 'plain'; } }
+function applyOverviewMode(mode) {
+  const view = document.getElementById('view-dashboard');
+  if (view) view.classList.toggle('is-pro', mode === 'pro');
+  document.querySelectorAll('[data-ov-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.ovMode === mode)));
+}
+
+// ---- Glossary for the pulse (what each instrument measures) ------------------
+const PULSE_TIPS = [
+  [/s&p 500/i, 'The 500 largest US companies: the usual yardstick for "the market".'],
+  [/nasdaq/i, 'The 100 largest non-financial companies on the Nasdaq, heavy in technology.'],
+  [/\bdow\b/i, '30 large, long-established US companies.'],
+  [/russell/i, 'Smaller US companies; sensitive to the economy and to interest rates.'],
+  [/vix/i, 'The fear index: how much traders expect prices to swing over the next month. Higher means more nervous.'],
+  [/yield|10y/i, 'What the US government pays to borrow for 10 years. Higher rates raise loan costs and often weigh on stocks.'],
+  [/gold/i, 'Gold, which investors often buy when they are nervous.'],
+  [/oil|crude|brent/i, 'Oil, which drives fuel costs and energy-company profits.'],
+  [/bitcoin|crypto/i, 'Bitcoin trades around the clock, so its change covers the last 24 hours.'],
+  [/nifty 50/i, "India's 50 largest listed companies."],
+  [/sensex/i, '30 large companies listed on the Bombay Stock Exchange.'],
+  [/bank nifty/i, "India's largest bank stocks."],
+  [/nifty it/i, "India's IT services companies."],
+  [/usd\/inr|rupee/i, 'How many rupees one US dollar buys. Higher means a weaker rupee.'],
+];
+// [PURE] A quote carried by a fund (SPY for the S&P 500, USO for oil): its
+// price is the fund's share price, not the index or commodity level.
+const isFundProxy = (sym, label) => {
+  const s = String(sym || '');
+  return !!s && !s.startsWith('^') && !s.includes('=') && !isCryptoSymbol(s, label) && !!label && label.toUpperCase() !== s.toUpperCase();
+};
+const pulseTip = (q) => (PULSE_TIPS.find(([re]) => re.test(`${q.label || ''} ${q.symbol || ''}`)) || [null, ''])[1];
+const pulseName = (q) => (isVolIndex(q.symbol) ? (/india/i.test(q.label || '') ? 'India fear index' : 'Fear index')
+  : isYield(q.symbol, q.label) ? '10-year yield' : (q.label || q.symbol));
+
+/* ---- Glossary tooltips: one floating element with role=tooltip. It opens on
+   hover, keyboard focus or a tap, closes on Escape, scroll or a second tap, stays
+   inside the viewport, and is linked to its term with aria-describedby. */
+function wireOverviewTips(root) {
+  if (!root || root.dataset.tips || typeof window === 'undefined') return;
+  root.dataset.tips = '1';
+  const box = document.createElement('div');
+  box.className = 'ovx-tipbox';
+  box.id = 'ovx-tipbox';
+  box.setAttribute('role', 'tooltip');
+  box.hidden = true;
+  document.body.appendChild(box);
+  let cur = null;
+  const hide = () => { if (cur) cur.removeAttribute('aria-describedby'); cur = null; box.hidden = true; };
+  const show = (el) => {
+    const text = el.dataset.tip;
+    if (!text) return;
+    if (cur && cur !== el) cur.removeAttribute('aria-describedby');
+    cur = el;
+    box.textContent = text;
+    box.hidden = false;
+    el.setAttribute('aria-describedby', 'ovx-tipbox');
+    const r = el.getBoundingClientRect();
+    const bw = box.offsetWidth;
+    const bh = box.offsetHeight;
+    const left = Math.min(Math.max(8, r.left), window.innerWidth - bw - 8);
+    let top = r.bottom + 8;
+    if (top + bh > window.innerHeight - 8) top = Math.max(8, r.top - bh - 8);
+    box.style.left = `${Math.round(left)}px`;
+    box.style.top = `${Math.round(top)}px`;
+  };
+  const tipOf = (e) => (e.target && e.target.closest ? e.target.closest('.tip[data-tip]') : null);
+  root.addEventListener('mouseover', (e) => { const t = tipOf(e); if (t) show(t); });
+  root.addEventListener('mouseout', (e) => { const t = tipOf(e); if (t && !t.contains(e.relatedTarget)) hide(); });
+  root.addEventListener('focusin', (e) => { const t = tipOf(e); if (t) show(t); });
+  root.addEventListener('focusout', (e) => { if (tipOf(e)) hide(); });
+  root.addEventListener('click', (e) => { const t = tipOf(e); if (!t) return; if (cur === t && !box.hidden) hide(); else show(t); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+  window.addEventListener('scroll', hide, { passive: true });
+}
+
+// Layouts measured in pixels (the bubble field, the news list's fill) redraw
+// when the page width changes enough to matter.
+function watchOverviewWidth() {
+  const view = document.getElementById('view-dashboard');
+  if (!view || typeof ResizeObserver === 'undefined') return;
+  let width = 0;
+  let timer = null;
+  new ResizeObserver((entries) => {
+    const w = Math.round(entries[0].contentRect.width);
+    if (!w || Math.abs(w - width) < 40) return;
+    const first = !width;
+    width = w;
+    if (first) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      renderWeekCalendar();
+      if (state.dashboard) renderNews((state.dashboard.news || {}).groups || {});
+    }, 150);
+  }).observe(view);
+}
+
+/* ---- 1. News bulletin ------------------------------------------------------- */
+// [PURE] A story's time, with its day when it is not from today: "1:51 PM" or "Sat 1:51 PM".
+function newsTime(iso, tz) {
+  try {
+    const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return '';
+    const day = (x) => x.toLocaleDateString('en-CA', { timeZone: tz });
+    const t = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+    return day(d) === day(new Date()) ? t : `${d.toLocaleDateString('en-US', { weekday: 'short', timeZone: tz })} ${t}`;
+  } catch (_) { return ''; }
+}
+// [PURE] A company name without its legal suffix or share class: "Meta Platforms, Inc." -> "Meta Platforms".
+function shortName(name) {
+  return String(companyName(name) || '')
+    .replace(/\s+-\s+.*$/, '')
+    .replace(/,?\s+(Inc\.?|Corp\.?|Corporation|Company|Co\.?|Ltd\.?|Limited|Holdings?|Group|plc|S\.A\.|S\.p\.A\.|N\.V\.|SE|AG|LLC|L\.P\.)$/i, '')
+    .replace(/[,\s]+$/, '')
+    .trim();
+}
+// [PURE] The newest market-relevant headlines across every feed group.
+function bulletinItems(news = {}, max = 14) {
+  const all = dedupeNewsItems(Object.values(news.groups || {}).flatMap((g) => (Array.isArray(g) ? g : [])))
+    .filter((a) => a && a.title && a.category !== 'other');
+  return freshNews(dedupeSimilar(all), 24, 6).slice(0, max);
+}
+
+function renderBulletin(news = {}) {
+  const el = $('#ov-bulletin-track');
   if (!el) return;
-  const engine = market.market_regime_engine || {};
-  let drivers = Array.isArray(engine.marketDrivers) ? engine.marketDrivers.slice() : [];
-
-  if (!drivers.length) {
-    const groups = (news && news.groups) || {};
-    drivers = dedupeNewsItems([...(groups.big_news || []), ...(groups.latest || [])])
-      .filter((n) => Number(n.impact || 0) >= mkt('NEWS_IMPACT_MARKET_MOVING'))
-      .slice(0, 4)
-      .map((n) => ({
-        title: n.title || n.headline || '',
-        category: n.category || 'Macro',
-        direction: n.direction || 'neutral',
-        impactLevel: Number(n.impact || 0) >= mkt('NEWS_IMPACT_HIGH') ? 'High' : 'Medium',
-        url: n.url || '',
-      }));
-  }
-
-  const { label: netLabel, tone: netTone } = newsTiltRead(engine);
-
-  if (!drivers.length) {
-    el.innerHTML = `<div class="q-tape-inner">
-      <span class="q-tape-kicker"><span class="q-tape-pulse neutral"></span>Market-moving now</span>
-      <span class="q-tape-empty">${engine.newsFeedsLive === false
-        ? 'No news feed is reachable — headline risk is unknown, not quiet.'
-        : 'Headline tape is quiet — no high-impact stories. Price action is in charge today.'}</span>
-    </div>`;
+  const items = bulletinItems(news);
+  const tz = (MARKET_TZ[state.market] || MARKET_TZ.US).tz;
+  if (!items.length) {
+    el.innerHTML = `<li><span>${news.source_status && news.source_status.length && !news.source_status.some((f) => f && f.ok) ? 'No news feed is reachable right now.' : 'No market headlines yet.'}</span></li>`;
     return;
   }
-
-  const dirTone = (dir) => ({ bullish: 'bull', bearish: 'bear', mixed: 'warn' }[String(dir || '').toLowerCase()] || 'neutral');
-  const arrow = (dir) => ({ bullish: QIco.up, bearish: QIco.down }[String(dir || '').toLowerCase()] || QIco.flat);
-
-  // Every tape item is already market-moving, so a "High" on each says nothing:
-  // the flag names the kind of story, and only a lesser impact is called out.
-  const items = drivers.slice(0, 4).map((d) => {
-    const tone = dirTone(d.direction);
-    const impact = d.impactLevel || 'High';
-    const kind = titleLabel(String(d.category || 'Market').replace(/[_-]+/g, ' '));
-    const inner = `<span class="q-tape-arrow ${tone}">${arrow(d.direction)}</span>
-      <span class="q-tape-text">${escapeHtml(cleanHeadline(d.title).slice(0, 110))}</span>
-      <span class="q-tape-flag">${escapeHtml(impact === 'High' ? kind : `${kind}, ${String(impact).toLowerCase()}`)}</span>`;
-    return safeUrl(d.url)
-      ? `<a class="q-tape-item" href="${escapeHtml(safeUrl(d.url))}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(d.title || '')}">${inner}</a>`
-      : `<span class="q-tape-item" title="${escapeHtml(d.title || '')}">${inner}</span>`;
+  const time = (iso) => newsTime(iso, tz);
+  const one = items.map((a) => {
+    const href = safeUrl(a.url);
+    const inner = `<time>${escapeHtml(time(a.published))}</time><span>${escapeHtml(cleanHeadline(a.title))}</span><em>${escapeHtml(String(a.source || '').replace(/ (Markets|Top Stories|Bulletins|Politics)$/, ''))}</em>`;
+    return `<li>${href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${inner}<span class="sr-only"> (opens in a new tab)</span></a>` : inner}</li>`;
   }).join('');
-
-  el.innerHTML = `<div class="q-tape-inner">
-    <span class="q-tape-kicker"><span class="q-tape-pulse ${netTone}"></span>Market-moving now
-      <span class="q-tape-net ${netTone}">${escapeHtml(netLabel)}</span></span>
-    <div class="q-tape-list">${items}</div>
-  </div>`;
+  // Two copies make the loop seamless; the second is hidden from assistive tech.
+  el.innerHTML = one + one.replace(/<li>/g, '<li aria-hidden="true">').replace(/<a /g, '<a tabindex="-1" ');
 }
 
-/* =========================================================================
-   ROW 1a — MARKET REGIME. Compact institutional market state: the call, the
-   confidence, the four numbers behind it, the strategy line. Everything else
-   is progressive disclosure.
-   ========================================================================= */
+/* ---- 2. Session status -------------------------------------------------------- */
+function renderSessionBar(market = {}) {
+  const el = $('#ov-session');
+  if (!el) return;
+  const ex = exchangeSession();
+  const ps = priceSession(market, ex.today);
+  const tz = MARKET_TZ[state.market] || MARKET_TZ.US;
+  const engine = market.market_regime_engine || {};
+  const sh = engine.sourceHealth || null;
+  const stale = !!(engine.dataFreshness && engine.dataFreshness.stale);
+  const live = ex.phase === 'regular';
+  const stateWord = live ? 'Market open' : ex.phase === 'pre' ? 'Pre-market' : ex.phase === 'after' ? 'After hours'
+    : ex.weekend ? 'Markets closed for the weekend' : 'Market closed';
+  const open = state.market === 'IN' ? '9:15 AM' : '9:30 AM';
+  const nextDay = (() => {
+    if (!ex.today) return '';
+    const d = new Date(`${ex.today}T12:00:00Z`);
+    const beforeOpen = ex.phase === 'pre' || (!ex.weekend && ex.phase === 'closed' && ps.date !== ex.today && !live);
+    let k = beforeOpen && !ex.weekend ? 0 : 1;
+    for (; k < 8; k += 1) { const n = new Date(d.getTime() + k * 864e5); if (n.getUTCDay() !== 0 && n.getUTCDay() !== 6) return k === 0 ? 'today' : n.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }); }
+    return '';
+  })();
+  const pricesText = !ps.date ? 'Session date not reported.'
+    : live && ps.isToday ? 'Prices are delayed, from today’s bars.'
+      : `Prices are ${ps.isToday ? 'today’s' : `${weekdayLong(ps.date)}’s`} close${ps.isToday ? '' : ` (${sessionDay(ps.date).replace(/^\w+ /, '')})`}.${!live && nextDay ? ` Next session: ${nextDay}, ${open} ${tz.label}.` : ''}`;
+  const gen = state.dashboard && state.dashboard.generated_at;
+  let read = '';
+  try { if (gen) read = `Updated ${new Date(gen).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz.tz })} ${tz.label}`; } catch (_) { read = ''; }
+  const health = sh ? `${sh.quotesOk} of ${sh.quotesTotal} prices, ${sh.newsSourcesOk} of ${sh.newsSourcesTotal} news feeds` : '';
+  const mode = overviewMode();
+  el.innerHTML = `<span class="ovx-state${live ? ' is-open' : ''}"><i aria-hidden="true"></i>${escapeHtml(stateWord)}</span>
+    <span class="ovx-state-t">${escapeHtml(pricesText)}</span>
+    <span class="ovx-health${stale ? ' is-warn' : ''}">${stale ? 'Some inputs are missing. ' : ''}<span class="pro-only">${escapeHtml(health ? `${health}. ` : '')}</span>${escapeHtml(read)}</span>
+    <span class="ovx-seg" role="group" aria-label="Explanations"><button type="button" data-ov-mode="plain" aria-pressed="${mode === 'plain'}">Plain English</button><button type="button" data-ov-mode="pro" aria-pressed="${mode === 'pro'}">Pro</button></span>`;
+  el.querySelectorAll('[data-ov-mode]').forEach((b) => b.addEventListener('click', () => {
+    try { localStorage.setItem(OV_MODE_KEY, b.dataset.ovMode); } catch (_) { /* private mode */ }
+    applyOverviewMode(b.dataset.ovMode);
+  }));
+  applyOverviewMode(mode);
+}
+
+/* ---- 3. Market pulse ------------------------------------------------------------ */
+function renderMarketPulse(market = {}) {
+  const el = $('#market-pulse');
+  if (!el) return;
+  const quotes = (market.quotes || []).filter((q) => numOrNull(q.price) != null && Number(q.price) > 0);
+  if (!quotes.length) {
+    el.innerHTML = '<li class="ovx-pu-empty">Market prices are unavailable right now. <button class="q-btn q-btn--link" type="button" data-retry="dashboard">Retry</button></li>';
+    return;
+  }
+  const series = (marketContext() || {}).series || {};
+  const boardDate = priceSession(market).date;
+  el.style.setProperty('--n', String(quotes.length));
+  el.innerHTML = quotes.map((q) => {
+    const sym = String(q.symbol || '');
+    const ch = numOrNull(q.change_pct);
+    const crypto = isCryptoSymbol(sym, q.label);
+    const yld = isYield(sym, q.label);
+    const bp = yld && ch != null ? yieldChangeBp(Number(q.price), ch) : null;
+    const chTxt = ch == null ? 'N/A' : bp != null ? `${bp >= 0 ? '+' : '-'}${Math.abs(bp).toFixed(1)} bp` : fmtPct(ch, 2, false);
+    const s = series[sym] || null;
+    const wk = s ? numOrNull(s.week_change_pct) : null;
+    const wkTxt = wk == null ? '' : yld && numOrNull(s.week_change_abs) != null ? `${s.week_change_abs >= 0 ? '+' : '-'}${Math.abs(s.week_change_abs * 100).toFixed(0)} bp` : signedPct(wk);
+    const sp = s ? sparkPath(s.closes, 120, 36, 2) : null;
+    // A falling fear index supports stocks: its colour reads inversely, its sign does not.
+    const vol = isVolIndex(sym);
+    const tone = (v) => (vol && v != null ? dirClass(-v) : dirClass(v));
+    const wdir = wk == null ? tone(ch) : tone(wk);
+    const day = crypto ? '24h' : (q.quote_date && String(q.quote_date).slice(0, 10) !== boardDate ? (sessionDay(q.quote_date).split(' ')[0] || '') : '');
+    const tip = `${pulseTip(q)}${isFundProxy(sym, q.label) ? ` Shown as the ${sym} fund's share price, which moves with it but is not its level.` : ''}`.trim();
+    const name = pulseName(q);
+    const fund = isFundProxy(sym, q.label);
+    const proxy = fund ? `<span class="ovx-pu-sym">${escapeHtml(sym)} fund</span>`
+      : name !== (q.label || sym) ? `<span class="ovx-pu-sym">${escapeHtml(sym.replace(/^\^/, ''))}</span>` : '';
+    const fresh = quoteFreshness(q);
+    return `<li class="ovx-pu"${fresh && fresh.session ? ` title="${escapeHtml([fresh.session, ...(fresh.flags || [])].join(', '))}"` : ''}>
+        <span class="ovx-pu-n">${tip ? `<span class="tip" tabindex="0" data-tip="${escapeHtml(tip)}">${escapeHtml(name)}</span>` : escapeHtml(name)}${proxy}</span>
+        <button type="button" class="ovx-pu-px num" data-chart-symbol="${escapeHtml(sym)}" aria-label="${escapeHtml(`Chart ${name}, ${fmtNumber(q.price, 2)}${yld ? '%' : ''}`)}">${fmtNumber(q.price, q.price >= 1000 ? 0 : 2)}${yld ? '%' : ''}</button>
+        <span class="ovx-pu-c"><b class="num ${tone(ch)}"${vol ? ' title="Lower volatility supports stocks"' : ''}>${escapeHtml(chTxt)}</b> <span>${escapeHtml(day)}</span></span>
+        ${sp ? `<svg class="ovx-spark ${wdir}" viewBox="0 0 120 36" role="img" aria-label="${escapeHtml(`${name}: last ${s.closes.length} sessions${wkTxt ? `, ${wkTxt} this week` : ''}`)}"><path d="${sp.d}"/><circle cx="${sp.x.toFixed(1)}" cy="${sp.y.toFixed(1)}" r="2.4"/></svg>` : `<span class="ovx-spark ${marketContext() ? 'ovx-spark--none' : 'ovx-spark--wait'}" aria-hidden="true"></span>`}
+        <span class="ovx-pu-w">${wkTxt ? `<b class="num ${tone(wk)}">${escapeHtml(wkTxt)}</b> this week` : (q.stale ? 'Stale quote' : '&nbsp;')}</span>
+      </li>`;
+  }).join('');
+  el.querySelectorAll('.ovx-pu-px[data-chart-symbol]').forEach((b) => b.addEventListener('click', () => openProChart(b.dataset.chartSymbol)));
+}
+
+/* ---- 4a. The week (or the session) on the benchmark ------------------------------ */
+// [PURE] Regular-session bars grouped by exchange date: the last five sessions
+// and the close before them.
+function weekSessions(chart = {}, market = state.market) {
+  const pts = (chart && Array.isArray(chart.points)) ? chart.points : [];
+  const tz = chart.timezone || (MARKET_TZ[market] || MARKET_TZ.US).tz;
+  const open = market === 'IN' ? 9 * 60 + 15 : 9 * 60 + 30;
+  const close = market === 'IN' ? 15 * 60 + 30 : 16 * 60;
+  let fmt;
+  try { fmt = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }); } catch (_) { return null; }
+  const by = new Map();
+  const byT = new Map();
+  pts.forEach(([t, p]) => {
+    if (!Number.isFinite(Number(p))) return;
+    const parts = fmt.formatToParts(new Date(t)).reduce((o, x) => ({ ...o, [x.type]: x.value }), {});
+    const m = Number(parts.hour) * 60 + Number(parts.minute);
+    if (m < open || m >= close) return;
+    const d = `${parts.year}-${parts.month}-${parts.day}`;
+    if (!by.has(d)) { by.set(d, []); byT.set(d, []); }
+    by.get(d).push(Number(p));
+    byT.get(d).push(t);
+  });
+  const days = [...by.keys()].sort();
+  if (days.length < 2) return null;
+  const last5 = days.slice(-5);
+  const prior = days[days.length - last5.length - 1];
+  const priorClose = prior ? by.get(prior).slice(-1)[0] : by.get(last5[0])[0];
+  let prev = priorClose;
+  const sessions = last5.map((d) => {
+    const bars = by.get(d);
+    const c = bars[bars.length - 1];
+    const s = { date: d, bars, ts: byT.get(d), close: c, change: ((c / prev) - 1) * 100 };
+    prev = c;
+    return s;
+  });
+  return { sessions, priorClose, change: ((sessions[sessions.length - 1].close / priorClose) - 1) * 100 };
+}
+
+function benchQuote(market = {}) {
+  const quotes = market.quotes || [];
+  return quotes.find((q) => numOrNull(q.price) != null && !isVolIndex(q.symbol) && !isYield(q.symbol, q.label) && !isCryptoSymbol(q.symbol, q.label)) || null;
+}
+
+// The hero chart's ranges: [key, tab label, chart API range, readout phrase].
+const HERO_RANGES = [
+  ['1d', '1D', '1d', 'today'],
+  ['1w', '1W', '1mo', 'past week'],
+  ['1m', '1M', '1mo', 'past month'],
+  ['ytd', 'YTD', 'ytd', 'year to date'],
+  ['1y', '1Y', '1y', 'past year'],
+];
+const HERO_RANGE_KEY = 'quanta.overview.range';
+function heroRange() {
+  // A range the reader picked is kept; otherwise today's chart while the market
+  // is open, and the week while it is shut.
+  const fallback = exchangeSession().phase === 'regular' ? '1d' : '1w';
+  try { const r = localStorage.getItem(HERO_RANGE_KEY); return HERO_RANGES.some((x) => x[0] === r) ? r : fallback; } catch (_) { return fallback; }
+}
+
+// One request per symbol and range while it is fresh, however many renders ask.
+function getChart(symbol, range) {
+  state.chartCache = state.chartCache || {};
+  const key = `${symbol}|${range}`;
+  const ttl = range === '1d' ? 60e3 : 300e3;
+  const hit = state.chartCache[key];
+  if (hit && Date.now() - hit.at < ttl) return hit.p || Promise.resolve(hit.data);
+  if (typeof window === 'undefined' || typeof fetch !== 'function') return Promise.resolve(null);
+  const entry = { at: Date.now(), data: null, p: null };
+  entry.p = fetch(`/api/chart?symbol=${encodeURIComponent(symbol)}&range=${encodeURIComponent(range)}`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+    .then((r) => (r.ok ? r.json() : null)).catch(() => null)
+    .then((d) => {
+      entry.p = null;
+      entry.data = d && d.available !== false && Array.isArray(d.points) && d.points.length > 1 ? d : null;
+      if (!entry.data) delete state.chartCache[key];
+      return entry.data;
+    });
+  state.chartCache[key] = entry;
+  return entry.p;
+}
+const cachedChart = (symbol, range) => { const e = (state.chartCache || {})[`${symbol}|${range}`]; return e ? e.data : null; };
+
+async function renderWeekHero(market = {}) {
+  const el = $('#ov-week');
+  if (!el) return;
+  const bench = benchQuote(market);
+  if (!bench) { el.innerHTML = '<h1 class="ovx-h1" id="week-h">Market overview</h1><p class="ovx-lede">Benchmark prices are unavailable right now.</p>'; return; }
+  const range = heroRange();
+  const apis = heroApis(range);
+  const draw = () => {
+    el.innerHTML = weekHeroHtml(bench, cachedChart(bench.symbol, '1mo'), market, marketContext() || {}, range, apis.map((r) => cachedChart(bench.symbol, r)));
+    wireHeroChart(el, bench, market);
+  };
+  if (!el.querySelector('.ovx-chart') || [ '1mo', ...apis ].every((r) => cachedChart(bench.symbol, r))) draw();
+  await Promise.all(['1mo', ...apis].map((r) => getChart(bench.symbol, r)));
+  if (heroRange() === range) draw();
+}
+const heroApis = (range) => (range === '1d' ? ['1d', '5d'] : [HERO_RANGES.find((x) => x[0] === range)[2]]);
+
+// The hero: headline sentence, lede, the range chart, three facts.
+function weekHeroHtml(bench, chart, market = {}, ctx = {}, range = '1w', rangeData = []) {
+  const ex = exchangeSession();
+  const ps = priceSession(market, ex.today);
+  const name = bench.label || bench.symbol;
+  const wk = chart ? weekSessions(chart) : null;
+  if (wk) {
+    const lastS = wk.sessions[wk.sessions.length - 1];
+    const bp = numOrNull(bench.price);
+    if (bp != null && bench.quote_date && String(bench.quote_date).slice(0, 10) === lastS.date) {
+      const prevClose = wk.sessions.length > 1 ? wk.sessions[wk.sessions.length - 2].close : wk.priorClose;
+      lastS.close = bp;
+      lastS.change = numOrNull(bench.change_pct) ?? ((bp / prevClose) - 1) * 100;
+      wk.change = ((bp / wk.priorClose) - 1) * 100;
+    }
+    const sw = numOrNull(((ctx.series || {})[bench.symbol] || {}).week_change_pct);
+    if (sw != null) wk.change = sw;
+  }
+  const day = numOrNull(bench.change_pct);
+  let h1;
+  const mondayBeforeOpen = new Date(`${ex.today}T12:00:00Z`).getUTCDay() === 1 && !ps.isToday && ex.phase !== 'regular';
+  if (wk && (ex.weekend || mondayBeforeOpen)) {
+    h1 = `The ${escapeHtml(name)} ${wk.change < 0 ? 'fell' : 'rose'} <span class="${dirClass(wk.change)}">${Math.abs(wk.change).toFixed(1)}%</span> over the past week`;
+  } else if (day != null) {
+    const verb = ps.isToday ? (ex.phase === 'regular' ? (day < 0 ? 'is down' : 'is up') : (day < 0 ? 'closed down' : 'closed up')) : (day < 0 ? 'fell' : 'rose');
+    h1 = `The ${escapeHtml(name)} ${verb} <span class="${dirClass(day)}">${Math.abs(day).toFixed(1)}%</span> ${escapeHtml(ps.phrase)}`;
+  } else {
+    h1 = 'Market overview';
+  }
+  const sec = (ctx.sectors || []).filter((s) => numOrNull(s.change_pct) != null).sort((a, b) => a.change_pct - b.change_pct);
+  const series = ctx.series || {};
+  const lede = [];
+  if (sec.length >= 2) {
+    const worst = sec[0];
+    const best = sec[sec.length - 1];
+    if (worst.change_pct < 0 && best.change_pct > 0) lede.push(`${worst.label} led the selling ${ps.phrase} (${fmtPct(worst.change_pct, 1, false)}), while ${best.label} rose (${fmtPct(best.change_pct, 1, false)}).`);
+    else if (best.change_pct > 0) lede.push(`Every sector rose ${ps.phrase}, led by ${best.label} (${fmtPct(best.change_pct, 1, false)}).`);
+    else lede.push(`Every sector fell ${ps.phrase}; ${worst.label} fell most (${fmtPct(worst.change_pct, 1, false)}).`);
+  }
+  const peers = (market.quotes || []).filter((q) => q.symbol !== bench.symbol && !isVolIndex(q.symbol) && !isYield(q.symbol, q.label) && !isCryptoSymbol(q.symbol, q.label)
+    && !/gold|oil|crude|brent|=x|inr/i.test(`${q.label} ${q.symbol}`) && series[q.symbol] && numOrNull(series[q.symbol].week_change_pct) != null)
+    .sort((a, b) => Math.abs(series[b.symbol].week_change_pct) - Math.abs(series[a.symbol].week_change_pct));
+  if (peers.length) {
+    const p = peers[0];
+    const w = series[p.symbol].week_change_pct;
+    lede.push(`The ${p.label} ${w < 0 ? 'lost' : 'gained'} ${Math.abs(w).toFixed(1)}% over the last five sessions.`);
+  }
+  const quotes = market.quotes || [];
+  const facts = [];
+  const vq = quotes.find((q) => isVolIndex(q.symbol));
+  if (vq && series[vq.symbol] && numOrNull(series[vq.symbol].week_change_pct) != null) {
+    const w = series[vq.symbol].week_change_pct;
+    facts.push(`<div><strong><span class="tip" tabindex="0" data-tip="${escapeHtml(pulseTip(vq))}">Fear index</span> <span class="${w > 0 ? 'down' : 'up'}">${w > 0 ? 'up' : 'down'} ${Math.abs(w).toFixed(0)}%</span></strong><span>this week, to ${fmtNumber(vq.price, 1)}</span></div>`);
+  }
+  const oq = quotes.find((q) => /oil|crude|brent/i.test(`${q.label} ${q.symbol}`));
+  if (oq && series[oq.symbol] && numOrNull(series[oq.symbol].week_change_pct) != null) {
+    const w = series[oq.symbol].week_change_pct;
+    facts.push(`<div><strong>Oil <span class="${dirClass(w)}">${w > 0 ? 'up' : 'down'} ${Math.abs(w).toFixed(1)}%</span></strong><span>this week</span></div>`);
+  }
+  const yq = quotes.find((q) => isYield(q.symbol, q.label));
+  if (yq && numOrNull(yq.price) != null) {
+    const s = series[yq.symbol];
+    const peak = s && s.closes && s.closes.length ? Math.max(...s.closes) : null;
+    const note = peak != null && peak - yq.price >= 0.05 ? `down from a ${fmtNumber(peak, 2)}% peak this month` : peak != null ? 'near its high for the month' : 'the 10-year Treasury rate';
+    facts.push(`<div><strong>10-year yield ${fmtNumber(yq.price, 2)}%</strong><span>${escapeHtml(note)}</span></div>`);
+  }
+  const model = heroSeries(range, wk, rangeData, bench, ctx.levels || {}, sec);
+  state.heroModel = model;
+  return `<h1 class="ovx-h1" id="week-h">${h1}</h1>
+    ${lede.length ? `<p class="ovx-lede">${escapeHtml(lede.join(' '))}</p>` : ''}
+    ${heroChartHtml(range, model, name)}
+    ${facts.length ? `<div class="ovx-facts" style="--n:${facts.length}">${facts.join('')}</div>` : ''}`;
+}
+
+// [PURE] Group chart points by exchange date, regular session only.
+function sessionsOf(points = [], tz = 'America/New_York', market = state.market) {
+  const open = market === 'IN' ? 9 * 60 + 15 : 9 * 60 + 30;
+  const close = market === 'IN' ? 15 * 60 + 30 : 16 * 60;
+  let fmt;
+  try { fmt = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }); } catch (_) { return []; }
+  const by = new Map();
+  points.forEach(([t, p]) => {
+    if (!Number.isFinite(Number(p))) return;
+    const parts = fmt.formatToParts(new Date(t)).reduce((o, x) => ({ ...o, [x.type]: x.value }), {});
+    const m = Number(parts.hour) * 60 + Number(parts.minute);
+    if (m < open || m >= close) return;
+    const d = `${parts.year}-${parts.month}-${parts.day}`;
+    if (!by.has(d)) by.set(d, []);
+    by.get(d).push([t, Number(p)]);
+  });
+  return [...by.keys()].sort().map((d) => ({ date: d, pts: by.get(d) }));
+}
+
+// [PURE] What the hero chart draws for a range: points, the reference it is
+// measured against, extended-hours marks, reference lines and axis labels.
+function heroSeries(range, wk, rangeData = [], bench = {}, levels = {}, sectors = []) {
+  const tz = (MARKET_TZ[state.market] || MARKET_TZ.US).tz;
+  const sma50 = numOrNull(levels.sma50);
+  const sma200 = numOrNull(levels.sma200);
+  if (range === '1w') {
+    if (!wk || !wk.sessions.every((s) => s.ts && s.ts.length === s.bars.length)) return null;
+    const pts = wk.sessions.flatMap((s) => s.ts.map((t, i) => [t, s.bars[i]]));
+    pts[pts.length - 1] = [pts[pts.length - 1][0], wk.sessions[wk.sessions.length - 1].close];
+    return { range, pts, ref: wk.priorClose, refLabel: `close before ${sessionDay(wk.sessions[0].date).split(' ')[0]}`, wk, sectors,
+      lines: [{ v: wk.priorClose, cls: 'is-prior', text: `Close before ${sessionDay(wk.sessions[0].date).split(' ')[0]}: ${fmtNumber(wk.priorClose, 2)}` }]
+        .concat(sma50 != null ? [{ v: sma50, cls: 'is-50', text: `50-day average ${fmtNumber(sma50, 2)}` }] : []) };
+  }
+  if (range === '1d') {
+    const [d1, d5] = rangeData;
+    if (!d1) return null;
+    let pts = d1.points.filter((p) => Number.isFinite(Number(p[1])));
+    const reg = (d1.session || {}).regular;
+    let ext = pts.map(([t]) => !!(reg && (t < reg[0] || t >= reg[1])));
+    const ref = numOrNull(d1.previous_close);
+    let lead = '';
+    // Before today's open: the last full session first, then today's pre-market.
+    if (reg && pts.length && pts[pts.length - 1][0] < reg[0] && d5) {
+      const last = sessionsOf(d5.points, d1.timezone || tz).pop();
+      if (last && last.pts.length) {
+        // Today's one-minute bars thinned to the five-minute pace of the session before.
+        const keep = pts.filter((_, i) => i % 5 === 0 || i === pts.length - 1);
+        const keepExt = ext.filter((_, i) => i % 5 === 0 || i === ext.length - 1);
+        pts = last.pts.concat(keep);
+        ext = last.pts.map(() => false).concat(keepExt);
+        lead = sessionDay(last.date).split(' ')[0];
+      }
+    }
+    const refLabel = lead ? `${lead} close` : 'prior close';
+    return { range, pts, ext, ref, refLabel, lines: ref != null ? [{ v: ref, cls: 'is-prior', text: `${lead ? `${lead} close` : 'Prior close'}: ${fmtNumber(ref, 2)}` }] : [] };
+  }
+  const d = rangeData[0];
+  if (!d) return null;
+  let pts = d.points.filter((p) => Number.isFinite(Number(p[1])));
+  if (range === '1m') pts = sessionsOf(pts, d.timezone || tz).flatMap((s) => s.pts);
+  if (pts.length < 2) return null;
+  // The last point is the official close the rest of the page quotes.
+  const bp = numOrNull(bench.price);
+  if (range === '1m' && bp != null && !d.market_open) pts[pts.length - 1] = [pts[pts.length - 1][0], bp];
+  const ref = pts[0][1];
+  const startLabel = range === 'ytd' ? 'start of the year' : range === '1y' ? 'a year ago' : 'a month ago';
+  const lines = [{ v: ref, cls: 'is-prior', text: `${startLabel[0].toUpperCase()}${startLabel.slice(1)}: ${fmtNumber(ref, 2)}` }];
+  if (sma50 != null) lines.push({ v: sma50, cls: 'is-50', text: `50-day average ${fmtNumber(sma50, 2)}` });
+  if (range !== '1m' && sma200 != null) lines.push({ v: sma200, cls: 'is-200', text: `200-day average ${fmtNumber(sma200, 2)}` });
+  return { range, pts, ref, refLabel: startLabel, lines };
+}
+
+// [PURE] Axis and tooltip time labels for a range.
+function heroTime(t, range, style = 'axis') {
+  const tz = (MARKET_TZ[state.market] || MARKET_TZ.US).tz;
+  const d = new Date(t);
+  const time = () => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+  const md = () => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: tz });
+  if (range === '1d') return style === 'axis' ? d.toLocaleTimeString('en-US', { hour: 'numeric', timeZone: tz }) : `${d.toLocaleDateString('en-US', { weekday: 'short', timeZone: tz })} ${time()}`;
+  if (range === '1w' || range === '1m') return style === 'axis' ? md() : `${d.toLocaleDateString('en-US', { weekday: 'short', timeZone: tz })} ${md()}, ${time()}`;
+  return style === 'axis' ? d.toLocaleDateString('en-US', { month: 'short', timeZone: tz }) : `${md()}, ${d.toLocaleDateString('en-US', { year: 'numeric', timeZone: tz })}`;
+}
+
+// [PURE] The chart: range tabs and readout, the plot, its axis.
+function heroChartHtml(range, model, name = '') {
+  const tabs = `<div class="ovx-rtabs" role="tablist" aria-label="Chart range">${HERO_RANGES.map(([k, l, , phrase]) => `<button type="button" role="tab" class="ovx-rtab" data-range="${k}" aria-selected="${k === range}" tabindex="${k === range ? 0 : -1}" aria-label="${escapeHtml(`${l}: ${phrase}`)}">${l}</button>`).join('')}</div>`;
+  if (!model) return `<div class="ovx-chart" data-range="${range}"><div class="ovx-ctool">${tabs}<div class="ovx-cread"></div></div><div class="ovx-plot ovx-plot--wait" aria-busy="true"></div><div class="ovx-xaxis"></div></div>`;
+  const { pts, ref, lines = [] } = model;
+  const vals = pts.map((p) => p[1]);
+  const lo0 = Math.min(...vals, ...lines.map((l) => l.v));
+  const hi0 = Math.max(...vals, ...lines.map((l) => l.v));
+  const pad = (hi0 - lo0) * 0.08 || 1;
+  const lo = lo0 - pad;
+  const hi = hi0 + pad;
+  const W = 1000;
+  const H = 300;
+  const n = pts.length;
+  const X = (i) => (i * W) / (n - 1);
+  const Y = (v) => (1 - (v - lo) / (hi - lo)) * H;
+  const y = (v) => (1 - (v - lo) / (hi - lo)) * 100;
+  const last = vals[n - 1];
+  const chg = ref ? ((last / ref) - 1) * 100 : null;
+  const tone = chg != null && chg < 0 ? 'down' : 'up';
+  // Regular hours as a solid line, extended hours dashed.
+  const ext = model.ext || [];
+  const segs = [];
+  let cur = null;
+  pts.forEach(([, v], i) => {
+    const e = !!ext[i];
+    if (!cur || cur.e !== e) { if (cur) cur.d += ` L${X(i).toFixed(1)},${Y(v).toFixed(1)}`; cur = { e, d: `M${X(i).toFixed(1)},${Y(v).toFixed(1)}` }; segs.push(cur); } else cur.d += ` L${X(i).toFixed(1)},${Y(v).toFixed(1)}`;
+  });
+  const full = `M${pts.map(([, v], i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' L')}`;
+  const ticks = niceTicks(lo, hi, 5).map((v) => `<b class="ovx-yt" style="top:${y(v).toFixed(2)}%"><span>${fmtNumber(v, v >= 1000 ? 0 : (hi - lo) < 5 ? 2 : 0)}</span></b>`).join('');
+  const refs = lines.map((l) => `<div class="ovx-ref ${l.cls}" style="top:${y(l.v).toFixed(2)}%"><span>${escapeHtml(l.text)}</span></div>`).join('');
+  let axis = '';
+  let seps = '';
+  let callout = '';
+  if (range === '1w' && model.wk) {
+    const wk = model.wk;
+    let n0 = 0;
+    const labels = [];
+    wk.sessions.forEach((s, i) => {
+      const x0 = (n0 / (n - 1)) * 100;
+      const x1 = ((n0 + s.bars.length - 1) / (n - 1)) * 100;
+      if (i) seps += `<i style="left:${x0.toFixed(2)}%"></i>`;
+      labels.push(`<span style="left:${((x0 + x1) / 2).toFixed(2)}%"><b>${escapeHtml(sessionDay(s.date).split(' ')[0])}</b><em class="num ${dirClass(s.change)}">${escapeHtml(fmtPct(s.change, 2, false))}</em></span>`);
+      n0 += s.bars.length;
+    });
+    axis = `<div class="ovx-days" aria-hidden="true">${labels.join('')}</div>`;
+    const big = wk.sessions.reduce((a, b) => (Math.abs(b.change) > Math.abs(a.change) ? b : a));
+    const bi = wk.sessions.indexOf(big);
+    const startN = wk.sessions.slice(0, bi).reduce((t, s) => t + s.bars.length, 0);
+    const bx = ((startN + big.bars.length / 2) / (n - 1)) * 100;
+    let why = '';
+    const sectors = model.sectors || [];
+    if (bi === wk.sessions.length - 1 && sectors.length) {
+      const s = big.change < 0 ? sectors[0] : sectors[sectors.length - 1];
+      if (s && Math.sign(s.change_pct) === Math.sign(big.change)) why = `${s.label} ${big.change < 0 ? 'fell' : 'rose'} ${Math.abs(s.change_pct).toFixed(1)}%`;
+    }
+    if (Math.abs(big.change) >= 0.5) callout = `<div class="ovx-callout ${bx > 55 ? 'is-left' : ''}" style="left:${bx.toFixed(1)}%"><b class="${dirClass(big.change)}">${escapeHtml(weekdayLong(big.date))} ${escapeHtml(fmtPct(big.change, 1, false))}</b>${escapeHtml(why)}</div>`;
+  } else {
+    // Five evenly spaced time labels; month boundaries for the long ranges.
+    let idx = [];
+    if (range === '1y' || range === 'ytd') {
+      const tz = (MARKET_TZ[state.market] || MARKET_TZ.US).tz;
+      let prev = '';
+      pts.forEach(([t], i) => { const m = new Date(t).toLocaleDateString('en-US', { month: 'short', timeZone: tz }); if (m !== prev) { if (prev) idx.push(i); prev = m; } });
+      const step = Math.max(1, Math.ceil(idx.length / 6));
+      idx = idx.filter((_, k) => k % step === 0);
+    } else if (range === '1d') {
+      // Even hours, with the day named where it changes.
+      const tz = (MARKET_TZ[state.market] || MARKET_TZ.US).tz;
+      const hourOf = (t) => Number(new Date(t).toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: tz })) % 24;
+      let prevH = null;
+      pts.forEach(([t], i) => { const h = hourOf(t); if (h !== prevH && h % 2 === 0 && i > 0) idx.push(i); prevH = h; });
+      const step = Math.max(1, Math.ceil(idx.length / 7));
+      idx = idx.filter((_, k) => k % step === 0);
+    } else {
+      idx = [0.1, 0.3, 0.5, 0.7, 0.9].map((f) => Math.round(f * (n - 1)));
+    }
+    const tzA = (MARKET_TZ[state.market] || MARKET_TZ.US).tz;
+    const dayOf = (t) => new Date(t).toLocaleDateString('en-US', { weekday: 'short', timeZone: tzA });
+    let lastDay = '';
+    const lab = (i) => {
+      const t = pts[i][0];
+      const txt = heroTime(t, range);
+      if (range !== '1d') return txt;
+      const d = dayOf(t);
+      const out = d !== lastDay ? `${d} ${txt}` : txt;
+      lastDay = d;
+      return out;
+    };
+    axis = `<div class="ovx-xaxis" aria-hidden="true">${idx.map((i) => `<span style="left:${((i / (n - 1)) * 100).toFixed(2)}%">${escapeHtml(lab(i))}</span>`).join('')}</div>`;
+    // The opening bell, where pre-market bars give way to the session.
+    const openIdx = range === '1d' ? ext.findIndex((e, i) => i > 0 && !e && ext[i - 1]) : -1;
+    if (openIdx > 0) seps += `<i style="left:${((openIdx / (n - 1)) * 100).toFixed(2)}%"></i><em class="ovx-extk" style="left:${((openIdx / (n - 1)) * 100).toFixed(2)}%">Open</em>`;
+    if (range === '1d' && ext.some(Boolean) && openIdx < 0) {
+      const i0 = ext.indexOf(true, ext.indexOf(false) >= 0 ? ext.indexOf(false) : 0);
+      if (i0 > 0) seps += `<i style="left:${((i0 / (n - 1)) * 100).toFixed(2)}%"></i><em class="ovx-extk" style="left:${((i0 / (n - 1)) * 100).toFixed(2)}%">${pts[i0][0] < Date.now() && model.refLabel !== 'prior close' ? 'Pre-market' : 'Extended hours'}</em>`;
+    }
+  }
+  const phrase = HERO_RANGES.find((x) => x[0] === range)[3];
+  const extNow = range === '1d' && ext[n - 1];
+  const read = `<b class="num">${fmtNumber(last, 2)}</b>${chg != null ? `<span class="num ${dirClass(chg)}">${escapeHtml(fmtPct(chg, 2, false))}</span>` : ''}<span>${escapeHtml(extNow ? `pre-market, vs ${model.refLabel}` : range === '1d' ? `vs ${model.refLabel}` : phrase)}</span>`;
+  return `<div class="ovx-chart" data-range="${range}">
+      <div class="ovx-ctool">${tabs}<div class="ovx-cread" aria-live="polite">${read}</div></div>
+      <div class="ovx-plot" tabindex="0" role="img" aria-roledescription="interactive chart" aria-label="${escapeHtml(`${name}, ${phrase}: ${fmtNumber(vals[0], 2)} to ${fmtNumber(last, 2)}${chg != null ? `, ${fmtPct(chg, 1, false)}` : ''}. Use the left and right arrow keys to read values.`)}">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+          <defs><linearGradient id="ovx-ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="ovx-ga-a"/><stop offset="1" class="ovx-ga-b"/></linearGradient></defs>
+          <path d="${full} L${W},${H} L0,${H} Z" class="ovx-area ${tone}"/>
+          ${segs.map((s) => `<path d="${s.d}" class="ovx-line ${tone}${s.e ? ' is-ext' : ''}" vector-effect="non-scaling-stroke"/>`).join('')}
+        </svg>
+        <div class="ovx-seps" aria-hidden="true">${seps}${ticks}</div>
+        ${refs}
+        <span class="ovx-dot ${tone}" style="left:100%;top:${y(last).toFixed(2)}%" aria-hidden="true"></span>
+        ${callout}
+        <div class="ovx-cx" hidden aria-hidden="true"><i></i><b class="ovx-cx-dot ${tone}"></b><div class="ovx-ctip"></div></div>
+      </div>
+      ${axis}
+      <span class="sr-only ovx-cx-live" aria-live="polite"></span>
+    </div>`;
+}
+
+// The interactive layer: range tabs, a pointer crosshair with a tooltip, and
+// arrow keys that walk the same crosshair for keyboard users.
+function wireHeroChart(root, bench, market) {
+  const chart = root.querySelector('.ovx-chart');
+  if (!chart) return;
+  const range = chart.dataset.range;
+  const tabs = [...chart.querySelectorAll('.ovx-rtab')];
+  tabs.forEach((b, i) => {
+    b.addEventListener('click', () => {
+      if (b.dataset.range === heroRange()) return;
+      try { localStorage.setItem(HERO_RANGE_KEY, b.dataset.range); } catch (_) { /* private mode */ }
+      renderWeekHero(market).then(() => root.querySelector(`.ovx-rtab[data-range="${b.dataset.range}"]`)?.focus());
+    });
+    b.addEventListener('keydown', (e) => {
+      const k = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!k) return;
+      e.preventDefault();
+      const nb = tabs[(i + k + tabs.length) % tabs.length];
+      nb.focus();
+      nb.click();
+    });
+  });
+  const plot = chart.querySelector('.ovx-plot');
+  const model = state.heroModel;
+  if (!plot || !model || !model.pts) return;
+  const pts = model.pts;
+  const vals = pts.map((p) => p[1]);
+  const lines = model.lines || [];
+  const lo0 = Math.min(...vals, ...lines.map((l) => l.v));
+  const hi0 = Math.max(...vals, ...lines.map((l) => l.v));
+  const pad = (hi0 - lo0) * 0.08 || 1;
+  const lo = lo0 - pad;
+  const hi = hi0 + pad;
+  const cx = plot.querySelector('.ovx-cx');
+  const tip = plot.querySelector('.ovx-ctip');
+  const live = chart.querySelector('.ovx-cx-live');
+  let at = pts.length - 1;
+  const show = (i, announce) => {
+    at = Math.max(0, Math.min(pts.length - 1, i));
+    const [t, v] = pts[at];
+    const xp = (at / (pts.length - 1)) * 100;
+    const yp = (1 - (v - lo) / (hi - lo)) * 100;
+    cx.hidden = false;
+    cx.style.setProperty('--x', `${xp}%`);
+    cx.style.setProperty('--y', `${yp}%`);
+    cx.classList.toggle('is-left', xp > 60);
+    const c = model.ref ? ((v / model.ref) - 1) * 100 : null;
+    const extTxt = model.ext && model.ext[at] ? ', extended hours' : '';
+    tip.innerHTML = `<span>${escapeHtml(heroTime(t, range, 'tip'))}${extTxt}</span><b class="num">${fmtNumber(v, 2)}</b>${c != null ? `<em class="num ${dirClass(c)}">${escapeHtml(fmtPct(c, 2, false))} vs ${escapeHtml(model.refLabel)}</em>` : ''}`;
+    if (announce && live) live.textContent = `${heroTime(t, range, 'tip')}: ${fmtNumber(v, 2)}${c != null ? `, ${fmtPct(c, 2, false)}` : ''}`;
+  };
+  const hide = () => { cx.hidden = true; };
+  plot.addEventListener('pointermove', (e) => {
+    const r = plot.getBoundingClientRect();
+    if (!r.width) return;
+    show(Math.round(((e.clientX - r.left) / r.width) * (pts.length - 1)), false);
+  });
+  plot.addEventListener('pointerleave', hide);
+  plot.addEventListener('focus', () => show(at, true));
+  plot.addEventListener('blur', hide);
+  plot.addEventListener('keydown', (e) => {
+    const step = e.shiftKey ? Math.max(1, Math.round(pts.length / 20)) : 1;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); show(at - step, true); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); show(at + step, true); }
+    else if (e.key === 'Home') { e.preventDefault(); show(0, true); }
+    else if (e.key === 'End') { e.preventDefault(); show(pts.length - 1, true); }
+    else if (e.key === 'Escape') hide();
+  });
+}
+
+// [PURE] Up to n round tick values strictly inside (lo, hi).
+function niceTicks(lo, hi, n = 4) {
+  const span = hi - lo;
+  if (!(span > 0)) return [];
+  const raw = span / n;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) || 10 * mag;
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v < hi; v += step) if (v > lo + span * 0.06 && v < hi - span * 0.06) out.push(Number(v.toFixed(6)));
+  return out;
+}
+
+/* ---- 4b. Market mood (the regime, in plain words) ------------------------------- */
+const MOOD = {
+  Offensive: ['Confident', 'confident', 'conditions favour buying, and most signals point up.'],
+  'Selective Offensive': ['Confident', 'confident', 'lean in, but stay choosy about what you buy.'],
+  'Lean Long': ['Hopeful', 'confident', 'more signals point up than down. Build positions step by step.'],
+  Neutral: ['Mixed', 'mixed', 'the signals are split. Keep new positions small.'],
+  'Lean Defensive': ['Wary', 'cautious', 'risks are building. Be selective and keep some cash ready.'],
+  'Selective Defensive': ['Cautious', 'cautious', 'play it safe for now.'],
+  Defensive: ['Cautious', 'cautious', 'play it safe for now. More signals point down than up.'],
+};
+
+// [PURE] Up to three plain reasons for the mood, each with a small visual.
+function moodReasons(model = {}, market = {}, ctx = {}) {
+  const scored = (Array.isArray(model.factors) ? model.factors : []).map((f) => ({ ...f, s: Math.max(-2, Math.min(2, Number(f.score) || 0)) }));
+  const against = scored.filter((f) => f.s < 0).sort((a, b) => a.s - b.s);
+  const support = scored.filter((f) => f.s > 0).sort((a, b) => b.s - a.s);
+  const net = Number(model.net) || 0;
+  const pick = net < 0 ? against : net > 0 ? support : [...against, ...support].sort((a, b) => Math.abs(b.s) - Math.abs(a.s));
+  const ps = priceSession(market);
+  const part = market.participation || {};
+  const members = Array.isArray(part.members) ? part.members : [];
+  const sec = (ctx.sectors || []).filter((s) => numOrNull(s.change_pct) != null).sort((a, b) => a.change_pct - b.change_pct);
+  const ni = model.newsImpact || {};
+  const bench = benchQuote(market);
+  const vq = (market.quotes || []).find((q) => isVolIndex(q.symbol));
+  const one = (f) => {
+    const k = String(f.key || '').toLowerCase();
+    const neg = f.s < 0;
+    if (k === 'participation' && members.length) {
+      const up = members.filter((m) => m.above).length;
+      return { text: `<b>${up === 0 ? 'No major index is' : `${up} of ${members.length} major indexes are`} in an uptrend.</b> <span class="plain-only">Trading above its 2-month average is the test.</span>`, viz: `<span class="ovx-dots" role="img" aria-label="${up} of ${members.length}">${members.map((m) => `<i class="${m.above ? 'on' : ''}"></i>`).join('')}</span>` };
+    }
+    if (k === 'trend') return { text: neg ? '<b>The long-term trend has turned down.</b>' : '<b>The long-term trend is still up.</b> <span class="plain-only">Prices sit above their 10-month average.</span>', viz: '' };
+    if (k === 'volatility' && vq) return { text: neg ? '<b>The fear index is high.</b> <span class="plain-only">Traders expect bigger swings.</span>' : `<b>The fear index is ${f.s > 0 ? 'low' : 'normal'}.</b>`, viz: `<span class="ovx-pill">${escapeHtml(fmtNumber(vq.price, 1))}</span>` };
+    if (k === 'rates_credit') return { text: neg ? '<b>Interest rates are rising,</b> <span class="plain-only">which makes borrowing dearer.</span>' : '<b>Interest rates are easing.</b>', viz: '' };
+    if (k === 'index_performance' && bench && numOrNull(bench.change_pct) != null) return { text: `<b>The ${escapeHtml(bench.label)} ${bench.change_pct < 0 ? 'fell' : 'rose'} ${Math.abs(bench.change_pct).toFixed(1)}% ${escapeHtml(ps.phrase)}.</b>`, viz: `<span class="ovx-pill ${dirClass(bench.change_pct)}">${escapeHtml(fmtPct(bench.change_pct, 1, false))}</span>` };
+    if (k === 'sector_leadership' && sec.length) {
+      const s = neg ? sec[0] : sec[sec.length - 1];
+      return { text: `<b>${escapeHtml(s.label)} ${neg ? 'led the drop' : 'led the gains'}</b> ${escapeHtml(ps.phrase)}${neg ? ', and the big index groups all fell.' : '.'}`, viz: `<span class="ovx-pill ${dirClass(s.change_pct)}">${escapeHtml(fmtPct(s.change_pct, 1, false))}</span>` };
+    }
+    if (k === 'momentum') return { text: neg ? '<b>Prices have lost momentum</b> over the past month.' : '<b>Prices have momentum</b> over the past month.', viz: '' };
+    if ((k === 'news' || k === 'news_impact') && (ni.bearishHighImpact != null || ni.bullishHighImpact != null)) return { text: neg ? '<b>Bad news outweighs good</b> among the top stories.' : '<b>Good news outweighs bad</b> among the top stories.', viz: `<span class="ovx-pill">${ni.bearishHighImpact || 0} vs ${ni.bullishHighImpact || 0}</span>` };
+    if (k === 'catalyst_risk') return { text: `<b>A heavy earnings week.</b> <span class="plain-only">Company results can move prices sharply.</span>`, viz: model.earningsKnown ? `<span class="ovx-pill">${model.earningsCount || 0}</span>` : '' };
+    if (k === 'macro_risk') return { text: '<b>A warning sign in the wider economy.</b>', viz: '' };
+    if (k === 'sector_leadership') return { text: neg ? '<b>Market leadership is weak:</b> the big index groups fell.' : '<b>Leadership is broad</b> across the big index groups.', viz: '' };
+    return { text: `<b>${escapeHtml(f.label || f.key || '')}:</b> ${escapeHtml(f.note || '')}`, viz: '' };
+  };
+  return pick.slice(0, 3).map((f) => ({ ...one(f), key: f.key, label: f.label, score: f.s, note: f.note }));
+}
+
+// [PURE] The two conditions closest to changing the mood, with progress 0-1.
+function moodGoals(model = {}, levels = {}, part = null, benchName = null, toward = 'up') {
+  const t = regimeTriggers(model, levels, part, benchName);
+  const list = (toward === 'up' ? t.strengthen : t.weaken).filter((r) => !r.met);
+  return list.filter((r) => r.progress != null).sort((a, b) => b.progress - a.progress).slice(0, 2);
+}
+
 function renderMarketRegime(market = {}, news = {}, intel = {}) {
   const el = $('#decision-brief');
   if (!el) return;
   const model = computeRegimeModel(market, news, intel);
-  const tone = normalizeToneClass(model.postureTone);
+  const ctx = marketContext() || {};
   const conf = confidenceRead(model);
-
-  el.classList.remove('bull', 'bear', 'neutral', 'warn');
-  el.classList.add(tone);
-
-  const regimeTitle = regimeName(market, model);
-  const al = model.alignment || {};
-  const summaryLine = model.count
-    ? `${al.aligned} of ${model.count} factors ${model.posture === 'Neutral' ? 'lean each way' : 'agree'} on a ${String(model.modelSignal || '').toLowerCase()} read.`
-    : 'Factor data has not loaded yet — guidance stays capped to a cautious stance until it does.';
-
-  // Two measures, each named for what it answers. Index levels, VIX and
-  // participation live in the ribbon and the participation panel only.
   const dir = directionScore(model);
-  const against = (al.bear || 0);
-  const tallyText = model.count ? `${al.bull || 0} support, ${against} against, ${(model.count || 0) - (al.bull || 0) - against} neutral` : 'factors not loaded';
-  const lean = dir.score10 > 5 ? 'positive' : dir.score10 < 5 ? 'negative' : null;
-  let howTheyCombine;
-  if (conf.withheld || dir.shown === '--') howTheyCombine = 'Too few inputs were measured to score the read.';
-  else if (!lean) howTheyCombine = model.lowConfidence ? 'The evidence leans neither way and the inputs disagree: no directional bet, keep size small.' : 'The evidence leans neither way: wait for a factor to break the tie.';
-  else howTheyCombine = model.lowConfidence ? `The evidence leans ${lean}, but the inputs disagree, so the read is a lean: size small until confidence rises.` : `The evidence leans ${lean} and the inputs agree enough to act on it.`;
-
-  // Capped / low-confidence disclosure, inline — one line, never a nested card.
-  const reasons = (model.confidenceReasons || []).length
-    ? model.confidenceReasons
-    : ['Signals are weak or conflicting — the model reduced its conviction.'];
-  // The gauge above already states the level and where it sits; this flag
-  // exists to give the reason, so it leads with the reason.
-  const lowConfFlag = model.lowConfidence
-    ? `<div class="q-flag" role="status"><span><strong>Why it is low:</strong> ${escapeHtml(reasons[0])}</span></div>`
-    : '';
+  const exp = model.exposure || {};
+  const ps = priceSession(market);
+  const [word, tone, says] = model.guidanceWithheld ? ['No read', 'mixed', 'too few market inputs were measured to give a mood. Prices and news below are still current.']
+    : (MOOD[model.posture] || MOOD.Neutral);
+  el.dataset.mood = tone;
+  const lo = mkt('SIGNAL_SCORE_BEAR') * 10;
+  const hi = mkt('SIGNAL_SCORE_BULL') * 10;
+  const dNow = dir.shown === '--' ? null : Math.max(0, Math.min(100, Math.round(dir.score10 * 10)));
+  // The dial: three zones from MARKET config on a half circle, the needle at the score.
+  const P = (v, r = 110) => { const a = Math.PI - (v / 100) * Math.PI; return [130 + r * Math.cos(a), 130 - r * Math.sin(a)]; };
+  const arc = (a, b, cls) => { const [x1, y1] = P(a); const [x2, y2] = P(b); return `<path d="M ${x1.toFixed(1)} ${y1.toFixed(1)} A 110 110 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" class="${cls}"/>`; };
+  const needle = dNow == null ? '' : (() => { const [x, yv] = P(dNow, 88); return `<line x1="130" y1="130" x2="${x.toFixed(1)}" y2="${yv.toFixed(1)}" class="ovx-needle"/><circle cx="130" cy="130" r="8" class="ovx-hub"/>`; })();
+  const zone = dNow == null ? '' : dNow <= lo ? 'cautious' : dNow >= hi ? 'confident' : 'mixed';
+  const dial = `<div class="ovx-dial" role="img" aria-label="${escapeHtml(dNow == null ? 'Mood not scored' : `Mood score ${dNow} of 100: ${zone} zone. ${fmtNumber(lo, 0)} or less is cautious, ${fmtNumber(hi, 0)} or more confident.`)}">
+      <svg viewBox="0 0 260 176" aria-hidden="true">${arc(0.5, lo - 1.5, `z-c${zone === 'cautious' ? ' on' : ''}`)}${arc(lo + 1.5, hi - 1.5, `z-m${zone === 'mixed' ? ' on' : ''}`)}${arc(hi + 1.5, 99.5, `z-f${zone === 'confident' ? ' on' : ''}`)}${needle}
+        ${dNow == null ? '' : `<text x="130" y="170" text-anchor="middle" class="ovx-dial-v">${dNow}<tspan class="ovx-dial-of" dx="3">/100</tspan></text>`}</svg>
+      <div class="ovx-dial-k"><span class="${zone === 'cautious' ? 'on' : ''}">Cautious</span><span class="${zone === 'mixed' ? 'on' : ''}">Mixed</span><span class="${zone === 'confident' ? 'on' : ''}">Confident</span></div>
+    </div>`;
+  // What it means for your money.
+  const band = parseBand(exp.band);
+  const guidance = model.guidanceWithheld ? `<h3>What this means for you</h3><p data-guidance="withheld">No exposure band, sizing or preference while key market inputs are missing. Keep to positions you already planned.</p>`
+    : !band ? '' : `<h3>What this means for you</h3>
+      <div class="ovx-money" role="img" aria-label="${escapeHtml(`Invest ${band[0]} to ${band[1]} percent of your money; keep the rest in cash`)}"><u style="width:${band[0]}%"></u><i style="left:${band[0]}%;width:${Math.max(1, band[1] - band[0])}%"></i></div>
+      <div class="ovx-money-k"><span>0%</span><span>Invest ${band[0]} to ${band[1]}%</span><span>100%</span></div>
+      <p class="plain-only">${band[1] <= 50 ? 'Put <b>no more than half</b> of your money into stocks right now and keep the rest in cash.' : band[1] <= 70 ? `Keep roughly <b>${band[0]} to ${band[1]}%</b> of your money invested and the rest in cash.` : `Conditions support being <b>mostly invested</b> (${band[0]} to ${band[1]}%).`} ${tone === 'cautious' ? 'Prefer steady companies, and do not buy more of a falling stock.' : tone === 'mixed' ? 'Add slowly, and only to your strongest ideas.' : 'Favour market leaders, and still set a stop-loss on every buy.'}</p>
+      <p class="pro-only">Gross exposure ${escapeHtml(exp.band)}. ${escapeHtml((model.action || {}).sizing || '')} ${escapeHtml(strategistBrief(model).favored.text || '')} ${escapeHtml((model.action || {}).avoid || '')}</p>
+      ${exp.cappedFrom ? `<p class="ovx-cap">Held under the usual ${escapeHtml(exp.cappedFrom)} while ${escapeHtml(exp.capReason || 'confidence is low')}.</p>` : ''}`;
+  const reasons = model.guidanceWithheld ? [] : moodReasons(model, market, ctx);
+  const why = reasons.length ? `<h3>${tone === 'confident' ? 'Why we are positive' : tone === 'cautious' ? 'Why we are cautious' : 'Why the signals are split'}</h3>
+      <ul class="ovx-why">${reasons.map((r) => `<li><span>${r.text}<span class="pro-only ovx-why-pro">${escapeHtml(`${r.label} ${r.score > 0 ? '+' : ''}${r.score}: ${r.note || ''}`)}</span></span>${r.viz}</li>`).join('')}</ul>` : '';
+  const levels = ctx.levels || {};
+  const benchName = levels.symbol ? indexName(levels.symbol, market) : null;
+  const toward = tone === 'confident' ? 'down' : 'up';
+  const goals = model.guidanceWithheld ? [] : moodGoals(model, levels, market.participation || null, benchName, toward);
+  const goalsHtml = goals.length ? `<h3>${toward === 'up' ? 'What would make us more positive' : 'What would make us more careful'}</h3>
+      ${goals.map((g) => `<div class="ovx-goal"><div class="ovx-goal-t"><span>${escapeHtml(g.plain || g.label)}</span><b class="num">${escapeHtml(g.now)}</b></div><div class="ovx-goal-b" role="img" aria-label="${escapeHtml(`${g.plain || g.label}: ${g.now}, ${Math.round(g.progress * 100)} percent of the way`)}"><i style="width:${Math.round(g.progress * 100)}%"></i><b></b></div></div>`).join('')}` : '';
+  const sure = conf.withheld ? '' : `<div class="ovx-sure"><span>Model confidence: <b>${escapeHtml(conf.label || 'Not scored')}</b></span><span class="ovx-sure-b" role="img" aria-label="Confidence ${conf.score ?? 'not scored'} of 100"><i style="width:${Math.max(0, Math.min(100, conf.score || 0))}%"></i></span><span class="num">${conf.score != null ? `${conf.score}/100` : ''}</span></div>`;
+  const al = model.alignment || {};
+  const hist = (Array.isArray(market.regime_history) ? market.regime_history : []).filter((h) => h && h.date);
+  const ageText = postureAgeText(postureAge(hist, model.posture), model.posture);
+  const changes = Array.isArray(market.regime_changes) ? market.regime_changes : [];
+  const prior = hist.length > 1 ? hist[hist.length - 2] : null;
+  const changeText = market.regime_baseline ? 'Changes show from the next recorded session.'
+    : changes.length ? `Since ${sessionDay(prior && prior.date) || 'the prior session'}: ${changes.slice(0, 2).map((c) => String(c.text || '')).join('; ')}.`
+      : prior ? `Nothing in the model changed since ${sessionDay(prior.date)}.` : '';
+  const history = ageText || changeText ? `<p class="ovx-history pro-only">${escapeHtml([ageText, changeText].filter(Boolean).join('. ').replace(/\.\./g, '.'))}</p>` : '';
+  const proLine = `<p class="ovx-proline pro-only">${escapeHtml([`${regimeName(market, model)} (${model.posture})`, dNow != null ? `Direction ${dNow}/100, bearish at ${fmtNumber(lo, 0)} or less` : '', model.count ? `Factors: ${al.bull || 0} support, ${model.count - (al.bull || 0) - (al.bear || 0)} neutral, ${al.bear || 0} against` : ''].filter(Boolean).join('. '))}.</p>`;
   const overrides = Array.isArray(model.overrides) ? model.overrides : [];
-  const overrideFlag = overrides.length
-    ? `<div class="q-flag"><span><strong>Risk caps active.</strong> ${escapeHtml(overrides.slice(0, 2).join(' · '))}</span></div>`
-    : '';
-
-  const factorList = (model.factors || []).map((f) => {
-    const s = Number(f.score) || 0;
-    const w = s > 0 ? 'supports' : s < 0 ? 'opposes' : 'neutral';
-    return `<li><b>${escapeHtml(f.label || f.key || '')}</b> (${w}): ${escapeHtml(f.note || '')}</li>`;
-  }).join('');
-
-  // The factors as one strip, strongest support first: the balance at a glance.
-  const facs = (model.factors || []).slice().sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
-  const strip = facs.length ? `<div class="q-fstrip" role="img" aria-label="${escapeHtml(`${tallyText}: ${facs.map((f) => `${f.label || f.key} ${Number(f.score) > 0 ? 'supports' : Number(f.score) < 0 ? 'against' : 'neutral'}`).join(', ')}`)}">${facs.map((f) => {
-    const sc = Number(f.score) || 0;
-    return `<i class="${sc >= 2 ? 's-bull2' : sc > 0 ? 's-bull' : sc <= -2 ? 's-bear2' : sc < 0 ? 's-bear' : 's-flat'}" title="${escapeHtml(`${f.label || f.key}: ${sc > 0 ? '+' : ''}${sc}`)}"></i>`;
-  }).join('')}</div>` : '';
-  const age = postureAge(market.regime_history, model.posture);
-  const ageText = postureAgeText(age, model.posture);
-  el.innerHTML = `
-    <div class="q-regime-top">
-      <div>
-        <span class="q-kicker">Market regime</span>
-        <h2 class="q-regime-title ${tone}">${escapeHtml(regimeTitle)}</h2>
-      </div>
-      ${ageText ? `<span class="q-rg-age${age && age.sessions === 1 && age.prev ? ' is-new' : ''}">${escapeHtml(ageText)}</span>` : ''}
-    </div>
-    <div class="q-measures q-measures--dial">
-    <div class="q-measure q-measure--dir">
-      <figure class="q-dial" aria-label="${escapeHtml(dir.shown === '--' ? 'Direction not scored' : `Direction ${dir.shown} of 100. ${fmtNumber(mkt('SIGNAL_SCORE_BEAR') * 10, 0)} or less reads bearish, ${fmtNumber(mkt('SIGNAL_SCORE_BULL') * 10, 0)} or more bullish.`)}" role="img">
-        ${directionDial(dir)}
-        <figcaption><span class="q-measure-v ${dir.tone}">${dir.shown}<small>/100</small></span><span class="q-conf-cap">Direction</span></figcaption>
-      </figure>
-    </div>
-    <div class="q-rg-side">
-    <div class="q-fbal"><span class="q-conf-cap">Factor balance</span>${strip}<span class="q-measure-s">${escapeHtml(tallyText)}</span></div>
-    <div class="q-conf">
-      <span class="q-conf-cap">Confidence</span>
-      <span class="q-conf-num">${conf.withheld ? 'No read' : (conf.score != null ? conf.score + '%' : '—')}</span>
-      ${conf.withheld ? '' : `<div class="q-gauge" role="img" aria-label="Model confidence ${conf.score != null ? conf.score : 'not scored'} out of 100. Moderate begins at ${mkt('CONFIDENCE_MODERATE')}, high at ${mkt('CONFIDENCE_HIGH')}.">
-        <i class="q-gauge-fill ${conf.tone}" style="width:${conf.score != null ? Math.max(1, Math.min(100, conf.score)) : 0}%"></i>
-        <b class="q-gauge-tick" style="left:${mkt('CONFIDENCE_MODERATE')}%" data-at="${mkt('CONFIDENCE_MODERATE')}"></b>
-        <b class="q-gauge-tick" style="left:${mkt('CONFIDENCE_HIGH')}%" data-at="${mkt('CONFIDENCE_HIGH')}"></b>
-      </div>`}
-      <p class="q-conf-band">${confidenceBand(conf.score, conf.label, conf.withheld)}</p>
-      ${model.lowConfidence ? `<p class="q-regime-why">Confidence is low: ${escapeHtml(reasons[0])}</p>` : ''}
-    </div>
-    </div>
-    </div>
-    <p class="q-measure-note">${escapeHtml(howTheyCombine)}</p>
-    ${overrideFlag}
-    <button type="button" class="q-textlink" data-jump="signal-check">See the ${model.count || ''} factors behind the call</button>`;
-  void lowConfFlag; void summaryLine; void factorList;
-  animateRegime(el, dir, conf, facs.length);
-  const jump = el.querySelector('[data-jump]');
-  if (jump) jump.addEventListener('click', () => {
-    const target = document.getElementById(jump.dataset.jump);
-    const tab = document.getElementById('tab-signal-check');
-    if (tab && tab.getAttribute('aria-selected') !== 'true') tab.click();
-    if (target) target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-  });
+  const reasonsLow = (model.confidenceReasons || []).length ? model.confidenceReasons : ['Signals are weak or conflicting.'];
+  // Watch, for pros: the event and volatility facts behind the risk, each with its count.
+  const ni = model.newsImpact || {};
+  const watch = [
+    volatilityLine(market, model, ps),
+    model.earningsKnown ? `${model.earningsCount || 0} earnings report${model.earningsCount === 1 ? '' : 's'} ahead: ${earningsScopeShort(intel)}` : 'Earnings calendar not read yet',
+    model.newsLive ? `${model.highImpact || 0} high-impact headline${model.highImpact === 1 ? '' : 's'}${(ni.bearishHighImpact || ni.bullishHighImpact) ? ` (${ni.bearishHighImpact || 0} bearish, ${ni.bullishHighImpact || 0} bullish)` : ''}` : '',
+  ].filter(Boolean);
+  const notes = [
+    model.newsLive ? '' : '<p class="ovx-note" role="status"><b>No news feed is reachable:</b> headline risk is unknown, not quiet.</p>',
+    model.lowConfidence && !conf.withheld ? `<p class="ovx-note" role="status"><b>Low confidence:</b> ${escapeHtml(reasonsLow[0])}</p>` : '',
+    overrides.length ? `<p class="ovx-note"><b>Risk caps active:</b> ${escapeHtml(overrides.slice(0, 2).join('; '))}</p>` : '',
+  ].join('');
+  el.innerHTML = `<div class="ovx-mood-top"><h2 class="ovx-kick" id="mood-h"><span class="tip" tabindex="0" data-tip="QUANTA reads 10 market measures each session (trend, fear, breadth, rates, news and more) and turns them into one stance.">Market mood</span></h2><span class="ovx-kick">${escapeHtml(ps.label)}</span></div>
+    <p class="ovx-mood-word">${escapeHtml(word)}</p>
+    <p class="ovx-mood-says">${model.guidanceWithheld ? '' : 'Our model says: '}<b>${escapeHtml(says)}</b></p>
+    ${notes}
+    ${dial}
+    ${guidance}
+    ${why}
+    ${goalsHtml}
+    ${sure}
+    ${proLine}
+    ${history}
+    ${watch.length ? `<ul class="ovx-watch pro-only" aria-label="Watch">${watch.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}</ul>` : ''}`;
 }
+
+/* ---- 5. Market news ------------------------------------------------------------- */
+const NEWS_CATS = { stocks: 'markets', deals: 'markets', macro: 'economy', earnings: 'earnings', politics: 'politics' };
+const NEWS_FILTERS = [['all', 'All'], ['markets', 'Markets'], ['economy', 'Economy'], ['earnings', 'Earnings'], ['politics', 'Politics']];
+const SENTIMENT = { bearish: ['Negative', 'neg'], bullish: ['Positive', 'pos'], mixed: ['Mixed', 'neu'] };
+
+// [PURE] Why a story matters, in plain words, from its kind and its subject.
+function plainWhy(item = {}, used = null) {
+  const all = plainWhyAll(item);
+  const pick = used ? (all.find((w) => !used.has(w)) || all[0]) : all[0];
+  if (used) used.add(pick);
+  return pick;
+}
+
+// [PURE] Every reason that fits a story, most specific first.
+function plainWhyAll(item = {}) {
+  const t = `${item.title || ''} ${item.description || ''}`.toLowerCase();
+  const out = [];
+  const cat = String(item.category || '');
+  if (cat === 'macro' || cat === 'politics') out.push(plainWhyBase(item, t, cat));
+  if (/futures/.test(t)) out.push('Futures trade while the market is shut: they hint at how stocks may open in the next session.');
+  if (/\bai\b|artificial intelligence|chip|semiconductor|nvidia/.test(t)) out.push('AI and chip companies are now a large share of the index, so their swings move the whole market.');
+  if (/china|exports?|tariff/.test(t)) out.push('China and trade shape demand for US companies that sell abroad, and the prices of what Americans buy.');
+  if (/black monday|selloff|sell-off|rout|crash|plunge/.test(t)) out.push('Sharp drops test nerves. The fear index shows whether traders expect more swings ahead.');
+  if (/earnings|results|reports?\b/.test(t)) out.push('Company results set the tone for their whole industry in the days that follow.');
+  if (/target|strategist|forecast|outlook/.test(t)) out.push('A forecast, not a fact: useful as one opinion on where the market could go.');
+  out.push(plainWhyBase(item, t, cat));
+  return [...new Set(out)];
+}
+
+function plainWhyBase(item = {}, t = '', cat = '') {
+  if (cat === 'macro' || /fed|treasury|yield|inflation|cpi|jobs|payroll|gdp|rate (hike|cut)/.test(t)) {
+    if (/yield|treasury|bond|rate/.test(t)) return 'Interest rates set what borrowing costs, and higher rates usually weigh on stock prices, tech most of all.';
+    if (/inflation|cpi|pce|ppi/.test(t)) return 'Inflation shapes what the Federal Reserve does next, which moves interest rates and stocks.';
+    if (/oil|opec|crude/.test(t)) return 'Oil prices feed into fuel costs and energy-company profits.';
+    if (/jobs|payroll|unemployment|gdp|economy/.test(t)) return 'A read on the economy: it can lift or sink the whole market, not just one stock.';
+    return 'Economic news can move the whole market, not just one company.';
+  }
+  if (cat === 'politics') return /oil|russia|iran|sanction|shipping/.test(t) ? 'World events like this can move oil prices, defense stocks and the market’s mood.' : 'Policy decisions can change costs and rules for whole industries.';
+  if (cat === 'earnings') return 'Company results set the tone for their whole industry in the days that follow.';
+  if (cat === 'deals') return 'Deals move the companies involved, and their rivals often follow.';
+  if (/s&p|dow|nasdaq|wall street|stock market/.test(t)) return 'A whole-market story: it describes the mood rather than one company.';
+  return 'Mainly about the companies named; the wider market may not follow.';
+}
+
+// [PURE] Tickers named in a headline, matched on symbols and company names the
+// page already holds (earnings calendar, Street picks, movers, quotes).
+function storyTickers(item = {}, lookup = []) {
+  const title = String(item.title || '');
+  const seen = new Set();
+  const out = [];
+  lookup.forEach((x) => {
+    if (seen.has(x.symbol)) return;
+    const hit = (x.word && new RegExp(`(^|[^A-Za-z])${x.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^A-Za-z]|$)`).test(title))
+      || (x.symbol.length >= 2 && !SYMBOL_WORDS.test(x.symbol) && new RegExp(`(^|[^A-Za-z$])\\$?${x.symbol.replace('.', '\\.')}([^A-Za-z]|$)`).test(title));
+    if (hit) { seen.add(x.symbol); out.push(x); }
+  });
+  return out;
+}
+
+// Symbols that are also everyday words or acronyms in headlines.
+const SYMBOL_WORDS = /^(AI|ON|IT|ALL|ARE|NOW|CEO|CFO|GDP|CPI|PPI|IPO|ETF|US|UK|EU|FED|SEC|FDA|OIL|CAR|BIG|LOW|KEY|ONE|OPEN|NEW|BEST|HAS|CAN|SO|GO|AN|AM|PM|OR|BE|DO|ME|TV|EV|EVS|AT|BY|UP)$/;
+// Words that start company names but, alone in a headline, usually mean an
+// index, an institution or nothing in particular.
+const NOT_A_COMPANY = /^(The|New|First|American|United|General|National|Global|International|Federal|Treasury|Nasdaq|Dow|Russell|Standard|Bank|Royal|China|India|Japan|US|U\.S\.|Energy|Capital|Health|Market|Oil|Gold)$/i;
+// [PURE] Symbol and short company name from the data on the page.
+function tickerLookup(intel = {}, market = {}) {
+  const rows = [];
+  const add = (symbol, name, change) => {
+    const s = String(symbol || '').toUpperCase();
+    if (!s || s.length < 1 || /[^A-Z.]/.test(s)) return;
+    const word = String(companyName(name) || '').replace(/,?\s+(Inc\.?|Corp\.?|Corporation|Company|Co\.?|Ltd\.?|Limited|Holdings|Group|Platforms|Technologies|plc|S\.A\.|N\.V\.|SE)\b.*$/i, '').replace(/^The /, '').trim();
+    const first = word.split(/\s+/)[0] || '';
+    rows.push({ symbol: s, word: first.length >= 3 && !NOT_A_COMPANY.test(first) ? first : '', change: numOrNull(change), name: companyName(name) || s });
+  };
+  (intel.analyst_picks || []).forEach((p) => add(p.symbol, p.name, p.change_pct));
+  [...(intel.movers_up || []), ...(intel.movers_down || [])].forEach((m) => add(m.symbol, m.name, m.change_pct));
+  (intel.earnings_calendar || intel.earnings_week || []).forEach((e) => add(e.symbol, e.name, e.change_pct));
+  const by = new Map();
+  rows.forEach((r) => { const prev = by.get(r.symbol); if (!prev || (prev.change == null && r.change != null)) by.set(r.symbol, r); });
+  return [...by.values()].filter((r) => r.symbol.length >= 2 || r.word);
+}
+
+// Words that carry no story: two headlines match on what is left.
+const NEWS_STOP = new Set('the a an of to in on as and for at by with from after is are its it this that be says say over amid into up down new how why what will could may s'.split(' '));
+const titleTokens = (t) => new Set(String(t || '').toLowerCase().replace(/[^a-z0-9%.]+/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !NEWS_STOP.has(w)));
+
+// [PURE] One item per story: a headline that shares most of its words with a
+// newer one is the same story from another outlet, counted on the kept item.
+function dedupeSimilar(items = []) {
+  const ts = (a) => { const t = Date.parse(a.published || ''); return Number.isFinite(t) ? t : 0; };
+  const kept = [];
+  items.slice().sort((a, b) => ts(b) - ts(a)).forEach((a) => {
+    const tok = titleTokens(a.title);
+    const dup = kept.find((k) => {
+      let inter = 0;
+      tok.forEach((w) => { if (k.tok.has(w)) inter += 1; });
+      return inter >= 3 && inter / Math.max(1, Math.min(tok.size, k.tok.size)) >= 0.5;
+    });
+    if (dup) { dup.item.alsoIn = (dup.item.alsoIn || 0) + 1; return; }
+    kept.push({ tok, item: { ...a, alsoIn: 0 } });
+  });
+  return kept.map((k) => k.item);
+}
+
+// [PURE] Stories newer than maxHours, unless that leaves too few to show.
+function freshNews(items = [], maxHours = 48, min = 10, now = Date.now()) {
+  const fresh = items.filter((a) => { const t = Date.parse(a.published || ''); return Number.isFinite(t) && now - t <= maxHours * 36e5; });
+  return fresh.length >= min ? fresh : items;
+}
+
+function newsRelevant(news = {}) {
+  const all = dedupeNewsItems(Object.values(news.groups || {}).flatMap((g) => (Array.isArray(g) ? g : [])))
+    .filter((a) => a && a.title && NEWS_CATS[a.category]);
+  return freshNews(dedupeSimilar(all));
+}
+
+function renderNews(groups = {}) {
+  const body = $('#news-body');
+  if (!body) return;
+  const news = { ...(state.dashboard && state.dashboard.news), groups };
+  const intel = (state.dashboard && state.dashboard.market_intel) || {};
+  const all = newsRelevant(news);
+  const filter = state.newsFilter || 'all';
+  const filters = $('#news-filters');
+  if (filters) {
+    filters.innerHTML = NEWS_FILTERS.map(([k, l]) => `<button type="button" class="ovx-chip" data-news-filter="${k}" aria-pressed="${k === filter}">${l}<span class="num">${k === 'all' ? all.length : all.filter((a) => NEWS_CATS[a.category] === k).length}</span></button>`).join('');
+    filters.querySelectorAll('[data-news-filter]').forEach((b) => b.addEventListener('click', () => { state.newsFilter = b.dataset.newsFilter; renderNews(groups); }));
+  }
+  // News mood across every relevant story.
+  const moodEl = $('#news-mood');
+  if (moodEl) {
+    const n = all.length || 1;
+    const bear = all.filter((a) => a.direction === 'bearish').length;
+    const bull = all.filter((a) => a.direction === 'bullish').length;
+    const neu = all.length - bear - bull;
+    moodEl.innerHTML = all.length ? `<span class="ovx-kick">News mood, ${all.length} stories</span>
+      <span class="ovx-nm-bar" role="img" aria-label="${bear} negative, ${neu} neutral, ${bull} positive"><i style="width:${(bear / n) * 100}%"></i><u style="width:${(neu / n) * 100}%"></u><s style="width:${(bull / n) * 100}%"></s></span>
+      <span class="ovx-nm-k"><span class="down">${bear} negative</span><span>${neu} neutral</span><span class="up">${bull} positive</span></span>` : '';
+  }
+  const sub = $('#news-sub');
+  if (sub) {
+    const newest = all.reduce((m, a) => { const t = Date.parse(a.published || ''); return Number.isFinite(t) && t > m ? t : m; }, 0);
+    sub.textContent = newest ? `The stories moving markets, with what each one means for you. Latest story ${formatRelativeTime(new Date(newest).toISOString()) || 'just now'}; this list refreshes every few minutes.` : 'The stories moving markets, with what each one means for you.';
+  }
+  const pool = filter === 'all' ? all : all.filter((a) => NEWS_CATS[a.category] === filter);
+  if (!pool.length) {
+    const feedStatus = (news.source_status || []);
+    const down = feedStatus.length > 0 && !feedStatus.some((f) => f && f.ok);
+    body.innerHTML = `<div class="ovx-empty"><b>${down ? 'News feeds unreachable' : 'No stories here yet'}</b><p>${down ? 'None of the news sources answered, so headline risk is unknown, not quiet.' : 'Nothing in this category from the latest read.'}</p><button class="q-btn" type="button" id="retry-news-refresh">Refresh feeds</button></div>`;
+    $('#retry-news-refresh')?.addEventListener('click', () => loadDashboard(true));
+    renderNewsRail(news, intel, all);
+    return;
+  }
+  const hiKeys = new Set(engineHighImpactKeys() || []);
+  const keyOf = (a) => String(a.url || a.title || '').trim().toLowerCase();
+  const ts = (a) => { const t = Date.parse(a.published || ''); return Number.isFinite(t) ? t : 0; };
+  const ranked = pool.slice().sort((a, b) => (hiKeys.has(keyOf(b)) - hiKeys.has(keyOf(a))) || (effectiveNewsImpact(b) - effectiveNewsImpact(a)) || (ts(b) - ts(a)));
+  const lead = ranked[0];
+  const second = ranked.slice(1, 3);
+  const rest = pool.filter((a) => a !== lead && !second.includes(a)).sort((a, b) => ts(b) - ts(a));
+  const lookup = tickerLookup(intel);
+  const tz = (MARKET_TZ[state.market] || MARKET_TZ.US).tz;
+  const tag = (a) => { const s = SENTIMENT[a.direction] || ['Neutral', 'neu']; return `<span class="ovx-tag t-${s[1]}">${s[0]}</span>`; };
+  const src = (a) => `${escapeHtml(String(a.source || '').replace(/ (Markets|Top Stories|Bulletins|Politics)$/, ''))}${a.alsoIn ? ` <span class="ovx-also">+${a.alsoIn} more source${a.alsoIn === 1 ? '' : 's'}</span>` : ''}`;
+  const link = (a, inner) => (safeUrl(a.url) ? `<a href="${escapeHtml(safeUrl(a.url))}" target="_blank" rel="noopener noreferrer">${inner}<span class="sr-only"> (opens in a new tab)</span></a>` : inner);
+  const usedWhy = new Set();
+  const why = (a) => `<span class="plain-only">${escapeHtml(plainWhy(a, usedWhy))}</span><span class="pro-only">${escapeHtml(newsMeaning(a))}</span>`;
+  const leadTickers = storyTickers(lead, lookup).filter((x) => x.change != null).slice(0, 4);
+  const maxCh = Math.max(...leadTickers.map((x) => Math.abs(x.change)), 0.01);
+  const leadViz = leadTickers.length ? `<div class="ovx-lead-viz" role="img" aria-label="${escapeHtml(leadTickers.map((x) => `${x.symbol} ${fmtPct(x.change, 2, false)}`).join(', '))}">
+      <span class="ovx-kick">The stocks in this story, last session</span>
+      ${leadTickers.map((x) => `<div class="ovx-lv"><b class="num">${escapeHtml(x.symbol)}</b><span class="ovx-lv-b ${dirClass(x.change)}" style="width:${((Math.abs(x.change) / maxCh) * 100).toFixed(0)}%"></span><span class="num ${dirClass(x.change)}">${escapeHtml(fmtPct(x.change, 2, false))}</span></div>`).join('')}
+    </div>` : '';
+  const time = (iso) => newsTime(iso, tz);
+  const listItem = (a) => `<li><time class="num">${escapeHtml(time(a.published))}</time><span>${link(a, `<span class="ovx-li-t">${escapeHtml(cleanHeadline(a.title))}</span>`)}<span class="ovx-li-s">${src(a)}</span></span>${tag(a)}</li>`;
+  body.innerHTML = `<article class="ovx-lead${leadViz ? '' : ' is-solo'}">
+      <div>
+        <div class="ovx-meta">${hiKeys.has(keyOf(lead)) ? '<span class="ovx-tag t-hot">Top story</span>' : ''}${tag(lead)}<span>${src(lead)}, ${escapeHtml(formatRelativeTime(lead.published) || '')}</span></div>
+        <h3>${link(lead, escapeHtml(cleanHeadline(lead.title)))}</h3>
+        <p class="ovx-wim"><b>Why it matters</b>${why(lead)}</p>
+      </div>${leadViz}
+    </article>
+    ${second.length ? `<div class="ovx-two">${second.map((a) => `<article class="ovx-story"><div class="ovx-meta">${tag(a)}<span>${src(a)}, ${escapeHtml(formatRelativeTime(a.published) || '')}</span></div><h4>${link(a, escapeHtml(cleanHeadline(a.title)))}</h4><p>${why(a)}</p></article>`).join('')}</div>` : ''}
+    <ol class="ovx-list" id="news-list">${rest.slice(0, 2).map(listItem).join('')}</ol>
+    <button type="button" class="ovx-more" id="news-more"${rest.length > 2 ? '' : ' hidden'}></button>`;
+  renderNewsRail(news, intel, all);
+  let shown = Math.min(2, rest.length);
+  const list = $('#news-list');
+  const more = $('#news-more');
+  const sync = () => { if (more) { const left = rest.length - shown; more.hidden = left <= 0; more.textContent = `More stories (${left})`; } };
+  const add = (k) => { const end = Math.min(rest.length, shown + k); list.insertAdjacentHTML('beforeend', rest.slice(shown, end).map(listItem).join('')); shown = end; sync(); };
+  sync();
+  more?.addEventListener('click', () => add(6));
+  // Fill the column: add stories until the list reaches the rail beside it.
+  if (typeof window !== 'undefined' && window.requestAnimationFrame) {
+    window.requestAnimationFrame(() => {
+      const rail = $('#news-rail');
+      if (!rail || !list) return;
+      // One measurement: add as many rows as fit the rail's extra height.
+      const gap = rail.getBoundingClientRect().height - body.getBoundingClientRect().height;
+      const rowH = (list.lastElementChild && list.lastElementChild.getBoundingClientRect().height) || 46;
+      if (gap > rowH * 0.4 && window.matchMedia('(min-width: 1101px)').matches) add(Math.round(gap / rowH));
+    });
+  }
+}
+
+// [PURE] The next few scheduled events: economic releases first, then the
+// largest earnings reports, each with its day and timing.
+function comingUp(intel = {}, max = 3) {
+  const today = exchangeSession().today;
+  if (!today) return [];
+  const ctx = marketContext() || {};
+  const days = weekEvents(today, ctx.calendar || [], intel.earnings_calendar || intel.earnings_week || [], []);
+  const out = [];
+  days.forEach((d) => d.items.filter((e) => e.kind === 'macro').forEach((e) => out.push({ rank: 0, date: d.date, when: `${sessionDay(d.date).split(' ')[0]}${e.time ? ` ${e.time} ET` : ''}`, what: MACRO_SHORT[String(e.macroKind || '').toLowerCase()] || e.title })));
+  const earn = days.flatMap((d) => d.items.filter((e) => e.kind === 'earnings' && e.cap).map((e) => ({ ...e, date: d.date }))).sort((a, b) => b.cap - a.cap).slice(0, max);
+  earn.forEach((e) => out.push({ rank: 1, date: e.date, when: `${sessionDay(e.date).split(' ')[0]} ${/^(am|bmo)$/i.test(String(e.timing || '')) ? 'before open' : /^(pm|amc)$/i.test(String(e.timing || '')) ? 'after close' : ''}`.trim(), what: `${shortName(e.name) || shownSymbol(e.symbol)} reports earnings` }));
+  return out.sort((a, b) => a.rank - b.rank || a.date.localeCompare(b.date)).slice(0, max);
+}
+
+function renderNewsRail(news = {}, intel = {}, all = []) {
+  const rail = $('#news-rail');
+  if (!rail) return;
+  const topics = (news.trends || []).filter((t) => t && t.type === 'theme' && t.count).slice(0, 7);
+  const maxT = Math.max(...topics.map((t) => t.count), 1);
+  const lookup = tickerLookup(intel);
+  const counts = new Map();
+  all.slice(0, 40).forEach((a) => storyTickers(a, lookup).forEach((x) => { const c = counts.get(x.symbol) || { x, n: 0 }; c.n += 1; counts.set(x.symbol, c); }));
+  const named = [...counts.values()].sort((a, b) => b.n - a.n || Math.abs(b.x.change || 0) - Math.abs(a.x.change || 0)).slice(0, 8);
+  const coming = comingUp(intel, 3);
+  rail.innerHTML = `${topics.length ? `<div><h3>Trending topics</h3><ul class="ovx-topics">${topics.map((t) => `<li><span>${escapeHtml(t.label === 'Fed' ? 'The Fed' : t.label)}</span><span class="ovx-topic-b" style="width:${((t.count / maxT) * 100).toFixed(0)}%"></span><span class="num">${t.count}</span></li>`).join('')}</ul><p class="ovx-fine">Stories mentioning each topic in the latest read.</p></div>` : ''}
+    ${named.length ? `<div><h3>Stocks in the news</h3><div class="ovx-stocks">${named.map(({ x, n }) => `<button type="button" class="ovx-stock" data-ticker="${escapeHtml(x.symbol)}" title="${escapeHtml(`${x.name}: in ${n} ${n === 1 ? 'story' : 'stories'}. Open its research.`)}"><b class="num">${escapeHtml(x.symbol)}</b>${x.change != null ? `<span class="num ${dirClass(x.change)}">${escapeHtml(fmtPct(x.change, 2, false))}</span>` : '<span class="ovx-fine">in the news</span>'}<em>${escapeHtml(shortName(x.name))}</em></button>`).join('')}</div></div>` : ''}
+    ${coming.length ? `<div><h3>Coming up</h3><ul class="ovx-coming">${coming.map((e) => `<li><span class="ovx-coming-d">${escapeHtml(e.when)}</span><span>${escapeHtml(e.what)}</span></li>`).join('')}</ul></div>` : ''}`;
+  rail.querySelectorAll('.ovx-stock').forEach((b) => b.addEventListener('click', () => openTickerTearSheet(b.dataset.ticker)));
+}
+
+/* ---- 6. Where the money moved: breadth and the sector heatmap ----------------------- */
+// [PURE] Squarified treemap in a 100 x 100 box: [{item, x, y, w, h}] in percent.
+function squarify(items, x = 0, y = 0, w = 100, h = 100) {
+  const out = [];
+  let rest = items.filter((i) => i.weight > 0);
+  while (rest.length) {
+    const total = rest.reduce((t, i) => t + i.weight, 0);
+    const horiz = w >= h;
+    const side = horiz ? h : w;
+    let row = [];
+    let best = Infinity;
+    for (const it of rest) {
+      const trial = row.concat([it]);
+      const s = (trial.reduce((t, i) => t + i.weight, 0) / total) * w * h;
+      const thick = s / side;
+      const worst = Math.max(...trial.map((i) => { const a = (i.weight / total) * w * h; return Math.max(a / thick / thick, (thick * thick) / a); }));
+      if (row.length && worst > best) break;
+      row = trial;
+      best = worst;
+    }
+    const s = (row.reduce((t, i) => t + i.weight, 0) / total) * w * h;
+    const thick = s / side;
+    let off = 0;
+    row.forEach((it) => {
+      const len = ((it.weight / total) * w * h) / thick;
+      out.push(horiz ? { item: it, x, y: y + off, w: thick, h: len } : { item: it, x: x + off, y, w: len, h: thick });
+      off += len;
+    });
+    if (horiz) { x += thick; w -= thick; } else { y += thick; h -= thick; }
+    rest = rest.slice(row.length);
+  }
+  return out;
+}
+
+function renderSectorMap() {
+  const body = $('#sector-body');
+  if (!body) return;
+  const ctx = marketContext();
+  if (!ctx) { body.innerHTML = '<div class="ovx-heat ovx-heat--skel" aria-busy="true"></div>'; return; }
+  if (contextNotice(ctx)) { body.innerHTML = `<p class="q-ctx-note">${escapeHtml(contextNotice(ctx))}</p>`; return; }
+  const ps = priceSession((state.dashboard && state.dashboard.market) || {});
+  const meta = $('#sector-meta');
+  if (meta) meta.textContent = `Sectors by size and move${ps.date ? ` ${ps.phrase}` : ''}, and the biggest single-stock moves.`;
+  const rows = (ctx.sectors || []).filter((s) => numOrNull(s.change_pct) != null);
+  if (!rows.length) { body.innerHTML = '<p class="q-note-block">Sector quotes are unavailable this cycle.</p>'; return; }
+  const part = (state.dashboard && state.dashboard.market && state.dashboard.market.participation) || {};
+  const members = Array.isArray(part.members) ? part.members : [];
+  const trend = rows.filter((x) => x.above_sma50 != null);
+  const up = trend.filter((x) => x.above_sma50).length;
+  const idxUp = members.filter((m) => m.above).length;
+  const ring = (n, d, label) => { const p = d ? (n / d) * 100 : 0; return `<div class="ovx-ring" role="img" aria-label="${escapeHtml(`${n} of ${d} ${label}`)}"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.9" class="trk"/><circle cx="18" cy="18" r="15.9" class="val" stroke-dasharray="${p.toFixed(1)} 100"/></svg><div><b class="num">${n} of ${d}</b><span>${escapeHtml(label)}</span></div></div>`; };
+  const maxAbs = Math.max(...rows.map((r) => Math.abs(r.change_pct)), 0.5);
+  const weighted = rows.map((r) => ({ ...r, weight: numOrNull(r.weight) || 1 }));
+  const tiles = squarify(weighted.sort((a, b) => b.weight - a.weight)).map(({ item: r, x, y, w, h }) => {
+    const k = Math.min(1, Math.abs(r.change_pct) / Math.max(maxAbs, 2));
+    const small = w * h < 520;
+    return `<button type="button" class="ovx-tile ${dirClass(r.change_pct)}${small ? ' is-small' : ''}${k >= 0.45 ? ' is-deep' : ''}" data-chart-symbol="${escapeHtml(r.symbol)}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;width:${w.toFixed(2)}%;height:${h.toFixed(2)}%;--k:${k.toFixed(2)}"
+        aria-label="${escapeHtml(`${r.label}: ${fmtPct(r.change_pct, 2, false)} ${ps.phrase}${r.above_sma50 == null ? '' : `, ${r.above_sma50 ? 'in an uptrend' : 'not in an uptrend'}`}. Chart it.`)}">
+        <span class="ovx-tile-n">${escapeHtml(r.label)}${r.above_sma50 ? '<i class="ovx-up50" aria-hidden="true"></i>' : ''}</span><span class="ovx-tile-v num">${escapeHtml(fmtPct(r.change_pct, 2, false))}</span>
+      </button>`;
+  }).join('');
+  const sized = rows.some((r) => numOrNull(r.weight) != null);
+  body.innerHTML = `<div class="ovx-rings">${trend.length ? ring(up, trend.length, 'sectors in an uptrend') : ''}${members.length ? ring(idxUp, members.length, 'major indexes in an uptrend') : ''}<p class="ovx-fine"><i class="ovx-up50" aria-hidden="true"></i> An uptrend means trading above the 50-day (about 2-month) average.</p></div>
+    <div class="ovx-heat" role="group" aria-label="Sector heatmap">${tiles}</div>
+    <p class="ovx-fine ovx-heat-k">Green rose, red fell; a deeper colour is a bigger move.${sized ? ' Tile size is each sector’s approximate weight in the S&P 500.' : ''} Select a sector to chart it.</p>`;
+  body.querySelectorAll('.ovx-tile').forEach((b) => b.addEventListener('click', () => openProChart(b.dataset.chartSymbol)));
+}
+
+function renderMoversRail(intel = {}) {
+  const body = $('#movers-body');
+  if (!body) return;
+  const meta = $('#movers-meta');
+  const movers = [...(intel.movers_up || []), ...(intel.movers_down || [])].filter((m) => numOrNull(m.change_pct) != null);
+  if (!movers.length) {
+    if (intel.loading || intel.refreshing) return;
+    body.innerHTML = '<p class="ovx-fine">The market screen returned no movers this cycle. It is read again with the next refresh.</p>';
+    if (meta) meta.textContent = '';
+    return;
+  }
+  const ps = priceSession((state.dashboard && state.dashboard.market) || {});
+  const up = movers.filter((m) => m.change_pct > 0).sort((a, b) => b.change_pct - a.change_pct).slice(0, 5);
+  const dn = movers.filter((m) => m.change_pct < 0).sort((a, b) => a.change_pct - b.change_pct).slice(0, 5);
+  const top = Math.max(...[...up, ...dn].map((m) => Math.abs(m.change_pct)), 1);
+  if (meta) meta.textContent = ps.label;
+  const list = (rows) => (rows.length ? `<ol>${rows.map((m) => `<li><button type="button" class="ovx-mv" data-ticker="${escapeHtml(normalizeTicker(m.symbol))}">
+      <span class="ovx-mv-r"><b class="num">${escapeHtml(shownSymbol(m.symbol))}</b><span>${escapeHtml(shortName(m.name))}</span><b class="num ${dirClass(m.change_pct)}">${escapeHtml(fmtPct(m.change_pct, 1, false))}</b></span>
+      <span class="ovx-mv-b ${dirClass(m.change_pct)}" style="width:${((Math.abs(m.change_pct) / top) * 100).toFixed(0)}%"></span></button></li>`).join('')}</ol>` : '<p class="ovx-fine">None in the screen.</p>');
+  // A theme among the gainers or losers, when one sector holds most of them.
+  const theme = (rows) => { const c = {}; rows.forEach((m) => { if (m.sector) c[m.sector] = (c[m.sector] || 0) + 1; }); const best = Object.entries(c).sort((a, b) => b[1] - a[1])[0]; return best && best[1] >= 3 ? best : null; };
+  const tUp = theme(up);
+  const n = numOrNull(intel.universe_size);
+  body.innerHTML = `<div class="ovx-mvs"><div><h3>Biggest gainers</h3>${list(up)}</div><div><h3>Biggest losers</h3>${list(dn)}</div></div>
+    <p class="ovx-fine">${tUp ? `${tUp[1]} of the ${up.length} biggest gainers are ${escapeHtml(tUp[0])} companies. ` : ''}The largest moves${n ? ` among ${fmtNumber(n, 0)} screened names` : ''}: a sample of the tape, not market breadth.</p>`;
+  body.querySelectorAll('.ovx-mv').forEach((b) => b.addEventListener('click', () => openTickerTearSheet(b.dataset.ticker)));
+  growOnView(body, '.ovx-mv-b', 'movers-bars', [...up, ...dn].map((m) => m.symbol + m.change_pct).join());
+}
+
+/* ---- 7. Fear, rates and oil ------------------------------------------------------- */
+// [PURE] Short date for a chart axis: "2026-09-18" -> "Sep 18".
+const axisDay = (ymd) => { const t = Date.parse(`${String(ymd || '').slice(0, 10)}T12:00:00Z`); return Number.isFinite(t) ? new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : ''; };
+
+// [PURE] One mini chart: a month of closes as a filled line in a box that
+// stretches to its column. The SVG holds only geometry; every label is HTML,
+// so type never scales with the box.
+function miniChartHtml(kind, closes = [], s = {}, title = '') {
+  if (!closes || closes.length < 2) return marketContext() ? '<div class="ovx-mc ovx-mc--none"><span>The month’s chart is unavailable right now.</span></div>' : '<div class="ovx-mc ovx-mc--wait" aria-busy="true"></div>';
+  const W = 600;
+  const H = 140;
+  let lo = Math.min(...closes);
+  let hi = Math.max(...closes);
+  let zones = [];
+  if (kind === 'vol') {
+    const c1 = mkt('VIX_CONTAINED_MAX'); const c2 = mkt('VIX_CALM_MAX'); const c3 = mkt('VIX_STRESS');
+    lo = Math.min(lo - 1, c1 - 3); hi = Math.max(hi + 1, c3 + 4);
+    zones = [[lo, c1, 'z1', 'Calm'], [c1, c2, 'z2', 'Normal'], [c2, c3, 'z3', 'Nervous'], [c3, hi, 'z4', 'Fearful']];
+  } else {
+    const p = (hi - lo) * 0.18 || 1; lo -= p; hi += p;
+  }
+  const sp = sparkPath(closes, W, H, 0, lo, hi);
+  const pct = (v) => ((1 - (v - lo) / (hi - lo)) * 100);
+  const gid = `ovx-mg-${kind}`;
+  const rects = zones.map(([a, b, cls]) => `<rect x="0" y="${(pct(b) * H / 100).toFixed(1)}" width="${W}" height="${((pct(a) - pct(b)) * H / 100).toFixed(1)}" class="${cls}"/>`).join('');
+  const zoneLabels = zones.filter(([a, b]) => pct(a) - pct(b) >= 14)
+    .map(([a, b, , lab]) => `<span class="ovx-mc-z" style="top:${((pct(a) + pct(b)) / 2).toFixed(1)}%">${lab}</span>`).join('');
+  const last = closes[closes.length - 1];
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const dec = kind === 'yld' ? 2 : max >= 1000 ? 0 : 2;
+  const unit = kind === 'yld' ? '%' : '';
+  return `<div class="ovx-mc${zones.length ? ' ovx-mc--zones' : ''}" role="img" aria-label="${escapeHtml(`${title}: ${closes.length} sessions from ${axisDay(s.first)} to ${axisDay(s.last)}, low ${fmtNumber(min, dec)}${unit}, high ${fmtNumber(max, dec)}${unit}`)}">
+      <div class="ovx-mc-plot">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+          <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="ovx-ga-a"/><stop offset="1" class="ovx-ga-b"/></linearGradient></defs>
+          ${rects}<path d="${sp.d} L${W},${H} L0,${H} Z" fill="url(#${gid})" class="ovx-mc-area"/><path d="${sp.d}" class="ovx-mc-line" vector-effect="non-scaling-stroke"/>
+        </svg>
+        ${zoneLabels}
+        <span class="ovx-mc-dot" style="top:${pct(last).toFixed(1)}%" aria-hidden="true"></span>
+      </div>
+      <div class="ovx-mc-x" aria-hidden="true"><span>${escapeHtml(axisDay(s.first))}</span><span class="num">Low ${fmtNumber(min, dec)}${unit}<i></i>High ${fmtNumber(max, dec)}${unit}</span><span>${escapeHtml(axisDay(s.last))}</span></div>
+    </div>`;
+}
+
+function renderMinis(market = {}) {
+  const el = $('#ov-minis');
+  if (!el) return;
+  const ctx = marketContext();
+  const series = (ctx && ctx.series) || {};
+  const quotes = market.quotes || [];
+  const pick = (fn) => quotes.find(fn);
+  const chosen = [
+    ['vol', pick((q) => isVolIndex(q.symbol))],
+    ['yld', pick((q) => isYield(q.symbol, q.label))],
+    ['oil', pick((q) => /oil|crude|brent/i.test(`${q.label} ${q.symbol}`))],
+  ].filter(([, q]) => q && numOrNull(q.price) != null);
+  if (!chosen.length) { el.innerHTML = ''; el.closest('section')?.setAttribute('hidden', ''); return; }
+  el.closest('section')?.removeAttribute('hidden');
+  el.style.setProperty('--n', String(chosen.length));
+  el.innerHTML = chosen.map(([kind, q]) => {
+    const s = series[q.symbol] || {};
+    const closes = Array.isArray(s.closes) ? s.closes : null;
+    const wk = numOrNull(s.week_change_pct);
+    const level = numOrNull(q.price);
+    const peak = closes ? Math.max(...closes) : null;
+    let title; let value; let chip = ''; let chipTone = 'neu'; let note; let tone;
+    if (kind === 'vol') {
+      const z = level < mkt('VIX_CONTAINED_MAX') ? 'Calm' : level < mkt('VIX_CALM_MAX') ? 'Normal' : level < mkt('VIX_STRESS') ? 'Nervous' : 'Fearful';
+      title = 'Fear index'; value = fmtNumber(level, 2); tone = 'warn';
+      chip = z; chipTone = z === 'Calm' || z === 'Normal' ? 'neu' : 'warn';
+      note = `${wk != null ? `${wk > 0 ? 'Up' : 'Down'} ${Math.abs(wk).toFixed(0)}% this week` : 'Expected swings over the next month'}${peak != null && level >= peak - 0.01 ? ', the highest reading this month' : ''}.`;
+    } else if (kind === 'yld') {
+      title = '10-year Treasury yield'; value = `${fmtNumber(level, 2)}%`; tone = 'neutral';
+      const bp = numOrNull(s.week_change_abs);
+      if (bp != null) { chip = `${bp >= 0 ? '+' : '-'}${Math.abs(bp * 100).toFixed(0)} bp this week`; chipTone = 'neu'; }
+      note = peak != null && peak - level >= 0.05 ? `Eased from a ${fmtNumber(peak, 2)}% peak this month.` : 'Near its high for the month.';
+    } else {
+      title = isFundProxy(q.symbol, q.label) ? `${q.label || 'Oil'} (${q.symbol} fund)` : (q.label || 'Oil'); value = fmtNumber(level, 2); tone = wk != null && wk < 0 ? 'down' : 'up';
+      if (wk != null) { chip = `${signedPct(wk)} this week`; chipTone = wk > 0 ? 'pos' : wk < 0 ? 'neg' : 'neu'; }
+      note = wk != null ? (wk > 0 ? 'Good for energy companies, bad for fuel costs.' : 'Easier fuel costs, softer for energy companies.') : 'Drives fuel costs and energy profits.';
+    }
+    return `<article class="ovx-mini t-${tone}">
+        <header class="ovx-mini-h"><h3><span class="tip" tabindex="0" data-tip="${escapeHtml(`${pulseTip(q)}${isFundProxy(q.symbol, q.label) ? ` Shown as the ${q.symbol} fund's share price, not the price per barrel.` : ''}`)}">${escapeHtml(title)}</span></h3>${chip ? `<span class="ovx-tag t-${chipTone}">${escapeHtml(chip)}</span>` : ''}</header>
+        <div class="ovx-mini-v num">${escapeHtml(value)}</div>
+        <p>${escapeHtml(note)}</p>
+        ${miniChartHtml(kind, closes, s, title)}
+      </article>`;
+  }).join('');
+}
+
+/* ---- 8. The week ahead: earnings bubbles and the next session ---------------------------- */
+const fmtCapShort = (v) => (v >= 1e12 ? `$${(v / 1e12).toFixed(v >= 1e13 ? 0 : 1).replace(/\.0$/, '')}T` : v >= 1e9 ? `$${Math.round(v / 1e9)}B` : `$${Math.round(v / 1e6)}M`);
+const timingWord = (t) => (/^(am|bmo)$/i.test(String(t || '')) ? 'am' : /^(pm|amc)$/i.test(String(t || '')) ? 'pm' : '');
+
+// [PURE] One column per trading day: the market value reporting before the
+// open and after the close, the largest names, and the day's releases.
+function weekColumns(days = [], top = 4) {
+  const cols = days.map((d) => {
+    const earn = d.items.filter((e) => e.kind === 'earnings').sort((a, b) => (b.cap || 0) - (a.cap || 0));
+    const am = earn.filter((e) => timingWord(e.timing) === 'am').reduce((t, e) => t + (e.cap || 0), 0);
+    const pm = earn.filter((e) => timingWord(e.timing) === 'pm').reduce((t, e) => t + (e.cap || 0), 0);
+    const other = earn.filter((e) => !timingWord(e.timing)).reduce((t, e) => t + (e.cap || 0), 0);
+    return { date: d.date, earn, macro: d.items.filter((e) => e.kind === 'macro'), am, pm, other, total: am + pm + other, names: earn.slice(0, top) };
+  });
+  const max = Math.max(...cols.map((c) => c.total), 1);
+  cols.forEach((c) => { c.share = c.total / max; });
+  return cols;
+}
+
+function renderWeekCalendar() {
+  const body = $('#week-body');
+  if (!body) return;
+  const ctx = marketContext();
+  const d = state.dashboard || {};
+  const intel = d.market_intel || {};
+  const ex = exchangeSession();
+  const today = ex.today;
+  if (!today) return;
+  const meta = $('#week-meta');
+  const key = $('#week-key');
+  const held = state.book && state.book.s === 'ok' ? (bookVsCall(state.book.pf, null, intel, today) || { reporting: [] }).reporting : [];
+  const heldSet = new Set(held.map((h) => String(h.symbol || '').toUpperCase()));
+  const all = weekEvents(today, (ctx && ctx.calendar) || [], intel.earnings_calendar || intel.earnings_week || [], held);
+  const pending = (!d.market_intel || intel.loading || intel.refreshing) && !(intel.earnings_calendar || intel.earnings_week || []).length;
+  if (pending && !all.some((x) => x.items.length)) {
+    if (meta) meta.textContent = 'Reading the calendar.';
+    body.innerHTML = '<div class="ovx-wk ovx-wk--wait" aria-busy="true"></div><p class="ovx-fine">Loading this week’s earnings calendar and scheduled releases.</p>';
+    return;
+  }
+  const isWknd = (ymd) => { const g = new Date(`${ymd}T12:00:00Z`).getUTCDay(); return g === 0 || g === 6; };
+  const days = all.filter((x) => !isWknd(x.date) || x.items.length);
+  const cols = weekColumns(days);
+  const earnN = cols.reduce((t, c) => t + c.earn.length, 0);
+  const macro = cols.flatMap((c) => c.macro.map((e) => ({ ...e, date: c.date })));
+  if (meta) meta.textContent = `${earnN} earnings report${earnN === 1 ? '' : 's'}${macro.length ? `, ${macro.length} economic release${macro.length === 1 ? '' : 's'}` : ''}.`;
+  if (key) key.innerHTML = earnN ? '<span><i class="am"></i>Before the open</span><span><i class="pm"></i>After the close</span>' : '';
+  const biggest = cols.flatMap((c) => c.earn).sort((a, b) => (b.cap || 0) - (a.cap || 0)).slice(0, 3).map((e) => e.symbol);
+  const bigSet = new Set(biggest);
+  const tWords = { am: 'Before open', pm: 'After close', '': 'Time not set' };
+  const html = cols.map((c) => {
+    const isToday = c.date === today;
+    const past = c.date < today;
+    const pct = (v) => (c.total ? (v / c.total) * 100 : 0);
+    const bar = c.total ? `<div class="ovx-wkbar" role="img" aria-label="${escapeHtml(`${weekdayLong(c.date)}: ${fmtCapShort(c.total)} of market value reports${c.am ? `, ${fmtCapShort(c.am)} before the open` : ''}${c.pm ? `, ${fmtCapShort(c.pm)} after the close` : ''}`)}">
+        <span class="ovx-wkcap num">${escapeHtml(fmtCapShort(c.total))}</span>
+        <div class="ovx-wkstack" style="height:${Math.max(6, c.share * 100).toFixed(1)}%">${c.pm ? `<i class="pm" style="height:${pct(c.pm).toFixed(1)}%"></i>` : ''}${c.other ? `<i class="na" style="height:${pct(c.other).toFixed(1)}%"></i>` : ''}${c.am ? `<i class="am" style="height:${pct(c.am).toFixed(1)}%"></i>` : ''}</div>
+      </div>` : '<div class="ovx-wkbar is-empty"><span class="ovx-fine">No large reports</span></div>';
+    const names = c.names.map((e) => {
+      const sym = shownSymbol(e.symbol);
+      return `<li><button type="button" class="ovx-wkn${bigSet.has(e.symbol) ? ' is-big' : ''}${heldSet.has(String(e.symbol).toUpperCase()) ? ' is-held' : ''}" data-ticker="${escapeHtml(normalizeTicker(e.symbol))}"
+          aria-label="${escapeHtml(`${shortName(e.name) || sym} reports ${weekdayLong(c.date)} ${(tWords[timingWord(e.timing)] || '').toLowerCase()}${e.cap ? `, worth ${fmtCapShort(e.cap)}` : ''}. Open its research.`)}">
+          <b class="num">${escapeHtml(sym)}</b><span class="ovx-wkt t-${timingWord(e.timing) || 'na'}">${escapeHtml(tWords[timingWord(e.timing)])}</span>${e.cap ? `<em class="num">${escapeHtml(fmtCapShort(e.cap))}</em>` : ''}</button></li>`;
+    }).join('');
+    const more = c.earn.length - c.names.length;
+    const rel = c.macro.map((e) => `<span class="ovx-wkm">${escapeHtml(MACRO_SHORT[String(e.macroKind || '').toLowerCase()] || e.title)}${e.time ? ` <span class="num">${escapeHtml(e.time)}</span>` : ''}</span>`).join('');
+    return `<section class="ovx-wkd${isToday ? ' is-today' : ''}${past ? ' is-past' : ''}" aria-label="${escapeHtml(`${weekdayLong(c.date)}${isToday ? ', today' : ''}: ${c.earn.length} report${c.earn.length === 1 ? '' : 's'}`)}">
+        <header class="ovx-wkh"><b>${escapeHtml(sessionDay(c.date).replace(/ \w+ /, ' '))}</b>${isToday ? '<span class="ovx-tag t-dec">Today</span>' : ''}<span>${c.earn.length} report${c.earn.length === 1 ? '' : 's'}</span></header>
+        ${bar}
+        ${rel ? `<div class="ovx-wkms">${rel}</div>` : ''}
+        <ol class="ovx-wkl">${names}</ol>
+        ${more > 0 ? `<p class="ovx-wkmore">+${more} more</p>` : ''}
+      </section>`;
+  }).join('');
+  const macroLine = macro.length ? '' : (state.market === 'US' ? 'No Fed meeting or major jobs or inflation report found this week. ' : '');
+  body.innerHTML = `${earningsCalendarNote(intel, state.market) ? `<p class="q-ctx-note">${escapeHtml(earningsCalendarNote(intel, state.market))}</p>` : ''}
+    <div class="ovx-wk" style="--n:${cols.length || 1}">${html}</div>
+    <p class="ovx-fine">${escapeHtml(`${macroLine}Bar height is the market value reporting that day. ${intel.earnings_scope ? `Covers ${intel.earnings_scope}.` : ''}`)}</p>`;
+  body.querySelectorAll('.ovx-wkn').forEach((b) => b.addEventListener('click', () => openTickerTearSheet(b.dataset.ticker)));
+}
+
+// [PURE] A normal curve's path across [-k, k] standard deviations in a W x H box.
+function bellPath(W = 600, H = 120, k = 2.6, from = -2.6, to = 2.6) {
+  const pts = [];
+  for (let i = 0; i <= 80; i += 1) {
+    const z = from + ((to - from) * i) / 80;
+    const x = ((z + k) / (2 * k)) * W;
+    const y = H - Math.exp(-0.5 * z * z) * (H - 6);
+    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+  }
+  return pts;
+}
+
+function renderOutlook() {
+  const el = $('#ov-outlook');
+  if (!el) return;
+  const ctx = marketContext();
+  const L = (ctx && ctx.levels) || {};
+  const em = L.expected_move;
+  const ex = exchangeSession();
+  const market = (state.dashboard && state.dashboard.market) || {};
+  const bench = benchQuote(market);
+  const name = (bench && bench.label) || L.symbol || 'The benchmark';
+  const open = ex.phase === 'regular';
+  const nextName = (() => {
+    if (open) return 'today';
+    const d = new Date(`${ex.today}T12:00:00Z`);
+    for (let k = ex.phase === 'pre' ? 0 : 1; k < 8; k += 1) { const nx = new Date(d.getTime() + k * 864e5); if (nx.getUTCDay() !== 0 && nx.getUTCDay() !== 6) return k === 0 ? 'today' : nx.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }); }
+    return 'next session';
+  })();
+  const head = `<header class="ovx-today-h"><h3>What to expect ${escapeHtml(nextName)}</h3><p class="ovx-fine">${escapeHtml(name)}${bench && isFundProxy(bench.symbol, bench.label) ? `, as the ${escapeHtml(bench.symbol)} fund` : ''}${em ? `, from the fear index at ${fmtNumber(em.vol_level, 1)}` : ''}</p></header>`;
+  if (!ctx) { el.innerHTML = `${head}<div class="ovx-range ovx-range--wait" aria-busy="true"></div>`; return; }
+  const last = numOrNull(bench && bench.price) ?? numOrNull(L.last);
+  // Pre-market or after-hours price, when the one-day chart carries one.
+  const d1 = bench ? cachedChart(bench.symbol, '1d') : null;
+  if (bench && !d1 && !open) getChart(bench.symbol, '1d').then((c) => { if (c && c.extended) renderOutlook(); });
+  const extP = d1 && d1.extended && numOrNull(d1.extended.price);
+  const extLabel = d1 && d1.extended ? (d1.extended.session === 'pre' ? 'Pre-market' : 'After hours') : '';
+  let range = '';
+  if (em && last != null) {
+    const sd = em.points;
+    const k = 2.6;
+    const W = 600;
+    const H = 120;
+    const xOf = (v) => Math.max(0, Math.min(100, (((v - last) / sd + k) / (2 * k)) * 100));
+    const curve = bellPath(W, H, k);
+    const band = bellPath(W, H, k, -1, 1);
+    const extTag = extP != null && Math.abs(extP - last) > 0.005 ? `<span class="ovx-bell-m is-ext" style="left:${xOf(extP).toFixed(2)}%"><i></i></span>` : '';
+    range = `<div class="ovx-range ovx-bell" role="img" aria-label="${escapeHtml(`Likely ${nextName} range ${fmtNumber(em.low, 2)} to ${fmtNumber(em.high, 2)}; last ${fmtNumber(last, 2)}${extP != null ? `; ${extLabel.toLowerCase()} ${fmtNumber(extP, 2)}` : ''}`)}">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M${band.join(' L')} L${(((1 + k) / (2 * k)) * W).toFixed(1)},${H} L${(((-1 + k) / (2 * k)) * W).toFixed(1)},${H} Z" class="ovx-bell-band"/>
+          <path d="M${curve.join(' L')}" class="ovx-bell-line" vector-effect="non-scaling-stroke"/>
+        </svg>
+        <span class="ovx-bell-m" style="left:50%"><i></i><b>Last ${fmtNumber(last, 2)}</b></span>
+        ${extTag}
+        <span class="ovx-bell-l num" style="left:${xOf(em.low).toFixed(2)}%">${fmtNumber(em.low, 2)}</span>
+        <span class="ovx-bell-l num" style="left:${xOf(em.high).toFixed(2)}%">${fmtNumber(em.high, 2)}</span>
+      </div>
+      <p class="ovx-today-k"><b class="num">${fmtNumber(em.low, 2)} to ${fmtNumber(em.high, 2)}</b> holds on about 2 of every 3 days like this: a move of about ${fmtNumber(em.pct, 1)}% either way.${extP != null && Math.abs(extP - last) > 0.005 ? ` <span class="ovx-today-ext"><i aria-hidden="true"></i>${escapeHtml(extLabel)} <b class="num">${fmtNumber(extP, 2)}</b> (dashed line), ${extP >= em.low && extP <= em.high ? 'inside' : 'outside'} the band.</span>` : ''}</p>`;
+  }
+  const br = L.base_rate;
+  let odds = '';
+  if (br && br.up_pct != null && br.n) {
+    const since = String(br.since || '').slice(0, 4);
+    const after = br.condition === 'down' ? `After a ${fmtNumber(br.move_pct, 0)}% down day` : br.condition === 'up' ? `After a ${fmtNumber(br.move_pct, 0)}% up day` : `After a quieter day (under ${fmtNumber(br.move_pct, 0)}% either way)`;
+    const dn = 100 - br.up_pct;
+    const upDots = Math.round(br.up_pct / 2);
+    odds = `<div class="ovx-odds-h"><b>History</b><span>${escapeHtml(after)}, the ${escapeHtml(name)} rose the next day <b class="up">${fmtNumber(br.up_pct, 0)}%</b> of the time and fell <b class="down">${fmtNumber(dn, 0)}%</b> (${fmtNumber(br.n, 0)} days since ${escapeHtml(since)}).</span></div>
+      <div class="ovx-waffle" role="img" aria-label="${escapeHtml(`${br.up_pct} percent up, ${dn.toFixed(1)} percent down; each dot is 2 percent of days`)}">${Array.from({ length: 50 }, (_, i) => `<i class="${i < upDots ? 'up' : 'down'}"></i>`).join('')}</div>
+      <p class="ovx-fine">Each dot is 2% of those days. History, not a prediction. On all days since ${escapeHtml(since)}: ${fmtNumber(br.all_up_pct, 0)}% rose.</p>`;
+  }
+  el.innerHTML = `${head}${range}${odds}${!range && !odds ? '<p class="ovx-fine">The expected range arrives with the market context.</p>' : ''}`;
+}
+
+/* ---- 9. Ideas for you -------------------------------------------------------------- */
+// Yahoo's sector names -> the US sector fund that tracks each.
+const SECTOR_FUND = {
+  technology: 'XLK', 'communication services': 'XLC', 'consumer cyclical': 'XLY', 'consumer discretionary': 'XLY',
+  'financial services': 'XLF', financials: 'XLF', industrials: 'XLI', healthcare: 'XLV', 'health care': 'XLV',
+  energy: 'XLE', 'basic materials': 'XLB', materials: 'XLB', 'consumer defensive': 'XLP', 'consumer staples': 'XLP',
+  utilities: 'XLU', 'real estate': 'XLRE',
+};
+function sectorTrendMap(ctx) {
+  const m = new Map();
+  ((ctx && ctx.sectors) || []).forEach((s) => { if (s && s.symbol && s.above_sma50 != null) m.set(String(s.symbol).toUpperCase(), { above: !!s.above_sma50, label: s.label || s.symbol }); });
+  return m;
+}
+function ideaSectorTrend(sector, trends) {
+  const fund = SECTOR_FUND[String(sector || '').trim().toLowerCase()];
+  return fund && trends.has(fund) ? { fund, ...trends.get(fund) } : null;
+}
+
+function renderOpportunityBrief(intel = {}) {
+  const body = $('#opportunity-brief-body');
+  if (!body) return;
+  const d = state.dashboard || {};
+  const model = computeRegimeModel(d.market || {}, d.news || {}, intel);
+  const trends = sectorTrendMap(marketContext());
+  const tone = (MOOD[model.posture] || MOOD.Neutral)[1];
+  const picks = (livePicks()?.recommendations || []).filter(isFundedPick);
+  const sym = livePicks()?.currency || _currencySymbol();
+  const sub = $('#oppbrief-sub');
+  if (picks.length) {
+    if (sub) sub.textContent = `${picks.length} Buy or Accumulate call${picks.length === 1 ? '' : 's'} from your last Picks scan, sized to your money.`;
+    const ranked = picks.slice().sort((a, b) => { const ta = ideaSectorTrend(a.sector, trends); const tb = ideaSectorTrend(b.sector, trends); return (tb && tb.above ? 1 : 0) - (ta && ta.above ? 1 : 0); }).slice(0, 3);
+    body.innerHTML = `<div class="ovx-ideas" style="--n:${ranked.length}">${ranked.map((rec) => {
+      const t = normalizeTicker(rec.ticker || rec.symbol || '');
+      const am = actionMeta(rec);
+      const entry = numOrNull(firstUsable(rec.entry_price, rec.current_price));
+      const target = numOrNull(firstUsable(rec.price_target, rec.target_price));
+      const stop = numOrNull(rec.stop_loss);
+      const rr = numOrNull(rec.risk_reward_ratio);
+      const size = numOrNull(rec.position_value);
+      const tr = ideaSectorTrend(rec.sector, trends);
+      const plan = entry != null && target != null && stop != null && target > stop ? (() => { const x = (v) => (((v - stop) / (target - stop)) * 100).toFixed(1); return `<div class="ovx-plan" aria-hidden="true"><i style="width:${x(entry)}%"></i><span style="left:0">Stop ${fmtNumber(stop, 2)}</span><span style="left:${x(entry)}%">Buy ${fmtNumber(entry, 2)}</span><span style="left:100%">Target ${fmtNumber(target, 2)}</span></div>`; })() : '';
+      return `<article class="ovx-idea"><div class="ovx-idea-h"><button type="button" class="ovx-idea-t" data-ticker="${escapeHtml(t)}">${escapeHtml(t)}</button><span>${escapeHtml(companyName(rec.company || rec.name) || '')}</span><span class="ovx-tag t-dec"${am.qualifier ? ` title="${escapeHtml(am.qualifier)}"` : ''}>${escapeHtml(am.label)}</span>${am.qualifier ? modelFlagHtml((rec.decision && rec.decision.evidence) || rec.evidence) : ''}</div>
+        <p>${escapeHtml(sanitizeExceptionText(rec.why || '') || am.guidance || '')}</p>${plan}
+        <dl class="ovx-idea-k"><div><dt>Invest</dt><dd class="num">${size != null ? `${escapeHtml(sym)}${fmtNumber(size, 0)}` : 'N/A'}</dd></div><div><dt>Gain vs loss</dt><dd class="num">${rr != null ? `${fmtNumber(rr, 1)}x` : 'N/A'}</dd></div><div><dt>Sector trend</dt><dd>${tr ? (tr.above ? 'Up' : 'Down') : 'N/A'}</dd></div></dl></article>`;
+    }).join('')}</div>`;
+    body.querySelectorAll('.ovx-idea-t').forEach((b) => b.addEventListener('click', () => openTickerTearSheet(b.dataset.ticker)));
+    return;
+  }
+  const leading = [...trends.values()].filter((x) => x.above).map((x) => x.label);
+  const recs = livePicks()?.recommendations || [];
+  if (sub) sub.textContent = livePicks() ? 'Your last Picks scan made no Buy or Accumulate call.' : 'Stocks QUANTA would buy now, sized to your money and the market mood.';
+  const rrMin = thr('RR.SCANNER_MIN');
+  body.innerHTML = `<div class="ovx-ideas-empty">
+      <div><h3>${livePicks() ? `No buy calls in your last scan${recs.length ? ` (${recs.length} on the Watchlist)` : ''}` : `Find ideas that fit a ${escapeHtml((MOOD[model.posture] || MOOD.Neutral)[0].toLowerCase())} market`}</h3>
+        <p>A Picks scan checks hundreds of stocks, keeps only the ones with a clear plan (where to buy, where to sell, where to stop out), and sizes each one for your account.</p>
+        <div class="ovx-cta"><a class="q-btn q-btn--primary" href="#picks" data-view-link="picks">${livePicks() ? 'Open Picks' : 'Run a Picks scan'}</a></div></div>
+      <ol class="ovx-steps">
+        ${leading.length ? `<li>Sectors in an uptrend right now: ${escapeHtml(leading.join(', '))}. Ideas in these sectors are listed first.</li>` : ''}
+        ${Number.isFinite(rrMin) ? `<li>Keeps only trades whose potential gain is at least ${fmtNumber(rrMin, 1)} times the potential loss, after costs.</li>` : ''}
+        <li>Sizes each position from its stop-loss and your capital, so one bad trade cannot hurt much.</li>
+      </ol>
+    </div>`;
+}
+
+/* ---- 10. Pro detail: the full price chart opens on demand --------------------------------- */
+function openProChart(symbol) {
+  const det = document.getElementById('ov-pro-chart');
+  if (det) det.open = true;
+  if (symbol && typeof state.overviewChartPick === 'function') state.overviewChartPick(symbol);
+  else renderOverviewChart((state.dashboard && state.dashboard.market) || {});
+  if (symbol && typeof state.overviewChartPick === 'function' && !(state.overviewChart && state.overviewChart.host && state.overviewChart.host.isConnected)) {
+    renderOverviewChart((state.dashboard && state.dashboard.market) || {});
+    state.overviewChartPick(symbol);
+  }
+  det?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+
+/* =========================================================================
+   THE CALL. The regime and its stance, the gross band, the factors that carry
+   the read, what to do, what to watch, and how long it has held. The full
+   factor table is one disclosure away inside the same section, so the factor
+   link no longer jumps half a page and strands focus.
+   ========================================================================= */
 
 // Motion: only in a browser that animates, never under reduced motion, and only
 // when the value it shows has changed since the last render (the dashboard
@@ -3889,284 +5352,23 @@ function postureAge(history = [], posture) {
 }
 function postureAgeText(age, posture) {
   if (!age) return '';
-  const day = (ymd) => { const t = Date.parse(`${ymd}T12:00:00Z`); return Number.isFinite(t) ? new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : ymd; };
-  if (age.sessions === 1 && age.prev) return `${posture} since today, from ${age.prev}`;
-  if (age.all) return `${posture} since records began, ${day(age.since)}`;
-  return `${posture} since ${day(age.since)}, ${age.sessions} sessions`;
-}
-
-// [PURE] The direction dial: a half-circle 0-100 with the bearish and bullish
-// zones from MARKET config, and a needle the renderer turns to the score.
-function directionDial(dir) {
-  const lo = mkt('SIGNAL_SCORE_BEAR') * 10;
-  const hi = mkt('SIGNAL_SCORE_BULL') * 10;
-  if (dir.shown === '--' || !Number.isFinite(lo) || !Number.isFinite(hi)) return '';
-  const at = Math.max(0, Math.min(100, Math.round(dir.score10 * 10)));
-  const pt = (v, r = 50) => { const a = Math.PI - (v / 100) * Math.PI; return `${(60 + r * Math.cos(a)).toFixed(2)} ${(60 - r * Math.sin(a)).toFixed(2)}`; };
-  const arc = (a, b, cls) => `<path class="${cls}" d="M ${pt(a)} A 50 50 0 0 1 ${pt(b)}"/>`;
-  const tick = (v) => `<path class="q-dial-tick" d="M ${pt(v, 43)} L ${pt(v, 57)}"/>`;
-  return `<svg class="q-dial-svg" viewBox="0 0 120 66" aria-hidden="true" focusable="false">
-      ${arc(0, lo - 0.6, 'z-bear')}${arc(lo + 0.6, hi - 0.6, 'z-mid')}${arc(hi + 0.6, 100, 'z-bull')}
-      ${tick(lo)}${tick(hi)}
-      <g class="q-dial-needle" data-at="${at}" style="transform:rotate(${(at * 1.8).toFixed(1)}deg)"><path d="M 60 60 L 16 60"/><circle cx="60" cy="60" r="4.2"/></g>
-    </svg>`;
-}
-
-// The needle turns from the last reading to this one (from the bearish end on
-// the first view); the confidence fill and the factor strip draw in once.
-function animateRegime(el, dir, conf, nFactors) {
-  if (!motionOK()) return;
-  const needle = el.querySelector('.q-dial-needle');
-  const at = needle ? Number(needle.dataset.at) : null;
-  const d = motionChanged('regime-dir', at);
-  if (needle && d.changed) {
-    const from = d.prev == null ? 0 : d.prev;
-    needle.animate([{ transform: `rotate(${(from * 1.8).toFixed(1)}deg)` }, { transform: `rotate(${(at * 1.8).toFixed(1)}deg)` }],
-      { duration: d.prev == null ? 900 : 600, easing: d.prev == null ? EASE_OUT : EASE_IN_OUT });
-  }
-  const c = motionChanged('regime-conf', conf.score);
-  const fill = el.querySelector('.q-gauge-fill');
-  if (fill && c.changed) fill.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 520, easing: EASE_OUT, delay: 120 });
-  const f = motionChanged('regime-strip', `${nFactors}:${(el.querySelector('.q-fstrip') || {}).innerHTML || ''}`);
-  if (f.changed) [...el.querySelectorAll('.q-fstrip i')].forEach((seg, i) => seg.animate(
-    [{ opacity: 0, transform: 'scaleY(0.3)' }, { opacity: 1, transform: 'scaleY(1)' }], { duration: 260, easing: EASE_OUT, delay: 200 + i * 35, fill: 'backwards' }));
-}
-
-// [PURE] The seven postures as one scale, Defensive to Offensive, with today's
-// stance marked and each step's base gross band in its tooltip.
-function postureScale(posture, bandText) {
-  const idx = POSTURE_LADDER.indexOf(posture);
-  if (idx < 0) return '';
-  const tone = ['bear-3', 'bear-2', 'bear-1', 'flat', 'bull-1', 'bull-2', 'bull-3'];
-  return `<div class="q-ladder" role="img" aria-label="${escapeHtml(`Stance ${posture}: step ${idx + 1} of 7 from Defensive to Offensive. Gross ${bandText}.`)}">
-      <div class="q-ladder-row">${POSTURE_LADDER.map((name, i) => `<i class="t-${tone[i]}${i === idx ? ' is-on' : ''}" title="${escapeHtml(`${name}: ${regimeExposure({ posture: name }).band} base`)}"></i>`).join('')}</div>
-      <b class="q-ladder-mk" data-idx="${idx}" style="left:${(((idx + 0.5) / 7) * 100).toFixed(2)}%"></b>
-      <div class="q-ladder-ends" aria-hidden="true"><span>Defensive</span><span>Offensive</span></div>
-    </div>`;
-}
-
-// [PURE] Where the direction score sits against the bearish and bullish cut-offs.
-function dirZone(dir) {
-  const lo = mkt('SIGNAL_SCORE_BEAR') * 10;
-  const hi = mkt('SIGNAL_SCORE_BULL') * 10;
-  if (dir.shown === '--' || !Number.isFinite(lo) || !Number.isFinite(hi)) return '';
-  const at = Math.max(0, Math.min(100, Math.round(dir.score10 * 10)));
-  return `<div class="q-zone" role="img" aria-label="${escapeHtml(`Direction ${at} of 100. ${fmtNumber(lo, 0)} or less reads bearish, ${fmtNumber(hi, 0)} or more bullish.`)}">
-      <i class="z-bear" style="width:${lo}%"></i><i class="z-bull" style="left:${hi}%;width:${100 - hi}%"></i><b style="left:${at}%"></b>
-      <span class="q-zone-t" style="left:${lo}%">${fmtNumber(lo, 0)}</span><span class="q-zone-t" style="left:${hi}%">${fmtNumber(hi, 0)}</span>
-    </div>`;
+  const day = (ymd) => sessionDay(ymd) || ymd;
+  if (age.sessions === 1 && age.prev) return `${posture} as of ${day(age.since)}, from ${age.prev}`;
+  if (age.all && age.sessions === 1) return `${posture} in the first recorded session, ${day(age.since)}`;
+  if (age.all) return `${posture} in all ${age.sessions} recorded sessions, since ${day(age.since)}`;
+  return `${posture} for ${age.sessions} sessions, since ${day(age.since)}`;
 }
 
 /* =========================================================================
-   ROW 1b — TODAY'S PLAYBOOK. Stance, exposure, sizing, what to prefer and
-   what to avoid — one label→value list, no pills.
+   THE BOARD. One instrument row, grouped by what each instrument measures:
+   equities, volatility, rates, commodities, crypto. Each cell charts its
+   instrument below; the chart head links to the tear sheet. The session the
+   prices belong to is said once, in the session bar.
    ========================================================================= */
-function renderPlaybook(market = {}, news = {}, intel = {}) {
-  const body = $('#allocator-body');
-  if (!body) return;
-  const model = computeRegimeModel(market, news, intel);
-  const exp = model.exposure;
-  const act = model.action;
-  const sb = strategistBrief(model);
-  const meta = $('#playbook-meta');
-  if (model.guidanceWithheld) {
-    // No exposure band, sizing or preference is derived from missing inputs.
-    const missing = (model.dataFreshness?.unmeasuredFactors || []).map((k) => String(k).replace(/_/g, ' '));
-    if (meta) { meta.textContent = 'Withheld'; meta.className = 'q-head-meta neutral'; }
-    body.innerHTML = `<div class="q-stack" data-guidance="withheld">
-      <div class="q-lede">
-        <span class="q-lede-v neutral">No playbook</span>
-        <span class="q-lede-k">market data incomplete</span>
-      </div>
-      <p class="q-note-block">The regime read rests on too few measured inputs to set exposure or sizing${missing.length ? ` (unmeasured: ${escapeHtml(missing.slice(0, 5).join(', '))})` : ''}. Stock-level Decisions still carry their own data checks.</p>
-    </div>`;
-    return;
-  }
-  // The engine publishes the band; with none, the page says so rather than inventing one.
-  const bandText = exp.band || 'No band published';
-  if (meta) { meta.textContent = bandText; meta.className = `q-head-meta ${exp.headlineTone}`; }
-  // A low-confidence, stale or conflicted read caps the posture's own band. Say
-  // so, with the band it replaced: "Lean Long" beside 30-55% read as a contradiction.
-  const norm = (b) => String(b || '').replace(/[\u2013\u2014]/g, '-').replace(/\s+/g, ' ').trim();
-  const baseBand = regimeExposure({ posture: model.posture }).band;
-  const capped = exp.band && baseBand && norm(exp.band) !== norm(baseBand);
-  const capWhy = model.dataFreshness?.stale ? 'while data is stale' : model.lowConfidence ? 'while confidence is low' : 'while signals conflict';
-  const capNote = capped ? `<span class="q-dl-note">Capped from ${escapeHtml(norm(baseBand))} ${capWhy}.</span>` : '';
-
-  body.innerHTML = `<div class="q-stack">
-    <div class="q-lede">
-      <span class="q-lede-v ${exp.headlineTone}">${escapeHtml(model.posture)}</span>
-      <span class="q-lede-k">portfolio stance</span>
-    </div>
-    ${postureScale(model.posture, bandText)}
-    ${capNote ? `<p class="q-cap-note">${capNote}</p>` : ''}
-    <dl class="q-dl">
-      <dt>Sizing</dt><dd>${escapeHtml(act.sizing)}</dd>
-      <dt>Prefer</dt><dd>${escapeHtml(sb.favored.text)}</dd>
-      <dt>Avoid</dt><dd>${escapeHtml(act.avoid)}</dd>
-      <dt>Risk rule</dt><dd>${escapeHtml(act.risk)}</dd>
-    </dl>
-  </div>`;
-  const mk = body.querySelector('.q-ladder-mk');
-  if (mk && motionOK()) {
-    const idx = Number(mk.dataset.idx);
-    const m = motionChanged('posture-idx', idx);
-    const row = body.querySelector('.q-ladder-row');
-    if (m.changed && m.prev != null && row) {
-      const step = row.getBoundingClientRect().width / 7;
-      mk.animate([{ transform: `translateX(${(m.prev - idx) * step}px)` }, { transform: 'translateX(0)' }], { duration: 600, easing: EASE_IN_OUT });
-    } else if (m.changed) {
-      mk.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 320, easing: EASE_OUT, delay: 250 });
-    }
-  }
-}
-
-/* =========================================================================
-   ROW 1c — RISK. Visible before execution (§13.11). Level, the live numbers
-   behind it, then the one risk that matters and both outlook triggers.
-   ========================================================================= */
-function renderRiskPanel(market = {}, news = {}, intel = {}) {
-  const body = $('#risk-body');
-  if (!body) return;
-  const model = computeRegimeModel(market, news, intel);
-  const sb = strategistBrief(model);
-  const vix = model.vix;
-  const newsGroups = news && news.groups;
-  const hi = newsGroups ? highImpactNews(newsGroups).length
-    : ((model.newsImpact && model.newsImpact.highImpactCount != null) ? model.newsImpact.highImpactCount : model.highImpact);
-
-  // Explicit, rule-based level so "risk" never reads as a price direction (§13.7).
-  // Every reason that raised the level is listed, and a calm VIX is named as
-  // calm: "Elevated" beside a VIX of 14 otherwise reads as a contradiction.
-  const vixStress = vix != null && vix >= mkt('VIX_STRESS');
-  const vixAbove = vix != null && vix >= mkt('VIX_CALM_MAX');
-  const newsHeavy = (hi || 0) >= mkt('HIGH_IMPACT_NEWS_WARN');
-  const defensive = model.posture === 'Defensive' || model.posture === 'Selective Defensive';
-  const reasons = [];
-  let level = 'Moderate', tone = 'warn';
-  if (model.guidanceWithheld) {
-    level = 'Unknown'; tone = 'neutral';
-  } else if (vixStress || defensive) {
-    level = 'High'; tone = 'bear';
-  } else if (vixAbove || model.lowConfidence || newsHeavy) {
-    level = 'Elevated'; tone = 'warn';
-  } else if (vix != null && vix < mkt('VIX_CONTAINED_MAX') && model.postureTone === 'bull') {
-    level = 'Contained'; tone = 'bull';
-  }
-  if (vixStress) reasons.push(`VIX ${fmtNumber(vix, 1)} is in the stress band, so ranges stop normal size on noise`);
-  else if (vixAbove) reasons.push(`VIX ${fmtNumber(vix, 1)} is above the calm band`);
-  if (defensive) reasons.push('the model is defensive');
-  if (model.lowConfidence) reasons.push(`model confidence is low${model.confidenceScore != null ? ` (${model.confidenceScore}%)` : ''}`);
-  if (newsHeavy) reasons.push(`${hi} high-impact headlines are live`);
-  const calm = vix != null && !vixAbove ? `Volatility itself is calm (VIX ${fmtNumber(vix, 1)}).` : '';
-  let why;
-  if (model.guidanceWithheld) why = 'Market inputs are missing, so the risk level cannot be measured. Unknown is not the same as calm.';
-  else if (reasons.length) { const r = reasons.join('; '); why = `${r.charAt(0).toUpperCase()}${r.slice(1)}.${calm ? ` ${calm}` : ''}`; }
-  else if (level === 'Contained') why = `VIX ${fmtNumber(vix, 1)} is calm and the factor model is aligned.`;
-  else why = 'Standard conditions: normal risk controls apply.';
-
-  const meta = $('#risk-meta');
-  if (meta) { meta.textContent = level; meta.className = `q-head-meta ${tone}`; }
-
-  // Event counts only: VIX and participation are in the ribbon and the
-  // participation panel. Each count names its universe.
-  const cell = (k, v, cls = '', sub = '') => `<div class="q-metric"><span class="q-metric-k">${escapeHtml(k)}</span><span class="q-metric-v ${cls}">${v}</span>${sub ? `<span class="q-metric-s">${escapeHtml(sub)}</span>` : ''}</div>`;
-  const metrics = [
-    cell('Earnings', model.earningsKnown ? String(model.earningsCount || 0) : '<span class="q-na">N/A</span>', '', earningsScopeShort(state.dashboard && state.dashboard.market_intel)),
-    cell('High-impact news', model.newsLive ? String(hi || 0) : '<span class="q-na">N/A</span>', '', 'headlines live now'),
-  ].join('');
-
-  const mainRisk = model.guidanceWithheld
-    ? 'Acting on a market read built from missing data.'
-    : (sb.riskHidden.text || (model.riskWarnings && model.riskWarnings[0]) || model.action.avoid);
-
-  // The level is stated once, in the panel head; the body gives its reasons.
-  const li = RISK_LEVELS.indexOf(level);
-  const meter = li < 0 ? '' : `<div class="q-riskm" role="img" aria-label="${escapeHtml(`Risk ${level}: level ${li + 1} of 4, Contained to High.`)}">
-      <div class="q-riskm-row">${RISK_LEVELS.map((name, i) => `<i class="r-${i}${i <= li ? ' is-on' : ''}" title="${name}"></i>`).join('')}</div>
-      <div class="q-riskm-ends" aria-hidden="true"><span>Contained</span><span>High</span></div>
-    </div>`;
-  body.innerHTML = `<div class="q-stack">
-    ${meter}
-    <p class="q-note-block">${escapeHtml(why)}</p>
-    <div class="q-metrics">${metrics}</div>
-    <div class="q-note-block"><b>Main risk</b>${escapeHtml(mainRisk)}</div>
-  </div>`;
-  if (li >= 0 && motionOK() && motionChanged('risk-level', li).changed) {
-    [...body.querySelectorAll('.q-riskm i.is-on')].forEach((seg, i) => seg.animate(
-      [{ opacity: 0.15, transform: 'scaleX(0.6)' }, { opacity: 1, transform: 'scaleX(1)' }], { duration: 240, easing: EASE_OUT, delay: 150 + i * 70, fill: 'backwards' }));
-  }
-}
-
-/* =========================================================================
-   ROW 2 — MARKET RIBBON. One row, one surface: indices, volatility, rates,
-   commodities, crypto, then breadth. Replaces the tile grid entirely.
-   ========================================================================= */
-function renderMarketPulse(market = {}) {
-  const el = $('#market-pulse');
-  if (!el) return;
-  const quotes = (market.quotes || []).filter((q) => q.price != null && Number.isFinite(Number(q.price)) && Number(q.price) > 0);
-  if (!quotes.length) {
-    el.innerHTML = '<div class="q-ribbon-empty">Market tape unavailable — <button class="q-btn q-btn--link" type="button" data-retry="dashboard">Retry</button></div>';
-    return;
-  }
-
-  // The session most quotes share is said once, under the row; a tile names
-  // its own session only when it differs (crypto, a currency that closed later).
-  const sessionOf = (q) => (isCryptoSymbol(q.symbol, q.label) ? '24-hour market' : quoteFreshness(q).session.replace(/ · regular session only$/, ''));
-  const tally = {};
-  quotes.forEach((q) => { const k = sessionOf(q); tally[k] = (tally[k] || 0) + 1; });
-  const common = Object.entries(tally).sort((a, b) => b[1] - a[1])[0][0];
-  const cells = quotes.map((q) => {
-    const sym = String(q.symbol || '');
-    const ch = Number(q.change_pct);
-    const hasCh = q.change_pct != null && Number.isFinite(ch);
-    // VIX is read inversely (a fall supports risk); the glyph keeps the real direction.
-    const inverse = isVolIndex(sym);
-    const sign = hasCh ? (ch > 0 ? 1 : ch < 0 ? -1 : 0) : 0;
-    const dir = !sign ? 'flat' : ((sign > 0) !== inverse ? 'bull' : 'bear');
-    const glyph = hasCh ? (ch > 0 ? '▲' : ch < 0 ? '▼' : '–') : '·';
-    const qf = quoteFreshness(q);
-    // Yields move in basis points: +0.25% of a 5.24% yield is about +1.3 bp.
-    const bp = isYield(sym, q.label) && hasCh ? yieldChangeBp(Number(q.price), ch) : null;
-    const chText = !hasCh ? 'N/A' : bp != null ? `${bp >= 0 ? '+' : '-'}${Math.abs(bp).toFixed(1)} bp` : fmtPct(ch, 2, false).replace('+', '');
-    // The session line names when the price was set; "regular session only" is
-    // said once, in the note under the ribbon. Crypto has no session close.
-    const sessionText = isCryptoSymbol(sym, q.label) ? '24-hour market' : qf.session.replace(/ · regular session only$/, '');
-    const ticker = normalizeTicker(sym);
-    const isIndex = sym.startsWith('^') || sym.includes('=');
-    const canAnalyze = isAnalyzableTicker(ticker) && !isIndex;
-    // An ETF standing in for an index trades at the ETF's price, not the
-    // index level ("S&P 500" at 767 is SPY). Name the instrument actually quoted.
-    const proxyTag = (!isIndex && q.label && sym && q.label.toUpperCase() !== sym.toUpperCase()
-      && !sym.includes('-'))
-      ? ` <span class="q-rb-proxy" title="Quoted via the ${escapeHtml(sym)} ETF">${escapeHtml(sym)}</span>` : '';
-    const tag = canAnalyze ? 'button' : 'div';
-    const attrs = canAnalyze
-      ? `type="button" class="q-rb is-clickable" data-ticker="${escapeHtml(ticker)}" title="Open the ${escapeHtml(ticker)} tear sheet · ${escapeHtml(qf.text)}"`
-      : `class="q-rb" title="${escapeHtml(qf.text)}"`;
-    return `<${tag} ${attrs}>
-      <span class="q-rb-k">${escapeHtml(q.label || sym)}${proxyTag}</span>
-      <span class="q-rb-v">${fmtNumber(q.price, q.price >= 1000 ? 0 : 2)}</span>
-      <span class="q-rb-c ${dir}"${inverse ? ' title="Lower volatility supports risk"' : ''}>${glyph} ${chText}</span>
-      ${q.stale ? '<span class="q-rb-read">Stale quote</span>' : ''}
-      <span class="q-rb-time${sessionText === common ? ' is-common' : ''}" title="${escapeHtml(qf.text || qf.session)}">${escapeHtml(sessionText)}</span>
-    </${tag}>`;
-  }).join('');
-
-  // Prices only. Index participation is not a price: it lives in the
-  // Participation & movers panel, once.
-
-  // One line for the whole ribbon: session time and retrieval time are different
-  // facts, and "updated just now" is only the second one.
-  const ribbonFresh = quoteFreshness(quotes[0]);
-  const note = `<p class="q-ribbon-note">Prices come from daily bars and can be delayed. ${escapeHtml(ribbonFresh.text)}. The topbar \u201cupdated\u201d time is when this page was fetched, not when the exchange traded.</p>`;
-  el.innerHTML = `<div class="q-ribbon-scroll">${cells}</div>${note}`;
-  $$('.q-rb.is-clickable', el).forEach((n) => n.addEventListener('click', () => openTickerTearSheet(n.dataset.ticker)));
-}
 
 // Overview price chart: the symbol the reader picked for this market, else the
-// first symbol of the market ribbon. Quick picks are the ribbon's own symbols.
+// first symbol of the board. The board's cells are the quick picks; the field
+// charts anything else.
 function renderOverviewChart(market = {}) {
   const body = $('#ovc-body');
   if (!body || typeof window === 'undefined' || !window.QuantaLiveChart) return;
@@ -4176,18 +5378,14 @@ function renderOverviewChart(market = {}) {
   let saved = null;
   try { saved = localStorage.getItem(key); } catch (_) { saved = null; }
   const symbol = String(saved || (quotes[0] && quotes[0].symbol) || '').toUpperCase();
-  const chips = $('#ovc-chips');
   const nameEl = $('#ovc-name');
   const openEl = $('#ovc-open');
   const mark = (sym) => {
-    $$('.ovc-chip', chips).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.symbol === sym)));
+    $$('#market-pulse .q-rb[data-symbol]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.symbol === sym)));
     const t = normalizeTicker(sym);
     const can = isAnalyzableTicker(t) && !sym.startsWith('^') && !sym.includes('=');
     if (openEl) { openEl.hidden = !can; openEl.dataset.ticker = t; }
   };
-  if (chips) {
-    chips.innerHTML = quotes.slice(0, 8).map((q) => `<button type="button" class="ovc-chip" data-symbol="${escapeHtml(String(q.symbol).toUpperCase())}" aria-pressed="false" title="${escapeHtml(q.label || q.symbol)}">${escapeHtml(q.label || q.symbol)}</button>`).join('');
-  }
   const pick = (sym) => {
     const clean = String(sym || '').trim().toUpperCase();
     if (!clean || !/^[A-Z0-9^.=&-]{1,32}$/.test(clean)) return;
@@ -4208,7 +5406,6 @@ function renderOverviewChart(market = {}) {
   mark(state.overviewChart.symbol || symbol);
   if (!body.dataset.wired) {
     body.dataset.wired = '1';
-    chips && chips.addEventListener('click', (ev) => { const b = ev.target.closest('.ovc-chip'); if (b) state.overviewChartPick(b.dataset.symbol); });
     const form = $('#ovc-form');
     form && form.addEventListener('submit', (ev) => {
       ev.preventDefault();
@@ -4219,6 +5416,7 @@ function renderOverviewChart(market = {}) {
     openEl && openEl.addEventListener('click', (ev) => { ev.preventDefault(); openTickerTearSheet(openEl.dataset.ticker); });
   }
 }
+
 
 /* =========================================================================
    ROW 3 — TOP OPPORTUNITIES. The execution core and the page's primary focal
@@ -4259,69 +5457,7 @@ function livePicks() {
   return state.picksSavedAt ? null : state.picks;
 }
 
-function renderOpportunityBrief(intel = {}) {
-  const body = $('#opportunity-brief-body');
-  if (!body) return;
-  const sub = $('#oppbrief-sub');
-  const picks = (livePicks()?.recommendations || []).filter(isFundedPick);
-  const sym = livePicks()?.currency || _currencySymbol();
-  const row = (ticker, name, right, rightCls, note) => `
-    <li class="q-oppbrief-row">
-      <button type="button" class="q-oppbrief-tick ticker-action" role="button" data-ticker="${escapeHtml(ticker)}" aria-label="Open ${escapeHtml(ticker)} tear sheet">
-        <b>${escapeHtml(ticker)}</b><span>${escapeHtml(companyName(name) || '')}</span>
-      </button>
-      <span class="q-oppbrief-note">${note}</span>
-      <span class="q-oppbrief-v ${rightCls}">${right}</span>
-    </li>`;
-  let html = '';
-  if (picks.length) {
-    if (sub) sub.textContent = `${picks.length} scan-qualified · QUANTA Decisions`;
-    html = picks.slice(0, 3).map((rec) => {
-      const t = normalizeTicker(rec.ticker || rec.symbol || '');
-      const am = actionMeta(rec);
-      const up = upsidePct(firstUsable(rec.price_target, rec.target_price), firstUsable(rec.entry_price, rec.current_price));
-      return row(t, rec.company || rec.name, upsideCell(up, 'to target', "Upside from entry to QUANTA's target"), 'quant',
-        `<span class="q-status-cell ${am.tone}"${am.qualifier ? ` title="${escapeHtml(am.qualifier)}"` : ''}>${escapeHtml(am.label)}</span>${am.qualifier ? modelFlagHtml(rec.decision.evidence || rec.evidence) : ''}`);
-    }).join('');
-  } else if ((intel.analyst_picks || []).length) {
-    const recs = livePicks()?.recommendations || [];
-    if (sub) sub.textContent = livePicks()
-      ? `No Buy or Accumulate call (${recs.length} Watchlist) · Street research candidates shown, not QUANTA setups`
-      : 'Analyst picks, not QUANTA setups until a scan runs';
-    const gapCheck = mkt('TARGET_GAP_CHECK_PCT');
-    const wideGap = (p) => { const u = numOrNull(p.upside_pct); return u != null && Number.isFinite(gapCheck) && u >= gapCheck; };
-    const ranked = [...intel.analyst_picks.filter((p) => !wideGap(p)), ...intel.analyst_picks.filter(wideGap)];
-    const shown = ranked.slice(0, 5);
-    const topUp = Math.max(...shown.map((p) => Math.abs(numOrNull(p.upside_pct) || 0)), 1);
-    html = shown.map((p) => {
-      const t = normalizeTicker(p.symbol || '');
-      const up = numOrNull(p.upside_pct);
-      const rating = streetRating(p.recommendation);
-      const price = numOrNull(p.price);
-      const target = numOrNull(p.target_mean);
-      const n = numOrNull(p.analyst_count);
-      // The evidence behind the number: price, mean target, how many analysts.
-      // A very wide gap is usually a stale target or a price that fell away.
-      const wide = up != null && up >= mkt('TARGET_GAP_CHECK_PCT');
-      const evidence = [price != null && target != null ? `${sym}${fmtNumber(price, 2)} → ${sym}${fmtNumber(target, 2)}` : null,
-        n != null ? `${n} analyst${n === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ');
-      void evidence;
-      return row(t, p.name, `${upsideCell(up, wide ? 'check: wide gap' : 'to Street target', wide ? 'A gap this wide is often a stale target or a price that fell away from it; check before relying on it.' : "Upside from today's price to the analysts' mean price target")}${up == null ? '' : `<span class="q-upbar" aria-hidden="true"><i style="--w:${Math.min(1, Math.abs(up) / topUp).toFixed(3)}"></i></span>`}`, wide ? 'warn' : '',
-        `<span class="q-oppbrief-ev">${rating === 'Rating unavailable' ? rating : `Street ${escapeHtml(rating)}`}</span>${price != null && target != null ? `<span class="q-oppbrief-ev">${escapeHtml(`${sym}${fmtNumber(price, 2)} → ${sym}${fmtNumber(target, 2)}`)}</span>` : ''}${n != null ? `<span class="q-oppbrief-ev">${n} analyst${n === 1 ? '' : 's'}</span>` : ''}`);
-    }).join('');
-  } else if (intel.loading) {
-    return;
-  } else {
-    if (sub) sub.textContent = 'Nothing ranked yet.';
-    body.innerHTML = `<div class="q-state q-state--inline"><strong class="q-state-title">No ranked ideas this session</strong>
-      <p class="q-state-body">Run a Picks scan to rank the universe under your mandate.</p>
-      <div class="q-state-actions"><a class="q-btn q-btn--primary" href="#picks" data-view-link="picks">Run a scan</a></div></div>`;
-    return;
-  }
-  body.innerHTML = `<ol class="q-oppbrief">${html}</ol>`;
-  growOnView(body, '.q-upbar i', 'opp-bars', html.length);
-  body.querySelectorAll('.q-oppbrief-tick').forEach((b) => b.addEventListener('click', () => openTickerTearSheet(b.dataset.ticker)));
-}
+
 
 // Wording for "why are QUANTA levels missing": never claim no scan ran when one did.
 function scanRanClause() {
@@ -4350,7 +5486,7 @@ function renderTopOpportunitiesBody(intel = {}) {
   if (funded.length) {
     const chaseCount = (livePicks()?.chase_alerts || []).length;
     const vetoCount = (livePicks()?.deep_confirmation?.rejected || []).length;
-    if (meta) meta.textContent = `${funded.length} qualified · ${scanned || '—'} scanned`;
+    if (meta) meta.textContent = `${funded.length} qualified · ${scanned || 0} scanned`;
 
     const head = `<tr>
       <th class="mid" style="width:34px">#</th>
@@ -4428,7 +5564,7 @@ function renderTopOpportunitiesBody(intel = {}) {
     }).join('');
 
     body.innerHTML = qTable(head, rows) +
-      `<p class="q-note"><strong>Screen candidates that passed every rule — not validated buy signals.</strong>
+      `<p class="q-note"><strong>Screen candidates that passed every rule, not validated buy signals.</strong>
         ${chaseCount} chase alert${chaseCount === 1 ? '' : 's'} · ${vetoCount} veto${vetoCount === 1 ? '' : 'es'} filtered out.
         Entry timing is not proven to beat random entry; confirm each name on its own tear sheet and size by risk.</p>`;
     wireExpandableRows(body);
@@ -4459,7 +5595,7 @@ function renderTopOpportunitiesBody(intel = {}) {
         </div>
         <div class="q-detail-sec">
           <h3>What is missing</h3>
-          <p>QUANTA entry, stop, target, reward-to-risk and position size are produced by the Picks scanner. They read N/A here because ${scanRanClause()} — they are not estimated.</p>
+          <p>QUANTA entry, stop, target, reward-to-risk and position size are produced by the Picks scanner. They read N/A here because ${scanRanClause()}; they are not estimated.</p>
         </div>
         <div class="q-detail-sec">
           <h3>Next step</h3>
@@ -4473,10 +5609,10 @@ function renderTopOpportunitiesBody(intel = {}) {
       return `<tr class="q-tr" data-expand="cons-${i}" tabindex="0" role="button" aria-expanded="false">
           <td class="mid q-rank">${i + 1}</td>
           <td>${qTickerCell(String(r.symbol || '').replace(/\.NS$/, ''), r.name || '')}</td>
-          <td>${escapeHtml(r.sector || '—')}</td>
+          <td>${escapeHtml(r.sector || 'N/A')}</td>
           <td class="num q-price">${fmtPrice(r.price, _currencySymbol())}</td>
           <td class="num gold">${fmtPrice(r.target_mean, _currencySymbol())}</td>
-          <td class="num">${up != null ? `<span class="q-chg ${up >= 0 ? 'bull' : 'bear'}">${fmtPct(up, 1, false)}</span>` : '<span class="q-na" title="Upside unavailable">Upside unavailable</span>'}</td>
+          <td class="num">${up != null ? `<span class="q-chg">${fmtPct(up, 1, false)}</span>` : '<span class="q-na" title="Upside unavailable">Upside unavailable</span>'}</td>
           <td class="num">${r.analyst_count || '<span class="q-na">N/A</span>'}</td>
           <td>${escapeHtml(normalizeRating(r.recommendation))}</td>
           <td>${qStatus('Research only', 'info')}</td>
@@ -4484,8 +5620,8 @@ function renderTopOpportunitiesBody(intel = {}) {
         </tr>
         <tr class="q-detail" data-detail="cons-${i}" hidden><td colspan="10">${detail}</td></tr>`;
     }).join('');
-    body.innerHTML = qTable(head, rows) +
-      `<p class="q-note"><strong>Analyst consensus, not a QUANTA setup.</strong> Entry, stop, reward-to-risk and position size are absent because ${scanRanClause()} — QUANTA does not estimate levels it has not computed. ${livePicks() ? 'Adjust the mandate or rerun the scan to look again.' : 'Run a scan to add them.'}</p>`;
+    body.innerHTML = qTable(head, rows, 'q-table--analyst') +
+      `<p class="q-note"><strong>Analyst consensus, not a QUANTA setup.</strong> Entry, stop, reward-to-risk and position size are absent because ${scanRanClause()}; QUANTA does not estimate levels it has not computed. ${Number(thr('MARKET.ANALYST_PICK_MIN_ANALYSTS')) > 0 && Number(thr('MARKET.ANALYST_PICK_MAX_UPSIDE_PCT')) > 0 ? `Listed: buy-rated names with at least ${escapeHtml(String(thr('MARKET.ANALYST_PICK_MIN_ANALYSTS')))} analysts and an upside up to ${escapeHtml(String(thr('MARKET.ANALYST_PICK_MAX_UPSIDE_PCT')))}%; a wider upside is usually a stale target. ` : ''}${livePicks() ? 'Adjust the mandate or rerun the scan to look again.' : 'Run a scan to add them.'}</p>`;
     wireExpandableRows(body);
     attachDashboardActionHandlers(body);
     return;
@@ -4497,14 +5633,15 @@ function renderTopOpportunitiesBody(intel = {}) {
     ['Too extended', 'far above moving averages'],
     ['Weak volume', 'no accumulation on the move'],
     ['Earnings risk', 'report inside the hold window'],
-    ['Poor reward-to-risk', 'stop/target below 2:1'],
+    ['Poor reward-to-risk', `below ${fmtRR(Math.max(Number(thr('RR.SCANNER_MIN')) || 0, Number(thr('RR.RESEARCH_MIN')) || 0))} after costs`],
     ['No clean base', 'no defined pivot to trade'],
     ['Stale data', 'inputs incomplete or delayed'],
   ];
   const scanDone = !!livePicks();
+  const savedShown = !scanDone && !!(state.picksSavedAt && state.picks);
   body.innerHTML = `<div class="q-empty">
     <strong>${scanned || scanDone ? 'No qualified setups' : 'No Picks scan yet'}</strong>
-    <p>${scanned ? `Scanned ${escapeHtml(String(scanned))} names — none cleared every entry gate.` : (scanDone ? 'The last Picks scan completed without qualified setups.' : 'No Picks scan has run this session.')}
+    <p>${scanned ? `Scanned ${escapeHtml(String(scanned))} names; none cleared every entry gate.` : (scanDone ? 'The last Picks scan completed without qualified setups.' : savedShown ? `No Picks scan has run this session. Picks is showing a saved scan from ${escapeHtml(savedScanAge(state.picksSavedAt) || 'earlier')}; its prices are not current, so it is not listed here.` : 'No Picks scan has run this session.')}
        ${intel.loading ? 'Analyst research is loading.' : intel.feed_timeout ? 'Analyst research is temporarily unavailable. You can retry the market feed or run a Picks scan.' : 'Run a Picks scan to evaluate entry criteria and position sizes.'}</p>
     <details class="q-disclose"><summary>Entry criteria</summary><ul class="q-empty-reasons">${reasons.map(([k, v]) => `<li><b>${escapeHtml(k)}</b><span>${escapeHtml(v)}</span></li>`).join('')}</ul></details>
     <div class="q-empty-actions">
@@ -4530,14 +5667,14 @@ function renderSignalCheck(market = {}, news = {}, intel = {}) {
   const factors = Array.isArray(model.factors) ? model.factors : [];
 
   if (!factors.length) {
-    body.innerHTML = '<div class="q-empty">Factor model is warming up — no signals to score yet.</div>';
+    body.innerHTML = '<div class="q-empty">Factor model is warming up: no signals to score yet.</div>';
     if (meta) meta.textContent = 'Warming up';
     return;
   }
 
   const counts = signalCheckCounts(model);
   const al = model.alignment || {};
-  if (meta) meta.textContent = `${model.count} factors`;
+  if (meta) meta.textContent = `${counts.confirmed} support, ${counts.neutral} neutral, ${counts.warning + counts.opposed} against`;
 
   // Honest rescale: each factor scores -2..+2, so the sum maps linearly onto
   // 0-100 (directionScore). A rescaled sum of placeholder zeros is not a
@@ -4587,185 +5724,11 @@ function renderSignalCheck(market = {}, news = {}, intel = {}) {
 }
 
 /* =========================================================================
-   ROW 4b — MARKET DRIVERS. Ranked forces on the tape: what it is, what it
-   means, what to do. Strictly the engine's own drivers.
+   LARGEST MOVERS. The screened universe's biggest gains and losses, each bar
+   drawn against the largest move, dated to the session it came from. A sample
+   of the tape, never market breadth: the top gainers beside the top losers
+   always split evenly, so no up/down share is drawn from them.
    ========================================================================= */
-function renderMarketDrivers(market = {}, news = {}, intel = {}) {
-  const body = $('#market-drivers-body');
-  if (!body) return;
-  const meta = $('#market-drivers-meta');
-  const model = computeRegimeModel(market, news, intel);
-  const drivers = Array.isArray(model.marketDrivers) ? model.marketDrivers.slice(0, 5) : [];
-  const ni = model.newsImpact || {};
-  const { label: netLabel, tone: netTone } = newsTiltRead({ newsImpact: ni, newsFeedsLive: model.newsLive });
-
-  if (!drivers.length) {
-    if (meta) meta.textContent = 'Quiet tape';
-    body.innerHTML = `<div class="q-empty">
-      <strong>${escapeHtml(netLabel)}: no single story is steering the market</strong>
-      <p>Let the factor model lead: trend, breadth and volatility decide the posture. Keep position size measured until a driver emerges.</p>
-    </div>`;
-    return;
-  }
-
-  if (meta) meta.textContent = `${drivers.length} active`;
-  const arrow = (dir) => ({ bullish: QIco.up, bearish: QIco.down }[String(dir || '').toLowerCase()] || QIco.flat);
-  const toneFor = (dir) => ({ bullish: 'bull', bearish: 'bear', mixed: 'warn' }[String(dir || '').toLowerCase()] || 'neutral');
-  const dirLabel = (dir) => ({ bullish: 'Bullish', bearish: 'Bearish', mixed: 'Mixed' }[String(dir || '').toLowerCase()] || 'Neutral');
-
-  const rows = drivers.map((d) => {
-    const tone = toneFor(d.direction);
-    const rawMeaning = String(d.marketMeaning || '').trim();
-    const meaning = (!rawMeaning || /^watch the tape/i.test(rawMeaning))
-      ? newsMeaning({ category: d.category, impact: d.impactLevel === 'High' ? mkt('NEWS_IMPACT_HIGH') : mkt('NEWS_IMPACT_MEDIUM') })
-      : rawMeaning;
-    const title = String(d.title || '').slice(0, 130);
-    const titleHtml = safeUrl(d.url)
-      ? `<a class="q-driver-t" href="${escapeHtml(safeUrl(d.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>`
-      : `<span class="q-driver-t">${escapeHtml(title)}</span>`;
-    return `<article class="q-driver ${tone}">
-      <span class="q-driver-ico">${arrow(d.direction)}</span>
-      <div>
-        ${titleHtml}
-        <div class="q-driver-m">
-          <span>${escapeHtml(String(d.category || 'Market').toUpperCase())}</span>
-          <span class="${d.impactLevel === 'High' ? 'hi' : ''}">${escapeHtml(String(d.impactLevel || 'High').toUpperCase())} IMPACT</span>
-          <span>${escapeHtml(dirLabel(d.direction).toUpperCase())}</span>
-        </div>
-        <div class="q-driver-x">
-          <span><i>Means</i>${escapeHtml(meaning)}</span>
-          <span><i>Do</i>${escapeHtml(driverTraderResponse(d))}</span>
-        </div>
-      </div>
-    </article>`;
-  }).join('');
-
-  const summary = model.newsImpactSummary
-    ? `<p class="q-note">${escapeHtml(model.newsImpactSummary)}</p>`
-    : '';
-  body.innerHTML = `<div class="q-driver-bal">
-      <strong class="${netTone}">${escapeHtml(netLabel)}</strong>
-      <span><b>${ni.bullishHighImpact || 0}</b> bullish · <b>${ni.bearishHighImpact || 0}</b> bearish · <b>${ni.highImpactCount || drivers.length}</b> high-impact</span>
-    </div>${rows}${summary}`;
-}
-
-/* =========================================================================
-   ROW 5a — BREADTH & SECTOR CONTEXT. Only measurements the backend actually
-   returns: index participation, the mover feed's advance/decline split, and
-   the sector mix of those movers (labelled as such, never as market breadth).
-   ========================================================================= */
-function renderBreadthPanel(market = {}, intel = {}) {
-  const body = $('#breadth-body');
-  if (!body) return;
-  const meta = $('#breadth-meta');
-  const part = firstUsable(market.participation_pct);
-  const detail = market.participation || null;
-  const members = (detail && Array.isArray(detail.members)) ? detail.members : [];
-  const ctx = marketContext();
-  const sectors = ((ctx && ctx.sectors) || []).filter((x) => x.above_sma50 != null);
-
-  // An uptrend here is one rule: the fund trades above its 50-day average.
-  const idxUp = members.filter((m) => m.above).length;
-  const secUp = sectors.filter((x) => x.above_sma50).length;
-  const total = members.length + sectors.length;
-  const share = total ? ((idxUp + secUp) / total) * 100 : part;
-  const verdict = share == null ? null : share >= mkt('PARTICIPATION_BROAD_PCT') ? { w: 'Broad', t: 'bull' } : share <= mkt('PARTICIPATION_WEAK_PCT') ? { w: 'Narrow', t: 'bear' } : { w: 'Mixed', t: 'warn' };
-  if (meta) {
-    meta.textContent = verdict ? `${verdict.w}: ${total ? `${idxUp + secUp} of ${total}` : `${fmtNumber(part, 0)}%`} in uptrends` : 'Limited';
-    meta.className = `q-head-meta ${verdict ? verdict.t : ''}`;
-  }
-
-  const fallbackFrac = detail && detail.measured ? `${detail.above} of ${detail.measured}` : (part == null ? 'N/A' : `${part}%`);
-  const indices = `<section class="q-pt-sec">
-      <h3 class="q-pt-h">Major indices <span>${members.length ? `${idxUp} of ${members.length} in uptrends` : `${escapeHtml(fallbackFrac)} benchmarks above their 50-day average`}</span></h3>
-      ${members.length ? `<ul class="q-pt-idx">${members.map((m) => `<li class="${m.above ? 'is-up' : ''}" title="${escapeHtml(m.symbol)}"><b>${escapeHtml(m.label || m.symbol)}</b><span>${m.above ? 'Uptrend' : 'Below 50-day'}</span></li>`).join('')}</ul>` : ''}
-    </section>`;
-
-  const sorted = sectors.slice().sort((a, b) => (b.above_sma50 ? 1 : 0) - (a.above_sma50 ? 1 : 0) || (b.change_pct || 0) - (a.change_pct || 0));
-  const upNames = sorted.filter((x) => x.above_sma50).map((x) => x.label);
-  const sectorHtml = sectors.length ? `<section class="q-pt-sec">
-      <h3 class="q-pt-h">Sectors <span>${secUp} of ${sectors.length} in uptrends</span></h3>
-      <div class="q-pt-meter" role="img" aria-label="${escapeHtml(`${secUp} of ${sectors.length} sector funds above their 50-day average${upNames.length ? `: ${upNames.join(', ')}` : ''}`)}">${sorted.map((x) => `<i class="${x.above_sma50 ? 'is-up' : ''}" title="${escapeHtml(`${x.label}: ${x.above_sma50 ? 'above' : 'below'} its 50-day average`)}"></i>`).join('')}</div>
-      <p class="q-pt-note">${upNames.length ? `In uptrends: ${escapeHtml(upNames.join(', '))}.` : 'No sector fund is above its 50-day average.'}</p>
-    </section>` : '';
-
-  const movers = [...(intel.movers_up || []), ...(intel.movers_down || [])].filter((m) => numOrNull(m.change_pct) != null);
-  let moverHtml = '';
-  if (movers.length) {
-    const up = movers.filter((m) => Number(m.change_pct) > 0).sort((a, b) => b.change_pct - a.change_pct);
-    const dn = movers.filter((m) => Number(m.change_pct) < 0).sort((a, b) => a.change_pct - b.change_pct);
-    const fl = movers.length - up.length - dn.length;
-    const pct = (k) => ((k / movers.length) * 100).toFixed(1);
-    const top = Math.max(...movers.map((m) => Math.abs(Number(m.change_pct))), 1);
-    const chips = (list) => (list.length ? `<ol class="q-pt-list">${list.slice(0, 5).map((m) => `<li><b class="hp-sym" title="${escapeHtml(m.symbol)}">${escapeHtml(shownSymbol(m.symbol))}</b><span class="q-pt-bar"><i class="${m.change_pct > 0 ? 'up' : 'dn'}" style="width:${((Math.abs(m.change_pct) / top) * 100).toFixed(1)}%"></i></span><span class="${m.change_pct > 0 ? 'bull' : 'bear'}">${fmtPct(m.change_pct, 1, false)}</span></li>`).join('')}</ol>` : '<span class="muted">None</span>');
-    moverHtml = `<section class="q-pt-sec">
-        <h3 class="q-pt-h">Today's biggest movers <span>${up.length} up, ${dn.length} down</span></h3>
-        <div class="q-breadth-bar" role="img" aria-label="${up.length} of the ${movers.length} biggest movers rose, ${dn.length} fell${fl ? `, ${fl} flat` : ''}">
-          <i class="up" style="width:${pct(up.length)}%"></i><i class="fl" style="width:${pct(fl)}%"></i><i class="dn" style="width:${pct(dn.length)}%"></i>
-        </div>
-        <div class="q-pt-movers"><div><span class="q-pt-k">Top gainers</span>${chips(up)}</div><div><span class="q-pt-k">Top losers</span>${chips(dn)}</div></div>
-        <p class="q-pt-note">The day's ${movers.length} largest moves: a sample, not the whole market.</p>
-      </section>`;
-  }
-  void sectorHtml;
-  body.innerHTML = `<div class="q-pt">${indices}${moverHtml}</div>`;
-}
-
-/* =========================================================================
-   ROW 5b — UPCOMING CATALYSTS. Dated, scheduled events only. Breaking macro
-   lives in Market Intelligence; repeating it here would be a third copy.
-   ========================================================================= */
-function renderCatalystCalendar(intel = {}, news = {}) {
-  const body = $('#event-risk-body');
-  if (!body) return;
-  const meta = $('#event-risk-meta');
-  const earnings = (intel.earnings_week || []).slice(0, 8);
-
-  const allN = Math.max(earnings.length, earningsAhead(intel));
-  if (meta) meta.textContent = earnings.length ? `${allN > earnings.length ? `${earnings.length} of ${allN}` : earnings.length} scheduled` : '7 calendar days';
-  const tabCount = $('#event-risk-count');
-  if (tabCount) tabCount.textContent = earnings.length ? String(Math.max(earnings.length, earningsAhead(intel))) : '';
-
-  if (!earnings.length) {
-    body.innerHTML = `<div class="q-empty">
-      <strong>No earnings dates returned</strong>
-      <p>The current feed has no scheduled earnings in the next 7 calendar days. This does not rule out macro events or unreported company dates; check the calendar before entering.</p>
-    </div>`;
-    return;
-  }
-
-  const dayLabel = (d) => (d <= 0 ? 'Today' : d === 1 ? 'Tomorrow' : `In ${d}d`);
-  const head = `<tr><th>When</th><th>Event</th><th>Affected</th><th>Category</th><th>Impact</th><th style="width:22px"></th></tr>`;
-  const rows = earnings.map((r, i) => {
-    const ticker = normalizeTicker(r.symbol || '');
-    if (ticker) state.shownSymbols.add(ticker);
-    const d = Number(r.earnings_in_days);
-    const tone = d <= 1 ? 'bear' : d <= 3 ? 'warn' : 'neutral';
-    const detail = `<div class="q-detail-in">
-      <div class="q-detail-sec">
-        <h3>Why it matters</h3>
-        <p>${escapeHtml(ticker)} reports on ${escapeHtml(r.earnings_date_pretty || 'the scheduled date')}. Watch the gap and the guidance, not the print alone — size below normal into the event.</p>
-      </div>
-      <div class="q-detail-sec">
-        <h3>Context</h3>
-        <p>${escapeHtml(r.name || ticker)}${r.sector ? ` · ${escapeHtml(r.sector)}` : ''}${r.price != null ? ` · last ${escapeHtml(fmtPrice(r.price, _currencySymbol()))}` : ''}</p>
-        <div class="q-detail-actions"><button type="button" class="q-btn" data-ticker-open="${escapeHtml(ticker)}">Open tear sheet</button></div>
-      </div>
-    </div>`;
-    return `<tr class="q-tr" data-expand="cal-${i}" tabindex="0" role="button" aria-expanded="false">
-        <td>${qStatus(dayLabel(d), tone)}</td>
-        <td><span class="q-tick-s">${escapeHtml(ticker)}</span> earnings</td>
-        <td class="q-tick-n">${escapeHtml(r.name || r.sector || '—')}</td>
-        <td>EARNINGS</td>
-        <td>${d <= 1 ? 'High' : 'Medium'}</td>
-        <td class="mid"><span class="q-caret" aria-hidden="true"></span></td>
-      </tr>
-      <tr class="q-detail" data-detail="cal-${i}" hidden><td colspan="6">${detail}</td></tr>`;
-  }).join('');
-
-  body.innerHTML = qTable(head, rows);
-  wireExpandableRows(body);
-}
 
 /* =========================================================================
    TOP GAINERS & LOSERS — the raw tape, in exchange-board form.
@@ -4898,7 +5861,8 @@ function boardTable(side, rows, sym, caption) {
     const url = tradingViewUrl(r.symbol, r.exchange);
     const abs = firstUsable(r.change_abs, q.changeAbs);
     const deltaBits = [
-      abs != null ? `${abs >= 0 ? '+' : '−'}${fmtPrice(Math.abs(abs), sym)}` : null,
+      // The change takes the price's precision: -$0.87 on a $12 stock, never -$0.8700.
+      abs != null ? `${abs >= 0 ? '+' : '−'}${fmtPrice(Math.abs(abs), sym, q.ltp != null && Math.abs(q.ltp) < 1 ? 4 : 2)}` : null,
       Number.isFinite(chg) ? `${chg >= 0 ? '+' : ''}${fmtNumber(chg, 2)}%` : null,
     ].filter(Boolean).join('  ');
     const cell = (v) => (v == null ? '<span class="q-na">N/A</span>' : escapeHtml(fmtPrice(v, sym)));
@@ -5111,8 +6075,8 @@ function renderSetupStatusCard(intel = {}) {
     body.innerHTML = `<div class="q-empty">
       <strong>No scanner vetoes on record</strong>
       <p>${inferredChase.length
-        ? `${inferredChase.length} name${inferredChase.length === 1 ? '' : 's'} on today's board already moved too far to chase. Per-name vetoes — analyzer disagreements and entry-quality fails — appear here after a Picks scan.`
-        : 'Run a Picks scan to populate the per-name veto queue — analyzer disagreements, entry-quality fails and chase alerts.'}</p>
+        ? `${inferredChase.length} name${inferredChase.length === 1 ? '' : 's'} on today's board already moved too far to chase. Per-name vetoes (analyzer disagreements and entry-quality fails) appear here after a Picks scan.`
+        : 'Run a Picks scan to populate the per-name veto queue: analyzer disagreements, entry-quality fails and chase alerts.'}</p>
       <div class="q-empty-actions"><button type="button" class="q-btn" data-jump-view="picks">Run Picks scan</button></div>
     </div>`;
     attachDashboardActionHandlers(body);
@@ -5124,7 +6088,7 @@ function renderSetupStatusCard(intel = {}) {
   const rowsHtml = rows.map((r) => {
     const ticker = normalizeTicker(r.ticker || '');
     return `<tr class="q-tr" data-ticker-open="${escapeHtml(ticker)}" tabindex="0" role="button">
-      <td><span class="q-tick-s">${escapeHtml(ticker || '—')}</span></td>
+      <td><span class="q-tick-s">${escapeHtml(ticker || 'N/A')}</span></td>
       <td>${qStatus(r.flag, r.tone)}${r.metric ? ` <span class="q-tick-n">${escapeHtml(r.metric)}</span>` : ''}</td>
       <td>${escapeHtml(r.reason)}</td>
       <td class="q-tick-n">${escapeHtml(r.revalidate)}</td>
@@ -5139,107 +6103,6 @@ function renderSetupStatusCard(intel = {}) {
    ROW 7 — MARKET INTELLIGENCE. Ranked headlines with interpretation, led by
    the live impact chain. Not a headline dump.
    ========================================================================= */
-function renderNews(groups) {
-  updateNewsTabCounts(groups);
-  const group = state.newsGroup;
-  const preferred = group === 'high-impact'
-    ? highImpactNews(groups)
-    : dedupeNewsItems(Array.isArray(groups[group]) ? groups[group] : []).filter(isTradeRelevantNews);
-  const fetched = Number(state.dashboard?.news?.fetched_count || 0);
-  const fallback = fetched === 0
-    ? ([groups.big_news, groups.latest, state.dashboard?.news?.articles].find((items) => Array.isArray(items) && items.length) || [])
-    : [];
-  // Market Drivers already carries the top stories with Means/Do — exclude
-  // them so this section is "the rest of the tape", not a second copy.
-  const engineDrivers = (state.dashboard?.market?.market_regime_engine?.marketDrivers) || [];
-  const driverKeys = new Set(engineDrivers.map((d) => String(d.url || d.title || '').trim().toLowerCase()).filter(Boolean));
-  const basePool = preferred.length ? preferred : fallback;
-  const deduped = driverKeys.size
-    ? basePool.filter((it) => !driverKeys.has(String(it.url || it.title || it.headline || '').trim().toLowerCase()))
-    : basePool;
-  // Relevance first, then the newest within it: a day-old item no longer sits
-  // above an hour-old one of the same relevance.
-  const rank = { high: 2, med: 1, low: 0 };
-  const ts = (it) => { const t = new Date(it.published || 0).getTime(); return Number.isFinite(t) ? t : 0; };
-  const items = (deduped.length >= 3 ? deduped : basePool)
-    .map((it, i) => ({ it, i, r: rank[newsImpactLevel(effectiveNewsImpact(it))] || 0, t: ts(it) }))
-    .sort((a, b) => (b.r - a.r) || (b.t - a.t) || (a.i - b.i))
-    .map((x) => x.it)
-    .slice(0, 12);
-
-  const meta = $('#news-meta');
-  // The fetch total, before de-duplication and the relevance filter, so it is
-  // labelled as such and not read as the sum of the tab counts.
-  if (meta) meta.textContent = fetched ? `${fetched} fetched` : 'Sources';
-
-  const bodyEl = $('#news-body');
-  if (!bodyEl) return;
-
-  if (!items.length) {
-    const sources = (state.dashboard?.news?.sources || []).slice(0, 4);
-    const groupLabel = group === 'high-impact' ? 'high-impact' : titleLabel(group);
-    const feedStatus = state.dashboard?.news?.source_status || [];
-    const feedsDown = feedStatus.length > 0 && !feedStatus.some((f) => f && f.ok);
-    const emptyTitle = feedsDown ? 'News feeds unreachable'
-      : (group === 'earnings' ? 'No near-term earnings headlines' : `No ${groupLabel} headlines detected`);
-    const emptyText = feedsDown
-      ? 'None of the news sources answered, so headline risk is unknown — not quiet.'
-      : (fetched ? `The source ledger is active, but no relevant ${groupLabel} catalysts were found this cycle.` : 'No relevant catalysts were found in the articles fetched.');
-    bodyEl.innerHTML = `<div class="q-empty"${feedsDown ? ' data-news-state="unreachable"' : ''}>
-      <strong>${escapeHtml(emptyTitle)}</strong>
-      <p>${escapeHtml(emptyText)}</p>
-      <div class="q-empty-actions">
-        <button class="q-btn" type="button" id="retry-news-refresh">Refresh feeds</button>
-        ${sources.map((s) => (safeUrl(s.url) ? `<a class="q-btn" href="${escapeHtml(safeUrl(s.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.name || '')}</a>` : '')).join('')}
-      </div>
-    </div>`;
-    $('#retry-news-refresh')?.addEventListener('click', () => loadDashboard(true));
-    return;
-  }
-
-  // The impact chain leads the What changed panel; it is not repeated here.
-  const chainHtml = '';
-
-  const VISIBLE = 3;
-  const itemsHtml = items.map((item, idx) => {
-    const impact = effectiveNewsImpact(item);
-    const relClass = newsImpactLevel(impact);
-    const relLabel = { high: 'High', med: 'Med', low: 'Low' }[relClass];
-    const time = formatRelativeTime(item.published);
-    const label = item.catalyst_label || titleLabel(item.category || group);
-    const ticker = relatedTickerFromHeadline(item);
-    const hidden = idx >= VISIBLE ? ' hidden' : '';
-    return `<a class="q-news q-news-extra-${idx >= VISIBLE ? '1' : '0'}" href="${escapeHtml(safeUrl(item.url) || '#')}" target="_blank" rel="noopener noreferrer"${hidden}>
-      <span class="q-news-rel ${relClass}" title="Keyword relevance, not a measured market-impact score">
-        <b>${relLabel}</b><i>relevance</i>
-      </span>
-      <span>
-        <span class="q-news-h">${escapeHtml(cleanHeadline(item.title || item.headline || ''))}</span>
-        <span class="q-news-m">
-          <span class="cat">${escapeHtml(String(label).toUpperCase())}</span>
-          ${ticker ? `<span class="tkr">${escapeHtml(ticker)}</span>` : ''}
-          <span>${escapeHtml(item.source || '')}</span>
-          ${time ? `<span>${escapeHtml(time)}</span>` : ''}
-          ${!preferred.length ? '<span>Fallback feed</span>' : ''}
-        </span>
-        <span class="q-news-x">
-          <span><i>Means</i>${escapeHtml(newsMeaning(item))}</span>
-        </span>
-      </span>
-    </a>`;
-  }).join('');
-
-  const extra = Math.max(0, items.length - VISIBLE);
-  bodyEl.innerHTML = chainHtml + itemsHtml
-    + (extra ? `<button type="button" class="q-more" id="news-view-more">Show ${extra} more ${extra === 1 ? 'headline' : 'headlines'}</button>` : '');
-  const moreBtn = $('#news-view-more');
-  if (moreBtn) {
-    moreBtn.addEventListener('click', () => {
-      $$('.q-news-extra-1', bodyEl).forEach((el) => el.removeAttribute('hidden'));
-      moreBtn.remove();
-    });
-  }
-}
 
 /* =========================================================================
    DATA HEALTH — the trust indicator lives in the top bar (X). The chip shows
@@ -5290,7 +6153,7 @@ function renderSourceLedger(news) {
 
   const down = feeds.length - live;
   const warn = ratio < 0.8
-    ? `<div class="q-src-warn">${down} of ${feeds.length} feed${feeds.length === 1 ? '' : 's'} not live — headline coverage is partial. Prices are unaffected.</div>`
+    ? `<div class="q-src-warn">${down} of ${feeds.length} feed${feeds.length === 1 ? '' : 's'} not live, so headline coverage is partial. Prices are unaffected.</div>`
     : '';
   body.innerHTML = `
     <div class="q-src-head">
@@ -5356,7 +6219,7 @@ function renderRegimeDebugPanel(market = {}, news = {}, intel = {}) {
       </div>
       <div class="cc-debug-col">
         <h4>Raw inputs</h4>
-        ${Object.keys(raw).map((k) => row(k, raw[k] == null ? '—' : raw[k])).join('') || '<em>none</em>'}
+        ${Object.keys(raw).map((k) => row(k, raw[k] == null ? 'N/A' : raw[k])).join('') || '<em>none</em>'}
         ${row('News net', dbg.newsNetDirection || 'n/a')}
         ${row('News high-impact', dbg.newsHighImpact != null ? dbg.newsHighImpact : 0)}
         ${row('Stale', dbg.stale ? 'YES' : 'no')}
@@ -5364,7 +6227,7 @@ function renderRegimeDebugPanel(market = {}, news = {}, intel = {}) {
       </div>
       <div class="cc-debug-col">
         <h4>Overrides fired (${overrides.length})</h4>
-        ${overrides.length ? overrides.map((o) => `<div class="cc-debug-flag">${escapeHtml(o)}</div>`).join('') : '<em>none — score-driven</em>'}
+        ${overrides.length ? overrides.map((o) => `<div class="cc-debug-flag">${escapeHtml(o)}</div>`).join('') : '<em>none: score-driven</em>'}
         <h4 style="margin-top:10px">Risk warnings (${warnings.length})</h4>
         ${warnings.length ? warnings.map((w) => `<div class="cc-debug-warn">${escapeHtml(w)}</div>`).join('') : '<em>none</em>'}
       </div>
@@ -5480,48 +6343,6 @@ function companyName(name) {
 
 // [PURE] A listing's symbol without its exchange suffix (RELIANCE.NS -> RELIANCE).
 const shownSymbol = (sym) => String(sym || '').replace(/\.(NS|BO)$/i, '');
-// [PURE] The market's index quotes: the participation members when known,
-// else every quote that is not volatility, a yield, crypto, a currency or a commodity.
-function indexQuotes(market = {}) {
-  const quotes = (market.quotes || []).filter((q) => numOrNull(q.change_pct) != null);
-  const members = ((market.participation || {}).members || []).map((m) => String(m.symbol || '').toUpperCase());
-  if (members.length) return members.map((sym) => quotes.find((q) => String(q.symbol || '').toUpperCase() === sym)).filter(Boolean);
-  return quotes.filter((q) => !isVolIndex(q.symbol) && !isYield(q.symbol, q.label) && !isCryptoSymbol(q.symbol, q.label)
-    && !/gold|oil|crude|\/|=x$/i.test(`${q.label || ''} ${q.symbol || ''}`)).slice(0, 4);
-}
-// [PURE] The price story for a market without the US index funds: the same
-// tests, on the market's own indices and its volatility index.
-function indexChain(market = {}) {
-  const idx = indexQuotes(market).map((q) => ({ label: q.label || q.symbol, ch: Number(q.change_pct) }));
-  if (idx.length < 2) return null;
-  const spread = Number(thr('MARKET.CHAIN_LEADERSHIP_SPREAD_PCT'));
-  const vol = (market.quotes || []).find((q) => isVolIndex(q.symbol) && numOrNull(q.change_pct) != null);
-  const volCh = vol ? Number(vol.change_pct) : null;
-  const up = idx.every((x) => x.ch > 0);
-  const dn = idx.every((x) => x.ch < 0);
-  const sorted = idx.slice().sort((a, b) => b.ch - a.ch);
-  const lead = up ? sorted[0] : dn ? sorted[sorted.length - 1] : null;
-  const even = sorted[0].ch - sorted[sorted.length - 1].ch < spread;
-  const chain = up || dn ? {
-    label: `${up ? 'Broad advance' : 'Broad decline'}${!even && lead ? `, led by ${lead.label}` : ''}`,
-    links: [
-      { step: up ? 'Indices rise together' : 'Indices fall together', check: true },
-      { step: 'No clear leadership', check: even },
-      { step: up ? 'Volatility eases' : 'Volatility rises', check: volCh != null && (up ? volCh < 0 : volCh > 0) },
-    ],
-  } : {
-    label: 'Mixed tape',
-    links: [
-      { step: 'Indices split', check: true },
-      { step: 'No clear leadership', check: even },
-      { step: 'Volatility steady', check: volCh != null && Math.abs(volCh) < spread * 2 },
-    ],
-  };
-  chain.confirmed = chain.links.filter((l) => l.check).length;
-  chain.total = chain.links.length;
-  chain.verified = chain.confirmed >= Math.ceil(chain.total * Number(thr('MARKET.CHAIN_CONFIRM_SHARE')));
-  return chain;
-}
 
 // [PURE] An index's name from the ribbon's own quotes; the symbol otherwise.
 function indexName(sym, market = {}) {
@@ -5535,21 +6356,21 @@ function factorWord(v) {
   return w ? w[0].toUpperCase() + w.slice(1) : '';
 }
 
-// [PURE] Live conditions against the model's own thresholds: what would make
-// the read stronger, and what would weaken it. A condition whose input or
-// threshold is missing is left out rather than shown as met or unmet.
+// [PURE] Live market conditions against the model's own thresholds: what would
+// make the read stronger, and what would weaken it. Only market inputs: the
+// model's own confidence and direction score are its outputs, so "the call
+// changes if the score changes" is never listed as a condition. A condition
+// whose input or threshold is missing is left out rather than shown as met.
 function regimeTriggers(model = {}, levels = {}, part = null, benchName = null) {
   const vix = numOrNull(model.vix);
   const pct = numOrNull(model.breadth);
-  const conf = numOrNull(model.confidenceScore);
-  const dir = directionScore(model);
   const last = numOrNull(levels.last);
   const s50 = numOrNull(levels.sma50);
   const s200 = numOrNull(levels.sma200);
   const dist = (ma) => (last != null && ma ? ((last / ma) - 1) * 100 : null);
   const t = {
     contained: mkt('VIX_CONTAINED_MAX'), stress: mkt('VIX_STRESS'), broad: mkt('PARTICIPATION_BROAD_PCT'),
-    weak: mkt('PARTICIPATION_WEAK_PCT'), confMod: mkt('CONFIDENCE_MODERATE'), bull: mkt('SIGNAL_SCORE_BULL') * 10,
+    weak: mkt('PARTICIPATION_WEAK_PCT'),
   };
   const bench = benchName || levels.symbol || 'The benchmark';
   // Index participation as a count of funds when the count is known: "3 of 4".
@@ -5564,38 +6385,15 @@ function regimeTriggers(model = {}, levels = {}, part = null, benchName = null) 
   const strengthen = [
     row(vix != null && Number.isFinite(t.contained), `VIX below ${fmtNumber(t.contained, 0)}`, `${fmtNumber(vix, 1)} now`, vix < t.contained),
     row(pct != null && Number.isFinite(t.broad), partLabel(t.broad, true), partNow, pct >= t.broad),
-    row(dist(s50) != null, `${bench} above its 50-day average`, `${fmtPct(dist(s50), 1, false)} from it`, dist(s50) > 0),
-    row(conf != null && Number.isFinite(t.confMod), `Confidence ${fmtNumber(t.confMod, 0)} or more`, `${fmtNumber(conf, 0)} now`, conf >= t.confMod),
-    row(dir.shown !== '--' && Number.isFinite(t.bull), `Direction score ${fmtNumber(t.bull, 0)} or more`, `${dir.shown} now`, dir.score10 * 10 >= t.bull),
+    row(dist(s50) != null, `${bench} back above its 50-day average${s50 ? ` (${fmtNumber(s50, 2)})` : ''}`, `${fmtPct(dist(s50), 1, false)} from it`, dist(s50) > 0),
   ].filter(Boolean);
   const weaken = [
     row(vix != null && Number.isFinite(t.stress), `VIX ${fmtNumber(t.stress, 0)} or more`, `${fmtNumber(vix, 1)} now`, vix >= t.stress),
     row(pct != null && Number.isFinite(t.weak), partLabel(t.weak, false), partNow, pct <= t.weak),
     row(dist(s50) != null, `${bench} below its 50-day average`, `${fmtPct(dist(s50), 1, false)} from it`, dist(s50) < 0),
-    row(dist(s200) != null, `${bench} below its 200-day average`, `${fmtPct(dist(s200), 1, false)} from it`, dist(s200) < 0),
+    row(dist(s200) != null, `${bench} below its 200-day average${s200 ? ` (${fmtNumber(s200, 2)})` : ''}`, `${fmtPct(dist(s200), 1, false)} from it`, dist(s200) < 0),
   ].filter(Boolean);
   return { strengthen, weaken };
-}
-
-// [PURE] Posture -> strip tone. Rows recorded before the engine carry only the
-// 4-factor tone and are drawn lighter.
-const POSTURE_TONE = {
-  Offensive: 'bull-3', 'Selective Offensive': 'bull-2', 'Lean Long': 'bull-1', Neutral: 'flat',
-  'Lean Defensive': 'bear-1', 'Selective Defensive': 'bear-2', Defensive: 'bear-3',
-};
-const TONE_LEGACY = { 'Risk-on': 'bull-1', Neutral: 'flat', 'Risk-off': 'bear-1' };
-function historyCell(r = {}) {
-  if (r.posture) return { tone: POSTURE_TONE[r.posture] || 'flat', legacy: false, label: `${r.date}: ${r.posture}${r.direction != null ? `, direction ${r.direction}` : ''}${r.confidence != null ? `, confidence ${r.confidence}%` : ''}` };
-  return { tone: TONE_LEGACY[r.tone] || 'flat', legacy: true, label: `${r.date}: ${r.tone || 'no read'} (4-factor read)` };
-}
-
-// [PURE] The sector tiles in heat order, each with a 0-1 intensity.
-function sectorHeat(sectors = []) {
-  const rows = sectors.filter((s) => numOrNull(s.change_pct) != null);
-  const full = mkt('SECTOR_HEAT_FULL_PCT');
-  const cap = Number.isFinite(full) && full > 0 ? full : Math.max(...rows.map((s) => Math.abs(s.change_pct)), 1);
-  return rows.slice().sort((a, b) => b.change_pct - a.change_pct)
-    .map((s) => ({ ...s, heat: Math.min(1, Math.abs(s.change_pct) / cap) }));
 }
 
 // [PURE] One week of dated events: macro releases with their times, earnings
@@ -5634,6 +6432,24 @@ function weekEvents(today, macro = [], earnings = [], held = []) {
 }
 
 /* -- loaders --------------------------------------------------------------- */
+// [PURE] A refresh never blanks what the last good read showed: sparklines,
+// sector moves and trends, and the key levels keep their prior values when the
+// new read came back without them.
+function mergeContext(prev, next) {
+  if (!next || next.available === false || !prev || prev.available === false) return next;
+  const out = { ...next };
+  if (!Object.keys(next.series || {}).length && Object.keys(prev.series || {}).length) out.series = prev.series;
+  const before = new Map((prev.sectors || []).map((s) => [s.symbol, s]));
+  out.sectors = (next.sectors || []).map((s) => {
+    const p = before.get(s.symbol) || {};
+    return { ...s, price: s.price ?? p.price, change_pct: s.change_pct ?? p.change_pct, quote_date: s.quote_date ?? p.quote_date,
+      above_sma50: s.above_sma50 ?? p.above_sma50, above_sma200: s.above_sma200 ?? p.above_sma200 };
+  });
+  if (next.levels && prev.levels && next.levels.sma50 == null && prev.levels.sma50 != null) out.levels = { ...prev.levels, ...Object.fromEntries(Object.entries(next.levels).filter(([, v]) => v != null)) };
+  if (!(next.futures || []).some((f) => f.price != null) && (prev.futures || []).length) out.futures = prev.futures;
+  return out;
+}
+
 async function loadMarketContext(market = state.market) {
   state.marketContext = state.marketContext || {};
   try {
@@ -5647,7 +6463,7 @@ async function loadMarketContext(market = state.market) {
     if (!head.ok) throw new Error(`HTTP ${head.status}`);
     const data = await head.json();
     if (market !== state.market) return;
-    state.marketContext[market] = data;
+    state.marketContext[market] = mergeContext(state.marketContext[market], data);
     // Something missed the server's time budget: read once more shortly.
     if (data && Array.isArray(data.missing) && data.missing.length && !loadMarketContext.retried) {
       loadMarketContext.retried = true;
@@ -5694,8 +6510,15 @@ function renderMarketContext() {
   } catch (_) { sig = null; }
   if (sig && sig === state.ctxSig && document.querySelector('#sector-body > *')) return;
   state.ctxSig = sig;
-  if (state.dashboard) renderBreadthPanel(state.dashboard.market || {}, state.dashboard.market_intel || {});
+  const mk = d.market || {};
+  renderMarketPulse(mk);
+  renderWeekHero(mk);
+  if (state.dashboard) renderMarketRegime(mk, d.news || {}, intel);
+  renderMinis(mk);
+  renderOutlook();
   renderSectorMap();
+  // The ideas read each name against its sector fund's trend, which arrives here.
+  if (state.dashboard) renderOpportunityBrief(state.dashboard.market_intel || {});
   renderKeyLevels();
   renderCrossAsset();
   renderWeekCalendar();
@@ -5763,73 +6586,6 @@ function renderBookPanel() {
     </dl>`;
 }
 
-/* -- what changed, and the story the tape is testing ---------------------- */
-function renderWhatChanged(market = {}, news = {}, intel = {}) {
-  const body = $('#changed-body');
-  if (!body) return;
-  const meta = $('#changed-meta');
-  const short = (ymd) => { const t = Date.parse(`${String(ymd).slice(0, 10)}T12:00:00Z`); return Number.isFinite(t) ? new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : String(ymd || ''); };
-
-  // 1. How prices moved: the index funds as bars, then the story's checks.
-  const chain = impactChain(market, news, intel);
-  const idx = indexQuotes(market);
-  const span = Math.max(...idx.map((q) => Math.abs(Number(q.change_pct))), 0.5);
-  void idx;
-  const bars = idx.length ? `<div class="q-moves" role="img" aria-label="${escapeHtml(idx.map((q) => `${q.label || q.symbol} ${fmtPct(q.change_pct, 2, false)}`).join(', '))}">
-      ${idx.map((q) => { const c = Number(q.change_pct); const w = (Math.abs(c) / span) * 50; const tone = c > 0 ? 'up' : c < 0 ? 'dn' : 'fl';
-        return `<span class="q-move-l">${escapeHtml(q.label || q.symbol)}</span><span class="q-move-b"><i class="${tone}" style="left:${c >= 0 ? 50 : 50 - w}%;width:${Math.max(w, 0.8).toFixed(2)}%"></i></span><span class="q-move-v ${c > 0 ? 'bull' : c < 0 ? 'bear' : ''}">${fmtPct(c, 2, false)}</span>`; }).join('')}
-    </div>` : '';
-  const story = chain && chain.links && chain.links.length ? `<section class="q-wc-sec">
-      <h3 class="q-wc-h">How prices moved today <span class="q-wc-tag">${escapeHtml(chain.label)}</span></h3>
-      <ul class="q-checks">${chain.links.map((l) => `<li class="${l.check ? 'ok' : ''}"><span class="q-check" aria-hidden="true">${l.check ? '✓' : ''}</span>${escapeHtml(l.step)}<span class="sr-only">${l.check ? ': agrees with prices' : ': not seen in prices'}</span></li>`).join('')}</ul>
-      <p class="q-wc-cap">${chain.confirmed} of ${chain.total} checks agree with prices${chain.verified ? '.' : ': a working idea, not a confirmed story.'}</p>
-    </section>` : '';
-
-  // 2. What the model changed since its last recorded session, was and now.
-  const hist = (Array.isArray(market.regime_history) ? market.regime_history : []).filter((h) => h && (h.posture || h.tone));
-  const today = exchangeSession().today;
-  const prior = hist.filter((h) => h.date && h.date < (today || '9999')).pop();
-  const changes = Array.isArray(market.regime_changes) ? market.regime_changes : [];
-  const fmtState = (c, v) => (c.kind === 'direction' ? `${v} of 100`
-    : c.kind === 'factor' ? (typeof v === 'number' ? `${factorWord(v)} (${v > 0 ? '+' : ''}${v})` : factorWord(v)) : String(v == null ? '' : v));
-  const changeRows = changes.map((c) => {
-    const word = c.tone === 'bull' ? 'Stronger' : c.tone === 'bear' ? 'Weaker' : 'Changed';
-    const has = c.label && c.from != null && c.to != null;
-    return `<tr class="${escapeHtml(c.tone || 'neutral')}">${has
-      ? `<th scope="row">${escapeHtml(c.label)}</th><td>${escapeHtml(fmtState(c, c.from))}</td><td><span class="q-wc-arrow" aria-hidden="true">→</span>${escapeHtml(fmtState(c, c.to))}</td>`
-      : `<th scope="row" colspan="3">${escapeHtml(String(c.text || ''))}</th>`}<td class="q-wc-dir"><span>${c.tone === 'bull' ? '▲' : c.tone === 'bear' ? '▼' : '•'}</span> ${word}</td></tr>`;
-  }).join('');
-  const since = prior ? `since ${short(prior.date)}` : 'since the last session';
-  const changed = `<section class="q-wc-sec">
-      <h3 class="q-wc-h">What the model changed ${escapeHtml(since)}</h3>
-      ${market.regime_baseline ? '<p class="q-note-block">This is the first recorded session for this market; changes show from the next one.</p>'
-        : changes.length ? `<table class="q-wc-tbl"><thead><tr><th scope="col">Measure</th><th scope="col">Was</th><th scope="col">Now</th><th scope="col"><span class="sr-only">Effect on the read</span></th></tr></thead><tbody>${changeRows}</tbody></table>`
-          : '<p class="q-note-block">Nothing in the model changed: the same posture, direction and factor reads as the last session.</p>'}
-    </section>`;
-
-  // 3. The model's call over the recorded sessions, dated.
-  let strip = '';
-  if (hist.length) {
-    const cells = hist.map(historyCell);
-    const side = (h) => { const t = (historyCell(h).tone || ''); return t.startsWith('bull') ? 'off' : t.startsWith('bear') ? 'def' : 'neu'; };
-    const n = { off: 0, neu: 0, def: 0 };
-    hist.forEach((h) => { n[side(h)] += 1; });
-    const lastH = hist[hist.length - 1];
-    const nowWord = lastH.posture || lastH.tone || 'no read';
-    const caption = `Offensive side on ${n.off} of ${hist.length} sessions, neutral on ${n.neu}, defensive on ${n.def}. Latest: ${nowWord}.`;
-    const mid = hist[Math.floor((hist.length - 1) / 2)];
-    strip = `<section class="q-wc-sec q-hist">
-        <h3 class="q-wc-h">The model's call, last ${hist.length} sessions</h3>
-        <div class="q-hist-strip" role="img" aria-label="${escapeHtml(caption)}">${cells.map((c, i) => `<i class="t-${c.tone}${c.legacy ? ' is-legacy' : ''}${i === cells.length - 1 ? ' is-last' : ''}" title="${escapeHtml(c.label)}"></i>`).join('')}</div>
-        <div class="q-hist-axis" aria-hidden="true"><span>${escapeHtml(short(hist[0].date))}</span>${hist.length > 4 ? `<span>${escapeHtml(short(mid.date))}</span>` : ''}<span>${escapeHtml(short(lastH.date))}</span></div>
-        <p class="q-wc-cap">${escapeHtml(caption)}</p>
-        <div class="q-hist-key" aria-hidden="true"><span><i class="t-bull-2"></i>Offensive</span><span><i class="t-flat"></i>Neutral</span><span><i class="t-bear-2"></i>Defensive</span>${cells.some((c) => c.legacy) ? '<span><i class="t-flat is-legacy"></i>Earlier 4-factor read</span>' : ''}</div>
-      </section>`;
-  }
-  if (meta) meta.textContent = market.regime_baseline ? 'First session' : `${changes.length} model change${changes.length === 1 ? '' : 's'}`;
-  body.innerHTML = `<div class="q-wc">${story}${changed}${strip}</div>`;
-}
-
 /* -- what would change the call -------------------------------------------- */
 function renderTriggers() {
   const body = $('#triggers-body');
@@ -5843,69 +6599,22 @@ function renderTriggers() {
   const meta = $('#triggers-meta');
   const metS = t.strengthen.filter((r) => r.met).length;
   const metW = t.weaken.filter((r) => r.met).length;
-  if (meta) meta.textContent = '';
-  // A meter per side: one segment per condition, filled when it holds now.
-  const meter = (list, bad) => `<span class="q-trig-m" aria-hidden="true">${list.map((r) => `<i class="${r.met ? (bad ? 'is-bad' : 'is-met') : ''}"></i>`).join('')}</span>`;
+  if (meta) meta.textContent = model.posture ? `From ${model.posture}` : '';
   const rows = (list, bad) => list.map((r) => `<li class="${r.met ? (bad ? 'is-bad' : 'is-met') : ''}">
       <span class="q-trig-dot" aria-hidden="true"></span>
       <span class="q-trig-l">${escapeHtml(r.label)}<span class="sr-only">: ${r.met ? 'holds now' : 'not yet'}</span></span>
       <span class="q-trig-v">${escapeHtml(r.now)}</span></li>`).join('');
-  const dir = directionScore(model);
-  void dir;
-  const lo = mkt('SIGNAL_SCORE_BEAR') * 10;
-  const hi = mkt('SIGNAL_SCORE_BULL') * 10;
-  const dNow = dir.shown === '--' ? null : Math.round(dir.score10 * 10);
-  const gauge = dNow == null || !Number.isFinite(lo) || !Number.isFinite(hi) ? '' : `<div class="q-trig-g">
-      <h3 class="q-trig-h">Direction score <span>${dNow} of 100</span></h3>
-      <div class="q-trig-gt" role="img" aria-label="${escapeHtml(`Direction score ${dNow}. ${fmtNumber(lo, 0)} or less reads bearish, ${fmtNumber(hi, 0)} or more reads bullish.`)}">
-        <i class="z-bear" style="width:${lo}%"></i><i class="z-mid" style="left:${lo}%;width:${hi - lo}%"></i><i class="z-bull" style="left:${hi}%;width:${100 - hi}%"></i>
-        <b style="left:${Math.max(0, Math.min(100, dNow))}%"></b>
-      </div>
-      <div class="q-trig-ga" aria-hidden="true"><span style="left:0">0</span><span style="left:${lo}%">${fmtNumber(lo, 0)}</span><span style="left:${hi}%">${fmtNumber(hi, 0)}</span><span style="left:100%">100</span></div>
-      <p class="q-wc-cap">${dNow >= hi ? 'In the bullish zone.' : dNow <= lo ? 'In the bearish zone.' : `Between the zones: ${fmtNumber(hi - dNow, 0)} points from a bullish read, ${fmtNumber(dNow - lo, 0)} from a bearish one.`}</p>
-    </div>`;
+  const side = (title, list, bad, met) => `<div class="q-trig-side">
+      <h3 class="q-trig-h">${escapeHtml(title)}<span>${met} of ${list.length} hold now</span></h3>
+      <ul>${rows(list, bad)}</ul></div>`;
   body.innerHTML = `<div class="q-trig">
-      <div><h3 class="q-trig-h">For a stronger read ${meter(t.strengthen, false)}<span>${metS} of ${t.strengthen.length} hold</span></h3><ul>${rows(t.strengthen, false)}</ul></div>
-      <div><h3 class="q-trig-h">For a weaker read ${meter(t.weaken, true)}<span>${metW} of ${t.weaken.length} hold</span></h3><ul>${rows(t.weaken, true)}</ul></div>
-    </div>${ctx ? '' : '<p class="q-note-block">Index levels load with the market context.</p>'}`;
+      ${side('Toward a stronger read', t.strengthen, false, metS)}
+      ${side('Toward a weaker read', t.weaken, true, metW)}
+    </div>
+    <p class="q-trig-note">${ctx ? 'Each condition is a live market input against the model’s own threshold.' : 'Index levels load with the market context.'}</p>`;
 }
 
 /* -- sectors ---------------------------------------------------------------- */
-function renderSectorMap() {
-  const body = $('#sector-body');
-  if (!body) return;
-  const ctx = marketContext();
-  const meta = $('#sector-meta');
-  if (!ctx) { body.innerHTML = '<div class="q-sbar q-sbar--skel" aria-busy="true">' + '<i></i>'.repeat(11) + '</div>'; return; }
-  if (contextNotice(ctx)) { body.innerHTML = `<p class="q-ctx-note">${escapeHtml(contextNotice(ctx))}</p>`; if (meta) meta.textContent = ''; return; }
-  const rows = sectorHeat(ctx.sectors || []);
-  const sp = ctx.sector_participation || {};
-  if (meta) meta.textContent = sp.measured ? `${sp.above} of ${sp.measured} above 50-DMA` : 'No trend read';
-  if (!rows.length) { body.innerHTML = '<p class="q-note-block">Sector quotes are unavailable this cycle.</p>'; return; }
-  // Ranked, strongest first, each move drawn from one zero line: the spread
-  // between leaders and laggards is the read, so magnitude is shown, not tinted.
-  const maxAbs = Math.max(...rows.map((x) => Math.abs(x.change_pct)), 0.25);
-  body.innerHTML = `<div class="q-sbar" role="list">${rows.map((x) => {
-    const dirc = x.change_pct > 0 ? 'up' : x.change_pct < 0 ? 'dn' : 'flat';
-    const w = Math.max(0.02, Math.abs(x.change_pct) / maxAbs);
-    const trend = x.above_sma50 == null ? '' : x.above_sma50 ? ' is-above' : ' is-below';
-    return `<button type="button" role="listitem" class="q-sbar-row ${dirc}${trend}" data-chart-symbol="${escapeHtml(x.symbol)}"
-        aria-label="${escapeHtml(`${x.label}: ${fmtPct(x.change_pct, 2, false)} today${x.above_sma50 == null ? '' : `, ${x.above_sma50 ? 'above' : 'below'} its 50-day average`}. Chart it.`)}">
-        <span class="q-sbar-n">${escapeHtml(x.label)}</span>
-        <span class="q-sbar-t" aria-hidden="true"><i style="--w:${w.toFixed(3)}"></i></span>
-        <span class="q-sbar-v">${fmtPct(x.change_pct, 2, false)}</span>
-        <span class="q-sbar-ma" aria-hidden="true" title="${x.above_sma50 == null ? '' : x.above_sma50 ? 'Above its 50-day average' : 'Below its 50-day average'}"></span>
-      </button>`;
-  }).join('')}</div>
-    <p class="q-sbar-key"><span><i class="q-sbar-dot is-above" aria-hidden="true"></i>Above its 50-day average</span><span><i class="q-sbar-dot" aria-hidden="true"></i>Below it</span><span>Select a sector to chart it</span></p>`;
-  $$('.q-sbar-row', body).forEach((b) => b.addEventListener('click', () => {
-    if (typeof state.overviewChartPick === 'function') {
-      state.overviewChartPick(b.dataset.chartSymbol);
-      $('#overview-chart')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-    }
-  }));
-  growOnView(body, '.q-sbar-t i', 'sector-bars', rows.map((x) => x.symbol + x.change_pct).join());
-}
 
 // Bars grow from their zero line the first time they scroll into view, and
 // again only when the values change; never under reduced motion.
@@ -5940,10 +6649,17 @@ function renderKeyLevels() {
   const em = L.expected_move || null;
   const ses = L.session || null;
   const pr = L.prior || null;
+  // Sessions by their dates: on a weekend "This session" was Friday. The
+  // expected range is for the next session unless the market is open now.
+  const ex = exchangeSession();
+  const open = ex.phase === 'regular' && ses && ses.date === ex.today;
+  const emLabel = open ? 'Today, expected' : 'Next session';
+  const sesLabel = ses ? (ses.date === ex.today ? 'Today' : (sessionDay(ses.date) || 'Last session')) : '';
+  const prLabel = pr ? (sessionDay(pr.date) || 'Prior session') : '';
   const bands = [
-    em ? { k: 'Expected move', a: em.low, b: em.high, cls: 'em' } : null,
-    pr ? { k: 'Prior session', a: pr.low, b: pr.high, cls: 'pr' } : null,
-    ses ? { k: 'This session', a: ses.low, b: ses.high, cls: 'se' } : null,
+    em ? { k: emLabel, a: em.low, b: em.high, cls: 'em' } : null,
+    pr ? { k: prLabel, a: pr.low, b: pr.high, cls: 'pr' } : null,
+    ses ? { k: sesLabel, a: ses.low, b: ses.high, cls: 'se' } : null,
   ].filter(Boolean);
   const vals = bands.flatMap((x) => [x.a, x.b]).concat([last]).filter((v) => Number.isFinite(v));
   const lo = Math.min(...vals);
@@ -5958,8 +6674,9 @@ function renderKeyLevels() {
   const dist = (ma) => (ma ? fmtPct(((last / ma) - 1) * 100, 1, false) : null);
   body.innerHTML = `${ruler}
     <dl class="q-dl q-levels-dl">
-      ${em ? `<dt>Expected move</dt><dd>±${p2(em.points)} (±${fmtNumber(em.pct, 2)}%) <span class="muted">from ${escapeHtml(em.vol_symbol)} ${fmtNumber(em.vol_level, 2)}, one session</span></dd>` : ''}
-      ${pr ? `<dt>Prior session</dt><dd>${p2(pr.low)} to ${p2(pr.high)} <span class="muted">close ${p2(pr.close)}</span></dd>` : ''}
+      ${em ? `<dt>${escapeHtml(open ? 'Expected move today' : 'Next-session range')}</dt><dd>${p2(em.low)} to ${p2(em.high)} <span class="muted">±${p2(em.points)} (±${fmtNumber(em.pct, 2)}%), from the ${escapeHtml(String(em.vol_symbol || '').replace(/^\^/, ''))} at ${fmtNumber(em.vol_level, 2)}</span></dd>` : ''}
+      ${ses ? `<dt>${escapeHtml(sesLabel)}</dt><dd>${p2(ses.low)} to ${p2(ses.high)} <span class="muted">last ${p2(ses.last)}</span></dd>` : ''}
+      ${pr ? `<dt>${escapeHtml(prLabel)}</dt><dd>${p2(pr.low)} to ${p2(pr.high)} <span class="muted">close ${p2(pr.close)}</span></dd>` : ''}
       ${L.atr != null ? `<dt>Average range</dt><dd>${p2(L.atr)} <span class="muted">ATR, ${L.atr_sessions} sessions</span></dd>` : ''}
       ${L.sma50 != null ? `<dt>50-day average</dt><dd>${p2(L.sma50)} <span class="${L.above_sma50 ? 'bull' : 'bear'}">${dist(L.sma50)}</span></dd>` : ''}
       ${L.sma200 != null ? `<dt>200-day average</dt><dd>${p2(L.sma200)} <span class="${L.above_sma200 ? 'bull' : 'bear'}">${dist(L.sma200)}</span></dd>` : ''}
@@ -5976,6 +6693,11 @@ function renderCrossAsset() {
   const X = ctx.cross_asset || {};
   const quotes = (X.quotes || []).filter((q) => numOrNull(q.price) != null);
   const reads = X.reads || [];
+  // Every read here is one session's change: said once, in the head, so a
+  // one-day "risk appetite" is not taken for a trend.
+  const xmeta = $('#cross-meta');
+  const xps = priceSession((state.dashboard && state.dashboard.market) || {});
+  if (xmeta) xmeta.textContent = !xps.date ? 'One-session change' : xps.isToday ? 'Today’s change' : `Change on ${xps.day}`;
   // A pair's ratio means nothing on its own (copper over gold is 0.0016): the
   // row shows what today's change says, with the ratio kept in the tooltip.
   const readTone = (r) => (/appetite/.test(r.read || '') ? 'bull' : /aversion|^inverted/.test(r.read || '') ? 'bear' : 'neutral');
@@ -6010,180 +6732,6 @@ function earningsCalendarNote(intel = {}, market = 'US') {
 // Short names for the publishers' release kinds; anything else keeps its title.
 const MACRO_SHORT = { cpi: 'CPI', ppi: 'PPI', jobs: 'Jobs report', fomc: 'Fed decision', gdp: 'GDP', pce: 'PCE inflation', retail: 'Retail sales', claims: 'Jobless claims', jolts: 'Job openings' };
 
-// [PURE] The next dated event from now: a release later today, else the first
-// event on a later day. nowHHMM is the exchange's wall time ("09:41").
-function nextWeekEvent(days, nowHHMM) {
-  // After the close nothing left today is still ahead.
-  const closed = nowHHMM && nowHHMM >= '16:00';
-  const slot = (e) => (e.kind === 'macro' ? (e.time || '99:99') : /^(am|bmo)$/i.test(String(e.timing || '')) ? '09:00' : /^(pm|amc)$/i.test(String(e.timing || '')) ? '16:01' : '12:00');
-  for (let i = 0; i < days.length; i += 1) {
-    if (i === 0 && closed) continue;
-    const items = days[i].items.slice().sort((a, b) => slot(a).localeCompare(slot(b)) || (b.held ? 1 : 0) - (a.held ? 1 : 0) || (b.cap || 0) - (a.cap || 0));
-    for (const e of items) {
-      if (i === 0 && e.kind === 'macro' && e.time && nowHHMM && e.time < nowHHMM) continue;
-      if (i === 0 && e.kind === 'earnings' && /^(am|bmo)$/i.test(String(e.timing || '')) && nowHHMM && nowHHMM > '09:30') continue;
-      return { ...e, date: days[i].date, inDays: i };
-    }
-  }
-  return null;
-}
-
-function renderWeekCalendar() {
-  const body = $('#week-body');
-  if (!body) return;
-  const ctx = marketContext();
-  const d = state.dashboard || {};
-  const intel = d.market_intel || {};
-  const ex = exchangeSession();
-  const today = ex.today;
-  if (!today) return;
-  const held = state.book && state.book.s === 'ok'
-    ? (bookVsCall(state.book.pf, null, intel, today) || { reporting: [] }).reporting : [];
-  const days = weekEvents(today, (ctx && ctx.calendar) || [], intel.earnings_calendar || intel.earnings_week || [], held);
-  const meta = $('#week-meta');
-  const count = (k) => days.reduce((t, x) => t + x.items.filter((e) => e.kind === k).length, 0);
-  const macroN = count('macro');
-  const earnN = count('earnings');
-  const mine = days.reduce((t, x) => t + x.items.filter((e) => e.held).length, 0);
-  const parts = (ymd) => {
-    const dt = new Date(`${ymd}T12:00:00Z`);
-    return {
-      dow: dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }),
-      num: dt.getUTCDate(),
-      mon: dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }),
-      weekend: dt.getUTCDay() === 0 || dt.getUTCDay() === 6,
-    };
-  };
-  const first = parts(days[0].date);
-  const last = parts(days[days.length - 1].date);
-  const span = first.mon === last.mon ? `${first.mon} ${first.num} to ${last.num}` : `${first.mon} ${first.num} to ${last.mon} ${last.num}`;
-  if (meta) meta.textContent = [`${span}: ${earnN} earnings report${earnN === 1 ? '' : 's'}`, macroN ? `${macroN} release${macroN === 1 ? '' : 's'}` : '', mine ? `${mine} you hold` : ''].filter(Boolean).join(', ');
-  const tz = (MARKET_TZ[state.market] || MARKET_TZ.US).tz;
-  let nowHHMM = null;
-  try { nowHHMM = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }); } catch (_) { nowHHMM = null; }
-  const next = nextWeekEvent(days, nowHHMM);
-  const eps = (v) => (v == null ? '' : `EPS est. ${v < 0 ? '-' : ''}$${fmtNumber(Math.abs(v), 2)}`);
-  const timingWord = (t) => (/^(am|bmo)$/i.test(String(t || '')) ? 'Before open' : /^(pm|amc)$/i.test(String(t || '')) ? 'After close' : '');
-  const name = (e) => (e.kind === 'macro' ? (MACRO_SHORT[String(e.macroKind || '').toLowerCase()] || e.title) : `${companyName(e.name) || shownSymbol(e.symbol)} earnings`);
-  // Sun before the open, moon after the close: drawn, not emoji, and always
-  // paired with the words for screen readers.
-  const icon = (t) => (/^(am|bmo)$/i.test(String(t || ''))
-    ? '<svg class="ev-ic ev-ic--am" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="3.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>'
-    : /^(pm|amc)$/i.test(String(t || ''))
-      ? '<svg class="ev-ic ev-ic--pm" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10.8 2.2a6 6 0 1 0 3 9.6A5 5 0 0 1 10.8 2.2Z"/></svg>'
-      : '<svg class="ev-ic ev-ic--tbd" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="2"/></svg>');
-  const nextHtml = next ? `<div class="q-wk-next">
-      <span class="q-wk-pulse" aria-hidden="true"></span>
-      <span class="q-wk-next-k">Next up</span>
-      <b>${escapeHtml(name(next))}</b>
-      <span>${escapeHtml(`${parts(next.date).dow} ${parts(next.date).mon} ${parts(next.date).num}`)}${next.time ? `, ${escapeHtml(next.time)} ET` : next.timing ? `, ${escapeHtml(earningsTimingWords(next.timing))}` : ''}${next.kind === 'earnings' && next.eps != null ? `, ${escapeHtml(eps(next.eps))}` : ''}</span>
-      <span class="q-wk-next-in" data-ymd="${escapeHtml(next.date)}" data-hhmm="${escapeHtml(next.time || (/^(am|bmo)$/i.test(String(next.timing || '')) ? '09:30' : /^(pm|amc)$/i.test(String(next.timing || '')) ? '16:00' : ''))}">${escapeHtml(countdownText(next.date, next.time || null, next.timing, tz, next.inDays))}</span>
-    </div>` : '';
-  const perDay = mkt('EARNINGS_PER_DAY_SHOWN');
-  const SHOWN = Number.isFinite(perDay) && perDay > 0 ? perDay : 3;
-  const maxN = Math.max(1, ...days.map((x) => x.items.filter((e) => e.kind === 'earnings').length));
-  const ev = (e) => {
-    if (e.kind === 'macro') {
-      const short = MACRO_SHORT[String(e.macroKind || '').toLowerCase()];
-      const title = escapeHtml(short || e.title);
-      const link = safeUrl(e.url) ? `<a href="${escapeHtml(safeUrl(e.url))}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(e.title)}">${title}<span class="sr-only"> (opens the publisher's schedule)</span></a>` : title;
-      return `<li class="ev ev--macro"><span class="ev-time">${escapeHtml(e.time || 'TBD')}</span><span class="ev-name">${link}</span></li>`;
-    }
-    const t = timingWord(e.timing);
-    const tip = `${companyName(e.name) || shownSymbol(e.symbol)}${t ? `, ${t.toLowerCase()}` : ''}${e.eps != null ? `, ${eps(e.eps)}` : ''}`;
-    return `<li class="ev ev--earn${e.held ? ' is-held' : ''}"><button type="button" class="ev-row" data-ticker="${escapeHtml(normalizeTicker(e.symbol))}" title="${escapeHtml(tip)}">${icon(e.timing)}<span class="ev-sym hp-sym">${escapeHtml(shownSymbol(e.symbol))}</span><span class="sr-only">${escapeHtml(`${t ? `${t}. ` : ''}${e.eps != null ? `${eps(e.eps)}. ` : ''}Open its research.`)}</span>${e.held ? '<span class="ev-held">Yours</span>' : ''}</button></li>`;
-  };
-  const cols = days.map((x, i) => {
-    const pp = parts(x.date);
-    const macro = x.items.filter((e) => e.kind === 'macro');
-    const earn = x.items.filter((e) => e.kind === 'earnings');
-    const shown = earn;
-    const rest = [];
-    void SHOWN;
-    const cls = [i === 0 ? 'is-today' : '', pp.weekend ? 'is-weekend' : '', x.items.length ? 'has-ev' : ''].filter(Boolean).join(' ');
-    const label = `${i === 0 ? 'Today, ' : ''}${pp.dow} ${pp.mon} ${pp.num}: ${x.items.length ? [macro.length ? `${macro.length} release${macro.length === 1 ? '' : 's'}` : '', earn.length ? `${earn.length} earnings report${earn.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ') : pp.weekend ? 'market closed' : 'no dated events'}`;
-    const more = rest.length ? `<li class="ev-more"><details><summary>+${rest.length} more report${rest.length === 1 ? '' : 's'}</summary>
-        <ul class="ev-more-list">${rest.map((e) => `<li title="${escapeHtml(`${companyName(e.name) || shownSymbol(e.symbol)}${e.timing ? `, ${earningsTimingWords(e.timing)}` : ''}${e.eps != null ? `, ${eps(e.eps)}` : ''}`)}"><b class="hp-sym">${escapeHtml(shownSymbol(e.symbol))}</b>${e.timing ? `<span>${/^(am|bmo)$/i.test(e.timing) ? 'AM' : 'PM'}</span>` : ''}</li>`).join('')}</ul></details></li>` : '';
-    const bar = earn.length ? `<span class="q-wk-bar" aria-hidden="true"><i style="transform:scaleY(${(earn.length / maxN).toFixed(3)})"></i></span>` : '<span class="q-wk-bar is-empty" aria-hidden="true"></span>';
-    return `<li class="${cls}" aria-label="${escapeHtml(label)}">
-        <div class="q-wk-date"><span class="q-wk-dow">${i === 0 ? 'Today' : escapeHtml(pp.dow)}</span><span class="q-wk-num">${pp.num}</span>${earn.length ? `<span class="q-wk-cnt" aria-hidden="true">${earn.length} report${earn.length === 1 ? '' : 's'}</span>` : ''}</div>
-        ${pp.weekend && !x.items.length ? '' : bar}
-        ${x.items.length ? `<ul class="q-wk-evs">${macro.map(ev).join('')}${shown.map(ev).join('')}${more}</ul>`
-          : `<span class="q-wk-none">${pp.weekend ? 'Closed' : 'No dated events'}</span>`}
-      </li>`;
-  }).join('');
-  const scope = intel.earnings_scope || 'the tracked universe';
-  const calNote = earningsCalendarNote(intel, state.market);
-  body.innerHTML = `${calNote ? `<p class="q-ctx-note q-wk-note">${escapeHtml(calNote)}</p>` : ''}${nextHtml}
-    <ol class="q-wk" aria-label="The next seven days" style="--wk-cols:${days.map((x) => (parts(x.date).weekend && !x.items.length ? 'minmax(0,0.42fr)' : 'minmax(0,1fr)')).join(' ')}">${cols}</ol>
-    <div class="q-wk-foot">
-      <span class="q-wk-legend"><span>${icon('bmo')}Before open</span><span>${icon('amc')}After close</span><span><i class="lg lg--macro"></i>Economic release</span>${mine ? '<span><i class="lg lg--held"></i>Your holding</span>' : ''}</span>
-      <span class="q-wk-src">${macroN || state.market === 'US' ? `Fed and BLS schedules${state.market === 'US' ? '' : ' (US)'}; earnings` : 'Earnings'} for ${escapeHtml(scope)}.${macroN ? ' Times are Eastern.' : ''}</span>
-    </div>`;
-  $$('.ev-row[data-ticker]', body).forEach((b) => b.addEventListener('click', () => openTickerTearSheet(b.dataset.ticker)));
-  weekMotion(body);
-  weekCountdown(body, tz);
-}
-
-// [PURE] "in 2 h 15 m", "in 1 d 18 h", "in 3 days": the next event from now.
-function countdownText(ymd, hhmm, timing, tz, inDays) {
-  const at = hhmm || (/^(am|bmo)$/i.test(String(timing || '')) ? '09:30' : /^(pm|amc)$/i.test(String(timing || '')) ? '16:00' : null);
-  const t = at ? zonedEpoch(ymd, at, tz) : null;
-  if (t == null) return inDays === 0 ? 'today' : inDays === 1 ? 'tomorrow' : `in ${inDays} days`;
-  const mins = Math.round((t - Date.now()) / 60000);
-  if (mins <= 0) return 'now';
-  if (mins < 60) return `in ${mins} m`;
-  const h = Math.floor(mins / 60);
-  if (h < 24) return `in ${h} h ${mins % 60} m`;
-  return `in ${Math.floor(h / 24)} d ${h % 24} h`;
-}
-
-// [PURE] The UTC instant of a wall-clock time in a time zone ("2026-10-12", "16:00").
-function zonedEpoch(ymd, hhmm, tz) {
-  const [y, mo, da] = String(ymd).split('-').map(Number);
-  const [hh, mm] = String(hhmm).split(':').map(Number);
-  if (![y, mo, da, hh, mm].every(Number.isFinite)) return null;
-  const guess = Date.UTC(y, mo - 1, da, hh, mm);
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-      .formatToParts(new Date(guess)).reduce((o, p) => ({ ...o, [p.type]: p.value }), {});
-    const seen = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute));
-    return guess - (seen - guess);
-  } catch (_) { return null; }
-}
-
-// The histogram grows in once, when the week first scrolls into view.
-function weekMotion(body) {
-  if (!motionOK() || typeof IntersectionObserver === 'undefined') return;
-  const bars = [...body.querySelectorAll('.q-wk-bar i')];
-  if (!bars.length || state.weekBarsShown) return;
-  const io = new IntersectionObserver((entries) => {
-    if (!entries.some((e) => e.isIntersecting)) return;
-    io.disconnect();
-    state.weekBarsShown = true;
-    bars.forEach((b, i) => {
-      const end = b.style.transform || 'scaleY(1)';
-      b.animate([{ transform: 'scaleY(0)' }, { transform: end }], { duration: 520, easing: EASE_OUT, delay: i * 55, fill: 'backwards' });
-    });
-    [...body.querySelectorAll('.q-wk > li')].forEach((col, c) => [...col.querySelectorAll('.ev')].forEach((chip, k) => chip.animate(
-      [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'translateY(0)' }],
-      { duration: 240, easing: EASE_OUT, delay: 180 + c * 45 + Math.min(k, 12) * 18, fill: 'backwards' })));
-  }, { threshold: 0.35 });
-  io.observe(body);
-}
-
-// The countdown keeps time while the page is open: one update a minute.
-function weekCountdown(body, tz) {
-  if (typeof window === 'undefined') return;
-  if (state.weekTimer) clearInterval(state.weekTimer);
-  const el = body.querySelector('.q-wk-next-in');
-  if (!el) return;
-  state.weekTimer = setInterval(() => {
-    if (!document.body.contains(el)) { clearInterval(state.weekTimer); return; }
-    el.textContent = countdownText(el.dataset.ymd, el.dataset.hhmm || null, null, tz, daysFromTo(exchangeSession().today, el.dataset.ymd) || 0);
-  }, 60000);
-}
-
 /* -- futures, outside the regular session --------------------------------- */
 function renderFutures() {
   const el = $('#futures-strip');
@@ -6203,7 +6751,7 @@ function renderFutures() {
 function regimeName(market = {}, model = {}) {
   const engine = market.market_regime_engine || market.marketRegimeEngine || {};
   return engine.marketRegimeBase
-    || String(model.label || '').replace(/\s*[\u2014\u2013-]\s*(low|moderate|high)\s+confidence\s*$/i, '')
+    || String(model.label || '').replace(/\s*[\u2014\u2013,-]\s*(low|moderate|high)\s+confidence\s*$/i, '')
     || model.label || 'Mixed Market';
 }
 
@@ -6229,24 +6777,6 @@ function signalCheckCounts(model = {}) {
     else opposed += 1;
   });
   return { confirmed, neutral, warning, opposed, total: factors.length };
-}
-
-// [PURE] Derive a concise trader response for a market driver from its
-// direction + category (the backend driver has no explicit response field).
-function driverTraderResponse(driver = {}) {
-  const dir = String(driver.direction || '').toLowerCase();
-  const cat = String(driver.category || '').toLowerCase();
-  if (dir === 'bearish') {
-    if (cat.includes('macro') || cat.includes('rate') || cat.includes('politic')) return 'Trim risk; keep stops tight and size light.';
-    return 'Avoid weak names; demand confirmation before new risk.';
-  }
-  if (dir === 'bullish') {
-    if (cat.includes('earning')) return 'Trade the confirmed reaction, not the pre-print.';
-    return 'Lean into confirmed leaders on volume.';
-  }
-  if (cat.includes('earning')) return 'Wait for the print; avoid pre-earnings risk.';
-  if (cat.includes('politic') || cat.includes('geo')) return 'Let the tape pick a side; don\u2019t pre-position on the headline.';
-  return 'Watch the tape reaction before acting.';
 }
 
 // [PURE] "a bullish", "an insufficient": the article a phrase takes.
@@ -6277,29 +6807,6 @@ function participationTone(p) {
 function newsImpactLevel(impact) {
   const n = Number(impact || 0);
   return n >= mkt('NEWS_IMPACT_MARKET_MOVING') ? 'high' : n >= mkt('NEWS_IMPACT_MEDIUM') ? 'med' : 'low';
-}
-
-// [PURE] The headline tilt as the tape shows it. "Quiet tape" is a reading
-// (feeds answered and nothing moved); with no news read, or no live feed, the
-// tilt is unknown and says so.
-function newsTiltRead(engine = {}) {
-  const dir = String((engine.newsImpact && engine.newsImpact.netDirection) || '').toLowerCase();
-  const known = { bullish: ['Bullish tilt', 'bull'], bearish: ['Bearish tilt', 'bear'], mixed: ['Two-sided', 'warn'], neutral: ['Quiet tape', 'neutral'] }[dir];
-  if (!known || engine.newsFeedsLive === false) return { label: 'News read unavailable', tone: 'neutral', known: false };
-  return { label: known[0], tone: known[1], known: true };
-}
-
-// [PURE] Plain sentence placing a confidence reading against the model's own
-// thresholds, so the number says how far it is from the next band.
-function confidenceBand(score, label, withheld = false) {
-  void label;
-  if (withheld) return 'No read: too few market inputs were measured to score confidence.';
-  if (score == null) return 'Not scored yet.';
-  const hi = mkt('CONFIDENCE_HIGH');
-  const mod = mkt('CONFIDENCE_MODERATE');
-  if (score >= hi) return `<b>High</b>: at or above the ${hi} threshold.`;
-  if (score >= mod) return `<b>Moderate</b>: high begins at ${hi}.`;
-  return `<b>Low</b>: moderate begins at ${mod}.`;
 }
 
 // [PURE] Common confidence read derived once and shared by the brief + chips.
@@ -6433,61 +6940,6 @@ function strategistBrief(model = {}) {
 // retired with the hero compaction; strategistBrief() above remains the pure,
 // unit-tested synthesis used by tear sheets.)
 
-// [MARKET PULSE] One-word interpretation per instrument (meaning over numbers).
-function pulseInterp(symbol, label, changePct, price) {
-  const sym = String(symbol || '').toUpperCase();
-  const lbl = String(label || '').toLowerCase();
-  const ch = Number(changePct);
-  const finite = Number.isFinite(ch);
-  if (/vix/i.test(sym) || lbl.includes('vix')) {
-    if (price == null) return { tone: 'neutral', text: 'no read' };
-    if (price >= mkt('VIX_STRESS')) return { tone: 'bear', text: 'risk elevated' };
-    if (price >= mkt('VIX_CALM_MAX')) return { tone: 'warn', text: 'not risk-on confirmation' };
-    return { tone: 'bull', text: 'calm, supports risk' };
-  }
-  if (sym.includes('TNX') || lbl.includes('yield') || lbl.includes('10y')) {
-    if (!finite) return { tone: 'neutral', text: 'rates' };
-    // Same cut-offs as the model's Rates / Credit factor (app.py), so the
-    // ribbon never calls "steady" a move the model scores as tightening.
-    // Short enough for a ribbon cell: the longer wording was cut to "valuation p…".
-    if (ch >= mkt('YIELD_SHARP_PCT')) return { tone: 'bear', text: 'rising sharply' };
-    if (ch >= mkt('YIELD_RISING_PCT')) return { tone: 'warn', text: 'rising, rate pressure' };
-    if (ch <= mkt('YIELD_EASING_PCT')) return { tone: 'bull', text: 'easing, relief' };
-    return { tone: 'neutral', text: 'steady' };
-  }
-  if (lbl.includes('oil') || sym.startsWith('USO') || sym.startsWith('CL')) {
-    if (!finite) return { tone: 'neutral', text: 'energy' };
-    if (ch >= mkt('OIL_MOVE_PCT')) return { tone: 'warn', text: 'spiking, inflation risk' };
-    if (ch <= -mkt('OIL_MOVE_PCT')) return { tone: 'bull', text: 'falling, cost relief' };
-    return { tone: 'neutral', text: 'steady' };
-  }
-  if (lbl.includes('gold') || sym.startsWith('GLD') || sym.startsWith('GC')) {
-    if (!finite) return { tone: 'neutral', text: 'haven' };
-    if (ch >= mkt('GOLD_MOVE_PCT')) return { tone: 'warn', text: 'haven bid' };
-    if (ch <= -mkt('GOLD_MOVE_PCT')) return { tone: 'neutral', text: 'risk appetite' };
-    return { tone: 'neutral', text: 'steady' };
-  }
-  if (lbl.includes('bitcoin') || sym.startsWith('BTC')) {
-    if (!finite) return { tone: 'neutral', text: 'crypto' };
-    if (ch >= mkt('CRYPTO_MOVE_PCT')) return { tone: 'bull', text: 'risk appetite' };
-    if (ch <= -mkt('CRYPTO_MOVE_PCT')) return { tone: 'bear', text: 'risk-off' };
-    return { tone: 'neutral', text: 'range-bound' };
-  }
-  if (sym.includes('INR=') || lbl.includes('usd/')) {
-    if (!finite) return { tone: 'neutral', text: 'fx' };
-    if (ch >= mkt('FX_MOVE_PCT')) return { tone: 'bear', text: 'rupee weaker' };
-    if (ch <= -mkt('FX_MOVE_PCT')) return { tone: 'bull', text: 'rupee firmer' };
-    return { tone: 'neutral', text: 'steady' };
-  }
-  // Equity indices
-  if (!finite) return { tone: 'neutral', text: '\u2014' };
-  if (ch >= mkt('INDEX_LEADING_PCT')) return { tone: 'bull', text: 'leading' };
-  if (ch > mkt('INDEX_FLAT_PCT')) return { tone: 'bull', text: 'firm' };
-  if (ch <= -mkt('INDEX_LEADING_PCT')) return { tone: 'bear', text: 'under pressure' };
-  if (ch < -mkt('INDEX_FLAT_PCT')) return { tone: 'bear', text: 'soft' };
-  return { tone: 'neutral', text: 'flat' };
-}
-
 
 
 
@@ -6506,23 +6958,22 @@ function effectiveNewsImpact(item = {}, now = Date.now()) {
   const ageDays = Math.max(0, (now - t) / 86400000);
   return raw * Math.pow(0.5, ageDays / NEWS_HALF_LIFE_DAYS);
 }
-function highImpactNews(groups) {
-  return dedupeNewsItems(Object.values(groups || {}).flatMap((items) => Array.isArray(items) ? items : []))
-    .filter(isTradeRelevantNews)
-    .filter((item) => effectiveNewsImpact(item) >= mkt('NEWS_IMPACT_MARKET_MOVING'));
+// The engine publishes which headlines it counted as high impact; with that
+// list the High impact tab shows exactly those, so its count, the call's Watch
+// line and the regime's news factor can never disagree (they read 3, 7 and 10).
+function engineHighImpactKeys() {
+  const keys = state.dashboard?.market?.market_regime_engine?.newsImpact?.keys;
+  return Array.isArray(keys) ? keys.map((k) => String(k || '').trim().toLowerCase()).filter(Boolean) : null;
 }
-
-function updateNewsTabCounts(groups) {
-  const uniqueRelevant = (items) => dedupeNewsItems(items).filter(isTradeRelevantNews);
-  const countFor = (key) => {
-    if (key === 'high-impact') return highImpactNews(groups).length;
-    return uniqueRelevant(Array.isArray(groups[key]) ? groups[key] : []).length;
-  };
-  $$('#news-tabs .q-tab').forEach((button) => {
-    const key = button.dataset.newsGroup;
-    const label = button.dataset.label || titleLabel(key);
-    button.innerHTML = `${escapeHtml(label)}<span class="q-tab-count">${countFor(key)}</span>`;
-  });
+function highImpactNews(groups) {
+  const all = dedupeNewsItems(Object.values(groups || {}).flatMap((items) => Array.isArray(items) ? items : []));
+  const keys = engineHighImpactKeys();
+  if (keys) {
+    const want = new Set(keys);
+    return all.filter((item) => want.has(String(item.url || item.title || item.headline || '').trim().toLowerCase()));
+  }
+  return all.filter(isTradeRelevantNews)
+    .filter((item) => effectiveNewsImpact(item) >= mkt('NEWS_IMPACT_MARKET_MOVING'));
 }
 
 function dedupeNewsItems(items) {
@@ -6561,110 +7012,6 @@ function relatedTickerFromHeadline(item) {
   return match[0];
 }
 
-// [COMMAND-CENTER] Market Impact Chain — a causal HYPOTHESIS, then verified
-// against the live tape. Each chain carries the cross-asset checks that would
-// confirm it; we only label it "confirmed" when the data actually agrees, so
-// it can be wrong on screen instead of always looking right.
-function impactChain(market = {}, news = {}, intel = {}) {
-  const bySym = {};
-  (market.quotes || []).forEach((q) => { bySym[String(q.symbol || '').toUpperCase()] = q; });
-  const chg = (k) => { const q = bySym[k]; return q && Number.isFinite(Number(q.change_pct)) ? Number(q.change_pct) : null; };
-  const oilCh = chg('USO'); const tnxCh = chg('^TNX'); const spyCh = chg('SPY'); const qqqCh = chg('QQQ');
-  const iwmCh = chg('IWM'); const gldCh = chg('GLD'); const btcCh = chg('BTC-USD');
-  if (spyCh == null && qqqCh == null) {
-    const own = indexChain(market);
-    if (own) return own;
-  }
-  const vix = firstUsable(market.vix_level);
-  // [COHERENCE] Drive the narrative selection from the canonical regime engine
-  // (posture + news tilt), NOT the legacy market.tone — otherwise the chain can
-  // claim "Risk-on rotation" while the headline regime reads Mixed/Bearish.
-  const engine = market.market_regime_engine || market.marketRegimeEngine || {};
-  const postureTone = String((engine.colorTheme && engine.colorTheme.toneClass)
-    || engine.postureTone || '').toLowerCase();
-  const newsTilt = String((engine.newsImpact && engine.newsImpact.netDirection) || '').toLowerCase();
-  const idxMoves = [chg('SPY'), chg('QQQ'), chg('IWM')].filter((v) => v != null);
-  const allUp = idxMoves.length >= 2 && idxMoves.every((v) => v > 0);
-  const allDown = idxMoves.length >= 2 && idxMoves.every((v) => v < 0);
-  // The tape outranks a narrative: a bearish read on an all-green tape (or a
-  // bullish one on an all-red tape) is a broad move, not a rotation.
-  const bullishRegime = postureTone === 'bull' && newsTilt !== 'bearish' && !allDown;
-  const bearishRegime = (postureTone === 'bear' || newsTilt === 'bearish') && !allUp;
-
-  // Each candidate: a trigger + the downstream links, each with a live check.
-  // `check` true = the tape corroborates that link right now. A missing quote
-  // never corroborates anything. Every trigger level is MARKET.* config.
-  const oilShock = Number(thr('MARKET.CHAIN_OIL_SHOCK_PCT'));
-  const vixRegime = Number(thr('MARKET.CHAIN_VIX_REGIME'));
-  const yieldJump = Number(thr('MARKET.CHAIN_YIELD_JUMP_PCT'));
-  const spread = Number(thr('MARKET.CHAIN_LEADERSHIP_SPREAD_PCT'));
-  let chain;
-  if (oilCh != null && oilCh >= oilShock) {
-    chain = { label: 'Energy shock', links: [
-      { step: 'Oil spikes', check: oilCh >= oilShock },
-      { step: 'Inflation/rate fear', check: tnxCh != null && tnxCh >= 0 },
-      { step: 'Growth multiples pressured', check: qqqCh != null && spyCh != null && qqqCh <= spyCh },
-      { step: 'Defensives & energy relative-bid', check: spyCh != null && qqqCh != null && spyCh >= qqqCh },
-    ] };
-  } else if (vix != null && vix >= vixRegime) {
-    chain = { label: 'Volatility regime', links: [
-      { step: 'Volatility elevated', check: vix >= vixRegime },
-      { step: 'Risk budgets cut', check: spyCh != null && spyCh < 0 },
-      { step: 'High-beta sold first', check: (qqqCh != null && spyCh != null && qqqCh < spyCh) || (iwmCh != null && spyCh != null && iwmCh < spyCh) },
-      { step: 'Havens bid', check: (gldCh != null && gldCh > 0) || (tnxCh != null && tnxCh < 0) },
-    ] };
-  } else if (tnxCh != null && tnxCh >= yieldJump) {
-    chain = { label: 'Rates pressure', links: [
-      { step: 'Yields rise', check: tnxCh >= yieldJump },
-      { step: 'Long-duration tech de-rates', check: qqqCh != null && spyCh != null && qqqCh < spyCh },
-      { step: 'Value/cyclicals relative-lead', check: spyCh != null && qqqCh != null && spyCh >= qqqCh },
-    ] };
-  } else if (bullishRegime) {
-    // Each link is confirmed only by the move it names, in the direction it
-    // names. Equities lead; bitcoin counts only when the index read is absent.
-    chain = { label: 'Risk-on rotation', links: [
-      { step: 'Yields ease / stable', check: tnxCh != null && tnxCh <= 0 },
-      { step: 'Risk appetite returns', check: spyCh != null ? spyCh > 0 : (btcCh != null && btcCh > 0) },
-      { step: 'Breadth broadens', check: iwmCh != null && spyCh != null && iwmCh > 0 && iwmCh >= spyCh },
-      { step: 'Leaders extend', check: qqqCh != null && qqqCh > 0 },
-    ] };
-  } else if (bearishRegime) {
-    // A risk-off link is not confirmed by an index that rose: "leaders sold"
-    // needs leaders down, not merely up less. (A bearish news tilt on a green
-    // tape used to read "Confirmed 4/4"; it now reads as a hypothesis.)
-    chain = { label: 'Risk-off rotation', links: [
-      { step: 'Risk appetite fades', check: spyCh != null ? spyCh < 0 : (btcCh != null && btcCh < 0) },
-      { step: 'Leaders sold first', check: qqqCh != null && spyCh != null && qqqCh < 0 && qqqCh <= spyCh },
-      { step: 'Breadth narrows', check: iwmCh != null && spyCh != null && iwmCh < 0 && iwmCh <= spyCh },
-      { step: 'Havens / cash bid', check: (gldCh != null && gldCh > 0) || (tnxCh != null && tnxCh < 0) },
-    ] };
-  } else {
-    // A mixed tape is a claim like any other: each link is tested on the quotes
-    // it names, and an unmeasured link stays unconfirmed.
-    const idx = [spyCh, qqqCh, iwmCh].filter((v) => v != null);
-    const together = idx.length >= 2 && (idx.every((v) => v > 0) || idx.every((v) => v < 0));
-    if (together) {
-      // Every measured index moved the same way: that is a broad move, not a
-      // split tape, whatever the regime is called.
-      const up = idx[0] > 0;
-      chain = { label: up ? 'Broad advance' : 'Broad decline', links: [
-        { step: up ? 'Indices rise together' : 'Indices fall together', check: true },
-        { step: 'No clear leadership', check: qqqCh != null && spyCh != null && Math.abs(qqqCh - spyCh) < spread },
-        { step: up ? 'Small caps keep pace' : 'Small caps fall with it', check: iwmCh != null && spyCh != null && Math.sign(iwmCh) === Math.sign(spyCh) && Math.abs(iwmCh - spyCh) < spread },
-      ] };
-    } else chain = { label: 'Mixed tape', links: [
-      { step: 'Indices split', check: idx.length >= 2 && idx.some((v) => v > 0) && idx.some((v) => v < 0) },
-      { step: 'No clear leadership', check: qqqCh != null && spyCh != null && Math.abs(qqqCh - spyCh) < spread },
-      { step: 'Small caps diverge', check: iwmCh != null && spyCh != null && (Math.sign(iwmCh) !== Math.sign(spyCh) || Math.abs(iwmCh - spyCh) >= spread) },
-    ] };
-  }
-  const confirmed = chain.links.filter((l) => l.check).length;
-  chain.confirmed = confirmed;
-  chain.total = chain.links.length;
-  chain.verified = confirmed >= Math.ceil(chain.total * Number(thr('MARKET.CHAIN_CONFIRM_SHARE')));
-  return chain;
-}
-
 
 // Plain-English "what it means" + "what to do" for a news catalyst.
 function newsMeaning(item = {}) {
@@ -6673,10 +7020,10 @@ function newsMeaning(item = {}) {
   if (item.catalyst_label === 'Market Wrap') return 'Index-level move: context for the tape, not a single-name catalyst.';
   if (cat.includes('macro')) return 'Moves rate-cut odds and cross-asset risk appetite.';
   if (cat.includes('earning')) return 'Resets expectations for the name and its peers.';
-  if (cat.includes('deal')) return 'M&A signal — can re-rate the whole sector.';
+  if (cat.includes('deal')) return 'M&A signal: can re-rate the whole sector.';
   if (cat.includes('politic') || cat.includes('geo')) return 'Policy / geopolitical risk premium in play.';
   if (cat.includes('stock')) return 'Single-name catalyst; watch for sympathy moves.';
-  return impact >= mkt('NEWS_IMPACT_MARKET_MOVING') ? 'Market-moving — confirm the tape reaction.' : 'Context for the tape, not yet a trigger.';
+  return impact >= mkt('NEWS_IMPACT_MARKET_MOVING') ? 'Market-moving; confirm the tape reaction.' : 'Context for the tape, not yet a trigger.';
 }
 
 
@@ -7009,7 +7356,7 @@ async function runScan(event, opts = {}) {
   // safe mode only lowers concurrency server-side, the universe is unchanged.
   const params = opts.params ? { ...opts.params, safe_mode: safeMode } : {
     market: $('#sp-market').value,
-    capital: Number($('#sp-capital').value || thr('CAPITAL.DEFAULT_US')),
+    capital: Number($('#sp-capital').value || defaultCapital($('#sp-market').value)),
     scan_type: $('#sp-scan').value,
     risk_profile: $('#sp-risk').value,
     max_positions: Number($('#sp-positions').value || thr('CAPITAL.MAX_POSITIONS_DEFAULT')),
@@ -7030,10 +7377,15 @@ async function runScan(event, opts = {}) {
   if (params.scan_type === 'custom' && !opts.params) {
     params.custom_tickers = $('#sp-custom-tickers').value
       .split(/[,\s]+/).map((s) => s.trim().toUpperCase()).filter(Boolean);
+    const tickErr = $('#sp-custom-error');
+    const tickIn = $('#sp-custom-tickers');
     if (!params.custom_tickers.length) {
-      alert('Please enter at least one ticker.');
+      if (tickErr) { tickErr.textContent = 'Enter at least one ticker, separated by commas.'; tickErr.hidden = false; }
+      if (tickIn) { tickIn.setAttribute('aria-invalid', 'true'); tickIn.focus(); }
       return;
     }
+    if (tickErr) { tickErr.hidden = true; tickErr.textContent = ''; }
+    if (tickIn) tickIn.removeAttribute('aria-invalid');
   }
 
   state.lastScanParams = { ...params, safe_mode: false };
@@ -7054,7 +7406,7 @@ async function runScan(event, opts = {}) {
       // Another scan holds the single scan slot. Offer to give up on it rather
       // than leaving the user with a dead end until it times out.
       status.textContent = 'Another scan is running';
-      setPicksMeta('Scan blocked — another scan is running');
+      setPicksMeta('Scan blocked: another scan is running');
       results.innerHTML = `<div class="error-box">
         <p>${escapeHtml(payload.error || 'A scan is already running.')}</p>
         <button type="button" class="q-btn" id="btn-cancel-running">Cancel the running scan</button>
@@ -7075,9 +7427,11 @@ async function runScan(event, opts = {}) {
     }
     if (!res.ok) throw new Error(payload.error || 'Scan failed to start');
     renderScanStages(null);
+    state.scanJobId = payload.job_id;
     pollJob(payload.job_id, bar, status, (data) => {
       // The scan belongs to the market it was launched for.
       if (!scanCurrent()) return;
+      state.scanJobId = null;
       onUserScanComplete(data, typeof window !== 'undefined' && !!window.matchMedia
         && window.matchMedia(`(max-width: ${PHONE_MAX_WIDTH}px)`).matches);
     }, btn, prog, results, scanCurrent);
@@ -7187,7 +7541,7 @@ function deepConfirmWarningsHtml(data) {
   const parts = [];
   if (dc.enabled === false) {
     parts.push(`<div class="dc-warning bear" role="alert">
-      <strong>${warnIconSvg('bear')} Deep confirmation is DISABLED.</strong> These picks reflect the raw scanner only and have NOT been independently validated. Developer-only override — do not trade from this view.
+      <strong>${warnIconSvg('bear')} Deep confirmation is DISABLED.</strong> These picks reflect the raw scanner only and have NOT been independently validated. Developer-only override; do not trade from this view.
     </div>`);
   }
   const notConfirmed = Array.isArray(dc.not_confirmed) ? dc.not_confirmed : [];
@@ -7372,7 +7726,7 @@ function renderTearSheetRateLimit(detail, hasCache) {
   const ticker = m.ticker || (document.getElementById('an-ticker')?.value || '').trim().toUpperCase();
   const lastSuccess = m.lastSuccess
     ? new Date(m.lastSuccess).toLocaleString()
-    : '—';
+    : 'N/A';
   const cacheBtn = hasCache
     ? `<button type="button" class="btn-secondary" id="ts-use-cache">Use cached data</button>`
     : '';
@@ -7381,7 +7735,7 @@ function renderTearSheetRateLimit(detail, hasCache) {
       <h3 style="margin:0 0 6px;">⏳ ${escapeHtml(m.title)}</h3>
       <p style="margin:0 0 10px;">${escapeHtml(m.body)}</p>
       <ul style="margin:0 0 12px;padding-left:18px;line-height:1.7;">
-        <li><strong>Ticker:</strong> ${escapeHtml(ticker || '—')}</li>
+        <li><strong>Ticker:</strong> ${escapeHtml(ticker || 'N/A')}</li>
         <li><strong>Provider:</strong> ${escapeHtml(m.provider)}</li>
         <li><strong>Error type:</strong> ${escapeHtml(errorTypeLabel(m.errorType))}</li>
         <li><strong>Attempts:</strong> ${m.attempts}</li>
@@ -7417,9 +7771,9 @@ function renderTearSheetRateLimit(detail, hasCache) {
     safeBtn.textContent = 'Retry now';
   }
 
-  if (safeBtn) safeBtn.addEventListener('click', () => runAnalysis(null, { safeMode: true }));
+  if (safeBtn) safeBtn.addEventListener('click', () => runAnalysis(null, { ...(state.lastAnalysisOpts || {}), safeMode: true }));
   const useCacheBtn = document.getElementById('ts-use-cache');
-  if (useCacheBtn) useCacheBtn.addEventListener('click', () => runAnalysis(null, { preferCache: true }));
+  if (useCacheBtn) useCacheBtn.addEventListener('click', () => runAnalysis(null, { ...(state.lastAnalysisOpts || {}), preferCache: true }));
 }
 
 // [PROVIDER-RESILIENCE] Detect a structured rate-limit job error and render the
@@ -7508,7 +7862,9 @@ function renderResearchDiagnostic(detail) {
         const input = document.getElementById('an-ticker');
         if (input) input.value = btn.getAttribute('data-ticker');
       }
-      runAnalysis();
+      // A switched market is the new request; otherwise repeat the last one's options.
+      const last = state.lastAnalysisOpts || {};
+      runAnalysis(null, act === 'market' ? { fastMode: last.fastMode } : last);
     });
   });
 }
@@ -7716,7 +8072,7 @@ function errorDetailsCardHtml(data) {
       <td>${r.retryable ? '<span class="bull">Yes</span>' : '<span class="muted">No</span>'}</td>
       <td class="err-fix">${escapeHtml(r.suggested_fix || '')}</td>
     </tr>`).join('');
-  const more = records.length > 20 ? `<p class="muted" style="margin:8px 0 0;font-size:11.5px;">Showing top 20 of ${records.length}. Use the download buttons for the full log.</p>` : '';
+  const more = records.length > 20 ? `<p class="muted" style="margin:8px 0 0;font-size:var(--fs-xs);">Showing top 20 of ${records.length}. Use the download buttons for the full log.</p>` : '';
   return `
     <details class="error-details-card" style="margin:14px 0;">
       <summary style="cursor:pointer;padding:12px 16px;font-weight:700;font-size:13px;list-style:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -7793,9 +8149,9 @@ function downloadBlob(content, filename, mime) {
 const MARKET_DEPENDENT_PANELS = [
   'top-movers-body', 'open-extremes-body', 'setup-status-body',
   'portfolio-scan-body', 'monitor-watchlist-body', 'monitor-extended-body',
-  'event-risk-body', 'signal-check-body', 'market-drivers-body',
-  'breadth-body', 'news-body', 'top-headlines', 'market-pulse',
-  'decision-brief',
+  'movers-body', 'news-body', 'market-pulse', 'triggers-body', 'ov-session',
+  'decision-brief', 'ov-week', 'news-rail', 'news-mood', 'ov-minis', 'ov-outlook',
+  'sector-body', 'week-body', 'ov-bulletin-track',
 ];
 
 /** Reopen the last completed scan for ``market`` (saved server-side), marked as
@@ -7803,6 +8159,7 @@ const MARKET_DEPENDENT_PANELS = [
  *  never replaces a scan the user has run or started since. */
 async function restoreLastScan(market) {
   const m = market === 'IN' ? 'IN' : 'US';
+  refreshRecentScans(m);                       // the switcher fills in beside it, independently
   // Any scan started (or failed) while this request is in flight wins.
   const scanToken = _jobTokens.scan;
   let saved;
@@ -7815,16 +8172,180 @@ async function restoreLastScan(market) {
   const marketNow = ($('#sp-market')?.value || 'US') === 'IN' ? 'IN' : 'US';
   if (!saved || !saved.result || state.picks || marketNow !== m || (scanBtn && scanBtn.disabled)
       || !jobTokenCurrent('scan', scanToken)) return false;
+  showSavedScan(saved);
+  return true;
+}
+
+/** Show a saved scan: its report, marked as a snapshot in the report header. */
+function showSavedScan(saved) {
+  // The form describes the scan on screen, so "Run Picks scan" refreshes exactly it.
+  fillScanForm(saved.params);
+  // Read by pkHeadHtml: the header states it is a saved scan, and from when.
+  state.picksSavedMeta = { closed_since: saved.closed_since === true, as_of_session: saved.as_of_session || null };
   renderPicks(saved.result, { savedAt: saved.saved_at || 'unknown' });
-  const when = saved.saved_at ? new Date(saved.saved_at) : null;
-  const whenText = when && !Number.isNaN(when.getTime())
-    ? when.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-    : 'an earlier session';
+  state.picksViewId = saved.id || null;
+  const whenText = savedScanWhen(saved.saved_at);
   setPicksMeta(`Saved scan · ${whenText}`);
   const results = document.getElementById('picks-results');
-  if (results) {
-    results.insertAdjacentHTML('afterbegin', `<p class="q-note picks-restored" role="status">Showing your last scan, from <b>${escapeHtml(whenText)}</b>. Prices and calls may have moved since: run a new scan before acting on it.</p>`);
+  // The report header carries the saved state; only a result without that
+  // header (an older payload shape) needs the standalone note.
+  if (results && !results.querySelector('[data-picks-head]')) {
+    results.insertAdjacentHTML('afterbegin', `<p class="q-note picks-restored" role="status">${savedScanNoteHtml(saved, whenText)}</p>`);
   }
+  renderRecentScans();
+}
+
+function savedScanWhen(iso) {
+  const when = iso ? new Date(iso) : null;
+  return when && !Number.isNaN(when.getTime())
+    ? when.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : 'an earlier session';
+}
+
+/** The day a saved scan's prices are from, as "Wed, Oct 14". */
+function savedSessionDay(session) {
+  const [y, mo, d] = String(session || '').split('-').map(Number);
+  return y ? new Date(y, mo - 1, d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : String(session || '');
+}
+
+/** The sentence a saved scan carries. When the US market has closed since its
+ *  prices were final, it says so, with the session the prices are from. */
+function savedScanNoteHtml(saved, whenText) {
+  const head = `Showing a saved scan from <b>${escapeHtml(whenText)}</b>.`;
+  if (saved.closed_since === true && saved.as_of_session) {
+    return `${head} Its prices are from the <b>${escapeHtml(savedSessionDay(saved.as_of_session))}</b> close and the market has closed since: run a new scan before acting on it.`;
+  }
+  return `${head} Prices and calls may have moved since: run a new scan before acting on it.`;
+}
+
+/* ── Recent scans: reopen a scan from the last day without running it again ── */
+
+/** "just now", "12m ago", "5h ago". */
+function savedScanAge(iso, now = Date.now()) {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '';
+  const mins = Math.max(0, Math.floor((now - t) / 60000));
+  if (mins < 1) return 'just now';
+  return mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`;
+}
+
+const savedScanName = (s) => (s.scan_type === 'custom' && s.custom_count ? `Custom (${s.custom_count})` : scanTypeName(s.scan_type));
+
+/** What a saved scan was run with and found, for the chip's tooltip. */
+function savedScanDetail(s) {
+  const sym = s.market === 'IN' ? '₹' : '$';
+  const bits = [savedScanName(s), fmtMoney(s.capital, sym, 0), s.risk_profile ? `${titleLabel(s.risk_profile)} mandate` : '',
+    s.max_positions ? `up to ${Number(s.max_positions)} positions` : '', s.has_filters ? 'with filters' : '',
+    `${s.buy_accumulate || 0} Buy or Accumulate, ${s.watchlist || 0} Watchlist`,
+    s.closed_since === true ? 'prices from before the last market close' : ''];
+  return bits.filter(Boolean).join(', ');
+}
+
+/** The Recent scans strip above the report: one item per saved scan, newest
+ *  first, the one on screen marked. Fewer than two scans leave nothing to
+ *  switch between, so nothing is drawn. */
+function recentScansHtml(scans, activeId) {
+  if (!Array.isArray(scans) || scans.length < 2) return '';
+  const rows = scans.map((s) => {
+    const stamp = Date.parse(s.saved_at);
+    const valid = Number.isFinite(stamp);
+    const when = valid ? new Date(stamp).toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    }) : 'Time unavailable';
+    const label = `Open ${savedScanName(s)} scan from ${when}`;
+    const on = s.id === activeId;
+    return `<li><button type="button" class="recent-scan${s.closed_since === true ? ' is-stale' : ''}" data-pk-recent="${escapeHtml(s.id)}"${on ? ' aria-current="true"' : ''} aria-label="${escapeHtml(label)}" title="${escapeHtml(savedScanDetail(s))}">
+        ${valid ? `<time datetime="${escapeHtml(s.saved_at)}">${escapeHtml(when)}</time>` : escapeHtml(when)}
+      </button></li>`;
+  }).join('');
+  return `<ol class="recent-scans-list">${rows}</ol>`;
+}
+
+function renderRecentScans() {
+  const box = document.getElementById('pk-recent');
+  if (!box) return;
+  const body = box.querySelector('[data-pk-recent-body]');
+  const html = recentScansHtml(state.recentScans, state.picksViewId);
+  if (body) body.innerHTML = html;
+  box.hidden = !html;
+}
+
+function recentScansNote(text) {
+  const el = document.querySelector('#pk-recent [data-pk-recent-note]');
+  if (el) el.textContent = text;
+}
+
+const picksMarketNow = () => (($('#sp-market')?.value || 'US') === 'IN' ? 'IN' : 'US');
+
+/** Fetch the list for a market. ``selectNewest`` marks the newest chip as the
+ *  one on screen (a scan just finished, so it is the newest). */
+async function refreshRecentScans(market, { selectNewest = false } = {}) {
+  const m = market === 'IN' ? 'IN' : 'US';
+  let body;
+  try {
+    const res = await fetch(`/api/stock-picks/recent?market=${m}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    body = await res.json();
+  } catch (_) { return; }
+  if (picksMarketNow() !== m) return;          // the market changed while this was in flight
+  state.recentScans = Array.isArray(body && body.scans) ? body.scans : [];
+  if (selectNewest && state.recentScans.length) state.picksViewId = state.recentScans[0].id;
+  renderRecentScans();
+}
+
+/** Put a saved scan's settings back in the form, so "Run Picks scan" refreshes exactly that view. */
+function fillScanForm(p) {
+  if (!p) return;
+  const set = (sel, v) => { const el = $(sel); if (el && v !== undefined && v !== null) el.value = String(v); };
+  const sc = $('#sp-scan');
+  if (sc && p.scan_type && sc.querySelector(`option[value="${String(p.scan_type).replace(/"/g, '')}"]`)) {
+    sc.value = p.scan_type;
+    $('#custom-tickers-field')?.classList.toggle('hidden', sc.value !== 'custom');
+    syncScanHint();
+  }
+  set('#sp-capital', p.capital);
+  set('#sp-risk', p.risk_profile);
+  applyMandateHint();
+  set('#sp-positions', p.max_positions);
+  const div = $('#sp-diversify');
+  if (div) div.checked = p.diversify !== false;
+  const custom = $('#sp-custom-tickers');
+  if (custom) custom.value = (p.custom_tickers || []).join(', ');
+  applyScanFilters(p.filters || {});
+  collapseSetupAfterRun();
+}
+
+/** The inverse of pickScanFilters: write a saved filter set back into its fields. */
+function applyScanFilters(f) {
+  const u = SCAN_FILTER_UNITS[picksMarketNow()];
+  document.querySelectorAll('#sp-sectors input').forEach((i) => { i.checked = (f.sectors || []).includes(i.value); });
+  const put = (sel, v, unit) => { const el = $(sel); if (el) el.value = v ? String(v / unit) : ''; };
+  put('#sp-f-capmin', f.min_market_cap, u.cap[1]); put('#sp-f-capmax', f.max_market_cap, u.cap[1]);
+  put('#sp-f-pmin', f.min_price, 1); put('#sp-f-pmax', f.max_price, 1);
+  put('#sp-f-value', f.min_daily_value, u.value[1]);
+  updateScanFiltersCount();
+}
+
+/** Open one saved scan. A scan that is running wins: switching waits for it. */
+async function openRecentScan(id) {
+  const m = picksMarketNow();
+  const scanBtn = document.getElementById('btn-scan');
+  if (scanBtn && scanBtn.disabled) { recentScansNote('A scan is running. It joins this list when it finishes.'); return false; }
+  const scanToken = _jobTokens.scan;
+  let saved;
+  try {
+    const res = await fetch(`/api/stock-picks/recent/${encodeURIComponent(id)}?market=${m}`, { cache: 'no-store' });
+    if (res.status === 404) {
+      await refreshRecentScans(m);
+      recentScansNote('That scan has expired. Run it again to bring it back.');
+      return false;
+    }
+    if (!res.ok) { recentScansNote('That scan could not be opened.'); return false; }
+    saved = await res.json();
+  } catch (_) { recentScansNote('That scan could not be opened.'); return false; }
+  const busy = document.getElementById('btn-scan');
+  if (!saved || !saved.result || picksMarketNow() !== m || (busy && busy.disabled) || !jobTokenCurrent('scan', scanToken)) return false;
+  showSavedScan(saved);
   return true;
 }
 
@@ -7835,6 +8356,11 @@ function clearMarketDependentPanels(market) {
   nextJobToken('scan');
   const scanBtn = document.getElementById('btn-scan');
   const scanWasRunning = !!(scanBtn && scanBtn.disabled);
+  if (state.scanJobId) {
+    fetch(`/api/jobs/${encodeURIComponent(state.scanJobId)}/cancel`, { method: 'POST', headers: QUANTA_POST_HEADERS })
+      .catch(() => { /* the server's own budget ends it */ });
+    state.scanJobId = null;
+  }
   if (scanBtn) scanBtn.disabled = false;
   const scanProg = document.getElementById('sp-progress');
   if (scanProg) scanProg.classList.remove('visible');
@@ -7844,19 +8370,28 @@ function clearMarketDependentPanels(market) {
   }
   state.picks = null;
   state.picksSavedAt = null;
+  state.picksViewId = null;
+  state.recentScans = [];
+  renderRecentScans();
   state.dashboard = null;
   state.shownSymbols = new Set();
   const label = market === 'IN' ? 'India' : 'United States';
   const notice = `<div class="q-empty q-empty--inline">Loading ${escapeHtml(label)} data…</div>`;
   MARKET_DEPENDENT_PANELS.forEach((id) => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = notice;
+    // The call keeps the view's heading while the new market loads.
+    if (!el) return;
+    if (id === 'ov-week') el.innerHTML = `<h1 class="ovx-h1" id="week-h">Market overview</h1>${notice}`;
+    else if (id === 'decision-brief') el.innerHTML = `<h2 class="ovx-kick" id="mood-h">Market mood</h2>${notice}`;
+    else if (id === 'market-pulse' || id === 'ov-bulletin-track') el.innerHTML = `<li>${notice}</li>`;
+    else el.innerHTML = notice;
   });
+  state.weekChart = null;
   setPicksMeta('No scan yet');
   restoreLastScan(market);
   // Meta lines make claims about the market that just went away.
-  ['top-movers-meta', 'open-extremes-meta', 'vetoes-meta', 'event-risk-meta',
-   'signal-check-meta', 'market-drivers-meta', 'breadth-meta'].forEach((id) => {
+  ['top-movers-meta', 'open-extremes-meta', 'vetoes-meta', 'movers-meta',
+   'triggers-meta', 'sector-meta'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.textContent = 'Loading…';
   });
@@ -7986,6 +8521,8 @@ function dataDatesLineHtml(data) {
    market switch) go through renderPicks alone and never move focus. */
 function onUserScanComplete(data, isPhone) {
   renderPicks(data);
+  state.picksViewId = null;                    // set again once the list shows this scan as the newest
+  refreshRecentScans(picksMarketNow(), { selectNewest: true });
   collapseSetupAfterRun(!!isPhone);
   const heading = document.querySelector('#picks-results [data-result-heading]');
   if (heading && typeof heading.focus === 'function') heading.focus({ preventScroll: false });
@@ -8178,7 +8715,7 @@ function pkSignedPct(v, digits = 1) {
 
 function pkSignalHtml(signal) {
   const tone = PK_TONE[signalKey(signal)] || 'neutral';
-  return `<span class="pk-signal is-${tone}">${escapeHtml(signal ? titleLabel(signal) : '—')}</span>`;
+  return `<span class="pk-signal is-${tone}">${escapeHtml(signal ? titleLabel(signal) : 'N/A')}</span>`;
 }
 
 /* The one reason a row is not funded, in words. */
@@ -8296,10 +8833,14 @@ function pkEmptyHtml(data, rows) {
   const uncovered = ((data.event_check || {}).reasons || []).find((x) => x.reason === 'not_covered' && Number(x.count) > 0);
   const exchanges = Object.values(thr('EVENTS.UNCOVERED_LISTINGS') || {});
   const reached = Number(acc.reached_book);
-  return `<div class="pk-empty" data-pk-empty>
-      <p class="pk-empty-h"><b>No Buy or Accumulate picks right now.</b>${wl ? ` ${wl} name${wl === 1 ? ' is' : 's are'} on the Watchlist.` : ''}</p>
-      ${reasons.length ? `<p>${reached === 0 ? 'No name passed the per-name rules. ' : ''}Top reasons: ${escapeHtml(reasons.join(', '))}.</p>` : ''}
-      ${uncovered ? `<p data-pk-uncovered>${escapeHtml(`${exchanges.length ? exchanges.join(' and ') : 'These'} listings get no Buy or Accumulate call: no corporate-event source covers them yet, so the best call a name can reach is Watchlist.`)}</p>` : ''}
+  // The verdict for an empty book: a plain heading, then why, in body text.
+  // It used to be an amber box; an empty book is a normal outcome, not a caution.
+  const why = [wl ? `${wl} name${wl === 1 ? ' is' : 's are'} on the Watchlist.` : '',
+    reasons.length ? `${reached === 0 ? 'No name passed the per-name rules. ' : ''}Top reasons: ${reasons.join(', ')}.` : ''].filter(Boolean).join(' ');
+  return `<div class="pk-verdict pk-empty" data-pk-empty>
+      <h3 class="pk-verdict-h" data-result-heading tabindex="-1">No Buy or Accumulate picks right now.</h3>
+      ${why ? `<p class="pk-verdict-why">${escapeHtml(why)}</p>` : ''}
+      ${uncovered ? `<p class="pk-verdict-why" data-pk-uncovered>${escapeHtml(`${exchanges.length ? exchanges.join(' and ') : 'These'} listings get no Buy or Accumulate call: no corporate-event source covers them yet, so the best call a name can reach is Watchlist.`)}</p>` : ''}
     </div>`;
 }
 
@@ -8572,27 +9113,62 @@ const PK_TIPS = {
 /* The market a result scanned: its own field, else the currency it priced in. */
 const pkIsIndia = (data) => /^IN(DIA)?$/i.test(String(data.market || '')) || (!data.market && data.currency === '\u20b9');
 
+/* The report header: which scan this is, where it came from and what it was
+   run with, on one line, beside Export. A saved scan says so here (the page
+   used to add a separate note above the report for that). */
 function pkHeadHtml(data, rows, sym) {
   void sym;
   const when = data.timestamp && !Number.isNaN(Date.parse(data.timestamp)) ? fmtStamp(data.timestamp) : '';
-  const meta = [when ? `Run ${when}` : '', pkIsIndia(data) ? 'India' : 'US',
+  const meta = [pkProvenance(when), pkIsIndia(data) ? 'India' : 'US',
     (data.risk_profile || {}).profile ? `${titleLabel(data.risk_profile.profile)} mandate` : '',
     data.max_positions ? `Up to ${Number(data.max_positions)} positions` : '',
     pkFiltersText(data) ? `Filters: ${pkFiltersText(data)}` : ''].filter(Boolean);
   const ba = rows.filter((r) => ['buy', 'accumulate'].includes(pkGroupOf(r))).length;
   const wl = rows.filter((r) => pkGroupOf(r) === 'watchlist').length;
-  const scanned = Number(data.total_scanned || (data.accounting || {}).universe || 0);
   if (data.scan_type) meta.unshift(`${scanTypeName(data.scan_type)} scan`);
   const copy = [ba ? '<button type="button" class="btn-mini" data-pk-copy="ba">Copy Buy and Accumulate</button>' : '',
     wl ? '<button type="button" class="btn-mini" data-pk-copy="watchlist">Copy Watchlist</button>' : ''].join('');
-  // One strip: the count, the run settings on one line, and one Export menu.
   const tools = rows.length ? `<details class="pk-export"><summary class="btn-mini">Export</summary>
       <div class="pk-actions pk-export-menu" role="group" aria-label="Export">${copy}<button type="button" class="btn-mini" data-pk-csv>Download CSV</button></div></details>` : '';
+  const item = (m) => (typeof m === 'string' ? `<li>${escapeHtml(m)}</li>`
+    : `<li class="${m.cls}" title="${escapeHtml(m.title)}"${m.cls === 'is-saved' ? ' data-pk-saved' : ''}>${escapeHtml(m.text)}</li>`);
   return `<header class="pk-head" data-picks-head>
-      <h3 class="pk-title" data-result-heading tabindex="-1">${escapeHtml(`${ba} Buy or Accumulate, ${wl} Watchlist${scanned ? `, from ${scanned} scanned` : ''}`)}</h3>
-      <ul class="pk-meta" aria-label="Scan settings" title="${escapeHtml(meta.join(' \u00b7 '))}">${meta.map((m) => `<li>${escapeHtml(m)}</li>`).join('')}</ul>
+      <ul class="pk-meta" aria-label="Scan settings" title="${escapeHtml(meta.map((m) => (typeof m === 'string' ? m : m.text)).join(' · '))}">${meta.map(item).join('')}</ul>
       ${tools}
     </header>`;
+}
+
+/* When the report on screen was made: "Run 2026-10-18 09:50" for a scan just
+   run; "Saved 40m ago" for one reopened from Recent scans, in amber once the
+   market has closed since its prices were final. */
+// Re-reads the age on the saved-scan stamp in the Picks header.
+function refreshSavedStamp() {
+  const el = document.querySelector('[data-picks-head] [data-pk-saved]');
+  const p = el && pkProvenance('');
+  if (p && typeof p === 'object' && p.cls === 'is-saved') el.textContent = p.text;
+}
+
+function pkProvenance(when) {
+  if (!state.picksSavedAt) return when ? `Run ${when}` : '';
+  const savedMeta = state.picksSavedMeta || {};
+  const age = savedScanAge(state.picksSavedAt);
+  const note = savedScanNoteHtml({ closed_since: savedMeta.closed_since, as_of_session: savedMeta.as_of_session },
+    savedScanWhen(state.picksSavedAt)).replace(/<[^>]+>/g, '');
+  if (savedMeta.closed_since && savedMeta.as_of_session) {
+    return { cls: 'is-stale', title: note, text: `Saved, prices from the ${savedSessionDay(savedMeta.as_of_session)} close` };
+  }
+  return { cls: 'is-saved', title: note, text: age ? `Saved ${age}` : 'Saved scan' };
+}
+
+/* The answer, once: what there is to buy. With no Buy or Accumulate call the
+   verdict is the empty-book reading (pkEmptyHtml), which carries the reasons. */
+function pkVerdictHtml(data, rows) {
+  const ba = rows.filter((r) => ['buy', 'accumulate'].includes(pkGroupOf(r))).length;
+  if (!ba) return pkEmptyHtml(data, rows);
+  const wl = rows.filter((r) => pkGroupOf(r) === 'watchlist').length;
+  return `<div class="pk-verdict" data-pk-verdict>
+      <h3 class="pk-verdict-h" data-result-heading tabindex="-1">${escapeHtml(`${ba} Buy or Accumulate${wl ? `, ${wl} Watchlist` : ''}`)}</h3>
+    </div>`;
 }
 
 /* Three figures, each with one job; the header already counts the calls and
@@ -8616,20 +9192,22 @@ function pkSummaryCardsHtml(data, rows, sym) {
   const sub = (t) => (t ? `<span>${escapeHtml(t)}</span>` : '');
 
   const steps = [[scanned, 'scanned'], [rows.length, 'ranked'], [sized.length, 'sized']];
-  const funnel = scanned ? `<ol class="pk-fun" aria-label="${escapeHtml(steps.map(([n, l]) => `${n} ${l}`).join(', '))}">${steps.map(([n, l]) => `<li><b>${escapeHtml(String(n))}</b><small>${escapeHtml(l)}</small></li>`).join('')}</ol>` : '<b>-</b>';
+  const funnel = scanned ? `<ol class="pk-fun" aria-label="${escapeHtml(steps.map(([n, l]) => `${n} ${l}`).join(', '))}">${steps.map(([n, l]) => `<li><b>${escapeHtml(String(n))}</b> <small>${escapeHtml(l)}</small></li>`).join('')}</ol>` : '<b>-</b>';
   const funnelSub = [out ? `${out} screened out` : '', ex ? `${ex} excluded for safety` : '', failed ? `${failed} not analysed` : ''].filter(Boolean).join(', ');
 
   // The meter is the one place exposure appears: fill = capital used, tick = the
   // share of capital the regime allows.
   const clampPct = (v) => Math.max(0, Math.min(100, v));
   const meter = usedPct !== null ? `<span class="pk-meter" aria-hidden="true"><span class="pk-meter-fill" style="width:${clampPct(usedPct).toFixed(1)}%"></span>${exposure !== null ? `<span class="pk-meter-cap" style="left:${clampPct(exposure).toFixed(1)}%"></span>` : ''}</span>` : '';
-  const deploySub = capital ? `${usedPct.toFixed(1)}% of ${fmtMoney(capital, sym, 0)}${exposure !== null ? `, regime allows ${Number(exposure)}%` : ''}` : '';
+  // One exposure model: the cap is the Overview's market-mood band when one was read.
+  const capWords = (regime.exposure_basis || {}).source === 'overview' ? 'the market mood allows up to' : 'the scanner regime allows';
+  const deploySub = capital ? `${usedPct.toFixed(1)}% of ${fmtMoney(capital, sym, 0)}${exposure !== null ? `, ${capWords} ${Number(exposure)}%` : ''}` : '';
 
   const regimeSub = [pkNum(regime.vix) > 0 ? `${pkIsIndia(data) ? 'India VIX' : 'VIX'} ${Number(regime.vix).toFixed(1)}${regime.vix_is_proxy ? ' (est.)' : ''}` : '',
     unknown ? 'trend unread: benchmark history unavailable' : ''].filter(Boolean).join(', ');
   return `<dl class="pk-scards" data-pk-summary>
       ${cell('Scan to calls', `${funnel}${sub(funnelSub)}`, ' pk-sc-funnel')}
-      ${cell('Suggested deployment', `<b>${escapeHtml(fmtMoney(invested, sym, 0))}</b>${meter}${sub(deploySub)}`, ' pk-sc-deploy')}
+      ${cell('Model sizing total', `<b>${escapeHtml(fmtMoney(invested, sym, 0))}</b>${meter}${sub(deploySub)}`, ' pk-sc-deploy')}
       ${regime.type ? cell('Regime', `<b>${escapeHtml(unknown ? 'Unknown' : titleLabel(regime.type))}</b>${sub(regimeSub)}`) : ''}
     </dl>`;
 }
@@ -8687,7 +9265,7 @@ function pkStatusChipsHtml(rows) {
    states it once. */
 const PK_WATCH_CAPITAL = 'No new money on a Watchlist call';
 
-function pkRowHtml(r, i, sym) {
+function pkRowHtml(r, i, sym, showCap = true) {
   const sized = pkIsSized(r);
   const rr = pkNum(r.risk_reward);
   const dec = Number(thr('UI.RR_DECIMALS')) || 2;
@@ -8704,20 +9282,21 @@ function pkRowHtml(r, i, sym) {
       <td class="pk-c-levels">${pkLevelsCellHtml(r, sym)}</td>
       <td class="pk-c-rr num" data-label="R:R">${r.status !== 'avoid' && rr ? escapeHtml(rr.toFixed(dec)) : PK_NA}</td>
       <td class="pk-c-score" data-label="Score">${pkScoreCellHtml(r)}</td>
-      <td class="pk-c-pos">${position}</td>
+      ${showCap ? `<td class="pk-c-pos">${position}</td>` : ''}
       <td class="pk-c-more"><button type="button" class="pk-expand" data-pk-open="${escapeHtml(r.ticker)}" aria-label="Open the ${escapeHtml(r.ticker)} analysis"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
     </tr>`;
 }
 
+/* The Calls tab: the call filters with the model flag on one toolbar row, then
+   the table. The verdict and the scan figures sit above the tabs (they describe
+   the whole scan); the broker-holdings note lives under Risk and execution. */
 function pkOverviewHtml(data, rows, sym, foot) {
-  const hasBuy = rows.some((r) => ['buy', 'accumulate'].includes(pkGroupOf(r)));
   const ev = (rows.find((r) => r.evidence) || {}).evidence;
   const note = modelFlagHtml(ev, 'data-pk-valid');
-  return `${pkSummaryCardsHtml(data, rows, sym)}
-    ${hasBuy ? '' : pkEmptyHtml(data, rows)}
-    ${rows.length ? `<div class="pk-ov-tools">${pkStatusChipsHtml(rows)}${pkResultFiltersHtml(rows)}
-      ${note || pkHoldingsNoteHtml(data) ? `<div class="pk-ov-sub">${note}${pkHoldingsNoteHtml(data)}</div>` : ''}</div>
-      ${pkTableHtml(rows, sym)}<p class="pk-nomatch" data-pk-nomatch hidden>No call matches these filters.</p>${pkWarningsHtml(data, rows)}` : ''}
+  if (!rows.length) return `<p class="pk-panel-empty">No Buy, Accumulate or Watchlist call in this scan. Method lists every name and the rule it stopped at.</p>${foot}`;
+  return `<div class="pk-ov-tools">${pkStatusChipsHtml(rows)}${pkResultFiltersHtml(rows)}
+      ${note ? `<div class="pk-ov-sub">${note}</div>` : ''}</div>
+      ${pkTableHtml(rows, sym)}<p class="pk-nomatch" data-pk-nomatch hidden>No call matches these filters.</p>${pkWarningsHtml(data, rows)}
     ${foot}`;
 }
 
@@ -9071,25 +9650,29 @@ function pkScoreCellHtml(r) {
    opens with a group row naming it and its count; the Watchlist group says
    once what its rows mean for capital. */
 const PK_GROUP_NOTE = { watchlist: 'No new money on these calls. Open a row for what holds it back.' };
-function pkGroupHeadHtml(key, label, n) {
+function pkGroupHeadHtml(key, label, n, cols = PK_COLS.length + 1) {
   const note = PK_GROUP_NOTE[key];
-  return `<tr class="pk-grp" data-pk-grp="${cssToken(key)}"><th scope="rowgroup" colspan="${PK_COLS.length + 1}"><span class="pk-grp-l">${escapeHtml(label)}</span><span class="pk-grp-n">${n}</span>${note ? `<span class="pk-grp-note">${escapeHtml(note)}</span>` : ''}</th></tr>`;
+  return `<tr class="pk-grp" data-pk-grp="${cssToken(key)}"><th scope="rowgroup" colspan="${cols}"><span class="pk-grp-l">${escapeHtml(label)}</span><span class="pk-grp-n">${n}</span>${note ? `<span class="pk-grp-note">${escapeHtml(note)}</span>` : ''}</th></tr>`;
 }
-function pkGroupedRowsHtml(rows, sym) {
+function pkGroupedRowsHtml(rows, sym, showCap = true) {
   const labels = Object.fromEntries(PK_GROUPS);
   const counts = {};
   rows.forEach((r) => { const k = pkGroupOf(r); counts[k] = (counts[k] || 0) + 1; });
   let last = null;
   return rows.map((r, i) => {
     const k = pkGroupOf(r);
-    const head = k !== last && labels[k] ? pkGroupHeadHtml(k, labels[k], counts[k]) : '';
+    const head = k !== last && labels[k] ? pkGroupHeadHtml(k, labels[k], counts[k], PK_COLS.length + (showCap ? 1 : 0)) : '';
     last = k;
-    return head + pkRowHtml(r, i, sym);
+    return head + pkRowHtml(r, i, sym, showCap);
   }).join('');
 }
 
 function pkTableHtml(rows, sym) {
-  const head = PK_COLS.map(([k, label]) => {
+  // "Your capital" earns a column only when a row has something to say in it:
+  // a size, or what one share would need. A Watchlist row has nothing (its
+  // group row says so once), so a book of Watchlist calls drops the column.
+  const showCap = rows.some((r) => { const c = pkCapital(r, sym); return c.sized || (c.text && c.text !== PK_WATCH_CAPITAL); });
+  const head = PK_COLS.filter(([k]) => showCap || k !== 'pos').map(([k, label]) => {
     const sortable = Object.prototype.hasOwnProperty.call(PK_SORT, k);
     const num = ['rank', 'price', 'rr'].includes(k) ? ' num' : '';
     return `<th scope="col" class="pk-c-${k}${num}"${k === 'rank' ? ' aria-sort="ascending"' : ''}>${sortable
@@ -9099,7 +9682,7 @@ function pkTableHtml(rows, sym) {
       <table class="pk-table">
         <caption class="sr-only">QUANTA's calls: Buy, then Accumulate, then Watchlist, by score within each</caption>
         <thead><tr>${head}<th scope="col" class="pk-c-more"><span class="sr-only">Analysis</span></th></tr></thead>
-        <tbody>${pkGroupedRowsHtml(rows, sym)}</tbody>
+        <tbody>${pkGroupedRowsHtml(rows, sym, showCap)}</tbody>
       </table>
     </div>`;
 }
@@ -9110,7 +9693,7 @@ function pkTableHtml(rows, sym) {
 
 
 
-/* The report's sections. Each is a tab; the Overview opens first. */
+/* The report's sections. Each is a tab; Calls (the table) opens first. */
 function pkSectionsHtml(data, rows, sym) {
   const chase = data.chase_alerts || [];
   const early = data.early_momentum || [];
@@ -9118,7 +9701,7 @@ function pkSectionsHtml(data, rows, sym) {
   const sized = rows.filter(pkIsSized);
   const nSignals = chase.length + early.length + filled.length;
   const tabs = [
-    ['overview', 'Overview', ''],
+    ['overview', 'Calls', ''],
     ['analysis', 'Analysis', rows.length ? String(rows.length) : ''],
     ['signals', 'Momentum alerts', nSignals ? String(nSignals) : ''],
     ['risk', 'Risk and execution', ''],
@@ -9134,7 +9717,7 @@ function pkSectionsHtml(data, rows, sym) {
     ${panel('overview', pkOverviewHtml(data, rows, sym, foot))}
     ${panel('analysis', pkAnalysisHtml(rows, data, sym))}
     ${panel('signals', signals)}
-    ${panel('risk', `${eventCheckBannerHtml(data)}${eventHeldDiagnosticsHtml(data)}${deepConfirmSummaryHtml(data, sym)}<div class="pk-pro" data-pro-slot></div>${sized.length ? '' : '<p class="pk-panel-empty">No suggested position in this scan, so there is nothing to size or execute.</p>'}`)}
+    ${panel('risk', `${pkHoldingsNoteHtml(data)}${eventCheckBannerHtml(data)}${eventHeldDiagnosticsHtml(data)}${deepConfirmSummaryHtml(data, sym)}<div class="pk-pro" data-pro-slot></div>${sized.length ? '' : '<p class="pk-panel-empty">No suggested position in this scan, so there is nothing to size or execute.</p>'}`)}
     ${panel('method', `${pkExcludedHtml(data)}${pkScreenedHtml(data)}${data.scan_status === 'provider_rate_limited' || Number(data.provider_rate_limited_count || 0) > 0 ? '' : pkStatusLineHtml(data)}${pkMethodHtml(data)}${coverageLineHtml(data)}${dataDatesLineHtml(data)}${sharedResultsNoteHtml((data.recommendations || []).filter(isFundedPick))}${errorDetailsCardHtml(data)}`, ' portfolio-diagnostics')}`;
 }
 
@@ -9152,7 +9735,12 @@ function renderPicksTableView(container, data) {
   view.innerHTML = `
       ${data.scan_status === 'provider_rate_limited' || Number(data.provider_rate_limited_count || 0) > 0 ? pkStatusLineHtml(data) : ''}
       ${pkAlertHtml(data)}
-      ${pkHeadHtml(data, rows, sym)}
+      <div class="pk-report-head">
+        ${pkHeadHtml(data, rows, sym)}
+        ${pkVerdictHtml(data, rows)}
+        ${pkSummaryCardsHtml(data, rows, sym)}
+        ${NOT_ADVICE_HTML}
+      </div>
       ${pkSectionsHtml(data, rows, sym)}`;
   wireErrorExport(container, data);
   wireSafeModeRetry(container);
@@ -9335,9 +9923,12 @@ function wirePicksTable(container, data) {
     });
   }
   const rows = (data && data.stock_picks) || [];
-  container.querySelectorAll('[data-pk-copy]').forEach((btn) => btn.addEventListener('click', async (ev) => {
+  container.querySelectorAll('[data-pk-copy]').forEach((btn) => btn.addEventListener('click', async () => {
     const text = pkCopyText(rows, btn.dataset.pkCopy);
-    try { await navigator.clipboard.writeText(text); ev.target.textContent = 'Copied'; } catch (_) { ev.target.textContent = text; }
+    const label = btn.dataset.pkLabel || (btn.dataset.pkLabel = btn.textContent);
+    // The button keeps a short label: a blocked copy says so, never prints the list into it.
+    try { await navigator.clipboard.writeText(text); btn.textContent = 'Copied'; } catch (_) { btn.textContent = 'Copy blocked'; }
+    setTimeout(() => { btn.textContent = label; }, 2000);
   }));
   container.querySelector('[data-pk-csv]')?.addEventListener('click', () => {
     const blob = new Blob([stockPicksCsv(rows)], { type: 'text/csv' });
@@ -9345,7 +9936,8 @@ function wirePicksTable(container, data) {
     a.href = URL.createObjectURL(blob);
     a.download = `quanta-stock-picks-${String(data.timestamp || '').slice(0, 10) || 'scan'}.csv`;
     document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 0);
+    // Revoking at once can cancel the download before it starts in some browsers.
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   });
 }
 
@@ -9371,8 +9963,8 @@ function renderPicks(data, { savedAt = null } = {}) {
       || data.scan_status === 'provider_rate_limited')) {
     const msg = scanStatusMessage(data) || { title: 'Scan failed', body: '' };
     const isRl = data.scan_status === 'provider_rate_limited';
-    setPicksMeta(isRl ? 'Scan interrupted — provider rate-limited'
-      : (data.scan_status === 'no_universe' ? 'Scan failed — empty universe' : 'Scan failed'));
+    setPicksMeta(isRl ? 'Scan interrupted: provider rate-limited'
+      : (data.scan_status === 'no_universe' ? 'Scan failed: empty universe' : 'Scan failed'));
     const retryBtn = isRl
       ? '<button class="btn-mini" data-safe-mode-retry style="margin-top:12px;">Retry with safe mode</button>'
       : '';
@@ -9414,7 +10006,7 @@ function renderPicks(data, { savedAt = null } = {}) {
       : `Scan complete · ${scanned ? `${scanned} scanned · ` : ''}no Buy or Accumulate call`);
     const regime = (data && data.regime) || {};
     const sideHtml = (chaseList.length || earlyList.length)
-      ? ` QUANTA still flagged <strong>${earlyList.length}</strong> early-momentum setup${earlyList.length === 1 ? '' : 's'} and <strong>${chaseList.length}</strong> chase alert${chaseList.length === 1 ? '' : 's'} — review them below.`
+      ? ` QUANTA still flagged <strong>${earlyList.length}</strong> early-momentum setup${earlyList.length === 1 ? '' : 's'} and <strong>${chaseList.length}</strong> chase alert${chaseList.length === 1 ? '' : 's'}; review them below.`
       : '';
     const regimeLine = regime.type
       ? `<p class="muted" style="margin-top:6px;font-size:12px;">Regime · <strong>${escapeHtml(titleLabel(regime.type))}</strong>${(regime.exposure_pct ?? regime.exposure) != null ? ` · Suggested exposure ${escapeHtml(String(regime.exposure_pct ?? regime.exposure))}%` : ''}${regime.vix != null ? ` · ${regime.vix_is_proxy ? 'VIX estimate (no live quote)' : 'VIX'} ${fmtNumber(regime.vix, 1)}` : ''}</p>`
@@ -9427,9 +10019,9 @@ function renderPicks(data, { savedAt = null } = {}) {
         <div class="rejected-block">
           <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:var(--text-primary);">Deep Analysis vetoes (${rejected.length})</p>
           <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.55;">
-            ${rejected.slice(0, 8).map((r) => `<li><strong>${escapeHtml(r.ticker || '')}</strong> — ${escapeHtml(r.reason || 'Rejected by deep confirmation')}</li>`).join('')}
+            ${rejected.slice(0, 8).map((r) => `<li><strong>${escapeHtml(r.ticker || '')}</strong>: ${escapeHtml(r.reason || 'Rejected by deep confirmation')}</li>`).join('')}
           </ul>
-          <p class="muted" style="margin:8px 0 0;font-size:11.5px;">Additional risk checks withheld these scanner candidates. Data failures are unconfirmed, not bearish calls; inspect each reason before reconsidering.</p>
+          <p class="muted" style="margin:8px 0 0;font-size:var(--fs-xs);">Additional risk checks withheld these scanner candidates. Data failures are unconfirmed, not bearish calls; inspect each reason before reconsidering.</p>
         </div>` : '';
     const verdictHtml = scanVerdictHtml(data);
     // With the reconciled accounting the verdict row and the stage table carry
@@ -9437,7 +10029,7 @@ function renderPicks(data, { savedAt = null } = {}) {
     const explanationHtml = verdictHtml ? '' : emptyScanExplanationHtml(data);
     const emptyHtml = verdictHtml ? `
       <div class="empty-state large scan-empty">
-        <h3 data-result-heading tabindex="-1">No positions sized · hold cash</h3>
+        <h3 data-result-heading tabindex="-1">No positions sized</h3>
         ${verdictHtml}
         ${coverageLineHtml(data)}
         ${dataDatesLineHtml(data)}
@@ -9447,7 +10039,7 @@ function renderPicks(data, { savedAt = null } = {}) {
       </div>` : `
       <div class="empty-state large">
         <h3 data-result-heading tabindex="-1">No buy-qualified setups right now</h3>
-        <p>QUANTA scanned <strong>${escapeHtml(String(scanned || '—'))}</strong> name${scanned === 1 ? '' : 's'} and none met the current screening and risk rules with your <strong>${escapeHtml(scanType)}</strong> parameters. Holding cash is the current result.${sideHtml}</p>
+        <p>QUANTA scanned <strong>${escapeHtml(String(scanned || 0))}</strong> name${scanned === 1 ? '' : 's'} and none met the current screening and risk rules with your <strong>${escapeHtml(scanType)}</strong> parameters. Holding cash is the current result.${sideHtml}</p>
         <p style="margin-top:8px">Review the scan audit and data coverage before changing your mandate or screening rules.</p>
         ${regimeLine}
         ${explanationHtml}
@@ -9488,7 +10080,7 @@ function renderPicks(data, { savedAt = null } = {}) {
   // Capital comes from the scan result itself (the figure the engine sized
   // against), not from whatever the form input says now.
   const totalDeployed = fundedPicks.reduce((acc, p) => acc + finalAllocation(p), 0);
-  const totalCapital = Number(data.capital || $('#sp-capital')?.value || thr('CAPITAL.DEFAULT_US'));
+  const totalCapital = Number(data.capital || $('#sp-capital')?.value || defaultCapital(pkIsIndia(data) ? 'IN' : 'US'));
   const mandate = data.risk_profile || {};
   // A position the mandate scaled below one whole share is not "trimmed" —
   // it is gone. Report the two outcomes separately so the count of trimmed
@@ -9525,7 +10117,7 @@ function renderPicks(data, { savedAt = null } = {}) {
   const cashReserve = totalCapital - totalDeployed;
   const scanTime = data.timestamp && !Number.isNaN(Date.parse(data.timestamp))
     ? new Date(data.timestamp).toLocaleString() : 'time unavailable';
-  const naCell = '<span class="pm-na">—</span>';
+  const naCell = '<span class="pm-na">N/A</span>';
   const watchTail = watchPicks.length
     ? ` <span class="portfolio-title-tail">+ ${watchPicks.length} Watchlist</span>` : '';
 
@@ -9536,7 +10128,7 @@ function renderPicks(data, { savedAt = null } = {}) {
   const summaryHtml = `
     <section class="portfolio-summary">
       <header class="portfolio-header">
-        <h2 class="portfolio-title" data-result-heading tabindex="-1">${funded ? `${fundedPicks.length} proposed position${fundedPicks.length === 1 ? '' : 's'}` : 'No eligible positions · hold cash'}</h2>
+        <h2 class="portfolio-title" data-result-heading tabindex="-1">${funded ? `${fundedPicks.length} proposed position${fundedPicks.length === 1 ? '' : 's'}` : 'No eligible positions'}</h2>
         <span class="portfolio-regime-badge">${escapeHtml(titleLabel(regime.type || 'Market'))} · ${escapeHtml(titleLabel(regime.volatility || 'Normal'))} vol</span>
       </header>
       <p class="portfolio-count">${fundedPicks.length} sized position${fundedPicks.length === 1 ? '' : 's'}${watchTail}</p>
@@ -9575,7 +10167,7 @@ function renderPicks(data, { savedAt = null } = {}) {
     <section class="watchlist-group">
       <header>
         <strong>Watchlist · Not Actionable (${watchPicks.length})</strong>
-        <span class="muted">Scanner-flagged but reconciled to a non-funded action — no capital allocated.</span>
+        <span class="muted">Scanner-flagged but reconciled to a non-funded action; no capital allocated.</span>
       </header>
       ${watchPicks.map((p, idx) => rowFor(p, fundedPicks.length + idx)).join('')}
     </section>` : '';
@@ -9677,7 +10269,7 @@ function riskDriversLine(rec) {
   const raw = base + drivers.reduce((t, x) => t + (Number(x.points) || 0), 0);
   const total = Number.isFinite(raw) && Number.isFinite(cap)
     ? ` · ${base} base points, ${raw > cap ? `${raw} capped at ${cap}` : raw} of ${cap}` : '';
-  return `<p class="qr-caveat" data-risk-drivers>Risk grade ${escapeHtml(grade)}: ${escapeHtml(body)}${escapeHtml(total)}${days ? ` · measured on ${days} sessions` : ''}</p>`;
+  return `<p class="qr-caveat" data-risk-drivers title="An absolute scale: it measures this stock's own swings and drawdowns, not a comparison with its sector, so a volatile leader can grade F.">Risk grade ${escapeHtml(grade)}: ${escapeHtml(body)}${escapeHtml(total)}${days ? ` · measured on ${days} sessions` : ''} · absolute scale, not ranked against its sector</p>`;
 }
 
 /* [F1] Names the corporate-event gate rejected (a pending acquisition or a
@@ -9820,7 +10412,7 @@ function renderPicksBuckets(chase, early, filled) {
               <td><span class="em-pill">${escapeHtml(String(e.em_score))}/6</span></td>
               <td>${fmtNumber(e.rsi, 1)}</td>
               <td>${fmtNumber(e.volume_ratio, 2)}×</td>
-              <td style="white-space:normal;font-family:var(--font-sans);font-size:11.5px;color:var(--text-secondary);">${(e.signals || []).map((s) => escapeHtml(s)).join(' · ')}</td>
+              <td style="white-space:normal;font-family:var(--font-sans);font-size:var(--fs-xs);color:var(--text-secondary);">${(e.signals || []).map((s) => escapeHtml(s)).join(' · ')}</td>
             </tr>`).join('')}
         </tbody>
       </table>
@@ -9882,7 +10474,7 @@ function pickCard(rec, sym, idx, ctx = {}) {
 
   const notConfirmedNotice = rec.not_independently_confirmed ? `
     <div class="reconcile-notice bear">
-      <strong>Not independently confirmed.</strong> The deep analyzer could not validate this pick — treat with caution.
+      <strong>Not independently confirmed.</strong> The deep analyzer could not validate this pick; treat with caution.
     </div>` : '';
 
   // The client mandate can scale an otherwise actionable pick below one whole
@@ -10024,10 +10616,12 @@ async function runAnalysis(event, opts) {
   const ticker = $('#an-ticker').value.trim().toUpperCase();
   // Validate before the request so the reason sits under the field, named.
   const tickerError = !ticker ? 'Enter a ticker symbol (a stock or an ETF).'
-    : (!/^\^?[A-Z0-9][A-Z0-9.\-=&]{0,14}$/.test(ticker) ? `"${ticker}" is not a ticker symbol — use letters, digits and "." or "-" only; add .NS or .BO for an NSE or BSE listing.` : '');
+    : (!/^\^?[A-Z0-9][A-Z0-9.\-=&]{0,14}$/.test(ticker) ? `"${ticker}" is not a ticker symbol: use letters, digits and "." or "-" only; add .NS or .BO for an NSE or BSE listing.` : '');
   setFieldError('#an-ticker', '#an-ticker-error', tickerError);
   if (tickerError) { $('#an-ticker').focus(); return; }
   rememberResearch(ticker, options.market || state.market);
+  // A retry repeats the request it retries: same market and preview mode.
+  state.lastAnalysisOpts = { market: options.market, fastMode: options.fastMode };
 
   const btn = $('#btn-analyze'); const prog = $('#an-progress'); const bar = $('#an-bar'); const status = $('#an-status'); const results = $('#an-results');
   const anToken = nextJobToken('analysis');
@@ -10212,7 +10806,7 @@ function renderBeginnerGuidance(data, { sym, dqOverride, sharedRRLabel, dqGate, 
   const existingHolderCell = gate.existingHolderAction || g.existing_holder;
   const pullbackEntryText = isPositive(g.pullback_entry)
     ? (g.pullback_is_deep
-        ? `Deep pullback only — ${fmtPrice(g.pullback_entry, sym)}${g.pullback_basis ? ` (${g.pullback_basis})` : ''}`
+        ? `Deep pullback only: ${fmtPrice(g.pullback_entry, sym)}${g.pullback_basis ? ` (${g.pullback_basis})` : ''}`
         : `${fmtPrice(g.pullback_entry, sym)}${g.pullback_basis ? ` (${g.pullback_basis})` : ''}`)
     : 'Not available';
   const longTermStop = isPositive(g.long_term_holder_stop) ? g.long_term_holder_stop : g.existing_holder_stop;
@@ -10510,8 +11104,8 @@ function renderPriceChartCard(chart, { ticker, currentPrice, target, stop, sym, 
           <span>${escapeHtml(startDate)} to ${escapeHtml(endDate)}</span>
         </div>
         <div class="chart-return ${directionClass(change)}">
-          <small class="chart-return-cap">Latest${period ? ` · ${escapeHtml(period.short)}` : ''}</small>
-          <strong>${fmtCurrency(last, sym)}</strong>
+          <small class="chart-return-cap">Close ${escapeHtml(endDate)}${period ? ` · ${escapeHtml(period.short)}` : ''}</small>
+          <strong>${fmtPrice(last, sym)}</strong>
           <span>${fmtPct(change, 1, false)}</span>
         </div>
       </div>
@@ -10646,7 +11240,7 @@ function dataQualityGate({ dataQualityFailed, confidenceScore, confidenceLevel, 
     newBuyerAction: failed ? 'Avoid new entry until data quality passes.' : null,
     existingHolderAction: failed ? 'Hold only with strict stop-loss.' : null,
     rejectionThesis: failed
-      ? `Critical data missing or invalid — recommendation NOT confirmed. This is a data issue, not a bearish signal. ${gradePhrase} adds caution.`
+      ? `Critical data missing or invalid: recommendation NOT confirmed. This is a data issue, not a bearish signal. ${gradePhrase} adds caution.`
       : null,
     metricsTone: failed ? 'muted' : null,
   };
@@ -10975,7 +11569,7 @@ function renderAnalysis(data) {
   const horizonLabel = (decision && decision.horizon && decision.horizon.label)
     || (trade.time_horizon ? titleLabel(trade.time_horizon) : '');
   const ev = (decision && decision.evidence) || data.evidence || {};
-  const evTone = ev.permits_recommendation ? 'bull' : (ev.status === 'NO_EDGE' ? 'warn' : 'warn');
+  const evTone = ev.permits_recommendation ? 'bull' : 'warn';
   const fresh = (decision && decision.freshness) || {};
   const freshText = fresh.status === 'fresh' ? `Fresh · last bar ${fresh.last_bar || '--'}`
     : fresh.status === 'stale' ? `Stale · ${fresh.lag_sessions != null ? `${fresh.lag_sessions} sessions old` : 'out of date'}`
@@ -11231,7 +11825,7 @@ function renderAnalysis(data) {
             ${hasRating ? `
               <span class="verdict">${escapeHtml(titleLabel(mi.analyst_rating || 'HOLD'))}</span>
               ${Number.isFinite(analystUp)
-                ? `<span class="upside ${analystUp >= 0 ? 'bull' : 'bear'}">${fmtPct(analystUp, 1, false)} <span class="is-word">implied upside</span></span>`
+                ? `<span class="upside">${fmtPct(analystUp, 1, false)} <span class="is-word">implied upside</span></span>`
                 : '<span class="upside muted">Upside unavailable</span>'}
               <span class="muted small-note">${Number(mi.rating_score) > 0 ? `Score ${fmtNumber(mi.rating_score, 2)} of 5 · ` : ''}${analystCount} analysts</span>` : `
               <span class="verdict muted">Unavailable</span>
@@ -11475,6 +12069,7 @@ function renderAnalysis(data) {
 
             ${decision && decision.caveat ? `<p class="decision-caveat">${escapeHtml(decision.caveat)}</p>` : ''}
             ${!decision && sanitizeExceptionText(data.recommendation_text) ? `<p class="decision-caveat">${escapeHtml(sanitizeExceptionText(data.recommendation_text))}</p>` : ''}
+            ${NOT_ADVICE_HTML}
         </section>
       </section>
 
@@ -11633,7 +12228,7 @@ function technicalSignalsHtml(technical, price, sym) {
   const pct = (n) => (directional.length ? (n / directional.length) * 100 : 0).toFixed(1);
   return `
       <article class="section-card ts-signals" data-signals aria-labelledby="ts-signals-h">
-        <h3 class="section-kicker" id="ts-signals-h">Technical signals <span class="section-kicker-tail">${bull} bullish, ${bear} bearish, ${flat} neutral</span></h3>
+        <h3 class="section-kicker" id="ts-signals-h">Technical signals <span class="section-kicker-tail">of ${directional.length} directional signals: ${bull} bullish, ${bear} bearish, ${flat} neutral</span></h3>
         <div class="sg-tally" role="img" aria-label="${bull} bullish, ${bear} bearish and ${flat} neutral of ${directional.length} directional signals"><span class="sg-tally-bull" style="width:${pct(bull)}%"></span><span class="sg-tally-flat" style="width:${pct(flat)}%"></span><span class="sg-tally-bear" style="width:${pct(bear)}%"></span></div>
         <dl class="sg-list">${rows.map((r) => `
           <div class="sg-row" data-signal="${r.key}"><dt>${escapeHtml(r.label)}${r.note}</dt><dd class="sg-v">${r.value}${r.extra}</dd><dd class="sg-word">${r.word ? `<span class="sg-pill sg--${r.tone}">${escapeHtml(r.word)}</span>` : ''}</dd></div>`).join('')}
@@ -11985,7 +12580,7 @@ async function fetchJobResult(jobId) {
 // Result identity: each scan / analysis request takes a token; a job callback
 // only touches the UI while its token is still the latest one for that view.
 // Otherwise a slow older response would overwrite a newer ticker or market.
-const _jobTokens = { scan: 0, analysis: 0 };
+const _jobTokens = { scan: 0, analysis: 0, track: 0 };
 function nextJobToken(kind) { return ++_jobTokens[kind]; }
 function jobTokenCurrent(kind, token) { return _jobTokens[kind] === token; }
 
@@ -12321,6 +12916,17 @@ function bindEvents() {
   $('#sp-risk')?.addEventListener('change', applyMandateHint);
   applyMandateHint();
 
+  // Recent scans: a click opens a saved scan; the ages tick and the list is
+  // re-read when the tab comes back, so an expired scan does not linger.
+  $('#pk-recent')?.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-pk-recent]');
+    if (chip) openRecentScan(chip.dataset.pkRecent);
+  });
+  if (typeof setInterval === 'function') setInterval(() => { if (!document.hidden) { renderRecentScans(); refreshSavedStamp(); } }, 60000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && state.recentScans.length) refreshRecentScans(picksMarketNow());
+  });
+
   // The empty Proposed Allocation panel explains what a scan returns and offers to run one,
   // so the largest area on the page is not a dead box.
   // Delegated: the failed-scan state renders its own copy of the button.
@@ -12365,27 +12971,24 @@ function bindEvents() {
   renderResearchChips();
   wireResearchSearch();
 
-  $$('#news-tabs .q-tab').forEach((b) => {
-    b.addEventListener('click', () => {
-      // aria-selected must track .is-active — it is what a screen reader
-      // announces for role="tab"; the class alone conveys nothing.
-      $$('#news-tabs .q-tab').forEach((x) => {
-        const active = x === b;
-        x.classList.toggle('is-active', active);
-        x.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-      state.newsGroup = b.dataset.newsGroup;
-      renderNews(state.dashboard?.news?.groups || {});
-    });
+  // The full price chart mounts the first time its section opens.
+  document.getElementById('ov-pro-chart')?.addEventListener('toggle', (ev) => {
+    if (ev.target.open) renderOverviewChart((state.dashboard && state.dashboard.market) || {});
   });
+  wireOverviewTips(document.getElementById('view-dashboard'));
+  watchOverviewWidth();
+  setInterval(() => {
+    const view = document.getElementById('view-dashboard');
+    if (!document.hidden && view && view.classList.contains('active') && state.dashboard) loadDashboard(false);
+  }, 180000);
 }
 
 if (typeof window !== 'undefined') {
   window.addEventListener('DOMContentLoaded', () => {
     applyThresholds(document);
     const cap = document.getElementById('sp-capital');
-    if (cap && !cap.value) cap.value = String(thr('CAPITAL.DEFAULT_US') ?? '');
-    if (cap && !cap.min) cap.min = String(thr('CAPITAL.MIN_US') ?? '');
+    if (cap && !cap.value) cap.value = String(defaultCapital(state.market) ?? '');
+    if (cap && !cap.min) cap.min = String(thr(state.market === 'IN' ? 'CAPITAL.MIN_INDIA' : 'CAPITAL.MIN_US') ?? '');
     bindEvents();
     syncTopbarHeight();
     startClock();
@@ -12407,11 +13010,12 @@ if (typeof window !== 'undefined') {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    earningsAhead, earningsScopeShort, indexName, factorWord, shownSymbol, indexQuotes, indexChain, earningsCalendarNote, companyName, dirZone, growOnView, postureAge, postureAgeText, directionDial, postureScale, countdownText, zonedEpoch,
+    earningsAhead, earningsScopeShort, indexName, factorWord, shownSymbol, earningsCalendarNote, companyName, growOnView, postureAge, postureAgeText, sessionDay, priceSession, volatilityLine, sectorTrendMap, ideaSectorTrend, engineHighImpactKeys,
     researchIndexGroups,
     technicalSignalsHtml,
     selectionText,
     pkCardHtml, pkGauge, pkChartHtml, pkTechHtml, pkValuationHtml, pkCompareHtml, pkSma, pkMethodHtml, pkCopyText, pkCapital, pkGroupOf,
+    recentScansHtml, savedScanAge, savedScanDetail, savedScanNoteHtml, renderRecentScans, refreshRecentScans, openRecentScan, fillScanForm, applyScanFilters, restoreLastScan, onUserScanComplete,
     pkFiltersText, pickScanFilters, initScanFilters, scanTypeName, pkAnalysisHtml, pkSignedPct, pkDecision, setupSummaryText,
     thr, fmtThreshold, applyThresholds, fmtRR, bindingLevels,
     researchDiagnosticHtml,
@@ -12510,19 +13114,18 @@ if (typeof module !== 'undefined' && module.exports) {
     computeRegimeModel,
     factorState,
     strategistBrief,
-    signalCheckCounts, contextNotice, nextWeekEvent, earningsTimingWords, renderWeekCalendar, renderWhatChanged, renderBookPanel, renderMarketContext, renderTriggers, parseBand, daysFromTo, bookVsCall, regimeTriggers, historyCell, sectorHeat, weekEvents, regimeName, directionScore, yieldChangeBp, cleanHeadline, isVolIndex, isYield, isCryptoSymbol,
-    driverTraderResponse,
+    signalCheckCounts, contextNotice, earningsTimingWords, renderWeekCalendar, renderBookPanel, renderMarketContext, renderTriggers, parseBand, daysFromTo, bookVsCall, regimeTriggers, weekEvents, regimeName, directionScore, yieldChangeBp, cleanHeadline, isVolIndex, isYield, isCryptoSymbol,
     confidenceRead,
-    confidenceBand,
     vixTone,
     participationTone,
     newsImpactLevel,
-    newsTiltRead,
-    impactChain,
     applyThresholds,
     scanLimit,
     evidenceValidated,
     modelFlagHtml,
+    modelFlagWords,
+    savedMarket,
+    defaultCapital,
     withArticle,
     scoreBandRange,
     score100,
@@ -12536,18 +13139,17 @@ if (typeof module !== 'undefined' && module.exports) {
     fmtCompactMoney,
     effectiveNewsImpact,
     highImpactNews,
-    pulseInterp,
     newsMeaning,
     upsideCell,
     // DOM section renderers (exercised by tests/dom_render.test.cjs via jsdom)
-    renderTopHeadlines,
+    renderSessionBar,
     renderMarketRegime,
-    renderPlaybook,
-    renderRiskPanel,
     renderMarketPulse,
+    renderBulletin, bulletinItems, renderWeekHero, weekHeroHtml, weekSessions, heroSeries, heroChartHtml, heroTime, sessionsOf, moodReasons, renderMinis, renderOutlook,
+    renderSectorMap, squarify, weekColumns, bellPath, plainWhy, storyTickers, tickerLookup, sparkPath, priceSession, sessionDay, volatilityLine,
+    overviewMode, applyOverviewMode, openProChart, mergeContext, newsTime, shortName, niceTicks, isFundProxy, comingUp, renderWeekCalendar, dedupeSimilar, freshNews, heroRange, getChart,
     renderSignalCheck,
-    renderMarketDrivers,
-    renderBreadthPanel,
+    renderMoversRail,
     renderTopOpportunities,
     renderOpportunityBrief,
     renderSetupStatusCard,
@@ -12558,7 +13160,6 @@ if (typeof module !== 'undefined' && module.exports) {
     renderOpenExtremes,
     clearMarketDependentPanels,
     tradingViewUrl,
-    renderCatalystCalendar,
     renderNews,
     renderSourceLedger,
     renderDashboardError,
@@ -12568,6 +13169,7 @@ if (typeof module !== 'undefined' && module.exports) {
     stripEmoji,
     scoreBar,
     renderTrackRecord,
+    trackPlainLine,
     // Whole-view renderers (tests/dom_redesign.test.cjs)
     renderAnalysis,
     runAnalysis,

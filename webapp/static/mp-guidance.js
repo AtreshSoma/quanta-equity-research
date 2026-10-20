@@ -98,8 +98,8 @@
       const rb = b.risk || {}; const ra = a.risk || {};
       return `<div class="hp-wi-grid${W.s === 'loading' ? ' is-busy' : ''}"${W.s === 'loading' ? ' aria-busy="true"' : ''}>
         <div class="hp-wi-donut">${donutAfter(pf, a)}</div>
-        <div class="hp-wi-risk">${X.riskGauge ? X.riskGauge(ra, { size: 'sm', ghost: none ? null : rb.points, ariaLabel: `Risk ${none ? '' : `after: `}${ra.level}, ${ra.points} of 9 points${none ? '' : `; now ${rb.level}, ${rb.points}`}.` }) : ''}
-          <p class="hp-wi-lvl">${none ? `${esc(rb.level || '')}, ${rb.points} of 9 points` : rb.level === ra.level ? `${esc(ra.level || '')}, ${rb.points} ${arrow} <b>${ra.points}</b> of 9 points` : `${esc(rb.level || '')} ${arrow} <b>${esc(ra.level || '')}</b>`}</p></div>
+        <div class="hp-wi-risk">${X.riskGauge ? X.riskGauge(ra, { size: 'sm', ghost: none ? null : rb.points, ariaLabel: `Risk ${none ? '' : `after: `}${ra.level}, ${ra.points} of ${X.RISK_MAX} points${none ? '' : `; now ${rb.level}, ${rb.points}`}.` }) : ''}
+          <p class="hp-wi-lvl">${none ? `${esc(rb.level || '')}, ${rb.points} of ${X.RISK_MAX} points` : rb.level === ra.level ? `${esc(ra.level || '')}, ${rb.points} ${arrow} <b>${ra.points}</b> of ${X.RISK_MAX} points` : `${esc(rb.level || '')} ${arrow} <b>${esc(ra.level || '')}</b>`}</p></div>
         <dl class="hp-wi-dl">
           ${row('Cash', `${money(b.cash)} (${pct(b.cash_weight, 1)})`, `${money(a.cash)} (${pct(a.cash_weight, 1)})`)}
           ${t0 ? row('Top position', `<span class="hp-sym">${esc(t0.symbol)}</span> ${pct(t0.w, 1)}`, t1 ? `<span class="hp-sym">${esc(t1.symbol)}</span> ${pct(t1.w, 1)}` : '--') : ''}
@@ -140,8 +140,8 @@
       const b = res.before.risk || {}; const a = res.after.risk || {};
       // Same band: say how far the points moved, so an unchanged label is not read as no effect.
       const same = b.level === a.level;
-      const after = same ? `${esc(a.level || '')}, ${num(b.points)} → ${num(a.points)} of 9 points` : esc(a.level || '');
-      return wrap(`<dd class="hp-hero-gauges">${X.riskGauge(b, { size: 'xs', ariaLabel: `Risk now ${b.level}, ${b.points} of 9 points.` })}${same ? '' : `<span>${esc(b.level || '')}</span>${arrow}`}${X.riskGauge(a, { size: 'xs', ghost: b.points, ariaLabel: `Risk after this trim ${a.level}, ${a.points} of 9 points.` })}<b>${after}</b></dd>`);
+      const after = same ? `${esc(a.level || '')}, ${num(b.points)} → ${num(a.points)} of ${X.RISK_MAX} points` : esc(a.level || '');
+      return wrap(`<dd class="hp-hero-gauges">${X.riskGauge(b, { size: 'xs', ariaLabel: `Risk now ${b.level}, ${b.points} of ${X.RISK_MAX} points.` })}${same ? '' : `<span>${esc(b.level || '')}</span>${arrow}`}${X.riskGauge(a, { size: 'xs', ghost: b.points, ariaLabel: `Risk after this trim ${a.level}, ${a.points} of ${X.RISK_MAX} points.` })}<b>${after}</b></dd>`);
     }
     X.slotRenderers['gd-hero-risk'] = (pf) => {
       const hero = H.heroOf(H.decisionOrder(pf));

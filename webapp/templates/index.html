@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0b0e14" id="theme-color-meta" />
+  <meta name="theme-color" content="#090c12" id="theme-color-meta" />
   <title>QUANTA · Investment Research</title>
   <!-- Inline icon: no /favicon.ico round trip (it 404'd on every page load). -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a56db'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' font-weight='700' fill='white' text-anchor='middle'%3EQ%3C/text%3E%3C/svg%3E" />
@@ -113,7 +113,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 13l2 2 4-4"/></svg>
         <span class="guide-link-label" aria-hidden="true">Evidence</span>
       </a>
-      <button class="icon-btn theme-toggle" id="theme-toggle" title="Toggle color theme" aria-label="Toggle color theme" type="button" aria-pressed="true">
+      <button class="icon-btn theme-toggle" id="theme-toggle" title="Switch to light mode" aria-label="Switch to light mode" type="button">
         <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
@@ -123,248 +123,134 @@
   <!-- ===================== MAIN ===================== -->
   <main class="app-main" id="main-content">
 
-    <!-- ============== OVERVIEW (DASHBOARD) VIEW ============== -->
-    <section class="view active" id="view-dashboard" aria-label="Market overview">
-      <h1 class="sr-only">Market overview</h1>
+    <!-- ============== OVERVIEW (DASHBOARD) VIEW ==============
+         The morning note: the session the prices come from, the call and what
+         would flip it, the market board, the benchmark, what moved under the
+         surface, the week, then the headlines and the session's movers. Each
+         fact is stated once, where it is used. -->
+    <section class="view active" id="view-dashboard" aria-labelledby="week-h">
 
-      <!-- ROW 0 · TAPE — what is moving the market right now -->
-      <section class="q-tape" id="top-headlines" aria-label="Market-moving headlines">
-        <div class="q-tape-inner">
-          <span class="q-tape-kicker neutral"><span class="q-tape-pulse neutral"></span>Market-moving now</span>
-          <span class="q-tape-empty">Reading the tape…</span>
-        </div>
-      </section>
-
-      <!-- ROW 1 · COMMAND ROW — regime · playbook · risk -->
-      <div class="q-command q-hero" aria-label="Market regime, playbook and risk">
-
-        <section class="q-panel q-regime" id="decision-brief" aria-label="Market regime">
-          <div class="q-skel" aria-busy="true">
-            <span class="skel-line w-30"></span>
-            <span class="skel-line w-60"></span>
-            <span class="skel-line w-45"></span>
-          </div>
-        </section>
-
-        <section class="q-panel q-playbook" aria-labelledby="playbook-title">
-          <header class="q-head">
-            <h2 class="q-head-title" id="playbook-title">Today's playbook</h2>
-            <span class="q-head-meta" id="playbook-meta">Risk-first</span>
-          </header>
-          <div id="allocator-body" class="q-body allocator-body">
-            <div class="q-empty q-empty--inline">Translating conditions into allocation rules…</div>
-          </div>
-        </section>
-
-        <section class="q-panel q-riskpanel" aria-labelledby="risk-title">
-          <header class="q-head">
-            <h2 class="q-head-title" id="risk-title">Risk</h2>
-            <span class="q-head-meta" id="risk-meta">Assessing</span>
-          </header>
-          <div id="risk-body" class="q-body">
-            <div class="q-empty q-empty--inline">Reading volatility, breadth and event risk…</div>
-          </div>
-        </section>
-        <section class="q-panel q-trigpanel" id="regime-triggers" aria-labelledby="triggers-title">
-          <header class="q-head">
-            <div class="q-head-l">
-              <h2 class="q-head-title" id="triggers-title">What would change the call</h2>
-            </div>
-            <span class="q-head-meta" id="triggers-meta"></span>
-          </header>
-          <div class="q-body" id="triggers-body"><div class="q-empty q-empty--inline">Checking the conditions…</div></div>
-        </section>
-
+      <!-- 1 . The bulletin: the newest market headlines on a slow tape that
+           pauses on hover or focus and stands still for reduced motion. -->
+      <div class="ovx-bul" id="ov-bulletin" aria-label="Latest market headlines">
+        <span class="ovx-bul-k"><i aria-hidden="true"></i>Latest</span>
+        <div class="ovx-bul-view"><ul class="ovx-bul-track" id="ov-bulletin-track"><li><span>Reading the news feeds</span></li></ul></div>
       </div>
 
-      <!-- ROW 2 · MARKET RIBBON — indices, vol, rates, commodities, crypto, breadth -->
-      <section class="q-ribbon" id="market-pulse" aria-label="Market ribbon">
-        <div class="q-ribbon-skel" aria-busy="true">
-          <span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span>
-          <span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span>
-        </div>
-      </section>
-
-      <!-- Market context shares one tabbed workspace (signal, drivers, dated
-           catalysts); the rail summarises opportunities and breadth. Both
-           columns stretch to one bottom line. -->
-      <!-- Index futures: shown only outside the regular session. -->
-      <div class="q-futures" id="futures-strip" aria-live="polite" hidden></div>
-
-
-
-
-
-
-      <!-- 2 · THE MARKET. The chart beside the benchmark's levels and the
-           cross-asset gauges. -->
-      <div class="q-mkt-grid">
-        <section class="q-panel q-chartpanel" id="overview-chart" aria-labelledby="ovc-title">
-        <header class="q-head ovc-head">
-          <div class="ovc-title-wrap">
-            <h2 class="q-head-title" id="ovc-title">Price chart</h2>
-            <span class="q-head-meta" id="ovc-name"></span>
-            <a class="q-btn q-btn--sm q-btn--link" id="ovc-open" href="#analyze" hidden>Open tear sheet</a>
-          </div>
-          <form class="ovc-pick" id="ovc-form" autocomplete="off" aria-label="Chart a symbol">
-            <div class="ovc-chips" id="ovc-chips" role="group" aria-label="Market symbols"></div>
-            <label class="ovc-field">
-              <span class="sr-only">Ticker to chart</span>
-              <input id="ovc-ticker" type="text" placeholder="Chart a ticker" spellcheck="false" autocapitalize="characters" maxlength="32" />
-            </label>
-            <button type="submit" class="q-btn q-btn--sm">Chart</button>
-          </form>
-        </header>
-        <div class="ovc-body" id="ovc-body"></div>
-        </section>
-        <div class="q-side-stack">
-          <section class="q-panel q-flat" id="key-levels" aria-labelledby="levels-title">
-            <header class="q-head">
-              <div class="q-head-l">
-                <h2 class="q-head-title" id="levels-title">Levels and expected move</h2>
-              </div>
-              <span class="q-head-meta" id="levels-meta"></span>
-            </header>
-            <div class="q-body" id="levels-body"></div>
-          </section>
-          <section class="q-panel q-flat" id="cross-asset" aria-labelledby="cross-title">
-            <header class="q-head">
-              <div class="q-head-l">
-                <h2 class="q-head-title" id="cross-title">Cross-asset</h2>
-              </div>
-            </header>
-            <div class="q-body" id="cross-body"></div>
-          </section>
-        </div>
+      <!-- 2 . The session, and the Plain English or Pro switch. -->
+      <div class="ovx-status" id="ov-session" role="status" aria-live="polite">
+        <span class="ovx-state"><i aria-hidden="true"></i>Reading the session</span>
       </div>
 
-      <!-- 3 · WHERE IT MOVES. Sectors beside the ideas worth a look. -->
-      <div class="q-ideas-grid">
-        <section class="q-panel q-flat" id="sector-map" aria-labelledby="sector-title">
-          <header class="q-head">
-            <div class="q-head-l">
-              <h2 class="q-head-title" id="sector-title">Sectors</h2>
-            </div>
-            <span class="q-head-meta" id="sector-meta"></span>
-          </header>
-          <div class="q-body" id="sector-body"></div>
+      <!-- 3 . Market pulse: every instrument on one hairline row. -->
+      <section class="ovx-sec ovx-sec--pulse" aria-labelledby="pulse-h">
+        <h2 class="sr-only" id="pulse-h">Market pulse</h2>
+        <div class="q-futures ovx-futures" id="futures-strip" role="region" aria-label="Index futures" tabindex="0" aria-live="polite" hidden></div>
+        <ul class="ovx-pulse" id="market-pulse">
+          <li class="ovx-pu ovx-pu--skel" aria-busy="true"><span class="skel-line"></span></li>
+          <li class="ovx-pu ovx-pu--skel"><span class="skel-line"></span></li>
+          <li class="ovx-pu ovx-pu--skel"><span class="skel-line"></span></li>
+          <li class="ovx-pu ovx-pu--skel"><span class="skel-line"></span></li>
+          <li class="ovx-pu ovx-pu--skel"><span class="skel-line"></span></li>
+        </ul>
+      </section>
+
+      <!-- 4 . The week on the benchmark, beside the market mood. -->
+      <div class="ovx-hero">
+        <section class="ovx-week" id="ov-week" aria-labelledby="week-h">
+          <h1 class="ovx-h1" id="week-h">Market overview</h1>
+          <div class="ovx-chart ovx-chart--wait" aria-busy="true"><span class="skel-line"></span></div>
         </section>
-        <section class="q-panel q-flat q-oppbrief" id="opportunity-brief" aria-labelledby="oppbrief-title">
-          <header class="q-head">
-            <div class="q-head-l">
-              <h2 class="q-head-title" id="oppbrief-title">Where the opportunities are</h2>
-              <p class="q-head-sub" id="oppbrief-sub">Leading names from Discover.</p>
-            </div>
-            <a class="q-btn q-btn--link" href="#discover" data-view-link="discover">Open Discover &rarr;</a>
-          </header>
-          <div id="opportunity-brief-body" class="q-body q-body--flush">
+        <aside class="ovx-mood" id="decision-brief" aria-labelledby="mood-h">
+          <h2 class="ovx-kick" id="mood-h">Market mood</h2>
+          <div class="q-skel" aria-busy="true"><span class="skel-line w-60"></span><span class="skel-line w-45"></span><span class="skel-line w-30"></span></div>
+        </aside>
+      </div>
+
+      <!-- 5 . Market news: the lead story, two more, the timed list, and the rail. -->
+      <section class="ovx-sec" id="market-intelligence" aria-labelledby="news-h">
+        <div class="ovx-shead">
+          <div><h2 class="ovx-h2" id="news-h">Market news</h2><p class="ovx-sub" id="news-sub">The stories moving markets, with what each one means for you.</p></div>
+          <div class="ovx-nm" id="news-mood"></div>
+        </div>
+        <div class="ovx-filters" id="news-filters" role="group" aria-label="Filter stories"></div>
+        <div class="ovx-news">
+          <div class="ovx-news-main" id="news-body" aria-live="polite">
             <div class="q-skelrows" aria-busy="true"><span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span></div>
           </div>
-        </section>
-      </div>
+          <aside class="ovx-rail" id="news-rail" aria-label="Trending"></aside>
+        </div>
+      </section>
 
-      <!-- 4 · WHAT IS COMING. The dated week beside the conditions that would
-           change the call. -->
-      <div class="q-week-grid">
-        <section class="q-panel q-flat q-weekpanel" id="week-calendar" aria-labelledby="week-title">
-          <header class="q-head">
-            <div class="q-head-l">
-              <h2 class="q-head-title" id="week-title">The week ahead</h2>
-            </div>
-            <span class="q-head-meta" id="week-meta"></span>
-          </header>
-          <div class="q-body" id="week-body"></div>
-        </section>
-      </div>
-
-      <!-- 5 · WHY. What changed since the last session, and how broad the move is. -->
-      <div class="q-why-grid">
-        <section class="q-panel q-flat" id="what-changed" aria-labelledby="changed-title">
-          <header class="q-head">
-            <div class="q-head-l">
-              <h2 class="q-head-title" id="changed-title">What changed</h2>
-            </div>
-            <span class="q-head-meta" id="changed-meta"></span>
-          </header>
-          <div class="q-body" id="changed-body"><div class="q-empty q-empty--inline">Comparing with the last session…</div></div>
-        </section>
-        <section class="q-panel q-flat" id="breadth-panel" aria-labelledby="breadth-title">
-          <header class="q-head">
-            <div class="q-head-l">
-              <h2 class="q-head-title" id="breadth-title">Uptrends &amp; movers</h2>
-            </div>
-            <span class="q-head-meta" id="breadth-meta">Measuring</span>
-          </header>
-          <div id="breadth-body" class="q-body">
-            <div class="q-empty q-empty--inline">Measuring participation…</div>
-          </div>
-        </section>
-      </div>
-
-      <!-- 6 · THE EVIDENCE. The factor model, drivers and dated catalysts
-           beside the ranked headlines. -->
-      <div class="q-research-grid">
-        <section class="q-panel q-flat q-workspace" data-dashboard-tabs aria-label="Market context">
-          <div class="q-workspace-tabs" role="tablist" aria-label="Market context views">
-            <button type="button" class="q-tab is-active" id="tab-signal-check" role="tab" aria-selected="true" aria-controls="signal-check" tabindex="0">Market signal</button><button type="button" class="q-tab" id="tab-market-drivers" role="tab" aria-selected="false" aria-controls="market-drivers" tabindex="-1">Drivers</button><button type="button" class="q-tab" id="tab-event-risk" role="tab" aria-selected="false" aria-controls="event-risk" tabindex="-1">Catalysts <span class="q-tab-count" id="event-risk-count"></span></button>
-          </div>
-          <section class="q-panel" id="signal-check" role="tabpanel" aria-labelledby="tab-signal-check">
-          <header class="q-head">
-            <div class="q-head-l">
-              <h2 class="q-head-title" id="signal-title">Market signal</h2>
-            </div>
-            <span class="q-head-meta" id="signal-check-meta">Reading</span>
-          </header>
-          <div id="signal-check-body" class="q-body q-body--flush cc-signalcheck-body">
-            <div class="q-empty q-empty--inline">Scoring the factor model…</div>
-          </div>
-        </section>
-          <section class="q-panel" id="market-drivers" role="tabpanel" aria-labelledby="tab-market-drivers" hidden>
-          <header class="q-head">
-            <div class="q-head-l">
-              <h2 class="q-head-title" id="drivers-title">Market drivers</h2>
-            </div>
-            <span class="q-head-meta" id="market-drivers-meta">Scanning</span>
-          </header>
-          <div id="market-drivers-body" class="q-body q-body--flush cc-drivers-body">
-            <div class="q-empty q-empty--inline">Identifying the forces moving the tape…</div>
-          </div>
-        </section>
-          <section class="q-panel" id="event-risk" role="tabpanel" aria-labelledby="tab-event-risk" hidden>
-            <header class="q-head">
-              <div class="q-head-l">
-                <h2 class="q-head-title" id="catalysts-title">Upcoming catalysts</h2>
-              </div>
-              <span class="q-head-meta" id="event-risk-meta">7 calendar days</span>
-            </header>
-            <div id="event-risk-body" class="q-body q-body--flush event-risk-body">
-              <div class="q-empty q-empty--inline">Loading the 7-day catalyst window…</div>
-            </div>
-          </section>
-
-        </section>
-        <!-- ROW 7 · MARKET INTELLIGENCE — ranked headlines with interpretation -->
-        <section class="q-panel q-flat q-intel" id="market-intelligence" aria-labelledby="intel-title">
-        <header class="q-head q-head--tabs">
-          <div class="q-head-l">
-            <h2 class="q-head-title" id="intel-title">Market intelligence</h2>
-          </div>
-          <div class="q-tabs" role="tablist" id="news-tabs" aria-label="News category">
-            <button type="button" role="tab" aria-selected="true" class="q-tab is-active" data-news-group="high-impact" data-label="High impact">High impact</button>
-            <button type="button" role="tab" aria-selected="false" class="q-tab" data-news-group="macro" data-label="Macro">Macro</button>
-            <button type="button" role="tab" aria-selected="false" class="q-tab" data-news-group="stocks" data-label="Stocks">Stocks</button>
-            <button type="button" role="tab" aria-selected="false" class="q-tab" data-news-group="earnings" data-label="Earnings news">Earnings news</button>
-          </div>
-          <span class="q-head-meta" id="news-meta">Feeds</span>
-        </header>
-        <div id="news-body" class="q-body q-body--flush news-body">
-          <div class="q-skelrows" aria-busy="true">
-            <span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span>
+      <!-- 6 . Where the money moved: breadth, the sector heatmap and the movers. -->
+      <section class="ovx-sec" aria-labelledby="moved-h">
+        <div class="ovx-shead"><div><h2 class="ovx-h2" id="moved-h">Where the money moved</h2><p class="ovx-sub" id="sector-meta">Sectors by size and move, and the biggest single-stock moves.</p></div></div>
+        <div class="ovx-moved">
+          <div class="ovx-moved-map" id="sector-body"><div class="ovx-heat ovx-heat--skel" aria-busy="true"></div></div>
+          <div class="ovx-moved-mv" id="movers-panel">
+            <span class="sr-only" id="movers-meta"></span>
+            <div id="movers-body"><div class="q-skelrows" aria-busy="true"><span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span></div></div>
           </div>
         </div>
       </section>
 
-      </div>
+      <!-- 7 . Fear, rates and oil. -->
+      <section class="ovx-sec" aria-labelledby="other-h">
+        <div class="ovx-shead"><div><h2 class="ovx-h2" id="other-h">Fear, rates and oil</h2><p class="ovx-sub">Three things outside stocks that move stocks. The last month shown.</p></div></div>
+        <div class="ovx-minis" id="ov-minis"></div>
+      </section>
+
+      <!-- 8 . The week ahead: earnings by day and size, and the next session. -->
+      <section class="ovx-sec" id="week-calendar" aria-labelledby="week-title">
+        <div class="ovx-shead"><div><h2 class="ovx-h2" id="week-title">The week ahead</h2><p class="ovx-sub"><span id="week-meta"></span> How much market value reports each day, and the largest names.</p></div><div class="ovx-wkkey" id="week-key" aria-hidden="true"></div></div>
+        <div class="ovx-ahead">
+          <div id="week-body"><div class="ovx-wk ovx-wk--wait" aria-busy="true"></div></div>
+          <div class="ovx-outlook" id="ov-outlook"></div>
+        </div>
+      </section>
+
+      <!-- 9 . Ideas for you. -->
+      <section class="ovx-sec" id="opportunity-brief" aria-labelledby="oppbrief-title">
+        <div class="ovx-shead"><div><h2 class="ovx-h2" id="oppbrief-title">Ideas for you</h2><p class="ovx-sub" id="oppbrief-sub">Stocks QUANTA would buy now, sized to your money and the market mood.</p></div>
+          <a class="q-btn q-btn--link" href="#discover" data-view-link="discover">Open Discover</a></div>
+        <div id="opportunity-brief-body">
+          <div class="q-skelrows" aria-busy="true"><span class="skel-line"></span><span class="skel-line"></span><span class="skel-line"></span></div>
+        </div>
+      </section>
+
+      <!-- 10 . For pros: the model's inputs, levels, cross-asset reads and the full chart. -->
+      <section class="ovx-sec ovx-pro" aria-labelledby="pro-h">
+        <div class="ovx-shead"><div><h2 class="ovx-h2" id="pro-h">For pros</h2><p class="ovx-sub">The model's inputs, the conditions that would change it, key levels and cross-asset reads.</p></div></div>
+        <details class="ovx-det" id="ov-pro-factors">
+          <summary>All factors <span id="signal-check-meta"></span></summary>
+          <div class="ovx-det-b" id="signal-check-body"></div>
+        </details>
+        <details class="ovx-det" id="regime-triggers">
+          <summary>What would change the mood <span id="triggers-meta"></span></summary>
+          <div class="ovx-det-b" id="triggers-body"></div>
+        </details>
+        <details class="ovx-det" id="key-levels">
+          <summary>Key levels and expected range <span id="levels-meta"></span></summary>
+          <div class="ovx-det-b" id="levels-body"></div>
+        </details>
+        <details class="ovx-det" id="cross-asset">
+          <summary>Cross-asset <span id="cross-meta"></span></summary>
+          <div class="ovx-det-b" id="cross-body"></div>
+        </details>
+        <details class="ovx-det" id="ov-pro-chart">
+          <summary>Full price chart <span id="ovc-name"></span></summary>
+          <div class="ovx-det-b" id="overview-chart">
+            <div class="ovx-ovc-head">
+              <form class="ovc-pick" id="ovc-form" autocomplete="off" aria-label="Chart a symbol">
+                <label class="ovc-field"><span class="sr-only">Ticker to chart</span><input id="ovc-ticker" type="text" placeholder="Chart a ticker" spellcheck="false" autocapitalize="characters" maxlength="32" /></label>
+                <button type="submit" class="q-btn q-btn--sm">Chart</button>
+              </form>
+              <a class="q-btn q-btn--sm q-btn--link" id="ovc-open" href="#analyze" hidden>Open tear sheet</a>
+            </div>
+            <div class="ovc-body" id="ovc-body"></div>
+          </div>
+        </details>
+      </section>
 
     </section>
 
@@ -537,7 +423,8 @@
 
             <label class="form-field hidden" id="custom-tickers-field">
               <span>Custom tickers <em>(comma separated)</em></span>
-              <input id="sp-custom-tickers" type="text" placeholder="Tickers, separated by commas" />
+              <input id="sp-custom-tickers" type="text" placeholder="Tickers, separated by commas" aria-describedby="sp-custom-error" />
+              <p class="field-error" id="sp-custom-error" role="alert" hidden></p>
             </label>
 
             <details class="sp-filters" id="sp-filters">
@@ -566,7 +453,7 @@
 
             <div class="form-row two">
               <label class="form-field">
-                <span>Client mandate</span>
+                <span>Risk profile</span>
                 <select id="sp-risk" aria-describedby="sp-risk-hint">
                   <option value="conservative">Conservative</option>
                   <option value="balanced" selected>Balanced</option>
@@ -597,9 +484,18 @@
 
             <p class="form-foot">Only Buy and Accumulate calls are sized, as a risk budget rather than a validated edge: <a href="#track" data-view-link="track">model evidence</a>.</p>
           </form>
+
         </aside>
 
         <section class="card results-card">
+          <!-- Scan history stays above the report when setup folds or results refresh. -->
+          <section class="recent-scans" id="pk-recent" aria-labelledby="pk-recent-h" hidden>
+            <header class="recent-scans-head">
+              <h3 class="recent-scans-title" id="pk-recent-h">Recent scans</h3>
+            </header>
+            <div class="recent-scans-body" data-pk-recent-body></div>
+            <p class="recent-scans-note" data-pk-recent-note role="status" aria-live="polite"></p>
+          </section>
           <header class="card-header">
             <div>
               <h2 class="card-title">Scan results</h2>
@@ -782,7 +678,7 @@
               <div class="hw-stamp">
                 <p class="hw-stamp-k">Decision</p>
                 <p class="hw-stamp-v">Buy</p>
-                <p class="hw-stamp-s">25 shares <span class="hw-tag">Model not yet validated</span></p>
+                <p class="hw-stamp-s">25 shares <span class="hw-tag">Tested: no edge found</span></p>
               </div>
             </div>
             <figcaption class="hw-inst-cap" id="hw-inst-cap">An example call laid out the way a tear sheet shows it. The size uses the Picks arithmetic for a $25,000 account on the Balanced mandate.</figcaption>
@@ -971,7 +867,7 @@
                   </g>
                   <g id="rl-utag" class="rl-o">
                     <rect x="782" y="522" width="236" height="36" rx="18" fill="#3a2e0e" stroke="#fbbf24" stroke-opacity="0.7"/>
-                    <text x="900" y="546" class="rl-tagt" text-anchor="middle">Model not yet validated</text>
+                    <text x="900" y="546" class="rl-tagt" text-anchor="middle">Tested: no edge found</text>
                   </g>
                 </g>
 
@@ -1537,7 +1433,7 @@
                 <li><b>Read the reasons, not only the call.</b><span>The Decision comes with why it was made, the main risk and the rule that held it back, if any.</span></li>
                 <li><b>Treat it as research, not an instruction.</b><span>QUANTA does not know your goals or taxes. Check every price with your broker before you act.</span></li>
                 <li><b>Size from the stop.</b><span>A share count is a risk budget for the loss you accept, not a forecast of the gain.</span></li>
-                <li><b>Watch the tag.</b><span>"Model not yet validated" means the model has not yet passed its tests on past data.</span></li>
+                <li><b>Watch the tag.</b><span>"Tested: no edge found" means the model was tested on past data and showed no reliable edge. "Model not yet validated" means it has not passed its tests yet.</span></li>
               </ul>
             </div>
             <div class="hw-ledger-wrap">
@@ -1562,7 +1458,7 @@
                 <ul>
                   <li><span class="hw-tag">Model not yet validated</span><span>Not yet tested on past data</span></li>
                   <li><span class="hw-tag">Partly tested model</span><span>Only parts of it have been tested</span></li>
-                  <li><span class="hw-tag">No proven edge</span><span>Tested, and no reliable edge was found</span></li>
+                  <li><span class="hw-tag">Tested: no edge found</span><span>Tested, and no reliable edge was found</span></li>
                   <li><span class="hw-tag">Validation out of date</span><span>Its last passing test has expired</span></li>
                 </ul>
               </div>
@@ -1609,7 +1505,7 @@
             <details><summary>Does QUANTA cost anything?</summary><p>No. QUANTA is free, open-source software under the MIT License. It runs on your computer with free public data; keys for other data providers are optional.</p></details>
             <details><summary>Why is a stock that Research rates a Buy missing from Picks?</summary><p>Picks is stricter. A scan also needs reward/risk of <span data-threshold="RR.SCANNER_MIN" data-threshold-fmt="rr"></span> (Research needs <span data-threshold="RR.RESEARCH_MIN" data-threshold-fmt="rr"></span>), a risk grade of A to C, a score above the scan's floor, enough conviction, a return that covers costs, room in its sector, and a second full Research check.</p></details>
             <details><summary>Why does My Portfolio say Do Not Add to a stock that Research likes?</summary><p>Because of the account, not the stock. New money stops when one stock reaches <span data-threshold="PORTFOLIO.MAX_SINGLE_POSITION" data-threshold-fmt="pct"></span> of the account, when its sector or a group of holdings that move together reaches <span data-threshold="PORTFOLIO.MAX_SECTOR" data-threshold-fmt="pct"></span>, or when an earnings report is due within <span data-threshold="PORTFOLIO.EARNINGS_WINDOW_DAYS" data-threshold-fmt="int"></span> days. The view on the stock stays the same.</p></details>
-            <details><summary>What does "Model not yet validated" mean?</summary><p>The scoring model behind the call hasn't yet passed tests on past data. Treat those calls as research ideas, and position sizes as a risk budget, not a prediction.</p></details>
+            <details><summary>What does "Model not yet validated" mean?</summary><p>The scoring model behind the call hasn't yet passed tests on past data. "Tested: no edge found" goes further: the model was tested and showed no reliable edge. Treat either kind of call as a research idea, and position sizes as a risk budget, not a prediction.</p></details>
             <details><summary>How does it decide how many shares to buy?</summary><p>From the loss at the stop: <span data-threshold="SIZING.TARGET_RISK_PER_TRADE" data-threshold-fmt="pct"></span> of capital (<span data-threshold="SIZING.TARGET_RISK_STRONG_BUY" data-threshold-fmt="pct"></span> for a Strong Buy), scaled by the call and the score, divided by the distance to the stop. Limits then trim it: at most <span data-threshold="SIZING.MAX_POSITION_PCT" data-threshold-fmt="pct"></span> in one stock, the risk grade, and the mandate, which funds <span data-threshold="SIZING.MANDATE_SCALE.conservative" data-threshold-fmt="pct"></span> for Conservative. Shares are whole, with a minimum trade of <span data-threshold="SIZING.MIN_POSITION_PCT" data-threshold-fmt="pct"></span> of capital, at least <span data-threshold="SIZING.MIN_POSITION_FLOOR" data-threshold-fmt="money"></span> and at most <span data-threshold="SIZING.MIN_POSITION_SIZE" data-threshold-fmt="money"></span>.</p></details>
             <details><summary>Which markets and assets does it cover?</summary><p>US stocks and ETFs, and Indian stocks on the NSE (add .NS) or BSE (add .BO) in Research. Scans cover ready-made US and NSE universes, or up to <span data-threshold="CAPITAL.MAX_CUSTOM_TICKERS" data-threshold-fmt="int"></span> tickers of your own. My Portfolio analyses stocks and ETFs, not options or crypto.</p></details>
             <details><summary>What doesn't QUANTA do?</summary><p>It has no price alerts, saved watchlists, report downloads or side-by-side stock comparison. Picks can copy its picks as a TradingView watchlist, and a scan's error log can be downloaded.</p></details>

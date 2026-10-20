@@ -89,6 +89,7 @@ from engine import research_cache as _research_cache  # noqa: E402
 from engine import why_picked as _why_picked  # noqa: E402
 from engine import valuation_view as _valuation_view  # noqa: E402
 from engine import scan_filters as _scan_filters  # noqa: E402
+import saved_scans  # noqa: E402  (sibling module: the saved-scans store)
 
 
 def _display_path(path: Path) -> str:
@@ -130,7 +131,11 @@ logger = logging.getLogger("QUANTA-WEB")
 try:
     _web_log_dir = Path(__file__).resolve().parent / "logs"
     _web_log_dir.mkdir(exist_ok=True)
-    _web_file = logging.FileHandler(_web_log_dir / "quanta_web.log", encoding="utf-8", delay=True)
+    # Rotates at 5 MB, keeping three old files, so a long-running server's log
+    # cannot grow without bound.
+    from logging.handlers import RotatingFileHandler
+    _web_file = RotatingFileHandler(_web_log_dir / "quanta_web.log", maxBytes=5_000_000, backupCount=3,
+                                    encoding="utf-8", delay=True)
     _web_file.setLevel(logging.WARNING)
     _web_file.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"))
     logger.addHandler(_web_file)
@@ -1369,6 +1374,7 @@ NEWS_BEARISH_TERMS = (
     "tariff", "tariffs", "sanction", "sanctions", "war", "escalate", "escalation",
     "shutdown", "selloff deepens", "bear market", "correction", "sell pressure",
     "growth scare", "stagflation", "yields surge", "yields spike", "dollar surges",
+    "bearish", "rout", "sell-off deepens", "reckoning",
 )
 NEWS_BULLISH_TERMS = (
     "rally", "rallies", "surge", "surges", "soar", "soars", "jump", "jumps", "climb",
@@ -1379,14 +1385,52 @@ NEWS_BULLISH_TERMS = (
     "breakthrough", "deal reached", "agreement reached", "ceasefire", "strong demand",
     "strong results", "outperform", "bull market", "buy the dip", "stimulus",
     "relief rally", "yields fall", "yields ease", "dollar weakens",
+    "bullish", "upbeat", "spring back", "springs back", "bounce", "bounces", "bounced",
+    "recover", "recovers", "recovery", "rebounded", "mostly higher", "nudges higher", "edge higher",
 )
 
 
 def _news_direction(title: str, description: str = "") -> str:
-    """Classify a headline as bullish / bearish / mixed / neutral via lexicon."""
-    text = f"{title} {description}".lower()
-    bear = sum(1 for term in NEWS_BEARISH_TERMS if term in text)
-    bull = sum(1 for term in NEWS_BULLISH_TERMS if term in text)
+    """Classify a headline as bullish / bearish / mixed / neutral via lexicon.
+
+    The headline is the claim: when it has a direction, it decides. The
+    description only breaks a neutral headline ("Analysts are bullish on these
+    3 stocks" was tagged bearish because its blurb mentioned "fear of rate
+    hikes"). Terms match whole words, so "war" no longer fires inside "software".
+    """
+    head = _lexicon_direction(title)
+    if head != "neutral" or not description:
+        return head
+    return _lexicon_direction(description)
+
+
+# "Fears fade" reverses a bearish word; "rebound after the selloff" names a past
+# event, not the claim. Both are read before the word counts.
+_NEWS_REVERSAL = re.compile(
+    r"\b(fears?|worries|worry|concerns?|jitters|anxiety|angst)\s+(fade|fades|faded|ease|eases|eased|easing|recede|recedes|"
+    r"subside|subsides|abate|abates|cool|cools|ebb|ebbs)\b")
+_NEWS_PAST_EVENT = re.compile(
+    r"\b(after|following|from|despite|post)\s+(?:[\w$&.'-]+\s+){0,3}?(selloff|sell-off|slump|plunge|drop|losses|rout|crash|"
+    r"tumble|slide|decline|downturn|correction)\b")
+# "Stocks climb despite tariff fears": the concession is what the market shrugged
+# off, not the claim, so it is dropped up to the next clause break.
+_NEWS_CONCESSION = re.compile(r"\b(despite|in spite of|shrugs? off|shrugging off|brushes off|brushing off)\b[^,;:.!?]*")
+# "Rally fizzles" reverses a bullish word, the way "fears fade" reverses a bearish one.
+_NEWS_BULL_REVERSAL = re.compile(
+    r"\b(rally|rallies|gains?|rebound|rebounds|surge|bounce|recovery|advance)\s+(fizzles?|fizzled|fades?|faded|"
+    r"stalls?|stalled|falters?|faltered|evaporates?|evaporated|unravels?|unraveled|reverses|reversed)\b")
+
+
+def _lexicon_direction(text: str) -> str:
+    text = str(text or "").lower()
+    text = _NEWS_CONCESSION.sub(" ", text)
+    reversals = len(_NEWS_REVERSAL.findall(text))
+    text = _NEWS_REVERSAL.sub(" ", text)
+    bull_reversals = len(_NEWS_BULL_REVERSAL.findall(text))
+    text = _NEWS_BULL_REVERSAL.sub(" ", text)
+    text = _NEWS_PAST_EVENT.sub(" ", text)
+    bear = sum(1 for term in NEWS_BEARISH_TERMS if _has_term(text, term)) + bull_reversals
+    bull = sum(1 for term in NEWS_BULLISH_TERMS if _has_term(text, term)) + reversals
     if bull and bear:
         if bull > bear * 1.5:
             return "bullish"
@@ -1398,6 +1442,45 @@ def _news_direction(title: str, description: str = "") -> str:
     if bear:
         return "bearish"
     return "neutral"
+
+
+_FIRST_PERSON = re.compile(r"(?<![\w'])(i|i'm|i've|i'd|my|me|we're|our)(?![\w'])", re.I)
+_PERSONAL_LIFE = re.compile(
+    r"\b(my|our) (wife|husband|spouse|partner|parents?|mother|father|mom|dad|kids|children|son|daughter|"
+    r"family|sister|brother|boyfriend|girlfriend|fianc[ée]e?)\b|\b(in|into) (my|our) (20|30|40|50|60|70|80)s\b",
+    re.I,
+)
+
+
+# Reader-advice and listicle headlines ("Should You Invest in the S&P 500 Right
+# Now or Wait? There's 1 Clear Answer"): a pitch to the reader, not market news.
+_ADVICE_HEADLINE = re.compile(
+    r"^(should you|is it time to|is now the time|how to|here's how|want to|if i could|if you)\b|\bclear answer\b|\bno-brainer\b"
+    r"|\bonly (1|one) .{0,40}stocks?\b|\bit would be this one\b|\bfor the next \d+ years\b"
+    r"|^\d+ [\w&'-]+(?: [\w&'-]+)? stocks? (that|to|for|you)\b|\bwhich investment wins\b"
+    r"|\b(millionaire|retire(ment)? (early|rich))\b|\b\d+ (best|top|simple|easy)? ?(stocks?|ways|reasons) (to|you|for)\b",
+    re.I)
+
+
+def _is_personal_finance_column(title: str) -> bool:
+    """A first-person money column or advice letter, not market news.
+
+    MarketWatch's top-stories feed mixes reader stories ("My wife says we can't
+    afford to retire...") into the tape, and their words (recession, retire,
+    debt) score as macro. A quoted remark is set aside first, so "'I'm worried,'
+    says Dimon" still reads as news.
+    """
+    text = re.sub(r"[‘’“”]", "'", str(title or ""))
+    if _ADVICE_HEADLINE.search(text):
+        return True
+    # A question about one stock ("Is Broadcom Stock Cheap Enough Yet?") is an
+    # opinion piece, not news.
+    if text.rstrip().endswith("?") and re.search(r"\bstocks?\b", text, re.I):
+        return True
+    unquoted = re.sub(r"(^|[\s:])'[^']{0,120}'(?=[\s:,.]|$)", " ", text)
+    if _PERSONAL_LIFE.search(unquoted):
+        return True
+    return len(_FIRST_PERSON.findall(unquoted)) >= 2
 
 
 def _is_actionable_catalyst(article: Dict[str, Any]) -> bool:
@@ -1688,6 +1771,11 @@ def _fetch_rss_feed_with_status(source: Dict[str, str], per_source_limit: int = 
         category = _article_category(title, description)
         category_score = _article_category_score(title, description, category)
         impact = _article_impact(title, description, source["name"])
+        if _is_personal_finance_column(title):
+            # A reader's money story ("I lost my home in the Great Recession")
+            # matches macro words but moves no market: it must never reach the
+            # high-impact list, the catalysts or the regime's news factor.
+            category, category_score, impact = "other", 0, 1
         direction = _news_direction(title, description)
         context = _article_catalyst_context(category, impact, title)
         articles.append({
@@ -2338,16 +2426,87 @@ def _load_regime_history() -> Dict[str, List[Dict[str, Any]]]:
         return {}
 
 
-def _record_and_diff_regime(market_key: str, snap: Dict[str, Any]) -> Dict[str, Any]:
-    """Upsert today's regime snapshot and return human-readable changes vs the
-    most recent prior day. Honest: if there's no prior day, flag baseline."""
-    today = datetime.now().date().isoformat()
+def _session_phrase(quote_date: Any, today: Optional[str] = None) -> str:
+    """'today' when a bar is from today, else 'on Fri Oct 16'."""
+    try:
+        d = datetime.strptime(str(quote_date)[:10], "%Y-%m-%d")
+    except (TypeError, ValueError):
+        return "in the last session"
+    if d.date().isoformat() == (today or datetime.now().date().isoformat()):
+        return "today"
+    return f"on {d.strftime('%a %b')} {d.day}"
+
+
+def _parse_gross_band(band: Any) -> Optional[Tuple[float, float]]:
+    m = re.search(r"(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)\s*%", str(band or ""))
+    return (float(m.group(1)), float(m.group(2))) if m else None
+
+
+def _band_text(key: str) -> str:
+    """An exposure band from MARKET.EXPOSURE_BANDS as the engine words it."""
+    lo, hi = _T.MARKET.EXPOSURE_BANDS[key]
+    return f"{lo:g}-{hi:g}% gross"
+
+
+def _apply_overview_exposure_cap(quanta: Any, market_key: str) -> Dict[str, Any]:
+    """One exposure model: a Picks scan deploys no more than the upper end of the
+    Overview band in force for its market. A ceiling only: a lower scanner figure
+    stands. With no Overview read cached yet, the scanner's own figure stands."""
+    with _dashboard_lock:
+        payload = _dashboard_cache.get(f"payload_{market_key}_v2") or {}
+    engine = ((payload.get("market") or {}).get("market_regime_engine") or {})
+    band = (engine.get("portfolioGuidance") or {}).get("band")
+    parsed = _parse_gross_band(band)
+    if not parsed:
+        return {"source": "scanner"}
+    cap = parsed[1] / 100.0
+    regime = quanta.market_regime
+    regime.recommended_exposure = min(float(regime.recommended_exposure), cap)
+    return {"source": "overview", "band": band, "posture": engine.get("posture")}
+
+
+def _cap_exposure_band(base: Any, cap: str) -> str:
+    """The posture's band held under a cap: each end is the lower of the two.
+
+    A cap exists to stop an aggressive add while confidence is low; it must
+    never lift a defensive band (20-50% under a 30-55% cap stays 20-50%).
+    """
+    b, c = _parse_gross_band(base), _parse_gross_band(cap)
+    if not b or not c:
+        return cap
+    lo, hi = min(b[0], c[0]), min(b[1], c[1])
+    if (lo, hi) == b:
+        return str(base)
+    fmt = lambda v: f"{v:g}"
+    return f"{fmt(lo)}-{fmt(hi)}% gross"
+
+
+def _is_weekend_ymd(value: Any) -> bool:
+    try:
+        return datetime.strptime(str(value)[:10], "%Y-%m-%d").weekday() >= 5
+    except (TypeError, ValueError):
+        return False
+
+
+def _record_and_diff_regime(market_key: str, snap: Dict[str, Any],
+                            session_date: Optional[str] = None) -> Dict[str, Any]:
+    """Upsert this session's regime snapshot and return human-readable changes
+    vs the most recent prior session. Honest: if there's no prior session, flag
+    baseline.
+
+    A row is keyed by the trading session its prices come from (the benchmark's
+    quote date), not the wall clock: a Saturday or Sunday load reads Friday's
+    bars, so it updates Friday's row instead of logging a weekend "session"
+    that compares Friday with itself."""
+    today = str(session_date)[:10] if session_date else datetime.now().date().isoformat()
     changes: List[Dict[str, str]] = []
     baseline = True
     try:
         with _regime_history_lock:
             hist = _load_regime_history()
-            rows = [r for r in hist.get(market_key, []) if isinstance(r, dict)]
+            # Rows dated on a weekend were written by the old wall-clock key;
+            # neither market trades then, so they are not sessions.
+            rows = [r for r in hist.get(market_key, []) if isinstance(r, dict) and not _is_weekend_ymd(r.get("date"))]
             prior = None
             for r in sorted(rows, key=lambda x: str(x.get("date", "")), reverse=True):
                 if str(r.get("date")) < today:
@@ -2431,9 +2590,10 @@ def _record_and_diff_regime(market_key: str, snap: Dict[str, Any]) -> Dict[str, 
 
 def _regime_change_block(market_key: str, tone: str, tone_factors: List[Dict[str, Any]],
                          vix: Optional[float], participation: Optional[float],
-                         ten_year: Optional[float], engine: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Build the payload fragment with honest day-over-day regime deltas and
-    the recorded sessions behind the history strip."""
+                         ten_year: Optional[float], engine: Optional[Dict[str, Any]] = None,
+                         session_date: Optional[str] = None) -> Dict[str, Any]:
+    """Build the payload fragment with honest session-over-session regime
+    deltas and the recorded sessions behind the history strip."""
     factors = {f.get("key"): f.get("score") for f in (tone_factors or []) if f.get("key")}
     snap = {
         "tone": tone,
@@ -2457,7 +2617,7 @@ def _regime_change_block(market_key: str, tone: str, tone_factors: List[Dict[str
             "engine_factors": {f["key"]: {"label": f.get("label") or f["key"], "score": int(f.get("score") or 0)}
                                for f in eng_factors},
         })
-    result = _record_and_diff_regime(market_key, snap)
+    result = _record_and_diff_regime(market_key, snap, session_date=session_date)
     return {"regime_changes": result.get("changes", []), "regime_baseline": result.get("baseline", True),
             "regime_history": result.get("history", [])}
 
@@ -2486,8 +2646,9 @@ def _summarize_news_for_engine(news: Optional[Dict[str, Any]]) -> Dict[str, Any]
     if not isinstance(pool, list) or not pool:
         return empty
 
-    HIGH = 6  # impact threshold for "high impact"
-    impact_word = lambda imp: "High" if imp >= HIGH else ("Medium" if imp >= 4 else "Low")
+    HIGH = float(_T.MARKET.NEWS_IMPACT_MARKET_MOVING)  # the page's "market-moving" bar
+    MEDIUM = _T.MARKET.NEWS_DRIVER_MEDIUM
+    impact_word = lambda imp: "High" if imp >= HIGH else ("Medium" if imp >= MEDIUM else "Low")
 
     def _age_days(article: Dict[str, Any]) -> Optional[float]:
         published = article.get("published")
@@ -2502,14 +2663,14 @@ def _summarize_news_for_engine(news: Optional[Dict[str, Any]]) -> Dict[str, Any]
             return None
 
     def _decayed_impact(article: Dict[str, Any]) -> float:
-        # Headlines age out of the regime call: full weight inside ~1 day,
-        # half weight by ~4 days, near-zero past a week. Undated items keep
-        # full weight (they came from a live fetch this cycle).
+        # Headlines age out of the regime call: impact halves every
+        # MARKET.NEWS_HALF_LIFE_DAYS. Undated items keep full weight (they
+        # came from a live fetch this cycle).
         raw = float(int(article.get("impact") or 0))
         age = _age_days(article)
         if age is None:
             return raw
-        return raw * (0.5 ** (age / 4.0))
+        return raw * (0.5 ** (age / float(_T.MARKET.NEWS_HALF_LIFE_DAYS)))
 
     high_items = [a for a in pool if isinstance(a, dict) and _decayed_impact(a) >= HIGH]
     bullish = sum(1 for a in high_items if a.get("direction") == "bullish")
@@ -2559,16 +2720,18 @@ def _summarize_news_for_engine(news: Optional[Dict[str, Any]]) -> Dict[str, Any]
             break
 
     if net == "bearish":
-        summary = f"{bearish} high-impact bearish headline(s) lead the tape — treat rallies with caution."
+        summary = f"{bearish} high-impact bearish headline(s) lead the tape; treat rallies with caution."
     elif net == "bullish":
-        summary = f"{bullish} high-impact bullish headline(s) lead the tape — supportive backdrop, still confirm price."
+        summary = f"{bullish} high-impact bullish headline(s) lead the tape: supportive backdrop, still confirm price."
     elif net == "mixed":
-        summary = f"{len(high_items)} high-impact headlines are split bullish/bearish — headline risk is two-sided."
+        summary = f"{len(high_items)} high-impact headlines are split bullish/bearish; headline risk is two-sided."
     else:
         summary = "No high-impact market headlines on the tape right now."
 
     return {
         "highImpactCount": len(high_items),
+        # Keyed the way the page de-duplicates headlines (url, else title).
+        "highImpactKeys": [str(a.get("url") or a.get("title") or "").strip().lower() for a in high_items],
         "bullishHighImpact": bullish,
         "bearishHighImpact": bearish,
         "netDirection": net,
@@ -2580,26 +2743,75 @@ def _summarize_news_for_engine(news: Optional[Dict[str, Any]]) -> Dict[str, Any]
 
 
 def _regime_headline(market_regime: str, tone_class: str, posture: str,
-                     top_driver: Optional[str], stale: bool) -> str:
+                     top_driver: Optional[str], stale: bool,
+                     factors: Optional[List[Dict[str, Any]]] = None,
+                     drivers: Optional[List[Dict[str, Any]]] = None) -> str:
     """Generate the dashboard's market headline from data (never hardcoded).
 
-    Combines the computed regime label with a tone-specific one-clause read and,
-    when present, the single most important live driver. The mapping below is a
-    controlled template — the *selection* is data-driven, not fixed text.
+    Combines the computed regime label with a one-clause read and, when one
+    agrees with the call, the most important live driver. With the factor
+    list, the clause names the factors that actually carry the call rather
+    than a stock phrase ("Volatility and weak breadth...") that can contradict
+    a neutral volatility factor. A driver is named only when its direction
+    matches the call: a bullish story is never the "key driver" of a
+    defensive read.
     """
     if stale:
-        return ("Data Incomplete — several market inputs are missing or stale. "
+        return ("Data Incomplete: several market inputs are missing or stale. "
                 "Treat signals cautiously until fresh data is restored.")
-    tone_clause = {
-        "bull": "Trend and breadth lean supportive — favor leaders and confirm with volume.",
-        "bear": "Volatility and weak breadth favor capital preservation over new risk.",
-        "warn": "Risk signals are building — raise the quality bar and keep size light.",
-        "neutral": "Index action is uneven and risk signals are not fully supportive — stay selective.",
-    }.get(tone_class, "Signals are mixed — require confirmation before adding risk.")
+    scored = [f for f in (factors or []) if isinstance(f, dict) and f.get("label")]
+    against = [f["label"] for f in sorted(scored, key=lambda f: int(f.get("score") or 0)) if int(f.get("score") or 0) < 0][:2]
+    support = [f["label"] for f in sorted(scored, key=lambda f: -int(f.get("score") or 0)) if int(f.get("score") or 0) > 0][:2]
+    names = lambda labels: " and ".join(str(x).lower() for x in labels)
+    if scored and tone_class == "bear" and against:
+        tone_clause = f"Weak {names(against)} favor capital preservation over new risk."
+    elif scored and tone_class == "bull" and support:
+        tone_clause = f"Supportive {names(support)} favor adding to leaders on confirmation."
+    elif scored and tone_class == "warn" and against:
+        tone_clause = f"Pressure from {names(against)} is building: raise the quality bar and keep size light."
+    else:
+        tone_clause = {
+            "bull": "Trend and index participation lean supportive; favor leaders and confirm with volume.",
+            "bear": "Volatility and weak index participation favor capital preservation over new risk.",
+            "warn": "Risk signals are building; raise the quality bar and keep size light.",
+            "neutral": "Index action is uneven and risk signals are not fully supportive; stay selective.",
+        }.get(tone_class, "Signals are mixed; require confirmation before adding risk.")
     base = f"{market_regime}. {tone_clause}"
+    if drivers is not None:
+        want = {"bear": "bearish", "warn": "bearish", "bull": "bullish"}.get(tone_class)
+        match = next((d for d in drivers if isinstance(d, dict) and d.get("title")
+                      and (want is None or d.get("direction") == want)), None)
+        top_driver = match.get("title") if match else None
     if top_driver:
-        base = f"{base} Key driver: {top_driver}."
+        base = f"{base} Key driver: {str(top_driver).rstrip('.?!')}."
     return base
+
+
+def _rates_proxy_move(market_key: str, level: Any,
+                      change_pct: Any) -> Optional[Tuple[float, str, Tuple[float, float, float]]]:
+    """The rates proxy's day move in its own unit, with that unit's bands.
+
+    Returns (move, unit, (sharp, rising, easing)) or None. A yield moves in basis
+    points: the quote's percent change is of the yield's LEVEL, so +0.73% of a
+    4.10% yield is +3 bp, not a rate shock. India's proxy is USD/INR, a
+    currency, whose move stays in percent on its own bands.
+    """
+    try:
+        chg = float(change_pct)
+    except (TypeError, ValueError):
+        return None
+    if chg != chg:
+        return None
+    M = _T.MARKET
+    if str(market_key).upper() == "IN":
+        return chg, "%", (M.FX_SHARP_PCT, M.FX_MOVE_PCT, -M.FX_MOVE_PCT)
+    try:
+        lvl = float(level)
+    except (TypeError, ValueError):
+        return None
+    if not lvl > 0 or chg <= -100:
+        return None
+    return (lvl - lvl / (1 + chg / 100.0)) * 100, "bp", (M.YIELD_SHARP_BP, M.YIELD_RISING_BP, M.YIELD_EASING_BP)
 
 
 def _build_market_regime_engine(
@@ -2701,11 +2913,11 @@ def _build_market_regime_engine(
             note = f"{bench_label} trend is transitional vs 50/200-DMA"
         _push_factor("trend", "Trend", score, note, _safe_num(bench_trend.get("last")))
     elif bench_chg is not None:
-        if bench_chg >= 0.75:
+        if bench_chg >= _T.MARKET.TREND_FALLBACK_UP_PCT:
             score = 1
-        elif bench_chg <= -1.0:
+        elif bench_chg <= _T.MARKET.TREND_FALLBACK_DOWN_PCT:
             score = -2
-        elif bench_chg < -0.25:
+        elif bench_chg < _T.MARKET.TREND_FALLBACK_WEAK_PCT:
             score = -1
         else:
             score = 0
@@ -2717,9 +2929,11 @@ def _build_market_regime_engine(
 
     # Factor 2: Volatility
     if vix_level is not None:
-        calm_cut = 16.0 if market_key == "US" else 13.0
-        elevated_cut = 22.0 if market_key == "US" else 20.0
-        panic_cut = 30.0 if market_key == "US" else 28.0
+        M = _T.MARKET
+        if market_key == "US":
+            calm_cut, elevated_cut, panic_cut = M.VIX_CONTAINED_MAX, M.VIX_CALM_MAX, M.VIX_EXTREME
+        else:
+            calm_cut, elevated_cut, panic_cut = M.INDIA_VIX_CALM_MAX, M.INDIA_VIX_ELEVATED, M.INDIA_VIX_EXTREME
         if vix_level < calm_cut:
             score = 1
             note = f"Volatility is calm ({vix_level:.1f})"
@@ -2732,21 +2946,26 @@ def _build_market_regime_engine(
         else:
             score = 0
             note = f"Volatility is in a normal range ({vix_level:.1f})"
+        # The level sets the score; a sharp one-session jump is said beside it
+        # so "normal range" is never read as "calm" on a day the VIX spiked.
+        vix_chg = _safe_num((vix or {}).get("change_pct"))
+        if vix_chg is not None and abs(vix_chg) >= float(_T.MARKET.VIX_SESSION_JUMP_PCT):
+            note = f"{note}, {'up' if vix_chg > 0 else 'down'} {abs(vix_chg):.0f}% in one session"
         _push_factor("volatility", "Volatility", score, note, vix_level)
     else:
         _push_factor("volatility", "Volatility", 0, "Volatility index unavailable")
         missing_inputs.append("volatility")
 
-    # Factor 3: Participation breadth
+    # Factor 3: Participation (four index proxies, not exchange breadth)
     if participation_pct is not None:
         p = float(participation_pct)
-        if p >= 75:
+        if p >= _T.MARKET.PARTICIPATION_BROAD_PCT:
             score = 1
             note = f"Participation strong ({p:.0f}% indices above 50-DMA)"
-        elif p < 35:
+        elif p <= _T.MARKET.PARTICIPATION_WEAK_PCT:
             score = -2
             note = f"Participation weak ({p:.0f}% indices above 50-DMA)"
-        elif p < 50:
+        elif p < _T.MARKET.PARTICIPATION_NEUTRAL_PCT:
             score = -1
             note = f"Participation below neutral ({p:.0f}% indices above 50-DMA)"
         else:
@@ -2758,24 +2977,20 @@ def _build_market_regime_engine(
         missing_inputs.append("participation")
 
     # Factor 4: Rates / credit proxy
-    if yield_chg is not None:
+    # A yield scores on its move in basis points (+0.25% of a 5.24% yield is
+    # about +1.3 bp); USD/INR keeps its percent change, on its own bands.
+    rates_move = _rates_proxy_move(market_key, yield_level, yield_chg)
+    if rates_move is not None:
         y_label = str(yield_proxy.get("label") or ("10Y Yield" if market_key == "US" else "USD/INR"))
-        # A yield's move is quoted in basis points (+0.25% of a 5.24% yield is
-        # about +1.3 bp); an FX proxy keeps its percent change.
-        move = f"{yield_chg:+.2f}%"
-        try:
-            lvl = float(yield_level) if yield_level is not None else None
-        except (TypeError, ValueError):
-            lvl = None
-        if "yield" in y_label.lower() and lvl and yield_chg > -100:
-            move = f"{(lvl - lvl / (1 + yield_chg / 100.0)) * 100:+.1f} bp"
-        if yield_chg <= _T.MARKET.YIELD_EASING_PCT:
+        r_move, r_unit, (r_sharp, r_rising, r_easing) = rates_move
+        move = f"{r_move:+.1f} bp" if r_unit == "bp" else f"{r_move:+.2f}%"
+        if r_move <= r_easing:
             score = 1
             note = f"{y_label} easing ({move})"
-        elif yield_chg >= _T.MARKET.YIELD_SHARP_PCT:
+        elif r_move >= r_sharp:
             score = -2
             note = f"{y_label} tightening sharply ({move})"
-        elif yield_chg >= _T.MARKET.YIELD_RISING_PCT:
+        elif r_move >= r_rising:
             score = -1
             note = f"{y_label} tightening ({move})"
         else:
@@ -2788,20 +3003,22 @@ def _build_market_regime_engine(
 
     # Factor 5: Benchmark index performance
     if bench_chg is not None:
-        if bench_chg >= 0.7:
+        if bench_chg >= _T.MARKET.SESSION_MOVE_UP_PCT:
             score = 1
-        elif bench_chg <= -1.2:
+        elif bench_chg <= _T.MARKET.SESSION_MOVE_DOWN_PCT:
             score = -2
-        elif bench_chg <= -0.35:
+        elif bench_chg <= _T.MARKET.SESSION_MOVE_WEAK_PCT:
             score = -1
         else:
             score = 0
-        # Deliberately tactical (today's move) vs Factor 1's structural 50/200-DMA
-        # read — the label must say so, or the two "trend" factors look contradictory.
-        _push_factor("index_performance", "Today's Index Move", score,
-                     f"{bench_label} {bench_chg:+.2f}% today (tactical; Trend is the structural read)", bench_chg)
+        # Deliberately tactical (one session's move) vs Factor 1's structural
+        # 50/200-DMA read — the label must say so, or the two "trend" factors
+        # look contradictory. "Today" only when the bar is today's: on a weekend
+        # the move is Friday's.
+        _push_factor("index_performance", "Session Move", score,
+                     f"{bench_label} {bench_chg:+.2f}% {_session_phrase(bench.get('quote_date'))} (one session; Trend is the structural read)", bench_chg)
     else:
-        _push_factor("index_performance", "Today's Index Move", 0, "Benchmark move unavailable")
+        _push_factor("index_performance", "Session Move", 0, "Benchmark move unavailable")
         missing_inputs.append("index_performance")
 
     # Factor 6: Leadership concentration / sector balance proxy
@@ -2829,7 +3046,9 @@ def _build_market_regime_engine(
             leadership_note = "Leadership is broad (growth + cyclicals participating)"
         elif broad_lead == 0:
             leadership_score = -2
-            leadership_note = "Leadership absent across major groups"
+            # Measured on the index groups, not the sector funds: say so, since
+            # defensive sectors can still be rising on the same day.
+            leadership_note = "No major index group rose: Nasdaq 100, Russell 2000 and Dow"
         else:
             leadership_score = 0
             leadership_note = "Leadership mixed across growth and cyclicals"
@@ -2856,11 +3075,11 @@ def _build_market_regime_engine(
     # Factor 7: Momentum
     mom = _safe_num((bench_trend or {}).get("mom_21d_pct"))
     if mom is not None:
-        if mom >= 3.0:
+        if mom >= _T.MARKET.MOMENTUM_UP_PCT:
             score = 1
-        elif mom <= -6.0:
+        elif mom <= _T.MARKET.MOMENTUM_DOWN_PCT:
             score = -2
-        elif mom <= -2.0:
+        elif mom <= _T.MARKET.MOMENTUM_WEAK_PCT:
             score = -1
         else:
             score = 0
@@ -2877,25 +3096,27 @@ def _build_market_regime_engine(
     stress_reasons: List[str] = []
     oil_chg = _safe_num((by_symbol.get("USO") or {}).get("change_pct"))
     gold_chg = _safe_num((by_symbol.get("GLD") or {}).get("change_pct"))
-    if vix_level is not None and vix_level >= (25.0 if market_key == "US" else 24.0):
+    vix_stress_cut = _T.MARKET.VIX_STRESS if market_key == "US" else _T.MARKET.INDIA_VIX_STRESS
+    if vix_level is not None and vix_level >= vix_stress_cut:
         stress_points += 1
         stress_reasons.append("elevated volatility")
-    if yield_chg is not None and abs(yield_chg) >= 0.8:
+    # A sharp rates move either way, in the proxy's own unit (Factor 4).
+    if rates_move is not None and abs(rates_move[0]) >= rates_move[2][0]:
         stress_points += 1
-        stress_reasons.append("rate shock")
-    if oil_chg is not None and abs(oil_chg) >= 2.2:
+        stress_reasons.append("rate shock" if rates_move[1] == "bp" else "sharp rupee move")
+    if oil_chg is not None and abs(oil_chg) >= _T.MARKET.OIL_MOVE_PCT:
         # A large move either way is a cross-asset shock; name its direction.
         # This read "oil spike" on a 3% fall while the ribbon said "falling".
         stress_points += 1
         stress_reasons.append(f"{'oil spike' if oil_chg > 0 else 'sharp oil drop'} {oil_chg:+.1f}%")
-    if gold_chg is not None and gold_chg >= 1.2:
+    if gold_chg is not None and gold_chg >= _T.MARKET.GOLD_MOVE_PCT:
         stress_points += 1
         stress_reasons.append("defensive flow to gold")
-    _macro_inputs = sum(1 for v in (vix_level, yield_chg, oil_chg, gold_chg) if v is not None)
+    _macro_inputs = sum(1 for v in (vix_level, rates_move, oil_chg, gold_chg) if v is not None)
     if _macro_inputs == 0:
         # No VIX, rates, oil or gold reading: stress is UNKNOWN, not "contained".
         score = 0
-        note = "Cross-asset macro inputs unavailable — stress is unknown, not contained"
+        note = "Cross-asset macro inputs unavailable: stress is unknown, not contained"
         missing_inputs.append("macro_risk")
     elif stress_points == 0 and _macro_inputs < 2:
         score = 0
@@ -2917,24 +3138,26 @@ def _build_market_regime_engine(
     # Factor 9: Live news impact — does the current headline tape lean bull/bear?
     news_summary = _summarize_news_for_engine(news)
     nd = news_summary["netDirection"]
+    _news_cap = max(0, int(_T.MARKET.NEWS_FACTOR_MAX_ABS))
     _src_list = source_status or []
     _feeds_ok = sum(1 for s in _src_list if s.get("ok"))
     if _src_list and _feeds_ok == 0:
         # Every news feed failed: that is UNKNOWN news risk, not a quiet tape.
         _push_factor("news_impact", "News Impact", 0,
-                     "No news feed is live (unreachable or stale) — headline risk is unknown, not absent")
+                     "No news feed is live (unreachable or stale): headline risk is unknown, not absent")
         missing_inputs.append("news_feeds")
     elif news_summary["highImpactCount"] == 0:
         _push_factor("news_impact", "News Impact", 0, "No high-impact market headlines on the tape")
         missing_inputs.append("news_impact")
     elif nd == "bullish":
-        # Asymmetry vs the bearish branch (-2 possible) is intentional: good news
-        # never adds more than +1; uncertainty must never amplify risk-taking.
-        _push_factor("news_impact", "News Impact", 1,
+        # Good news never adds more than +1; uncertainty must never amplify
+        # risk-taking. The lexicon misreads headlines, so bad news is held to
+        # the same size (NEWS_FACTOR_MAX_ABS) instead of a measured factor's -2.
+        _push_factor("news_impact", "News Impact", min(1, _news_cap),
                      f"{news_summary['bullishHighImpact']} high-impact bullish headline(s) lead the tape")
     elif nd == "bearish":
         bear_n = news_summary["bearishHighImpact"]
-        _push_factor("news_impact", "News Impact", -2 if bear_n >= 2 else -1,
+        _push_factor("news_impact", "News Impact", -min(2 if bear_n >= 2 else 1, _news_cap),
                      f"{bear_n} high-impact bearish headline(s) lead the tape")
     else:
         _push_factor("news_impact", "News Impact", 0,
@@ -2954,7 +3177,7 @@ def _build_market_regime_engine(
         _push_factor("catalyst_risk", "Catalyst Risk", 0,
                      "Earnings calendar unavailable: upcoming reports are unknown, not absent")
         missing_inputs.append("earnings_calendar")
-    elif catalyst_count >= 4:
+    elif catalyst_count >= _T.MARKET.CATALYST_HEAVY_REPORTS:
         _push_factor("catalyst_risk", "Catalyst Risk", -1,
                      f"Heavy earnings week ({catalyst_count} report{plural} in the next 7 days)", float(catalyst_count))
     elif catalyst_count > 0:
@@ -2971,27 +3194,28 @@ def _build_market_regime_engine(
 
     posture_meta = {
         "Offensive": ("Constructive Market", "Constructive Expansion", "bull"),
-        "Selective Offensive": ("Constructive — Selective", "Constructive but Selective", "bull"),
+        "Selective Offensive": ("Constructive, selective", "Constructive but Selective", "bull"),
         "Lean Long": ("Mildly Constructive", "Moderately Constructive", "neutral"),
         "Neutral": ("Mixed Market", "Balanced / Mixed", "neutral"),
         "Lean Defensive": ("Cautious Market", "Risk Caution", "warn"),
-        "Selective Defensive": ("Defensive — Selective", "Defensive Bias", "bear"),
+        "Selective Defensive": ("Defensive, selective", "Defensive Bias", "bear"),
         "Defensive": ("Defensive Market", "Capital Preservation", "bear"),
     }
     ladder = ["Offensive", "Selective Offensive", "Lean Long", "Neutral",
               "Lean Defensive", "Selective Defensive", "Defensive"]
 
-    if score_sum >= 7:
+    M = _T.MARKET
+    if score_sum >= M.POSTURE_OFFENSIVE_SUM:
         posture = "Offensive"
-    elif score_sum >= 4:
+    elif score_sum >= M.POSTURE_SELECTIVE_SUM:
         posture = "Selective Offensive"
-    elif score_sum >= 2:
+    elif score_sum >= M.POSTURE_LEAN_SUM:
         posture = "Lean Long"
-    elif score_sum <= -7:
+    elif score_sum <= -M.POSTURE_OFFENSIVE_SUM:
         posture = "Defensive"
-    elif score_sum <= -4:
+    elif score_sum <= -M.POSTURE_SELECTIVE_SUM:
         posture = "Selective Defensive"
-    elif score_sum <= -2:
+    elif score_sum <= -M.POSTURE_LEAN_SUM:
         posture = "Lean Defensive"
     else:
         posture = "Neutral"
@@ -3023,33 +3247,35 @@ def _build_market_regime_engine(
     # blocked. Without this, a yfinance outage during a volatility spike would
     # silently disarm Rule 1 and let an offensive read through.
     if vix_level is None:
-        _cap_posture("Neutral", "Volatility index unavailable — risk-on blocked until volatility can be verified")
+        _cap_posture("Neutral", "Volatility index unavailable: risk-on blocked until volatility can be verified")
 
     # Rule 1: VIX above the stress band → never offensive / risk-on.
     vix_stress = _T.MARKET.VIX_STRESS
     if vix_level is not None and vix_level > vix_stress:
         cap = "Lean Defensive" if vix_level >= _T.MARKET.VIX_EXTREME else "Neutral"
-        _cap_posture(cap, f"VIX {vix_level:.1f} > {vix_stress:g} — risk-on/offensive blocked (capped at {cap})")
+        _cap_posture(cap, f"VIX {vix_level:.1f} > {vix_stress:g}: risk-on/offensive blocked (capped at {cap})")
 
-    # Rule 2: QQQ down >1% AND VIX rising → never risk-on.
-    if qqq is not None and qqq < -1.0 and vix_chg is not None and vix_chg > 0:
-        _cap_posture("Neutral", f"QQQ {qqq:+.2f}% with VIX rising ({vix_chg:+.2f}%) — risk-on blocked")
+    # Rule 2: QQQ down more than MARKET.RULE2_QQQ_DROP_PCT AND VIX rising → never risk-on.
+    if qqq is not None and qqq < _T.MARKET.RULE2_QQQ_DROP_PCT and vix_chg is not None and vix_chg > 0:
+        _cap_posture("Neutral", f"QQQ {qqq:+.2f}% with VIX rising ({vix_chg:+.2f}%): risk-on blocked")
 
-    # Rule 3: Major indices mostly negative → no constructive unless trend & breadth strong.
+    # Rule 3: Major indices mostly negative → no constructive unless trend & participation strong.
     if mostly_negative and not (trend_score > 0 and part_score > 0):
-        _cap_posture("Neutral", f"{reds}/{len(equity_changes)} major indices red without strong trend+breadth")
+        _cap_posture("Neutral", f"{reds}/{len(equity_changes)} major indices red without strong trend+participation")
 
-    # Rule 4: Full offensive needs broad confirmation (>=5 confirmed factors).
-    if posture == "Offensive" and positives < 5:
-        _cap_posture("Selective Offensive", f"Only {positives} confirmed factors — full offensive requires >=5")
+    # Rule 4: Full offensive needs broad confirmation (MARKET.OFFENSIVE_MIN_CONFIRMED factors).
+    _min_confirmed = _T.MARKET.OFFENSIVE_MIN_CONFIRMED
+    if posture == "Offensive" and positives < _min_confirmed:
+        _cap_posture("Selective Offensive",
+                     f"Only {positives} confirmed factors; full offensive requires >={_min_confirmed}")
 
-    # Rule 5: Multiple high-impact bearish headlines override a bullish price tape.
-    if news_summary.get("bearishHighImpact", 0) >= 2 and tone_class == "bull":
-        _cap_posture("Neutral", "Multiple high-impact bearish headlines override bullish price signal")
+    # No news rule: the tape is read by a keyword lexicon that misreads
+    # headlines ("Stocks climb despite tariff fears"), so news moves the posture
+    # only through its own News Impact score above, never by capping it.
 
     # Detect price-vs-news conflict for confidence handling + disclosure.
-    price_bull = score_sum >= 4
-    price_bear = score_sum <= -4
+    price_bull = score_sum >= _T.MARKET.POSTURE_SELECTIVE_SUM
+    price_bear = score_sum <= -_T.MARKET.POSTURE_SELECTIVE_SUM
     news_net = news_summary.get("netDirection", "neutral")
     news_conflict = (price_bull and news_net == "bearish") or (price_bear and news_net == "bullish")
     if news_conflict:
@@ -3066,7 +3292,7 @@ def _build_market_regime_engine(
         "sector_leadership": {"sector_leadership_partial"},
     }
     _macro_observed = any(v is not None for v in (
-        vix_level, yield_chg,
+        vix_level, rates_move,
         _safe_num((by_symbol.get("USO") or {}).get("change_pct")),
         _safe_num((by_symbol.get("GLD") or {}).get("change_pct")),
     ))
@@ -3091,40 +3317,48 @@ def _build_market_regime_engine(
     unmeasured_factors = [k for k, v in _credits.items() if v < 1.0]
     # abs(score_sum) is deliberate: confidence measures signal STRENGTH either
     # direction — a -10 defensive read is as high-conviction as a +10 bullish one.
-    confidence = int(round((abs(score_sum) / max(8.0, float(len(factors)))) * 60 + coverage * 30 - conflicts * 5))
-    confidence = max(15, min(95, confidence))
-    if news_summary.get("bearishHighImpact", 0) >= 1:
-        confidence = max(12, confidence - 8)
-    if news_conflict:
-        confidence = max(12, confidence - 12)
+    M = _T.MARKET
+    confidence = int(round(
+        (abs(score_sum) / max(float(M.CONFIDENCE_SIGNAL_MIN_FACTORS), float(len(factors)))) * M.CONFIDENCE_SIGNAL_POINTS
+        + coverage * M.CONFIDENCE_COVERAGE_POINTS - conflicts * M.CONFIDENCE_CONFLICT_POINTS))
+    confidence = max(M.CONFIDENCE_MIN, min(M.CONFIDENCE_MAX, confidence))
+    # Headlines lower confidence, but on their own never into Low: Low caps the
+    # exposure band and de-greens the read, and the lexicon can misread a story.
+    news_penalty = ((M.CONFIDENCE_NEWS_BEARISH_PENALTY if news_summary.get("bearishHighImpact", 0) >= 1 else 0)
+                    + (M.CONFIDENCE_NEWS_CONFLICT_PENALTY if news_conflict else 0))
+    if news_penalty:
+        news_floor = M.CONFIDENCE_MODERATE if confidence >= M.CONFIDENCE_MODERATE else M.CONFIDENCE_FLOOR
+        confidence = max(news_floor, confidence - news_penalty)
     # News inputs lower coverage through the News Impact factor above and are
     # reported as missing, but they are not market data: a headline outage must
     # not force the stale-data defensive posture or the price-data penalty.
     market_missing = [m for m in missing_inputs if m not in NEWS_ONLY_INPUTS]
-    if len(market_missing) >= 3:
-        confidence = max(12, confidence - 15)
+    if len(market_missing) >= M.DEGRADED_MISSING_INPUTS:
+        confidence = max(M.CONFIDENCE_FLOOR, confidence - M.CONFIDENCE_MISSING_PENALTY)
 
     freshness_state = "healthy"
     stale_quotes = any(q.get('stale') for q in (quotes or []))
     if stale_quotes:
         missing_inputs.append('fresh_quotes')
         market_missing.append('fresh_quotes')
-        confidence = min(confidence, 35)
-    if len(market_missing) >= 3 or stale_quotes:
+        confidence = min(confidence, M.CONFIDENCE_STALE_CAP)
+    if len(market_missing) >= M.DEGRADED_MISSING_INPUTS or stale_quotes:
         freshness_state = "degraded"
-    elif conflicts >= 3 or news_conflict:
+    # A price/news disagreement is disclosed (newsConflict) but is not a factor
+    # conflict: it no longer caps the exposure band on its own.
+    elif conflicts >= M.CONFLICT_HIGH:
         freshness_state = "conflicted"
 
     # Rule 6: Stale / missing data → force a cautious "Data Incomplete" read LAST,
     # so it cannot be undone by an earlier bullish posture assignment.
     stale = freshness_state == "degraded"
     if stale:
-        _cap_posture("Lean Defensive", "Stale/missing data — forcing cautious posture")
+        _cap_posture("Lean Defensive", "Stale/missing data: forcing cautious posture")
         market_regime = "Data Incomplete"
         model_signal = "Insufficient Data"
         tone_class = "warn"
-        if "Stale/missing data — forcing cautious posture" not in overrides_triggered:
-            overrides_triggered.append("Stale/missing data — Data Incomplete fallback")
+        if "Stale/missing data: forcing cautious posture" not in overrides_triggered:
+            overrides_triggered.append("Stale/missing data: Data Incomplete fallback")
 
     if posture in {"Offensive", "Selective Offensive"}:
         primary_action = {
@@ -3134,7 +3368,7 @@ def _build_market_regime_engine(
             "risk": "Keep explicit invalidation and trailing stop discipline.",
         }
         portfolio_guidance = {
-            "band": "65-95% gross",
+            "band": _band_text("offensive"),
             "headline": "Build exposure through confirmed setups",
             "headlineTone": "bull",
             "actions": [
@@ -3151,13 +3385,13 @@ def _build_market_regime_engine(
             "risk": "Require clean stop placement before entry.",
         }
         portfolio_guidance = {
-            "band": "50-70% gross",
+            "band": _band_text("lean_long"),
             "headline": "Selective longs with dry powder",
             "headlineTone": "warn",
             "actions": [
                 {"tone": "neutral", "text": "Focus on best-in-class names only"},
                 {"tone": "warn", "text": "Hold back size until confirmation broadens"},
-                {"tone": "bear", "text": "Skip weak breadth and late-stage breakouts"},
+                {"tone": "bear", "text": "Skip weak participation and late-stage breakouts"},
             ],
         }
     elif posture == "Neutral":
@@ -3168,7 +3402,7 @@ def _build_market_regime_engine(
             "risk": "Tighten stop discipline and reduce churn.",
         }
         portfolio_guidance = {
-            "band": "45-65% gross",
+            "band": _band_text("neutral"),
             "headline": "Balanced stance while signals are mixed",
             "headlineTone": "neutral",
             "actions": [
@@ -3185,13 +3419,13 @@ def _build_market_regime_engine(
             "risk": "Cut laggards early and keep hard stop discipline.",
         }
         portfolio_guidance = {
-            "band": "20-50% gross",
+            "band": _band_text("defensive"),
             "headline": "Capital preservation takes priority",
             "headlineTone": "bear",
             "actions": [
                 {"tone": "bear", "text": "Trim weak and crowded exposure"},
                 {"tone": "warn", "text": "Keep only highest conviction core"},
-                {"tone": "neutral", "text": "Re-engage only after breadth and volatility improve"},
+                {"tone": "neutral", "text": "Re-engage only after participation and volatility improve"},
             ],
         }
 
@@ -3217,7 +3451,7 @@ def _build_market_regime_engine(
     confidence_reasons: List[str] = []
     if missing_inputs:
         confidence_reasons.append(f"{len(set(missing_inputs))} data input(s) missing or stale")
-    if conflicts >= 2:
+    if conflicts >= _T.MARKET.CONFLICT_REASON_MIN:
         confidence_reasons.append(f"{conflicts} factors disagree (index action is uneven)")
     if news_conflict:
         confidence_reasons.append("Price action and the news tape disagree")
@@ -3241,20 +3475,27 @@ def _build_market_regime_engine(
         display_regime = "Data Incomplete"
     elif low_confidence:
         if tone_class == "bull":
-            display_regime = f"{market_regime} — Low Confidence"
+            display_regime = f"{market_regime}, low confidence"
             tone_class = "warn"  # de-green a low-confidence bullish read
         elif market_regime == "Mixed Market":
-            display_regime = "Mixed / Cautious — Low Confidence"
+            display_regime = "Mixed / Cautious, low confidence"
         else:
-            display_regime = f"{market_regime} — Low Confidence"
+            display_regime = f"{market_regime}, low confidence"
 
     # [GUIDANCE CONSISTENCY] Low confidence, degraded data, OR heavily conflicted
     # signals can never carry an aggressive add recommendation. Cap the exposure
     # band + tone downward.
     conflicted = freshness_state == "conflicted"
     if low_confidence or stale or conflicted:
+        cap_band = _band_text("cap_stale" if stale else "cap_low_confidence")
+        base_band = portfolio_guidance.get("band")
+        capped_band = _cap_exposure_band(base_band, cap_band)
+        cap_reason = ("data is stale" if stale else "confidence is low" if low_confidence else "signals conflict")
         portfolio_guidance = {
-            "band": "20-45% gross" if stale else "30-55% gross",
+            # A cap only lowers: a Defensive 20-50% read must not rise to 30-55%.
+            "band": capped_band,
+            "cappedFrom": base_band if capped_band != base_band else None,
+            "capReason": cap_reason if capped_band != base_band else None,
             "headline": (
                 "Stay cautious while signals conflict"
                 if conflicted and not (low_confidence or stale)
@@ -3301,7 +3542,7 @@ def _build_market_regime_engine(
     risk_warnings = [f.get("note") for f in factors if int(f.get("score") or 0) <= -1 and f.get("note")]
     if freshness_state == "degraded":
         risk_warnings.append("Several regime inputs are missing; confidence is reduced.")
-    if conflicts >= 3:
+    if conflicts >= _T.MARKET.CONFLICT_HIGH:
         risk_warnings.append("Signals are highly conflicted across factors; avoid aggressive sizing.")
     if news_summary.get("bearishHighImpact", 0) >= 1:
         risk_warnings.append(news_summary.get("summary"))
@@ -3313,7 +3554,7 @@ def _build_market_regime_engine(
         f"{negatives}/{len(factors)} negative factors, score {score_sum:+d}."
     )
     detailed_reasoning = " | ".join(
-        f"{f.get('label')}: {f.get('status')} ({int(f.get('score') or 0):+d}) — {f.get('note')}"
+        f"{f.get('label')}: {f.get('status')} ({int(f.get('score') or 0):+d}): {f.get('note')}"
         for f in factors
     )
 
@@ -3346,7 +3587,8 @@ def _build_market_regime_engine(
     }
 
     top_driver = (news_summary.get("drivers") or [{}])[0].get("title") if news_summary.get("drivers") else None
-    market_headline = _regime_headline(display_regime, tone_class, posture, top_driver, stale)
+    market_headline = _regime_headline(display_regime, tone_class, posture, top_driver, stale,
+                                       factors=factors, drivers=news_summary.get("drivers") or [])
     if stale and missing_inputs:
         # Name the gaps so "Data Incomplete" is diagnosable, not just a shrug.
         _missing_pretty = ", ".join(m.replace("_", " ") for m in sorted(set(missing_inputs))[:4])
@@ -3355,7 +3597,7 @@ def _build_market_regime_engine(
     # it at the top (not buried in Source Health).
     if low_confidence and not stale and confidence_reasons:
         market_headline = (
-            f"{display_regime}. Confidence {confidence}% ({confidence_label}) — "
+            f"{display_regime}. Confidence {confidence}% ({confidence_label}): "
             f"{confidence_reasons[0].lower()}. Trade smaller and confirm before adding."
         )
 
@@ -3381,7 +3623,8 @@ def _build_market_regime_engine(
         "factors": factors,
         "primaryAction": primary_action,
         "portfolioGuidance": portfolio_guidance,
-        "riskWarnings": [w for w in risk_warnings if w][:6],
+        # The news factor's note is the same sentence as the news summary: list it once.
+        "riskWarnings": list(dict.fromkeys(w for w in risk_warnings if w))[:6],
         "outlookTriggers": {
             "strengthens": strengthen_txt,
             "weakens": weaken_txt,
@@ -3392,6 +3635,9 @@ def _build_market_regime_engine(
             "highImpactCount": news_summary.get("highImpactCount"),
             "bullishHighImpact": news_summary.get("bullishHighImpact"),
             "bearishHighImpact": news_summary.get("bearishHighImpact"),
+            # Identity of the counted headlines, so every panel that says
+            # "high impact" lists exactly the set behind this count.
+            "keys": news_summary.get("highImpactKeys") or [],
         },
         "marketDrivers": news_summary.get("drivers", []),
         "catalystRisks": news_summary.get("catalysts", []),
@@ -3576,9 +3822,9 @@ def _market_snapshot(market: str = "US", news: Optional[Dict[str, Any]] = None,
             # Fallback: daily change, explicitly labelled as a single-session read.
             bench_chg = bench.get("change_pct")
             if bench_chg is not None:
-                if bench_chg >= 0.5:
+                if bench_chg >= _T.MARKET.LEGACY_TONE_TREND_PCT:
                     trend_score, trend_note = 1, f"{bench_label} +{bench_chg:.2f}% today"
-                elif bench_chg <= -0.5:
+                elif bench_chg <= -_T.MARKET.LEGACY_TONE_TREND_PCT:
                     trend_score, trend_note = -1, f"{bench_label} {bench_chg:.2f}% today"
                 else:
                     trend_score, trend_note = 0, f"{bench_label} {bench_chg:+.2f}% today (flat)"
@@ -3601,9 +3847,9 @@ def _market_snapshot(market: str = "US", news: Optional[Dict[str, Any]] = None,
             above = sum(1 for m in basket_metrics if m["above_sma50"])
             total = len(basket_metrics)
             pct = above / total * 100
-            if pct >= 75:
+            if pct >= _T.MARKET.PARTICIPATION_BROAD_PCT:
                 breadth_score = 1
-            elif pct <= 25:
+            elif pct <= _T.MARKET.PARTICIPATION_WEAK_PCT:
                 breadth_score = -1
             else:
                 breadth_score = 0
@@ -3615,9 +3861,9 @@ def _market_snapshot(market: str = "US", news: Optional[Dict[str, Any]] = None,
             if usable:
                 up_count = sum(1 for q in usable if q["change_pct"] > 0)
                 breadth_pct = (up_count / len(usable)) * 100
-                if breadth_pct >= 65:
+                if breadth_pct >= _T.MARKET.SESSION_GREEN_UP_PCT:
                     breadth_score = 1
-                elif breadth_pct <= 35:
+                elif breadth_pct <= _T.MARKET.SESSION_GREEN_DOWN_PCT:
                     breadth_score = -1
                 else:
                     breadth_score = 0
@@ -3625,30 +3871,33 @@ def _market_snapshot(market: str = "US", news: Optional[Dict[str, Any]] = None,
                 tone_factors.append({"key": "breadth", "label": "Participation", "score": breadth_score, "note": breadth_note})
 
         # Factor 4: Credit / Yield direction (10Y or INR proxy)
-        yield_chg = yield_proxy.get("change_pct")
         yield_label = yield_proxy.get("label") or ("10Y Yield" if market.upper() == "US" else "USD/INR")
-        if yield_chg is not None:
-            # Falling yields = risk-on for equities; rising yields = risk-off
-            if yield_chg <= -0.5:
-                yield_score, yield_note = 1, f"{yield_label} {yield_chg:.2f}% (easing)"
-            elif yield_chg >= 0.5:
-                yield_score, yield_note = -1, f"{yield_label} +{yield_chg:.2f}% (tightening)"
+        tone_rates = _rates_proxy_move(market.upper(), yield_proxy.get("price"), yield_proxy.get("change_pct"))
+        if tone_rates is not None:
+            # Falling yields = risk-on for equities; rising yields = risk-off.
+            # A yield moves in bp, USD/INR in percent (see _rates_proxy_move).
+            t_move, t_unit, (_t_sharp, t_rising, t_easing) = tone_rates
+            t_text = f"{t_move:+.1f} bp" if t_unit == "bp" else f"{t_move:+.2f}%"
+            if t_move <= t_easing:
+                yield_score, yield_note = 1, f"{yield_label} {t_text} (easing)"
+            elif t_move >= t_rising:
+                yield_score, yield_note = -1, f"{yield_label} {t_text} (tightening)"
             else:
-                yield_score, yield_note = 0, f"{yield_label} {yield_chg:+.2f}%"
+                yield_score, yield_note = 0, f"{yield_label} {t_text}"
             tone_factors.append({"key": "credit", "label": "Credit/Rates", "score": yield_score, "note": yield_note})
 
         # Aggregate
         if tone_factors:
             net = sum(f["score"] for f in tone_factors)
-            if net >= 2:
+            if net >= _T.MARKET.LEGACY_TONE_NET_SUM:
                 tone = "Risk-on"
-                tone_detail = f"{net}/{len(tone_factors)} factors positive — equities favored, conviction sizing OK."
-            elif net <= -2:
+                tone_detail = f"{net}/{len(tone_factors)} factors positive; equities favored, conviction sizing OK."
+            elif net <= -_T.MARKET.LEGACY_TONE_NET_SUM:
                 tone = "Risk-off"
-                tone_detail = f"{abs(net)}/{len(tone_factors)} factors negative — reduce sizing, tighten stops."
+                tone_detail = f"{abs(net)}/{len(tone_factors)} factors negative; reduce sizing, tighten stops."
             else:
                 tone = "Neutral"
-                tone_detail = f"Mixed signals ({net:+d}/{len(tone_factors)}) — wait for confirmation before adding risk."
+                tone_detail = f"Mixed signals ({net:+d}/{len(tone_factors)}); wait for confirmation before adding risk."
 
     regime_engine = _build_market_regime_engine(
         market_key=market.upper(),
@@ -3707,6 +3956,7 @@ def _market_snapshot(market: str = "US", news: Optional[Dict[str, Any]] = None,
         **_regime_change_block(
             market.upper(), tone, tone_factors, vix.get("price"),
             participation_pct, yield_proxy.get("price"), engine=regime_engine,
+            session_date=bench.get("quote_date"),
         ),
     }
 
@@ -4353,7 +4603,7 @@ def _build_market_intel(key: str) -> Dict[str, Any]:
             return False
 
     analyst_picks = sorted(
-        [r for r in universe_rows if _is_strong(r) and (r.get("upside_pct") or 0) > 2],
+        [r for r in universe_rows if _analyst_pick_eligible(r) and _is_strong(r)],
         key=lambda r: r.get("upside_pct") or 0,
         reverse=True,
     )[:8]
@@ -4868,12 +5118,105 @@ def market_intel_endpoint():
 _context_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
 _context_lock = threading.Lock()
 _context_executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix='market-context')
+_aux_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='market-context-aux')
+# The last good result of every market-context read, by (market, job key). It is
+# kept on disk too, so a restart serves the last good sparklines, sectors and
+# levels (marked stale) while the first refresh completes.
+_context_good: Dict[Any, Any] = {}
+_CONTEXT_GOOD_FILE = Path(os.environ.get("QUANTA_CACHE_DIR", str(PROJECT_ROOT / "data" / "cache"))) / "market_context_good.json"
+_context_good_saved = 0.0
+
+
+def _load_context_good() -> None:
+    try:
+        raw = json.loads(_CONTEXT_GOOD_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    now = time.time()
+    keep = float(_T.MARKET.CONTEXT_DISK_MAX_SECONDS)
+    for k, pair in (raw or {}).items():
+        try:
+            market, key = k.split("|", 1)
+            ts, val = float(pair[0]), pair[1]
+        except Exception:
+            continue
+        if val and now - ts < keep:
+            _context_good[(market, key)] = (ts, val)
+
+
+def _save_context_good() -> None:
+    global _context_good_saved
+    if os.environ.get("PYTEST_CURRENT_TEST") or time.time() - _context_good_saved < 30:
+        return
+    _context_good_saved = time.time()
+    try:
+        with _context_lock:
+            data = {f"{m}|{k}": [ts, v] for (m, k), (ts, v) in _context_good.items()}
+        _CONTEXT_GOOD_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = _CONTEXT_GOOD_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data), encoding="utf-8")
+        tmp.replace(_CONTEXT_GOOD_FILE)
+    except Exception as exc:
+        logger.debug("Market context cache not saved: %s", exc)
+
+
+_load_context_good()
+_aux_jobs: Dict[str, Any] = {}
+_aux_lock = threading.Lock()
+
+
+def _aux_job(key: str, fn, *args):
+    """A slow market-context read that outlives one request: an unfinished
+    job is reused by the next request instead of being started again, and a
+    finished one is reused for the context cache window."""
+    ttl = float(_T.MARKET.CONTEXT_CACHE_SECONDS)
+    with _aux_lock:
+        hit = _aux_jobs.get(key)
+        if hit is not None:
+            started, fut = hit
+            if not fut.done() or (time.time() - started < ttl and fut.exception() is None and fut.result()):
+                return fut
+        fut = _aux_executor.submit(fn, *(list(a) if isinstance(a, tuple) else a for a in args))
+        _aux_jobs[key] = (time.time(), fut)
+        return fut
 
 
 def _prev_from_change(price: Optional[float], change_pct: Optional[float]) -> Optional[float]:
     if price is None or change_pct is None or change_pct <= -100:
         return None
     return price / (1 + change_pct / 100.0)
+
+
+def _analyst_pick_eligible(row: Dict[str, Any]) -> bool:
+    """A consensus target Discover may rank: enough analysts behind it and an upside
+    inside MARKET's believable band (a wider one is usually stale or extreme)."""
+    m = _T.MARKET
+    try:
+        up = float(row.get("upside_pct"))
+        n = int(row.get("analyst_count") or 0)
+    except (TypeError, ValueError):
+        return False
+    return (n >= int(m.ANALYST_PICK_MIN_ANALYSTS)
+            and float(m.ANALYST_PICK_MIN_UPSIDE_PCT) < up <= float(m.ANALYST_PICK_MAX_UPSIDE_PCT))
+
+
+def _session_still_open(bar_ts: Any, now: Any = None) -> bool:
+    """True while the session of an intraday bar is still trading: its date is
+    today on the exchange clock and the close has not passed (NSE/BSE close from
+    RESEARCH.INDIA_SESSION_CLOSE_IST, US from market_calendar.SESSION_CLOSE)."""
+    try:
+        import pandas as _pd
+        from engine.market_calendar import SESSION_CLOSE
+        ts = _pd.Timestamp(bar_ts)
+        tz = ts.tz
+        cur = _pd.Timestamp(now) if now is not None else _pd.Timestamp.now(tz=tz)
+        if tz is not None:
+            cur = cur.tz_convert(tz) if cur.tz is not None else cur.tz_localize(tz)
+        india = "Kolkata" in str(tz) or "Calcutta" in str(tz)
+        h, m = _T.RESEARCH.INDIA_SESSION_CLOSE_IST if india else (SESSION_CLOSE.hour, SESSION_CLOSE.minute)
+        return cur.date() == ts.date() and (cur.hour, cur.minute) < (int(h), int(m))
+    except Exception:
+        return False
 
 
 def _key_levels(bench: str, vol_symbol: Optional[str]) -> Dict[str, Any]:
@@ -4891,8 +5234,10 @@ def _key_levels(bench: str, vol_symbol: Optional[str]) -> Dict[str, Any]:
         logger.debug("Key levels failed for %s: %s", bench, exc)
         return out
     session_day = None
+    live = False
     if intra is not None and len(intra):
         session_day = intra.index[-1].date().isoformat()
+        live = _session_still_open(intra.index[-1])
         out["session"] = {"date": session_day, "high": round(float(intra["High"].max()), 2),
                           "low": round(float(intra["Low"].min()), 2), "last": round(float(intra["Close"].iloc[-1]), 2)}
     if daily is not None and len(daily):
@@ -4902,10 +5247,13 @@ def _key_levels(bench: str, vol_symbol: Optional[str]) -> Dict[str, Any]:
             out["prior"] = {"date": prior.index[-1].date().isoformat(), "high": round(float(row["High"]), 2),
                             "low": round(float(row["Low"]), 2), "close": round(float(row["Close"]), 2)}
         n = int(_T.MARKET.ATR_SESSIONS)
-        if len(daily) > n:
-            hi, lo, cl = daily["High"], daily["Low"], daily["Close"]
+        # While the session is live its daily bar is unfinished: the ATR reads
+        # completed sessions only.
+        done = daily[[d.date().isoformat() < session_day for d in daily.index]] if (live and session_day) else daily
+        if len(done) > n:
+            hi, lo, cl = done["High"], done["Low"], done["Close"]
             tr = [max(float(hi.iloc[i]) - float(lo.iloc[i]), abs(float(hi.iloc[i]) - float(cl.iloc[i - 1])),
-                      abs(float(lo.iloc[i]) - float(cl.iloc[i - 1]))) for i in range(len(daily) - n, len(daily))]
+                      abs(float(lo.iloc[i]) - float(cl.iloc[i - 1]))) for i in range(len(done) - n, len(done))]
             out["atr"] = round(sum(tr) / n, 2)
             out["atr_sessions"] = n
     trend = _trend_metrics(bench) or {}
@@ -4916,10 +5264,15 @@ def _key_levels(bench: str, vol_symbol: Optional[str]) -> Dict[str, Any]:
     if vol_symbol and last:
         vol = _quote_snapshot(vol_symbol, vol_symbol)
         level = vol.get("price")
+        # Today's expected range is set from the prior close; centring it on the
+        # live price would make it contain that price by construction.
+        prior_close = (out.get("prior") or {}).get("close")
+        anchor = prior_close if (live and prior_close) else last
         if level:
-            move = last * (float(level) / 100.0) / (float(_T.MARKET.TRADING_DAYS_PER_YEAR) ** 0.5)
+            move = anchor * (float(level) / 100.0) / (float(_T.MARKET.TRADING_DAYS_PER_YEAR) ** 0.5)
             out["expected_move"] = {"vol_symbol": vol_symbol, "vol_level": level, "points": round(move, 2),
-                                    "pct": round(move / last * 100, 2), "low": round(last - move, 2), "high": round(last + move, 2)}
+                                    "pct": round(move / anchor * 100, 2), "low": round(anchor - move, 2), "high": round(anchor + move, 2),
+                                    "anchor": round(anchor, 2), "anchor_basis": "prior_close" if anchor is not last else "last"}
     return out
 
 
@@ -4980,6 +5333,82 @@ def _calendar_events(market_key: str) -> List[Dict[str, Any]]:
     return sorted(out, key=lambda e: (e["date"], e.get("time") or ""))
 
 
+def _pulse_series(symbols: List[str]) -> Dict[str, Dict[str, Any]]:
+    """About a month of daily closes per pulse instrument, for the sparklines,
+    and the change over the last five sessions (seven days for 24-hour markets)."""
+    n = int(_T.MARKET.PULSE_SERIES_SESSIONS)
+    out: Dict[str, Dict[str, Any]] = {}
+    try:
+        import yfinance as yf_local
+    except Exception:
+        return out
+    for sym in symbols:
+        try:
+            h = yf_local.Ticker(sym).history(period="3mo", interval="1d", timeout=8)
+            closes = h["Close"].dropna() if h is not None and not h.empty else None
+        except Exception as exc:
+            logger.debug("Pulse series failed for %s: %s", sym, exc)
+            continue
+        if closes is None or len(closes) < 6:
+            continue
+        tail = closes.iloc[-n:]
+        back = 8 if sym.endswith("-USD") or sym.endswith("-INR") else 6
+        base = float(closes.iloc[-back]) if len(closes) >= back else None
+        last = float(closes.iloc[-1])
+        out[sym] = {
+            "closes": [round(float(v), 4) for v in tail],
+            "first": tail.index[0].date().isoformat(), "last": tail.index[-1].date().isoformat(),
+            "week_change_pct": round((last / base - 1) * 100, 2) if base else None,
+            "week_change_abs": round(last - base, 4) if base else None,
+        }
+    return out
+
+
+_base_rate_cache: Dict[str, Tuple[str, Dict[str, Any]]] = {}
+
+
+def _base_rate(bench: str) -> Optional[Dict[str, Any]]:
+    """How often the benchmark rose the next session, over BASE_RATE_YEARS of
+    daily closes: after a session like the last one (down or up at least
+    BASE_RATE_MOVE_PCT, or in between) and on all days. A frequency, not a
+    forecast; computed once a day."""
+    today = datetime.now().date().isoformat()
+    hit = _base_rate_cache.get(bench)
+    if hit and hit[0] == today:
+        return hit[1]
+    try:
+        import yfinance as yf_local
+        h = yf_local.Ticker(bench).history(period=f"{int(_T.MARKET.BASE_RATE_YEARS)}y", interval="1d",
+                                           auto_adjust=True, timeout=12)
+        closes = h["Close"].dropna()
+    except Exception as exc:
+        logger.debug("Base rate failed for %s: %s", bench, exc)
+        return None
+    if len(closes) < 250:
+        return None
+    rets = closes.pct_change().dropna()
+    nxt = rets.shift(-1).dropna()
+    cur = rets.loc[nxt.index]
+    cut = float(_T.MARKET.BASE_RATE_MOVE_PCT) / 100.0
+    last = float(rets.iloc[-1])
+    if last <= -cut:
+        mask, condition = cur <= -cut, "down"
+    elif last >= cut:
+        mask, condition = cur >= cut, "up"
+    else:
+        mask, condition = cur.abs() < cut, "flat"
+    sample = nxt[mask]
+    out = {
+        "condition": condition, "move_pct": float(_T.MARKET.BASE_RATE_MOVE_PCT),
+        "last_session_pct": round(last * 100, 2),
+        "up_pct": round(float((sample > 0).mean()) * 100, 1) if len(sample) else None, "n": int(len(sample)),
+        "all_up_pct": round(float((nxt > 0).mean()) * 100, 1), "all_n": int(len(nxt)),
+        "since": closes.index[0].date().isoformat(),
+    }
+    _base_rate_cache[bench] = (today, out)
+    return out
+
+
 def _market_context(market_key: str, force: bool = False) -> Dict[str, Any]:
     now = time.time()
     with _context_lock:
@@ -4994,19 +5423,41 @@ def _market_context(market_key: str, force: bool = False) -> Dict[str, Any]:
     jobs: Dict[str, Any] = {}
     # The levels read makes the most calls: it goes first, not behind the quotes.
     jobs["levels"] = _context_executor.submit(_key_levels, basket["bench"], vol_symbol)
+    pulse_symbols = [s for s, _l in (MARKET_UNIVERSES.get(market_key) or MARKET_UNIVERSES["US"])["index_symbols"]]
     for sym, label in sectors + cross + futures:
         jobs[f"q:{sym}"] = _context_executor.submit(_quote_snapshot, sym, label)
     for sym, _label in sectors:
         jobs[f"t:{sym}"] = _context_executor.submit(_trend_metrics, sym)
+    # The sparklines and the base rate read longer histories. They run on their
+    # own pool, are waited on last, and keep their result for the next read, so
+    # a cold start can never push the quotes past the budget.
+    jobs["series"] = _aux_job(f"series:{market_key}", _pulse_series, tuple(pulse_symbols))
+    jobs["base_rate"] = _aux_job(f"base_rate:{market_key}", _base_rate, basket["bench"])
     deadline = now + float(_T.MARKET.CONTEXT_BUDGET_SECONDS)
     results: Dict[str, Any] = {}
     missing: List[str] = []
+    stale: List[str] = []
+    keep = float(_T.MARKET.CONTEXT_DISK_MAX_SECONDS)
     for key, fut in jobs.items():
         try:
             results[key] = fut.result(timeout=max(0.1, deadline - time.time()))
         except Exception:
             results[key] = None
+        good_key = (market_key, key)
+        if results[key]:
+            with _context_lock:
+                _context_good[good_key] = (time.time(), results[key])
+            continue
+        # A read that missed this cycle's budget serves its last good value
+        # (marked stale) rather than blanking the panel while it refreshes.
+        with _context_lock:
+            prior = _context_good.get(good_key)
+        if prior and time.time() - prior[0] < keep:
+            results[key] = prior[1]
+            stale.append(key.split(":", 1)[-1])
+        else:
             missing.append(key.split(":", 1)[-1])
+    _save_context_good()
     quote = lambda s: results.get(f"q:{s}") or {}
 
     def row(sym: str, label: str) -> Dict[str, Any]:
@@ -5014,13 +5465,18 @@ def _market_context(market_key: str, force: bool = False) -> Dict[str, Any]:
         return {"symbol": sym, "label": label, "price": q.get("price"), "change_pct": q.get("change_pct"),
                 "quote_date": q.get("quote_date"), "stale": bool(q.get("stale"))}
 
+    weights = _T.MARKET.SECTOR_WEIGHTS.get(market_key) or {}
     sector_rows = []
     for sym, label in sectors:
         r = row(sym, label)
         t = results.get(f"t:{sym}") or {}
         r["above_sma50"] = t.get("above_sma50")
         r["above_sma200"] = t.get("above_sma200")
+        r["weight"] = weights.get(sym)
         sector_rows.append(r)
+    levels = results.get("levels") or {"symbol": basket["bench"]}
+    if results.get("base_rate"):
+        levels = {**levels, "base_rate": results["base_rate"]}
     measured = [r for r in sector_rows if r["above_sma50"] is not None]
     payload = {
         "available": True,
@@ -5028,17 +5484,19 @@ def _market_context(market_key: str, force: bool = False) -> Dict[str, Any]:
         "sectors": sector_rows,
         "sector_participation": {"above": sum(1 for r in measured if r["above_sma50"]), "measured": len(measured),
                                  "requested": len(sectors)},
-        "levels": results.get("levels") or {"symbol": basket["bench"]},
+        "levels": levels,
+        "series": results.get("series") or {},
         "cross_asset": {"quotes": [row(s, l) for s, l in cross],
                         "reads": _cross_asset_reads({s: quote(s) for s, _ in cross}, market_key)},
         "futures": [row(s, l) for s, l in futures],
         "calendar": _calendar_events(market_key),
         "missing": missing,
+        "stale": stale,
         "generated_at": _now_iso(),
     }
-    # An incomplete read is kept only briefly, so the next request completes it
-    # instead of serving the gap for the full cache window.
-    stamp = time.time() if not missing else time.time() - float(_T.MARKET.CONTEXT_CACHE_SECONDS) + 30.0
+    # An incomplete or partly stale read is kept only briefly, so the next
+    # request completes it instead of serving the gap for the full cache window.
+    stamp = time.time() if not (missing or stale) else time.time() - float(_T.MARKET.CONTEXT_CACHE_SECONDS) + 30.0
     with _context_lock:
         _context_cache[market_key] = (stamp, payload)
     return payload
@@ -5176,7 +5634,7 @@ def _probe_price_provider() -> Dict[str, Any]:
             "yfinance_available": True,
             "price_fetch_ok": False,
             "rate_limited": True,
-            "detail": f"Skipped — provider in cooldown ({int(_provider_cooldown_remaining())}s remaining)",
+            "detail": f"Skipped: provider in cooldown ({int(_provider_cooldown_remaining())}s remaining)",
             "skipped_due_to_cooldown": True,
         }
     try:
@@ -5429,42 +5887,59 @@ def track_record():
         return jsonify({"error": "Track record is unavailable", "detail": type(exc).__name__}), 503
 
 
-# The last completed Picks scan per market, so a restart (or a new tab) opens on
-# the most recent book instead of an empty page. Beside the response cache, so
-# the test suite's temporary cache directory isolates it too.
+# Completed Picks scans, kept for SAVED_SCANS.RETENTION_HOURS (one per distinct
+# setting, newest MAX_SAVED per market), so a restart, a new tab or a switch of
+# scan universe reopens a book instead of rescanning. Beside the response cache,
+# so the test suite's temporary cache directory isolates it too. The store
+# itself is saved_scans.py.
 _LAST_SCAN_DIR = Path(os.environ.get("QUANTA_CACHE_DIR", str(PROJECT_ROOT / "data" / "cache"))) / "last_scan"
-
-
-def _last_scan_path(market: str) -> Path:
-    return _LAST_SCAN_DIR / f"{'IN' if str(market).upper() == 'IN' else 'US'}.json.gz"
 
 
 def _save_last_scan(params: Dict[str, Any], result: Dict[str, Any]) -> None:
     """Best effort: a failed save never fails the scan that produced the result."""
-    path = _last_scan_path(params.get("market", "US"))
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"saved_at": _now_iso(), "params": _safe_serialize(params),
-                   "result": _safe_serialize(result)}
-        tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
-        tmp.write_bytes(gzip.compress(json.dumps(payload, default=str).encode("utf-8")))
-        tmp.replace(path)
+        saved_scans.save(_LAST_SCAN_DIR, _safe_serialize(params), _safe_serialize(result))
     except Exception as exc:  # noqa: BLE001
-        logger.warning("last scan not saved: %s", exc)
+        logger.warning("scan not saved: %s", exc)
+
+
+@app.route("/api/stock-picks/recent")
+def stock_picks_recent():
+    """The saved scans for a market, newest first: settings and headline counts
+    only (``/recent/<id>`` has the result). Empty list when there are none."""
+    market = (request.args.get("market") or "US").strip().upper()
+    try:
+        return jsonify({"retention_hours": _T.SAVED_SCANS.RETENTION_HOURS,
+                        "scans": saved_scans.list_entries(_LAST_SCAN_DIR, market)})
+    except Exception as exc:  # noqa: BLE001 - the switcher is optional, never an error page
+        logger.warning("saved scans unreadable: %s", exc)
+        return jsonify({"retention_hours": _T.SAVED_SCANS.RETENTION_HOURS, "scans": []})
+
+
+@app.route("/api/stock-picks/recent/<scan_id>")
+def stock_picks_recent_one(scan_id: str):
+    """One saved scan in full, or 404 when it is unknown or past retention."""
+    market = (request.args.get("market") or "US").strip().upper()
+    saved = saved_scans.load(_LAST_SCAN_DIR, market, scan_id)
+    if saved is None:
+        return jsonify({"error": "That scan is no longer saved"}), 404
+    return jsonify(saved)
 
 
 @app.route("/api/stock-picks/last")
 def stock_picks_last():
-    """The most recent completed Picks scan for a market, or 404 when there is none."""
+    """The most recent completed Picks scan for a market. With none yet the answer is
+    200 with an empty result, not a 404: having no saved scan is the normal first
+    run, and a 404 put a resource error in the browser console on every page load."""
     market = (request.args.get("market") or "US").strip().upper()
-    path = _last_scan_path(market)
-    if not path.exists():
-        return jsonify({"error": "No completed scan yet"}), 404
     try:
-        return jsonify(json.loads(gzip.decompress(path.read_bytes())))
+        saved = saved_scans.newest(_LAST_SCAN_DIR, market)
     except Exception as exc:  # noqa: BLE001 - a corrupt file reads as "no scan"
         logger.warning("last scan unreadable: %s", exc)
-        return jsonify({"error": "The saved scan could not be read"}), 404
+        saved = None
+    if saved is None:
+        return jsonify({"result": None, "message": "No completed scan yet"})
+    return jsonify(saved)
 
 
 _TRACK_RESOLVE_LOCK = threading.Lock()
@@ -5725,7 +6200,7 @@ def start_stock_picks():
                 "error": (
                     "A market scan is already running "
                     f"({busy.get('scan_type') or 'scan'}, started {busy.get('started')}). "
-                    "Wait for it to finish, then start the new one — running two "
+                    "Wait for it to finish, then start the new one; running two "
                     "scans at once makes both slower, not faster."
                 ),
                 "running_job_id": busy_id,
@@ -6335,6 +6810,7 @@ def _run_stock_picks(job_id: str, params: dict):
             market=params["market"]
         )
         quanta.user_filters = dict(params.get("filters") or {})
+        exposure_basis = _apply_overview_exposure_cap(quanta, params["market"])
         # [A13] Stage progress with counts and elapsed time.
         _scan_started = time.time()
 
@@ -6370,6 +6846,7 @@ def _run_stock_picks(job_id: str, params: dict):
             "vix_is_proxy": bool(getattr(quanta.market_regime, "vix_is_proxy", False)),
             "volatility": quanta.market_regime.volatility_regime,
             "exposure": round(quanta.market_regime.recommended_exposure * 100),
+            "exposure_basis": exposure_basis,
         }
 
         _update_job(job_id, progress=15, message=(
@@ -6919,11 +7396,13 @@ def _run_stock_picks(job_id: str, params: dict):
         if "research_check" not in stage_log:
             _notes["research_check"] = ("skipped: turned off for this scan" if not dc_enabled
                                         else "skipped: no name was selected for it")
+        # Saved BEFORE the job reads "complete": the page refreshes its Recent
+        # scans list the moment it sees that status, and must find this scan in it.
+        _save_last_scan(params, result)
         _update_job(job_id, progress=100, message="Complete", status="complete", result=result,
                     finished_at=time.time(),
                     stage=_terminal_stage("complete", stage_log, _notes,
                                           round(time.time() - _scan_started, 1)))
-        _save_last_scan(params, result)
 
         # [SCAN-HEALTH] Record telemetry for the dashboard health panel.
         with _last_scan_meta_lock:
@@ -6980,6 +7459,15 @@ _chart_cache_lock = threading.Lock()
 def _chart_epoch_ms(value: Any) -> Optional[int]:
     try:
         import pandas as pd
+        if value is None or isinstance(value, bool):
+            return None
+        if isinstance(value, (int, float)):
+            # Yahoo's metadata (regularMarketTime, currentTradingPeriod) is epoch
+            # seconds; a bare number given to pd.Timestamp is read as nanoseconds,
+            # which put the close at 1970 and collapsed the session window.
+            if value != value or value <= 0:
+                return None
+            return int(pd.Timestamp(value, unit="s", tz="UTC").timestamp() * 1000)
         ts = pd.Timestamp(value)
         if ts.tzinfo is None:
             ts = ts.tz_localize("UTC")
@@ -7031,6 +7519,13 @@ def _chart_payload(symbol: str, range_key: str) -> Dict[str, Any]:
         extended = {"price": points[-1][1], "time": last_ms,
                     "session": "pre" if last_ms < regular[0] else "post"}
     reg_price = meta.get("regularMarketPrice")
+    reg_time = _chart_epoch_ms(meta.get("regularMarketTime"))
+    prev_close = meta.get("chartPreviousClose") if range_key == "1d" else None
+    # Before today's open the 1-day chart holds only pre-market bars, and Yahoo's
+    # chartPreviousClose is then the close before the last session. The reference
+    # for today is the last regular close.
+    if range_key == "1d" and reg_price is not None and reg_time and points and reg_time < points[0][0]:
+        prev_close = round(float(reg_price), 4)
     return {
         "available": True,
         "symbol": symbol,
@@ -7042,7 +7537,7 @@ def _chart_payload(symbol: str, range_key: str) -> Dict[str, Any]:
         "range": range_key,
         "interval": interval,
         "points": points,
-        "previous_close": meta.get("chartPreviousClose") if range_key == "1d" else None,
+        "previous_close": prev_close,
         "regular_price": round(float(reg_price), 4) if reg_price is not None else None,
         "regular_time": _chart_epoch_ms(meta.get("regularMarketTime")),
         "session": session if range_key == "1d" else {},
@@ -7352,7 +7847,7 @@ def _analyze_no_data_detail(ticker: str, attempts: int,
             # gate concluded it), and the reader scanning this line should not
             # have to infer that from "no such instrument was found".
             "error_message": (
-                f"{ticker} appears to be an invalid ticker — it failed the "
+                f"{ticker} appears to be an invalid ticker: it failed the "
                 f"data-validation gate, which found no such tradable instrument."
             ),
             "attempts": attempts,
@@ -7485,7 +7980,7 @@ def _run_analysis(job_id: str, ticker: str, safe_mode: bool = False,
                   prefer_cache: bool = False, fast_mode: bool = False,
                   account_size: float = DEFAULT_ACCOUNT_SIZE,
                   account_size_assumed: bool = True,
-                  market: Optional[str] = None):
+                  market: Optional[str] = None, owned: bool = False):
     """Background worker for TradingAnalysis_ELITE with shared-cooldown awareness.
 
     [PROVIDER-RESILIENCE] Behaviour:
@@ -7504,6 +7999,10 @@ def _run_analysis(job_id: str, ticker: str, safe_mode: bool = False,
     MAX_RETRIES = 3
     RETRY_DELAYS = [5, 15, 30]  # seconds
     cache_ticker = _cache_identity(ticker, market)
+    if owned:
+        # An analysis made for a held name carries that assumption, so it must not
+        # share a cache entry with the same ticker researched as not owned.
+        cache_ticker = f"{cache_ticker}#held"
 
     # Cache hits need neither the analyzer lock nor another provider call.
     request_mode = "fast" if fast_mode else "full"
@@ -7555,7 +8054,7 @@ def _run_analysis(job_id: str, ticker: str, safe_mode: bool = False,
                 "category": "temporary_failure",
                 "title": "Another analysis is still running",
                 "error_type": "analyzer_busy",
-                "error_message": "Server busy — please retry shortly.",
+                "error_message": "Server busy; please retry shortly.",
                 "suggested_action": "Wait a moment, then build the tear sheet again.",
                 "retryable": True,
                 "ticker": ticker,
@@ -7636,7 +8135,8 @@ def _run_analysis(job_id: str, ticker: str, safe_mode: bool = False,
                     # letting the analyzer silently apply its own default.
                     fut = _ex.submit(analyzer.analyze, ticker,
                                      account_size=account_size,
-                                     fast_mode=fast_mode, market=market)
+                                     fast_mode=fast_mode, market=market,
+                                     **({"owned": True} if owned else {}))
                     try:
                         result = fut.result(timeout=wall_clock_s)
                         _ex_clean_shutdown = True
@@ -7644,7 +8144,8 @@ def _run_analysis(job_id: str, ticker: str, safe_mode: bool = False,
                         # deep confirmation (engine.research_cache).
                         try:
                             from engine import research_cache as _rc
-                            _rc.put(ticker, "fast" if fast_mode else "full", result)
+                            if not owned:  # Picks must not inherit a held-name assumption
+                                _rc.put(ticker, "fast" if fast_mode else "full", result)
                         except Exception:  # noqa: BLE001 - the cache is an optimisation
                             pass
                     except FuturesTimeout:
@@ -7732,7 +8233,7 @@ def _run_analysis(job_id: str, ticker: str, safe_mode: bool = False,
                         labeled["provider_unavailable"] = True
                         labeled["error_detail"] = detail
                         _update_job(job_id, progress=100, status="complete",
-                                    message="Provider unavailable — serving last good tear sheet",
+                                    message="Provider unavailable: serving last good tear sheet",
                                     result=labeled)
                         return
                     _update_job(job_id, status="error", progress=100,
@@ -7767,7 +8268,7 @@ def _run_analysis(job_id: str, ticker: str, safe_mode: bool = False,
                     "assumed": bool(account_size_assumed),
                     "note": (
                         f"Sizing assumes a ${account_size:,.0f} account "
-                        f"(default — not your declared mandate)."
+                        f"(default, not your declared mandate)."
                         if account_size_assumed else
                         f"Sized against a ${account_size:,.0f} account."
                     ),
@@ -7801,7 +8302,7 @@ def _run_analysis(job_id: str, ticker: str, safe_mode: bool = False,
                         labeled["provider_rate_limited"] = True
                         labeled["rate_limit_detail"] = detail
                         _update_job(job_id, progress=100,
-                                    message="Provider rate-limited — serving cached tear sheet",
+                                    message="Provider rate-limited: serving cached tear sheet",
                                     status="complete", result=labeled)
                     else:
                         _update_job(job_id, status="error", progress=100,
@@ -8077,13 +8578,28 @@ def _portfolio_analyze(symbol: str, account_size: Optional[float]):
     # by _run_analysis; prefer_cache would additionally serve STALE results,
     # which must never drive guidance on real holdings.
     _run_analysis_worker(job_id, ticker, safe_mode=False, prefer_cache=False, fast_mode=False,
-                         account_size=size, account_size_assumed=assumed, market="US")
+                         account_size=size, account_size_assumed=assumed, market="US", owned=True)
     with _jobs_lock:
         job = dict(_jobs.get(job_id) or {})
     if job.get("status") == "complete" and job.get("result"):
         return job["result"], None
     return None, job.get("error_detail") or {"status": "engine_error",
                                               "title": job.get("error") or "Analysis did not complete"}
+
+
+# yfinance keeps module-level state while it downloads, so two downloads running at once
+# can return each other's frames (a 5-minute frame in a daily slot). The portfolio's
+# three downloads take turns.
+_portfolio_download_lock = threading.Lock()
+
+
+def _is_daily_frame(index: Any) -> bool:
+    """True when an index is daily bars: several dates, one row each, oldest first."""
+    try:
+        days = [d.date() if hasattr(d, "date") else d for d in index]
+    except Exception:  # noqa: BLE001
+        return False
+    return len(days) >= 5 and len(set(days)) == len(days) and days == sorted(days)
 
 
 def _portfolio_returns(symbols: List[str]):
@@ -8094,8 +8610,9 @@ def _portfolio_returns(symbols: List[str]):
     import yfinance as yf
     yahoo = {s: s.replace(".", "-") for s in symbols}
     try:
-        frame = yf.download(sorted(set(yahoo.values())), period="1y", interval="1d",
-                            auto_adjust=True, progress=False, threads=False, group_by="column")
+        with _portfolio_download_lock:
+            frame = yf.download(sorted(set(yahoo.values())), period="1y", interval="1d",
+                                auto_adjust=True, progress=False, threads=False, group_by="column")
     except Exception as exc:  # noqa: BLE001
         if _provider_classify_rate_limit(exc):
             _provider_note_rate_limit()
@@ -8108,6 +8625,9 @@ def _portfolio_returns(symbols: List[str]):
         closes = closes.to_frame(name=next(iter(yahoo.values())))
     back = {v: k for k, v in yahoo.items()}
     closes = closes.rename(columns=lambda c: back.get(str(c), str(c)))
+    if not _is_daily_frame(closes.index):
+        logger.warning("Portfolio returns: the download was not a daily series; discarded")
+        return None
     return closes.pct_change(fill_method=None).iloc[1:]
 
 
@@ -8122,8 +8642,9 @@ def _portfolio_prices(symbols: List[str], period: str):
     import yfinance as yf
     yahoo = {s: s.replace(".", "-") for s in symbols}
     try:
-        frame = yf.download(sorted(set(yahoo.values())), period=period, interval="1d",
-                            auto_adjust=False, progress=False, threads=False, group_by="column")
+        with _portfolio_download_lock:
+            frame = yf.download(sorted(set(yahoo.values())), period=period, interval="1d",
+                                auto_adjust=False, progress=False, threads=False, group_by="column")
     except Exception as exc:  # noqa: BLE001
         if _provider_classify_rate_limit(exc):
             _provider_note_rate_limit()
@@ -8136,6 +8657,9 @@ def _portfolio_prices(symbols: List[str], period: str):
         closes = closes.to_frame(name=next(iter(yahoo.values())))
     back = {v: k for k, v in yahoo.items()}
     closes = closes.rename(columns=lambda c: back.get(str(c), str(c)))
+    if not _is_daily_frame(closes.index):
+        logger.warning("Portfolio prices: the %s download was not a daily series; discarded", period)
+        return None
     closes.index = [d.date() if hasattr(d, "date") else d for d in closes.index]
     return closes
 
@@ -8150,8 +8674,9 @@ def _portfolio_intraday(symbols: List[str]) -> Optional[Dict[str, Any]]:
     import yfinance as yf
     yahoo = {s: s.replace(".", "-") for s in symbols}
     try:
-        frame = yf.download(sorted(set(yahoo.values())), period="5d", interval="5m", prepost=True,
-                            auto_adjust=False, progress=False, threads=False, group_by="column")
+        with _portfolio_download_lock:
+            frame = yf.download(sorted(set(yahoo.values())), period="5d", interval="5m", prepost=True,
+                                auto_adjust=False, progress=False, threads=False, group_by="column")
     except Exception as exc:  # noqa: BLE001
         if _provider_classify_rate_limit(exc):
             _provider_note_rate_limit()

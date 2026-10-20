@@ -161,7 +161,7 @@ test('GUIDE-008 posture and holdings pickers work with arrow keys', async ({ pag
   await expect(page.locator('.hw-posture-row[data-posture="neutral"]')).toBeFocused();
   await expect(page.locator('#hw-posture-out')).toContainText('45-65% gross exposure');
   await page.locator('#view-guide input[name="hw-conf"][value="low"]').check();
-  await expect(page.locator('#hw-posture-out')).toContainText('30-55% gross, in place of 45-65%');
+  await expect(page.locator('#hw-posture-out')).toContainText('held to 30-55% gross, under its usual 45-65%');
   await openStep(page, 'holdings');
   await page.locator('.hw-bar[data-hold="x"]').focus();
   await page.keyboard.press('ArrowUp');

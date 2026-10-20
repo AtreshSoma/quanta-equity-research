@@ -56,23 +56,25 @@ const news = { groups: { big_news: ['Fed signals patience on rates as inflation 
   .map((title, i) => ({ title, impact: 9, category: 'macro', published: new Date().toISOString(), url: `https://example.com/${i}` })) } };
 const intel = { earnings_week: [1, 2, 3, 4, 5].map((i) => ({ symbol: `E${i}`, earnings_in_days: i })) };
 
-test('the regime has one name: the factor panel uses the regime title, not a second wording', () => {
+test('the regime has one name: the mood card and the factor panel never use a second wording', () => {
   app.renderMarketRegime(market(), news, intel);
   app.renderSignalCheck(market(), news, intel);
-  const title = document.querySelector('#decision-brief .q-regime-title').textContent;
+  const pro = document.querySelector('#decision-brief .ovx-proline').textContent;
   const sig = document.querySelector('#signal-check-body').textContent;
-  assert.equal(title, 'Mildly Constructive');
-  assert.doesNotMatch(sig, /Moderately Constructive/);
+  assert.match(pro, /^Mildly Constructive \(Lean Long\)/);
+  assert.doesNotMatch(pro + sig, /Moderately Constructive/);
+  assert.doesNotMatch(pro, /Low Confidence/, 'the thin-client suffix is not repeated');
 });
 
-test('direction and confidence are two labelled measures with one sentence tying them', () => {
+test('direction, agreement and confidence are three labelled measures, none read as a probability', () => {
   app.renderMarketRegime(market(), news, intel);
   const el = document.querySelector('#decision-brief');
-  // 3 support, 1 against of 6 factors: net +2 of a possible 12 -> 58/100.
-  assert.equal(el.querySelector('.q-measure-v').textContent, '58/100');
-  assert.match(el.querySelector('.q-measure-s').textContent, /3 support, 1 against, 2 neutral/);
-  assert.match(el.querySelector('.q-conf-num').textContent, /29%/);
-  assert.match(el.querySelector('.q-measure-note').textContent, /leans positive, but the inputs disagree/);
+  // 3 support, 1 against of 6 factors: net +2 of a possible 12 -> 58 of 100.
+  assert.match(el.querySelector('.ovx-dial').getAttribute('aria-label'), /^Mood score 58 of 100: mixed zone/);
+  assert.match(el.querySelector('.ovx-proline').textContent, /Direction 58\/100[\s\S]*Factors: 3 support, 2 neutral, 1 against/);
+  assert.match(el.querySelector('.ovx-sure').textContent, /Low[\s\S]*29\/100/);
+  assert.doesNotMatch(el.textContent, /29%/);
+  assert.match(el.textContent, /Low confidence: Signals conflict\./);
 });
 
 test('the factor tally reads support / neutral / against and sums to the factor count', () => {
@@ -81,34 +83,33 @@ test('the factor tally reads support / neutral / against and sums to the factor 
   assert.deepEqual(tally, ['3support', '2neutral', '1against']);
 });
 
-test('a capped exposure band names the band it replaced and why', () => {
-  app.renderPlaybook(market(), news, intel);
-  const text = document.querySelector('#allocator-body').textContent;
-  assert.match(document.querySelector('#playbook-meta').textContent, /30-55% gross/);
-  assert.match(text, /Capped from 50-70% gross while confidence is low/);
+test('the band is the engine’s, and a cap is named only with the engine’s own reason', () => {
+  app.renderMarketRegime(market(), news, intel);
+  assert.match(document.querySelector('#decision-brief .ovx-money').getAttribute('aria-label'), /Invest 30 to 55 percent/);
+  assert.match(document.querySelector('#decision-brief .ovx-money-k').textContent, /Invest 30 to 55%/);
+  assert.equal(document.querySelector('#decision-brief .ovx-cap'), null, 'no cap is inferred from a second band table');
+  const guided = { band: '30-55% gross', cappedFrom: '50-70% gross', capReason: 'confidence is low', headline: 'x', headlineTone: 'warn', actions: [] };
+  app.renderMarketRegime(market({ portfolioGuidance: guided }), news, intel);
+  assert.match(document.querySelector('#decision-brief .ovx-cap').textContent, /Held under the usual 50-70% gross while confidence is low/);
 });
 
-test('an Elevated risk level lists every reason and names a calm VIX as calm', () => {
-  app.renderRiskPanel(market(), news, intel);
-  const why = document.querySelector('#risk-body .q-note-block').textContent;
-  assert.match(document.querySelector('#risk-meta').textContent, /Elevated/);
-  assert.match(why, /^Model confidence is low \(29%\)/, 'the lede names the level; the sentence gives the reasons');
-  assert.match(why, /4 high-impact headlines are live/);
-  assert.match(why, /Volatility itself is calm \(VIX 14\.8\)/);
-  const metrics = [...document.querySelectorAll('#risk-body .q-metric')].map((m) => m.textContent);
-  assert.equal(metrics.length, 2, 'VIX and participation are not repeated here');
-  assert.match(metrics[0], /Earnings\s*5\s*next 7 days, tracked universe/);
+test('the Watch list gives the event counts with their universe and the VIX in its band', () => {
+  app.renderMarketRegime(market(), news, intel);
+  const items = [...document.querySelectorAll('#decision-brief .ovx-watch li')].map((li) => li.textContent);
+  assert.match(items[0], /^VIX 14\.84: under \d+, inside its calm band$/);
+  assert.match(items[1], /^5 earnings reports ahead: next 7 days, tracked universe$/);
+  assert.match(items[2], /^4 high-impact headlines/);
 });
 
-test('the ribbon quotes yields in basis points, crypto without a session, and VIX read inversely', () => {
+test('the pulse quotes yields in basis points, crypto over 24 hours, and colours the fear index inversely', () => {
   app.renderMarketPulse(market());
-  const cells = [...document.querySelectorAll('#market-pulse .q-rb')];
-  const cell = (label) => cells.find((c) => c.querySelector('.q-rb-k').textContent.startsWith(label));
-  assert.match(cell('10Y Yield').querySelector('.q-rb-c').textContent, /▲ \+1\.3 bp/);
-  assert.match(cell('Bitcoin').querySelector('.q-rb-time').textContent, /^24-hour market/);
-  const vix = cell('VIX').querySelector('.q-rb-c');
-  assert.match(vix.textContent, /▼/, 'the glyph keeps the real direction');
-  assert.ok(vix.classList.contains('bull'), 'a falling VIX takes the supportive colour');
+  const cells = [...document.querySelectorAll('#market-pulse .ovx-pu')];
+  const cell = (name) => cells.find((c) => c.querySelector('.ovx-pu-n').textContent.startsWith(name));
+  assert.match(cell('10-year yield').querySelector('.ovx-pu-c b').textContent, /^\+1\.3 bp$/);
+  assert.match(cell('Bitcoin').querySelector('.ovx-pu-c').textContent, /24h/);
+  const vix = cell('Fear index').querySelector('.ovx-pu-c b');
+  assert.match(vix.textContent, /^-3\.7/, 'the sign keeps the real direction');
+  assert.ok(vix.classList.contains('up'), 'a falling fear index takes the supportive colour');
   assert.equal(document.querySelector('#market-pulse .q-rb--breadth'), null);
 });
 
@@ -121,58 +122,67 @@ test('yield basis points come from the level and the percent change', () => {
   assert.ok(app.isVolIndex('^VIX') && !app.isVolIndex('VIXY'));
 });
 
-test('an all-green tape is a broad advance, not "Mixed tape: indices split"', () => {
-  const chain = app.impactChain(market({ colorTheme: { toneClass: 'neutral' } }), {}, {});
-  assert.equal(chain.label, 'Broad advance');
-  assert.equal(chain.links[0].step, 'Indices rise together');
-});
-
 test('feed headlines lose a doubled possessive', () => {
   assert.equal(app.cleanHeadline("Treasury sanctions 17 tankers linked to Iran's 's shadow fleet"), "Treasury sanctions 17 tankers linked to Iran's shadow fleet");
   assert.equal(app.cleanHeadline('Plain title'), 'Plain title');
 });
 
-test('the tape names the kind of story instead of repeating "High" on every item', () => {
-  const m = market({ marketDrivers: [{ title: 'Inflation fears rise', category: 'macro', direction: 'bearish', impactLevel: 'High' }, { title: 'Chip rally', category: 'stocks', direction: 'bullish', impactLevel: 'Medium' }] });
-  app.renderTopHeadlines(m, news);
-  const flags = [...document.querySelectorAll('#top-headlines .q-tape-flag')].map((f) => f.textContent);
-  assert.deepEqual(flags, ['Macro', 'Stocks, medium']);
-});
-
-test('participation reads as uptrend counts: indices by name, sectors, then the movers', () => {
+test('participation reads as uptrend counts: indices and sectors apart, then the movers', () => {
   const m = market();
   m.participation = { above: 2, measured: 4, missing: [], members: [
     { symbol: 'SPY', label: 'S&P 500', above: true }, { symbol: 'QQQ', label: 'Nasdaq 100', above: true },
     { symbol: 'DIA', label: 'Dow', above: false }, { symbol: 'IWM', label: 'Russell 2000', above: false }] };
   app.state.market = 'US';
   app.state.marketContext = { US: { available: true, sectors: [
-    { symbol: 'XLK', label: 'Technology', change_pct: 0.5, above_sma50: true }, { symbol: 'XLE', label: 'Energy', change_pct: -1, above_sma50: false }] } };
-  app.renderBreadthPanel(m, { movers_up: [{ symbol: 'A', change_pct: 3 }, { symbol: 'C', change_pct: 5 }], movers_down: [{ symbol: 'B', change_pct: -2 }] });
-  const body = document.querySelector('#breadth-body');
-  const idx = [...body.querySelectorAll('.q-pt-idx li')];
-  assert.deepEqual(idx.map((li) => li.querySelector('b').textContent), ['S&P 500', 'Nasdaq 100', 'Dow', 'Russell 2000']);
-  assert.deepEqual(idx.map((li) => li.classList.contains('is-up')), [true, true, false, false]);
-  assert.match(body.textContent, /2 of 4 in uptrends/);
-  assert.equal(body.querySelector('.q-pt-meter'), null, 'the Sectors map owns the sector trend');
-  assert.match(body.textContent, /2 up, 1 down/);
-  assert.deepEqual([...body.querySelectorAll('.q-pt-movers > div')[0].querySelectorAll('b')].map((b) => b.textContent), ['C', 'A'], 'largest gain first');
-  assert.match(body.textContent, /a sample, not the whole market/);
-  assert.doesNotMatch(body.textContent, /tagged among the largest movers/, 'the single-sector sentence is gone');
-  assert.match(document.querySelector('#breadth-meta').textContent, /^Mixed: 3 of 6 in uptrends$/);
+    { symbol: 'XLK', label: 'Technology', change_pct: 0.5, above_sma50: true, weight: 33 }, { symbol: 'XLE', label: 'Energy', change_pct: -1, above_sma50: false, weight: 3 }] } };
+  app.state.dashboard = { market: m, news, market_intel: {} };
+  app.state.ctxSig = null;
+  app.renderMarketContext();
+  const rings = [...document.querySelectorAll('#sector-body .ovx-ring')].map((r) => r.getAttribute('aria-label'));
+  assert.deepEqual(rings, ['1 of 2 sectors in an uptrend', '2 of 4 major indexes in an uptrend']);
+  assert.doesNotMatch(document.querySelector('#sector-body').textContent, /of 6/, 'indices and sectors are never summed into one share');
+  // The movers are their own column: largest gain first, no up/down share.
+  app.renderMoversRail({ movers_up: [{ symbol: 'A', change_pct: 3 }, { symbol: 'C', change_pct: 5 }], movers_down: [{ symbol: 'B', change_pct: -2 }] });
+  const rail = document.querySelector('#movers-body');
+  assert.deepEqual([...rail.querySelectorAll('.ovx-mvs > div:first-child .ovx-mv')].map((b) => b.dataset.ticker), ['C', 'A'], 'largest gain first');
+  assert.match(rail.textContent, /a sample of the tape, not market breadth/);
   app.state.marketContext = {};
+  app.state.dashboard = null;
 });
 
-test('Street candidates show price, target and analyst count; a very wide gap says check', () => {
-  app.renderOpportunityBrief({ analyst_picks: [
-    { symbol: 'ORCL', name: 'Oracle', recommendation: 'buy', upside_pct: 68.3, price: 150, target_mean: 252.45, analyst_count: 38 },
-    { symbol: 'MSFT', name: 'Microsoft', recommendation: 'buy', upside_pct: 20, price: 400, target_mean: 480, analyst_count: 50 },
-  ] });
-  const rows = [...document.querySelectorAll('#opportunity-brief-body .q-oppbrief-row')].map((r) => r.textContent.replace(/\s+/g, ' '));
-  // A plausible target ranks ahead of a very wide gap (often a stale target).
-  assert.match(rows[0], /MSFT/);
-  assert.match(rows[0], /to Street target/);
-  assert.match(rows[1], /150\.00 → \$?252\.45\s*38 analysts/);
-  assert.match(rows[1], /check: wide gap/);
+test('without a scan the ideas ask for QUANTA’s own scan and never list the Street’s targets', () => {
+  app.state.picks = null;
+  app.state.market = 'US';
+  app.state.marketContext = { US: { available: true, sectors: [
+    { symbol: 'XLK', label: 'Technology', change_pct: -3, above_sma50: false }, { symbol: 'XLE', label: 'Energy', change_pct: 2.5, above_sma50: true }] } };
+  app.state.dashboard = { market: market(), news, market_intel: {} };
+  app.renderOpportunityBrief({ analyst_picks: [{ symbol: 'ORCL', name: 'Oracle', recommendation: 'buy', upside_pct: 68.3, price: 150, target_mean: 252.45, analyst_count: 38 }] });
+  const body = document.querySelector('#opportunity-brief-body');
+  assert.doesNotMatch(body.textContent, /ORCL|Oracle/);
+  assert.equal(body.querySelector('[data-view-link="picks"]').textContent, 'Run a Picks scan');
+  assert.match(body.textContent, /Sectors in an uptrend right now: Energy\. Ideas in these sectors are listed first\./);
+  assert.match(body.textContent, new RegExp(`at least ${Number(globalThis.__QUANTA_THRESHOLDS__.RR.SCANNER_MIN).toFixed(1)} times the potential loss`));
+  app.state.marketContext = {};
+  app.state.dashboard = null;
+});
+
+test('buy calls from the last scan lead with names whose sector is in an uptrend, each with its plan', () => {
+  app.state.market = 'US';
+  app.state.marketContext = { US: { available: true, sectors: [
+    { symbol: 'XLK', label: 'Technology', change_pct: -3, above_sma50: false }, { symbol: 'XLE', label: 'Energy', change_pct: 2.5, above_sma50: true }] } };
+  app.state.dashboard = { market: market({ posture: 'Defensive', colorTheme: { toneClass: 'bear' } }), news, market_intel: {} };
+  const rec = (ticker, sector) => ({ ticker, sector, final_action: 'BUY', allocation: 1200, position_value: 1200, entry_price: 100, price_target: 120, stop_loss: 92, risk_reward_ratio: 2.5 });
+  app.state.picksSavedAt = null;
+  app.state.picks = { currency: '$', recommendations: [rec('LRCX', 'Technology'), rec('XOM', 'Energy')] };
+  app.renderOpportunityBrief({});
+  const cards = [...document.querySelectorAll('#opportunity-brief-body .ovx-idea')];
+  assert.deepEqual(cards.map((c) => c.querySelector('.ovx-idea-t').textContent), ['XOM', 'LRCX']);
+  assert.match(cards[0].textContent.replace(/\s+/g, ' '), /Stop 92\.00\s*Buy 100\.00\s*Target 120\.00/);
+  assert.match(cards[0].textContent, /Sector trendUp/);
+  assert.match(cards[1].textContent, /Sector trendDown/);
+  app.state.picks = null;
+  app.state.marketContext = {};
+  app.state.dashboard = null;
 });
 
 test('the page has one h1', () => {

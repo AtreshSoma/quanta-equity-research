@@ -461,7 +461,9 @@ def guide_position(pos: PositionContext, ctx: PortfolioContext,
                    f"it is past the {_pct(p.trim_review_position)} review level. Trimming is about "
                    "single-name risk, not a change of view on the stock.")
         g.next_step = (f"Consider trimming toward the {_pct(p.max_single_position)} single-name limit; "
-                       "the size scenarios show the effect.")
+                       "the size scenarios show the effect. The limit and the "
+                       f"{_pct(p.trim_review_position)} review level are QUANTA defaults, not a target set "
+                       "for your goals, time horizon or tax position.")
     elif action == PA_TRIM and rule.get("basis") == "RISK_GRADE_F":
         g.headline = "Review size for risk"
         g.basis = basis("RISK_GRADE_F", "Risk grade F triggers a trim review at any score")

@@ -55,19 +55,17 @@ test('the Overview writes no em dash and no tracked caps of its own', () => {
   const market = data.market || {}; const news = data.news || {}; const intel = data.market_intel || {};
   global.window = {};
   try {
-    app.renderTopHeadlines(market, news);
+    app.renderSessionBar(market);
     app.renderMarketRegime(market, news, intel);
-    app.renderPlaybook(market, news, intel);
-    app.renderRiskPanel(market, news, intel);
     app.renderMarketPulse(market);
     app.renderSignalCheck(market, news, intel);
-    app.renderMarketDrivers(market, news, intel);
-    app.renderBreadthPanel(market, intel);
+    app.renderMoversRail(intel);
+    app.renderOpportunityBrief(intel);
   } finally { global.window = undefined; }
   const view = document.getElementById('view-dashboard');
   const hits = view.textContent.split('\n').map((l) => l.trim()).filter((l) => l.includes('—'));
   assert.deepEqual(hits, []);
-  for (const sel of ['.q-tape-kicker', '.q-tape-net', '.q-tape-flag', '.q-news-m .cat']) {
+  for (const sel of ['.ov-stance-k', '.ov-measure dt', '.ov-bgroup-k', '.ov-mv-h', '.q-news-m .cat']) {
     for (const m of css.matchAll(new RegExp(`${sel.replace(/\./g, '\\.')}(?![-\\w])[^{,]*\\{([^}]*)\\}`, 'g'))) {
       assert.doesNotMatch(m[1], /text-transform: uppercase/, sel);
     }

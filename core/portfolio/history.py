@@ -674,12 +674,20 @@ RECOMMENDATION_DEFINITION = {
                 "Trim / Exit Review: the stock's price return trailed the benchmark's."),
     "horizon": (f"{_T.PORTFOLIO.OUTCOME_HORIZON_DAYS} trading days (about {round(_T.PORTFOLIO.OUTCOME_HORIZON_DAYS / 21)} months) "
                 "after the call date, on closing prices without dividends."),
-    "denominator": "Every directional call whose horizon has fully elapsed. Hold and no-call entries are not directional and are excluded. Calls whose horizon is still running are counted as pending.",
+    "denominator": "Every directional call whose horizon has fully elapsed. Hold and no-call entries are not directional and are excluded, and so are trims made for position size or risk, which are policy actions rather than forecasts. Calls whose horizon is still running are counted as pending.",
     "open_positions": "Not applicable: outcomes are measured on the price, whether or not the account acted.",
     "not": "This measures whether past model calls beat the benchmark. It is not a forecast, and it is separate from the account's own trades.",
 }
 HORIZON_DAYS = _T.PORTFOLIO.OUTCOME_HORIZON_DAYS
 DIRECTIONAL = {"Accumulate": 1, "Trim": -1, "Exit Review": -1}
+# A trim made for position size or portfolio risk is a policy action, not a forecast that the
+# stock will fall, so it is not scored against the benchmark: it can be right while the stock
+# rises (it still cut the concentration).
+POLICY_BASIS = {"CONCENTRATION", "RISK_GRADE_F"}
+
+
+def _is_directional(e: Dict[str, Any]) -> bool:
+    return e.get("action") in DIRECTIONAL and e.get("basis_code") not in POLICY_BASIS
 
 
 def recommendation_outcomes(entries: Sequence[Dict[str, Any]], closes: Any, benchmark: str,
@@ -687,7 +695,7 @@ def recommendation_outcomes(entries: Sequence[Dict[str, Any]], closes: Any, benc
     """Evaluate journal entries against forward returns. Entries can only be evaluated once
     ``horizon`` trading days of prices exist after the call; nothing is backfilled."""
     dated = sorted(entries, key=lambda e: e.get("date", ""))
-    directional = [e for e in dated if e.get("action") in DIRECTIONAL]
+    directional = [e for e in dated if _is_directional(e)]
     evaluated, pending, unpriced = [], 0, 0
     dates = [_iso(d) for d in closes.index] if closes is not None and not getattr(closes, "empty", True) else []
     bcol = _column(closes, benchmark) if dates else None
@@ -785,6 +793,10 @@ def recent_paths(closes: Any, symbols: Sequence[str], days: int = 22) -> Dict[st
     if closes is None or getattr(closes, "empty", True):
         return out
     dates = [_iso(d) for d in closes.index]
+    # A month of trend needs a month of distinct days: repeated dates mean the frame is not
+    # daily (intraday bars in a daily slot), and drawing it would label one day as a month.
+    if len(set(dates[-days:])) != days:
+        return out
     for sym in symbols:
         col = _column(closes, sym)
         if col is None:

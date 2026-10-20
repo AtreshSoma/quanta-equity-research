@@ -101,7 +101,9 @@
      "Holdings beta 1.30",
      "Annualised volatility 22%"
     ],
-    "note": ""
+    "note": "",
+    "partial": false,
+    "unmeasured": []
    }
   },
   "metrics": {
@@ -236,7 +238,9 @@
      "Holdings beta 1.30",
      "Annualised volatility 22%"
     ],
-    "note": ""
+    "note": "",
+    "partial": false,
+    "unmeasured": []
    },
    "unrealized_pnl": {
     "total": 25874.000000000004,
@@ -742,7 +746,7 @@
       "kind": "concentration",
       "text": "Position is 35.0% of the portfolio, past the 20% review level"
      },
-     "next_step": "Consider trimming toward the 10% single-name limit; the size scenarios show the effect.",
+     "next_step": "Consider trimming toward the 10% single-name limit; the size scenarios show the effect. The limit and the 20% review level are QUANTA defaults, not a target set for your goals, time horizon or tax position.",
      "target": {
       "weight": 0.10000000000000002,
       "text": "About 10.0% if trimmed to the 10% single-name limit",

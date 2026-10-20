@@ -170,7 +170,7 @@ class DeepConfirmReconciliationTest(unittest.TestCase):
         _FakeDeepAnalyzer.verdicts = {
             "C": ("ACCUMULATE", [
                 "Composite score 58 → candidate ACCUMULATE",
-                "Risk Grade D — hold at ACCUMULATE (reduced size)",
+                "Risk Grade D: hold at ACCUMULATE (reduced size)",
                 "DCF overvaluation 40% (>25%) → ACCUMULATE",
             ])
         }
@@ -204,7 +204,7 @@ class DeepConfirmReconciliationTest(unittest.TestCase):
     def test_buy_downgraded_to_watchlist_zeroes_allocation(self):
         """Deep WATCHLIST => no new capital, no entry order / position sizing."""
         _FakeDeepAnalyzer.verdicts = {
-            "XYZ": ("WATCHLIST", ["Bearish reversal — wait for confirmation"])
+            "XYZ": ("WATCHLIST", ["Bearish reversal: wait for confirmation"])
         }
         sys_obj = _make_system(capital=2500.0)
         pick = _make_buy_pick("XYZ", allocation=800.0, entry_price=40.0)
@@ -393,7 +393,7 @@ class DeepConfirmExportTest(unittest.TestCase):
     def _build_system_with_downgrade(self):
         import datetime as _dt
         _FakeDeepAnalyzer.verdicts = {
-            "C": ("WATCHLIST", ["Bearish reversal — wait for confirmation"])
+            "C": ("WATCHLIST", ["Bearish reversal: wait for confirmation"])
         }
         sys_obj = _make_system(capital=2500.0)
         sys_obj.market = "US"

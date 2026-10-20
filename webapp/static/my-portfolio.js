@@ -101,7 +101,9 @@
   // One display word per portfolio action, on every tab (the engine's enum
   // strings stay as sent in data attributes and the journal).
   const ACTION_LABEL = { 'Hold / No New Money': 'Hold, no new money', 'Exit Review': 'Exit review', Unavailable: 'No call' };
-  const actionLabel = (a) => ACTION_LABEL[a] || a;
+  // A risk-grade-F trim has no target size behind it (the grade says the swings are large, not
+  // what the position should be), so it reads as a risk review, not an instruction to trim.
+  const actionLabel = (a, g) => (a === 'Trim' && g && g.basis && g.basis.code === 'RISK_GRADE_F' ? 'Review risk' : (ACTION_LABEL[a] || a));
   // The flag every call carries until its model is validated: the same words and
   // link as Picks and Research. "Validated" is the configured status
   // (LADDER.STRONG_BUY_EVIDENCE); without config, the server's own permission.
@@ -111,8 +113,8 @@
     return need ? String(ev.status || '').toUpperCase() === need : !!ev.permits_recommendation;
   };
   const modelFlag = (ev) => (!ev || evidenceValidated(ev) ? ''
-    : `<a class="pk-valid model-flag hp-model-flag" href="#track" data-view-link="track" data-model-flag title="${esc(`Model evidence: ${ev.text || 'not validated out of sample'}. Open the evidence page.`)}">Model not yet validated</a>`);
-  const actionChip = (a, ev) => `<span class="hp-action hp-action--${ACTION_TONE[a] || 'muted'}">${esc(actionLabel(a))}</span>${ev && a !== 'Unavailable' ? modelFlag(ev) : ''}`;
+    : `<a class="pk-valid model-flag hp-model-flag" href="#track" data-view-link="track" data-model-flag title="${esc(`Model evidence: ${ev.text || 'not validated out of sample'}. Open the evidence page.`)}">${String(ev.status || '').toUpperCase() === 'NO_EDGE' ? 'Tested: no edge found' : 'Model not yet validated'}</a>`);
+  const actionChip = (a, ev, g) => `<span class="hp-action hp-action--${ACTION_TONE[a] || 'muted'}">${esc(actionLabel(a, g))}</span>${ev && a !== 'Unavailable' ? modelFlag(ev) : ''}`;
   const stanceChip = (s) => `<span class="hp-stance hp-stance--${STANCE_TONE[s] || 'muted'}">${esc(s)}</span>`;
 
   const STATE_TONE = {
@@ -827,7 +829,7 @@
     return `<div class="hp-gi-body">
       <dl class="hp-gi-dl">
         ${row('Investment outlook', `${stanceChip(g.stance)} score ${num(g.conviction) !== null ? Number(g.conviction).toFixed(0) : '--'}/100${g.score_leaning ? `, leans ${esc(g.score_leaning.toLowerCase())}` : ''}`)}
-        ${row('Portfolio action', `${esc(actionLabel(g.action))}: ${esc(g.headline)}`)}
+        ${row('Portfolio action', `${esc(actionLabel(g.action, g))}: ${esc(g.headline)}`)}
         ${row('Weight now', `${pct(r.broker.weight, 1)} of the account`)}
         ${row('Conditional target', `${esc(t.text || 'Not computed')}${t.basis ? `<span class="hp-sub">${esc(t.basis)}</span>` : ''}`)}
         ${row('Horizon', esc(g.horizon || 'Not stated'))}
@@ -862,7 +864,7 @@
     const sum = decisionSummary(r);
     const w = num(r.broker.weight);
     return `<details class="hp-gi" data-hp-disclosure="gi-${esc(r.symbol)}"><summary class="hp-gi-row">
-        <span class="hp-gi-act"><span class="hp-sym">${esc(r.symbol)}</span>${actionChip(g.action, g.evidence)}</span>
+        <span class="hp-gi-act"><span class="hp-sym">${esc(r.symbol)}</span>${actionChip(g.action, g.evidence, g)}</span>
         ${reason ? `<span class="hp-gi-why"><span class="hp-gi-reason">${esc(sum.reason)}</span></span>` : ''}
         <span class="hp-gi-w">${weightBarHtml(w, sum.after, pf.policy || {}, scaleMax)}<span class="hp-gi-impact">${sum.after !== null ? `<span class="hp-gi-impact-k">${esc(sum.impactLabel)}</span>` : ''}<strong>${pct(w, 1)}${sum.after !== null ? ` → ${pct(sum.after, 1)}` : ''}</strong></span></span>
         <span class="q-caret" aria-hidden="true"></span>
@@ -934,7 +936,7 @@
     const X = api_.ext || {};
     const label = !x ? '' : g.action === 'Accumulate' ? 'After adding' : sized ? 'After trim' : 'If sold in full';
     return `<article class="hp-hero" aria-labelledby="hp-hero-h">
-      <header class="hp-hero-h"><h3 id="hp-hero-h"><button type="button" class="hp-hero-sym" data-hp-inspect="${esc(r.symbol)}" aria-label="${esc(`${r.symbol} details`)}">${esc(r.symbol)}</button>${actionChip(g.action, g.evidence)}</h3>
+      <header class="hp-hero-h"><h3 id="hp-hero-h"><button type="button" class="hp-hero-sym" data-hp-inspect="${esc(r.symbol)}" aria-label="${esc(`${r.symbol} details`)}">${esc(r.symbol)}</button>${actionChip(g.action, g.evidence, g)}</h3>
         <p class="hp-hero-why">${esc(sum.reason)}</p></header>
       <div class="hp-hero-b">
         <div class="hp-hero-bars" role="img" aria-label="${esc(`${r.symbol} is ${pct(w, 1)} of the account${after !== null ? `; ${label.toLowerCase()} ${pct(after, 1)}` : ''}. Single-name limit ${pct(cap, 0)}, review level ${pct(review, 0)}.`)}">
@@ -1162,7 +1164,7 @@
           <td class="num hp-col-basis" data-label="Cost basis">${b.cost_basis != null ? money(b.cost_basis) : NA}<span class="hp-sub">${b.average_cost != null ? `${priv(price(b.average_cost))} / share` : 'Average cost unavailable'}</span></td>
           <td class="num" data-label="P&amp;L">${pnl}</td>
           <td data-label="QUANTA stance">${g.status === 'ok' ? stanceChip(g.stance) : NA}</td>
-          <td data-label="Portfolio action">${actionChip(g.action)}</td>
+          <td data-label="Portfolio action">${actionChip(g.action, null, g)}</td>
           <td class="hp-col-ev" data-label="Evidence">${evidenceCell(g)}</td>
           <td class="hp-reason hp-col-reason" data-label="Key reason">${esc(g.key_reason || '')}</td>
         </tr>`;
@@ -1388,7 +1390,7 @@
     return `<ol class="hp-pri-list">${top.map((r) => {
       const d = decisionSummary(r);
       return `<li class="hp-pri">
-        <span class="hp-pri-act"><button type="button" class="hp-pri-sym" data-hp-inspect="${esc(r.symbol)}" aria-label="${esc(`${r.symbol} details`)}"><span class="hp-sym">${esc(r.symbol)}</span></button>${actionChip(r.guidance.action, r.guidance.evidence)}</span>
+        <span class="hp-pri-act"><button type="button" class="hp-pri-sym" data-hp-inspect="${esc(r.symbol)}" aria-label="${esc(`${r.symbol} details`)}"><span class="hp-sym">${esc(r.symbol)}</span></button>${actionChip(r.guidance.action, r.guidance.evidence, r.guidance)}</span>
         <span class="hp-pri-why"><span class="hp-gi-reason">${esc(d.reason)}</span><span class="hp-gi-next">${d.kind ? `<span class="hp-kind">${esc(d.kind)}</span> · ` : ''}${esc(d.next)}</span></span>
         <span class="hp-pri-impact"><span class="hp-gi-impact-k">${esc(d.impactLabel)}</span><strong>${pct(r.broker.weight, 1)}${d.after !== null ? ` → ${pct(d.after, 1)}` : ''}</strong></span>
         <button type="button" class="q-btn q-btn--link hp-pri-go" data-hp-review="${esc(r.symbol)}">Review</button>
@@ -1458,7 +1460,7 @@
     const nav = (x, dir, label) => `<button type="button" class="icon-btn hp-icon-btn" data-hp-drawer="${dir}"${x ? '' : ' disabled'} aria-label="${esc(x ? `${label}: ${x.symbol}` : `No ${label.toLowerCase()} holding`)}">${dir === 'prev' ? CHEV_L : CHEV_R}</button>`;
     return `<header class="hp-drawer-h">
         <div class="hp-drawer-t"><h2 id="hp-drawer-title" tabindex="-1"><span class="hp-sym">${esc(r.symbol)}</span> <span class="hp-drawer-n">${esc(r.broker.name || '')}</span></h2>
-          <p class="hp-drawer-s">${actionChip(r.guidance.action, r.guidance.evidence)} <span>${pct(r.broker.weight, 1)} of the account${i >= 0 ? ` · ${i + 1} of ${order.length} in Holdings` : ''}</span></p></div>
+          <p class="hp-drawer-s">${actionChip(r.guidance.action, r.guidance.evidence, r.guidance)} <span>${pct(r.broker.weight, 1)} of the account${i >= 0 ? ` · ${i + 1} of ${order.length} in Holdings` : ''}</span></p></div>
         <div class="hp-drawer-nav">${nav(prev, 'prev', 'Previous')}${nav(next, 'next', 'Next')}<button type="button" class="icon-btn hp-icon-btn" data-hp-drawer="close" aria-label="Close details">${CLOSE}</button></div>
       </header>
       <div class="hp-drawer-b">${detailHtml(r, pf)}</div>`;

@@ -122,5 +122,5 @@ test('tape marks stale quotes and shows N/A for an unknown daily change', () => 
   app.renderMarketPulse({ quotes: [{ symbol: 'SPY', price: 100, change_pct: null, stale: true }] });
   const tape = app.document.querySelector('#market-pulse');
   assert.match(tape.textContent, /Stale quote/);
-  assert.equal(tape.querySelector('.q-rb-c').textContent.trim(), '· N/A');
+  assert.equal(tape.querySelector('.ovx-pu-c b').textContent.trim(), 'N/A');
 });

@@ -23,8 +23,8 @@
       "data_quality": "WARN",
       "entry_quality": "Weak",
       "existing_holder": "Hold",
-      "existing_holder_stop": 345.06,
-      "long_term_holder_stop": 345.06,
+      "existing_holder_stop": 337.669,
+      "long_term_holder_stop": 337.669,
       "long_tf": "Review before adding",
       "main_reason": "Fundamentals are strong but timing is unclear; defer entry.",
       "mid_tf": "Hold existing / wait",
@@ -43,7 +43,7 @@
       "tactical_stop_basis": "below recent swing low",
       "volume_requirement": ">= 1.5x avg on entry day",
       "warnings": [
-        "Valuation target 348.76 is at or below the entry reference 353.93 \u2014 no long reward, so R:R is 0 by definition."
+        "Valuation target 348.76 is at or below the entry reference 353.93: no long reward, so R:R is 0 by definition."
       ]
     },
     "business_summary": "JPMorgan Chase & Co. operates as a bank and financial holding company in the United States, rest of North America, Europe, the Middle East, Africa, the Asia Pacific, Latin America, and the Caribbean. It operates in three segments: Consumer & Community Banking, Commercial & Investment Bank, and Asset & Wealth Management. The company offers deposit, investment and lending products, and cash management; mortgage origination and servicing activities; residential mortgages and home equity loans; and credit cards, payment solutions, travel services, merchant offers, lifestyle benefits, auto loans, and leases to consumers and small businesses through bank branches, ATMs, and digital and telephone banking. It also provides investment banking, market-making, financing, custody, and securities products and services; corporate strategy and structure advisory, equity and debt market capital-raising, and loan origination and syndication services; cash and derivative instruments, risk management solutions, prime brokerage, clearing, and research; and fund services, liquidity and trading services, and data solutions products for large corporations, financial institutions, merchants, start-ups, small and midsized companies, local governments, municipalities, nonprofits, and commercial real estate clients. In addition, the company offers multi-asset investment management solutions in equities, fixed income, alternatives, and money market funds to institutional clients and retail investors; retirement products and services, estate planning, lending, deposits, and investment management products to high-net-worth clients; and financial transaction processing. JPMorgan Chase & Co. was founded in 1799 and is headquartered in New York, New York.",
@@ -110,6 +110,7 @@
       "evidence": {
         "caveats": [
           "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+          "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls.",
           "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
           "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
         ],
@@ -126,9 +127,9 @@
           {
             "change": "original composite",
             "status": "NO_EDGE",
-            "status_text": "Tested out of sample \u2014 no demonstrated edge",
+            "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
-            "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+            "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
           }
         ],
@@ -149,9 +150,9 @@
         "permits_recommendation": false,
         "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
         "status": "NO_EDGE",
-        "status_text": "Tested out of sample \u2014 no demonstrated edge",
+        "status_text": "Tested out of sample: no demonstrated edge",
         "strategy": "elite.research.v2",
-        "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
+        "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
         "tested_through": "2026-09-30"
       },
       "factor_scores": {
@@ -182,7 +183,7 @@
         "entry": 353.93,
         "reference_price": 353.93,
         "reward_risk": 0.0,
-        "stop": 345.06,
+        "stop": 337.669,
         "target": 348.757,
         "target_basis": "63-session target, pro-rated from the 12-month valuation target",
         "target_horizon_days": 63,
@@ -235,11 +236,11 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 500,
+      "risk_grade_lookback_days": 499,
       "risk_metrics": {
-        "beta": 0.785734,
+        "beta": 0.790206,
         "risk_score": 50,
-        "volatility": 0.251117
+        "volatility": 0.251299
       },
       "risks": [],
       "scenarios": [
@@ -303,6 +304,7 @@
     "evidence": {
       "caveats": [
         "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+        "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls.",
         "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
         "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
       ],
@@ -319,9 +321,9 @@
         {
           "change": "original composite",
           "status": "NO_EDGE",
-          "status_text": "Tested out of sample \u2014 no demonstrated edge",
+          "status_text": "Tested out of sample: no demonstrated edge",
           "strategy": "elite.composite",
-          "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+          "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
           "tested_through": "2026-08-25"
         }
       ],
@@ -342,9 +344,9 @@
       "permits_recommendation": false,
       "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
       "status": "NO_EDGE",
-      "status_text": "Tested out of sample \u2014 no demonstrated edge",
+      "status_text": "Tested out of sample: no demonstrated edge",
       "strategy": "elite.research.v2",
-      "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
+      "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
       "tested_through": "2026-09-30"
     },
     "exchange": "NYQ",
@@ -436,17 +438,17 @@
       "expected_return": 0.0395,
       "expected_return_basis": "mean",
       "mean_price": 354.07,
-      "median_price": 352.672,
-      "percentile_25": 332.196,
-      "percentile_5": 304.599,
-      "percentile_75": 374.633,
-      "percentile_95": 409.23,
+      "median_price": 352.669,
+      "percentile_25": 332.18,
+      "percentile_5": 304.572,
+      "percentile_75": 374.648,
+      "percentile_95": 409.264,
       "probability_10pct_gain": 0.132,
-      "probability_10pct_loss": 0.1177,
-      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only \u2014 not the chance of touching a target, and not target-vs-stop.",
+      "probability_10pct_loss": 0.1183,
+      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only: not the chance of touching a target, and not target-vs-stop.",
       "probability_profit": 0.4847,
       "simulations_run": 3000,
-      "var_95": -13.9382
+      "var_95": -13.9456
     },
     "net_assets": 0.0,
     "peer_comparison": {
@@ -473,6 +475,7 @@
       "adjustments": {},
       "approved": true,
       "correlation_risk": 0.0,
+      "correlation_unmeasured": 0,
       "holdings_known": false,
       "sector_exposure": {
         "Financial Services": 0.0
@@ -532,10 +535,10 @@
     "requested_symbol": "JPM",
     "retrieval_timestamp": "<volatile>",
     "risk": {
-      "annualized_volatility": 0.2511,
-      "beta": 0.7857,
+      "annualized_volatility": 0.2513,
+      "beta": 0.7902,
       "beta_benchmark": "SPY",
-      "beta_observations": 250,
+      "beta_observations": 249,
       "beta_status": "measured",
       "cvar_95": -0.0372,
       "grade_drivers": [
@@ -575,8 +578,8 @@
       "overall_risk_score": 5,
       "risk_grade": "B",
       "risk_points": 5,
-      "sharpe_ratio": 0.9714,
-      "sortino_ratio": 1.4188,
+      "sharpe_ratio": 0.9875,
+      "sortino_ratio": 1.4426,
       "var_95_daily": -0.0234
     },
     "risk_warnings": [],
@@ -653,7 +656,7 @@
       "overrides_triggered": [],
       "primary_reason": "Composite score 49 in HOLD range",
       "risk_factors": [
-        "Monte Carlo tail shape is unfavorable (5.8% 75th-percentile upside vs 13.9% 5th-percentile downside); diagnostic only"
+        "Monte Carlo tail shape is unfavorable (5.9% 75th-percentile upside vs 13.9% 5th-percentile downside); diagnostic only"
       ],
       "supporting_factors": [
         "Fundamental score 78 (strong)"
@@ -768,8 +771,10 @@
       "trend_direction": "SIDEWAYS",
       "trend_score": 53.3333,
       "trend_strength": "WEAK",
+      "unmeasured": [],
       "volatility_score": 70,
-      "volume_ratio": 0.5796,
+      "volume_ratio": 0.9984,
+      "volume_ratio_basis": "last completed session (today's is still trading)",
       "week_52_basis": "provider-reported traded range",
       "week_52_high": 366.5,
       "week_52_low": 279.1
@@ -795,8 +800,8 @@
       "is_actionable_entry": false,
       "levels_available": true,
       "risk_reward_ratio": 0.0,
-      "setup_basis": "spot (reference only, not an order); stop below support (widened to 1.5xATR); 12-month valuation target $333.24 (-6%) is at or below spot \u2014 no long reward; stop shown for holders only",
-      "stop_loss": 345.06,
+      "setup_basis": "spot (reference only, not an order); stop 2.75xATR below entry; 12-month valuation target $333.24 (-6%) is at or below spot: no long reward; stop shown for holders only",
+      "stop_loss": 337.669,
       "target_aggressive": 0.0,
       "target_base": 333.237,
       "target_conservative": 0.0,

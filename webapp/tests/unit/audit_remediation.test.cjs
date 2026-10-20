@@ -24,7 +24,7 @@ function boot() {
     setTimeout() { return 0; }, clearTimeout() {}, setInterval() { return 0; }, clearInterval() {},
   });
   vm.runInContext(fs.readFileSync(path.join(root, 'static/app.js'), 'utf8') +
-    '\n globalThis.api = {state, renderPlaybook, renderRiskPanel, renderSignalCheck, renderTopHeadlines, setFreshness, renderTrackRecord, renderPicks};', ctx);
+    '\n globalThis.api = {state, renderMarketRegime, renderSignalCheck, setFreshness, renderTrackRecord, renderPicks};', ctx);
   return { ...ctx.api, document: dom.window.document };
 }
 
@@ -42,28 +42,29 @@ const degradedMarket = () => ({
   },
 });
 
-test('withheld guidance: the playbook shows no exposure band or sizing', () => {
+test('withheld guidance: the mood card shows no exposure band or sizing', () => {
   const app = boot();
-  app.renderPlaybook(degradedMarket(), {}, {});
-  const body = app.document.querySelector('#allocator-body');
-  assert.match(body.textContent, /No playbook/);
+  app.renderMarketRegime(degradedMarket(), {}, {});
+  const body = app.document.querySelector('#decision-brief');
+  assert.match(body.querySelector('[data-guidance="withheld"]').textContent, /No exposure band, sizing or preference/);
+  assert.equal(body.querySelector('.ovx-money'), null, 'no money bar');
+  assert.equal(body.querySelector('.ovx-mood-word').textContent, 'No read');
   assert.doesNotMatch(body.textContent, /20-45% gross|Half-size/);
-  assert.equal(app.document.querySelector('#playbook-meta').textContent, 'Withheld');
+  assert.equal(body.querySelector('.ovx-sure'), null, 'no confidence read on withheld inputs');
 });
 
-test('withheld guidance: risk level is Unknown and unmeasured counts read N/A', () => {
+test('withheld guidance: unmeasured event counts are unknown, never zero', () => {
   const app = boot();
-  app.renderRiskPanel(degradedMarket(), {}, {});
-  const body = app.document.querySelector('#risk-body');
-  assert.match(body.textContent, /Unknown/);
-  assert.doesNotMatch(body.textContent, /Elevated|Contained/);
-  const metrics = [...body.querySelectorAll('.q-metric')].map((m) => m.textContent);
-  assert.ok(metrics.some((t) => /Earnings\s*N\/A/.test(t)), 'unknown calendar is not "0 earnings"');
-  assert.ok(metrics.some((t) => /High-impact news\s*N\/A/.test(t)));
+  app.renderMarketRegime(degradedMarket(), {}, {});
+  const watch = app.document.querySelector('#decision-brief .ovx-watch').textContent;
+  assert.match(watch, /Earnings calendar not read yet/, 'unknown calendar is not "0 earnings"');
+  assert.doesNotMatch(watch, /\b0 earnings/);
+  assert.doesNotMatch(watch, /\b0 high-impact/);
 });
 
 test('withheld guidance: no headline signal score is printed', () => {
   const app = boot();
+  app.renderMarketRegime(degradedMarket(), {}, {});
   app.renderSignalCheck(degradedMarket(), {}, {});
   const body = app.document.querySelector('#signal-check-body');
   assert.match(body.textContent, /not scored/);
@@ -72,9 +73,11 @@ test('withheld guidance: no headline signal score is printed', () => {
 
 test('an unreachable news tape is never called quiet', () => {
   const app = boot();
-  app.renderTopHeadlines(degradedMarket(), {});
-  const el = app.document.querySelector('#top-headlines');
-  assert.match(el.textContent, /unknown, not quiet/);
+  app.renderMarketRegime(degradedMarket(), {}, {});
+  const el = app.document.querySelector('#decision-brief');
+  const note = [...el.querySelectorAll('.ovx-note')].find((n) => /No news feed is reachable/.test(n.textContent));
+  assert.ok(note && !note.classList.contains('pro-only'), 'said in plain English too');
+  assert.match(note.textContent, /unknown, not quiet/);
   assert.doesNotMatch(el.textContent, /tape is quiet/);
 });
 

@@ -50,32 +50,20 @@ test('triggers compare live inputs with the model thresholds and skip what is no
   const s = Object.fromEntries(t.strengthen.map((r) => [r.label, r.met]));
   assert.equal(s['VIX below 16'], true);
   assert.equal(s['Index participation 70% or more'], false);
-  assert.equal(s['The benchmark above its 50-day average'], true);
-  assert.equal(s['Confidence 50 or more'], false);
+  assert.equal(s['The benchmark back above its 50-day average (765.50)'], true);
+  // Only market inputs: the model's own confidence and direction are outputs.
+  assert.ok(t.strengthen.every((r) => !/Confidence|Direction score/.test(r.label)), 'no circular conditions');
   // With the fund count and the index name, the conditions read as counts and names.
   const named = app.regimeTriggers(model, { last: 778.5, sma50: 765.5, sma200: 719.2 }, { above: 2, measured: 4 }, 'S&P 500');
   const labels = named.strengthen.map((r) => r.label).concat(named.weaken.map((r) => r.label));
   assert.ok(labels.includes('3 of 4 index funds in uptrends or more'), labels.join(' | '));
   assert.ok(labels.includes('1 of 4 index funds in uptrends or fewer'));
-  assert.ok(labels.includes('S&P 500 above its 50-day average'));
+  assert.ok(labels.includes('S&P 500 back above its 50-day average (765.50)'), labels.join(' | '));
+  assert.ok(labels.includes('S&P 500 below its 200-day average (719.20)'));
   assert.equal(named.strengthen.find((r) => /index funds/.test(r.label)).now, '2 of 4 now');
   assert.ok(t.weaken.every((r) => r.met === false), 'nothing on the weaker side is true');
   const bare = app.regimeTriggers({ factors: [] }, {});
   assert.ok(bare.strengthen.every((r) => !/VIX|50-day|participation/i.test(r.label)), 'unmeasured inputs are left out');
-});
-
-test('history cells colour the engine posture, and older 4-factor rows are marked', () => {
-  assert.deepEqual(app.historyCell({ date: '2026-10-09', posture: 'Lean Long', direction: 58 }).tone, 'bull-1');
-  const legacy = app.historyCell({ date: '2026-09-28', tone: 'Neutral' });
-  assert.equal(legacy.legacy, true);
-  assert.match(legacy.label, /4-factor read/);
-});
-
-test('sector heat sorts strongest first and caps the intensity', () => {
-  const h = app.sectorHeat([{ label: 'A', change_pct: -0.5 }, { label: 'B', change_pct: 3 }, { label: 'C', change_pct: null }]);
-  assert.deepEqual(h.map((s) => s.label), ['B', 'A']);
-  assert.equal(h[0].heat, 1);
-  assert.ok(h[1].heat > 0 && h[1].heat < 1);
 });
 
 test('the week places macro times, tracked earnings and the holdings own reports on their days', () => {
@@ -103,25 +91,14 @@ const market = {
     portfolioGuidance: { band: '30-55% gross', headline: 'x', headlineTone: 'warn', actions: [] } },
 };
 
-test('What changed leads with the story, lists the changes and draws the recorded sessions', () => {
-  app.renderWhatChanged(market, {}, {});
-  const body = document.querySelector('#changed-body');
-  const secs = [...body.querySelectorAll('.q-wc-sec')];
-  assert.equal(secs.length, 3, 'prices, model changes, the record');
-  assert.match(secs[0].querySelector('.q-wc-tag').textContent, /Broad advance/);
-  assert.equal(secs[0].querySelectorAll('.q-move-l').length, 0, 'the ribbon carries the index moves');
-  assert.match(secs[0].textContent, /3 of 3 checks agree with prices/);
-  const rows = [...secs[1].querySelectorAll('tbody tr')].map((r) => [...r.children].map((c) => c.textContent.replace(/\s+/g, ' ').trim()).join(' | '));
-  assert.equal(rows.length, 3);
-  assert.equal(rows[0], 'Direction score | 52 of 100 | →48 of 100 | ▼ Weaker');
-  assert.equal(rows[1], 'Rates | Supportive | →Neutral | ▼ Weaker');
-  assert.match(rows[2], /News Impact 0 → -2/, 'a row without its parts keeps its sentence');
-  assert.equal(body.querySelectorAll('.q-hist-strip i').length, 2);
-  assert.ok(body.querySelector('.q-hist-strip i.is-legacy'), 'the 4-factor row is marked');
-  assert.ok(body.querySelector('.q-hist-strip i.is-last'), 'the latest session is outlined');
-  assert.equal(body.querySelectorAll('.q-hist-axis span').length, 2, 'dated axis');
-  assert.match(secs[2].textContent, /Latest: Neutral\./);
-  assert.match(document.querySelector('#changed-meta').textContent, /3 model changes/);
+test('the mood card says, for pros, how long its posture has held and what moved since the prior session', () => {
+  app.renderMarketRegime(market, {}, {});
+  const line = document.querySelector('#decision-brief .ovx-history');
+  assert.ok(line.classList.contains('pro-only'), 'the posture name is pro detail');
+  // Sessions are named by their dates, never "since records began".
+  assert.match(line.textContent, /Neutral in the first recorded session, Fri Oct 9/);
+  assert.match(line.textContent, /Since Thu Oct 8: Direction 52 → 48 of 100; Rates turned neutral\./);
+  assert.doesNotMatch(line.textContent, /records began|since today/);
 });
 
 test('the impact chain is no longer repeated in Market intelligence', () => {
@@ -146,16 +123,21 @@ const ctx = {
   calendar: [{ title: 'Consumer Price Index', date: '2026-10-14', time: '08:30' }],
 };
 
-test('sectors, levels, cross-asset and triggers render from the market context', () => {
+test('the sector heatmap, levels, cross-asset and triggers render from the market context', () => {
   app.state.market = 'US';
-  app.state.marketContext = { US: ctx };
+  app.state.marketContext = { US: { ...ctx, sectors: ctx.sectors.map((s, i) => ({ ...s, weight: [33, 3][i] })) } };
   app.renderMarketContext();
-  const rows = [...document.querySelectorAll('#sector-body .q-sbar-row')];
-  assert.deepEqual(rows.map((t) => t.querySelector('.q-sbar-n').textContent), ['Technology', 'Energy'], 'ranked, strongest first');
-  assert.match(rows[0].getAttribute('aria-label'), /above its 50-day average/);
-  assert.ok(rows[0].classList.contains('up') && rows[1].classList.contains('dn'), 'each move drawn from one zero line');
-  assert.equal(rows[1].querySelector('.q-sbar-t i').style.getPropertyValue('--w'), '1.000', 'the largest move fills its half');
-  assert.match(document.querySelector('#sector-meta').textContent, /1 of 2 above 50-DMA/);
+  const tiles = [...document.querySelectorAll('#sector-body .ovx-tile')];
+  assert.deepEqual(tiles.map((t) => t.querySelector('.ovx-tile-n').textContent), ['Technology', 'Energy'], 'largest sector first');
+  assert.match(tiles[0].getAttribute('aria-label'), /Technology: \+0\.50% .*, in an uptrend/);
+  assert.ok(tiles[0].classList.contains('up') && tiles[1].classList.contains('down'), 'colour is the move');
+  const area = (t) => parseFloat(t.style.width) * parseFloat(t.style.height);
+  assert.ok(area(tiles[0]) > 5 * area(tiles[1]), 'tile size follows the sector weight');
+  const total = tiles.reduce((s, t) => s + area(t), 0);
+  assert.ok(Math.abs(total - 10000) < 1, 'the tiles fill the map with no gap');
+  assert.equal(tiles[0].dataset.chartSymbol, 'XLK', 'a tile charts its sector fund');
+  // Trend breadth: each count with its own denominator, never summed into one share.
+  assert.equal(document.querySelector('#sector-body .ovx-ring').getAttribute('aria-label'), '1 of 2 sectors in an uptrend');
   const lv = document.querySelector('#levels-body');
   assert.equal(lv.querySelectorAll('.q-ruler-row').length, 3);
   assert.match(lv.textContent, /±7\.28 \(±0\.93%\)/);
@@ -163,7 +145,10 @@ test('sectors, levels, cross-asset and triggers render from the market context',
   assert.match(document.querySelector('#cross-body').textContent, /\+118 bp/);
   assert.match(document.querySelector('#cross-body').textContent, /Not inverted/);
   assert.match(document.querySelector('#triggers-body').textContent, /above its 50-day average/);
-  assert.equal(document.querySelectorAll('#triggers-body .q-trig-m').length, 2, 'a meter per side');
+  assert.equal(document.querySelectorAll('#triggers-body .q-trig-side').length, 2, 'a stronger and a weaker side');
+  assert.match(document.querySelector('#cross-meta').textContent, /change/i, 'cross-asset says its reads are one session');
+  // The next session's likely range, from the same expected move.
+  assert.match(document.querySelector('#ov-outlook .ovx-range').getAttribute('aria-label'), /range 771\.25 to 785\.81/);
 });
 
 test('earnings timing reads in words from either feed', () => {
@@ -172,27 +157,26 @@ test('earnings timing reads in words from either feed', () => {
   assert.equal(app.earningsTimingWords('unknown'), '');
 });
 
-test('the week has seven columns and names a weekend day as closed', () => {
+test('the week shows the trading days; an empty weekend is not a column', () => {
   app.state.dashboard = { market: {}, news: {}, market_intel: { earnings_week: [] } };
   app.state.book = { s: 'off' };
   app.state.marketContext = { US: { calendar: [] } };
   app.renderWeekCalendar();
-  const days = [...document.querySelectorAll('#week-body .q-wk > li')];
-  assert.equal(days.length, 7);
-  assert.ok(days.some((d) => d.classList.contains('is-weekend') && /Closed/.test(d.textContent)), 'seven consecutive days always include a weekend');
-  assert.ok(days[0].classList.contains('is-today'));
-  assert.match(days[0].getAttribute('aria-label'), /^Today, /);
+  const days = [...document.querySelectorAll('#week-body .ovx-wkd')];
+  assert.equal(days.length, 5, 'seven calendar days hold five trading days');
+  const today = app.exchangeSession().today;
+  const wd = new Date(`${today}T12:00:00Z`).getUTCDay();
+  if (wd !== 0 && wd !== 6) assert.ok(days[0].classList.contains('is-today'));
+  assert.match(document.querySelector('#week-body').textContent, /No Fed meeting or major jobs or inflation report found this week/);
 });
 
-test('the week names the next event, its time and how far away it is', () => {
-  app.state.marketContext = { US: { calendar: [{ kind: 'cpi', title: 'Consumer Price Index (September data)', date: '2026-10-14', time: '08:30' }] } };
-  const days = app.weekEvents('2026-10-12', [{ kind: 'cpi', title: 'Consumer Price Index (September data)', date: '2026-10-14', time: '08:30' }], [{ symbol: 'JPM', earnings_date_pretty: '2026-10-13' }], []);
-  const next = app.nextWeekEvent(days, '10:00');
-  assert.equal(next.symbol, 'JPM');
-  assert.equal(next.inDays, 1);
-  const today = app.weekEvents('2026-10-14', [{ kind: 'cpi', title: 'CPI', date: '2026-10-14', time: '08:30' }], [], []);
-  assert.equal(app.nextWeekEvent(today, '09:00'), null, 'a release already out today is not next');
-  assert.equal(app.nextWeekEvent(today, '08:00').time, '08:30');
+test('while the earnings calendar is still loading the week says so, not "No dated events"', () => {
+  app.state.dashboard = { market: {}, news: {}, market_intel: { loading: true } };
+  app.state.marketContext = { US: { calendar: [] } };
+  app.renderWeekCalendar();
+  const body = document.querySelector('#week-body').textContent;
+  assert.match(body, /Loading this week/);
+  assert.doesNotMatch(body, /No dated events/);
 });
 
 test('a context panel without a read says why: a restart, or a failed read', () => {
@@ -204,7 +188,7 @@ test('a context panel without a read says why: a restart, or a failed read', () 
   for (const id of ['#sector-body', '#levels-body', '#cross-body']) assert.match(document.querySelector(id).textContent, /Restart QUANTA/, id);
 });
 
-test('the week lists the largest reports per day with timing and estimate, and the rest on demand', () => {
+test('each day shows the market value reporting before and after the bell, and its largest names', () => {
   const today = app.exchangeSession().today;
   const day2 = new Date(Date.parse(`${today}T12:00:00Z`) + 2 * 864e5).toISOString().slice(0, 10);
   const row = (symbol, cap, timing, eps) => ({ symbol, name: `${symbol} Inc.`, market_cap: cap, earnings_date: day2, earnings_timing: timing, eps_estimate: eps });
@@ -213,35 +197,18 @@ test('the week lists the largest reports per day with timing and estimate, and t
   app.state.book = { s: 'off' };
   app.state.marketContext = { US: { calendar: [] } };
   app.renderWeekCalendar();
-  const col = document.querySelectorAll('#week-body .q-wk > li')[2];
-  const shown = [...col.querySelectorAll('.ev--earn .ev-sym')].map((e) => e.textContent);
-  assert.deepEqual(shown, ['BIG', 'MID', 'MID2', 'SMALL', 'TINY'], 'every report, largest first');
-  assert.match(col.querySelector('.ev--earn').textContent, /Before open/);
-  assert.match(col.querySelector('.ev--earn').textContent, /EPS est\. \$4\.92/);
-  assert.equal(col.querySelector('details'), null, 'nothing is folded away');
-  assert.match(col.querySelector('.q-wk-cnt').textContent, /5 reports/);
+  const col = [...document.querySelectorAll('#week-body .ovx-wkd')].find((d) => /5 reports/.test(d.textContent));
+  assert.ok(col, 'the reporting day');
+  const names = [...col.querySelectorAll('.ovx-wkn')].map((b) => b.dataset.ticker);
+  assert.deepEqual(names, ['BIG', 'MID', 'MID2', 'SMALL'], 'largest first, top four');
+  assert.match(col.querySelector('.ovx-wkmore').textContent, /\+1 more/);
+  assert.match(col.querySelector('.ovx-wkn[data-ticker="BIG"]').textContent, /Before open/);
+  assert.match(col.querySelector('.ovx-wkn[data-ticker="SMALL"]').textContent, /After close/);
+  assert.match(col.querySelector('.ovx-wkbar').getAttribute('aria-label'), /\$1T of market value reports, \$910B before the open, \$51B after the close/);
+  assert.ok(col.querySelector('.ovx-wkstack .am') && col.querySelector('.ovx-wkstack .pm'), 'both halves of the bar');
   assert.match(document.querySelector('#week-meta').textContent, /5 earnings reports/);
-  assert.match(document.querySelector('#week-body .q-wk-src').textContent, /US companies over \$10B/);
-});
-
-test('after the close, nothing left today is next up', () => {
-  const days = [{ date: '2026-10-09', items: [{ kind: 'earnings', symbol: 'DAL' }] }, { date: '2026-10-10', items: [] }, { date: '2026-10-11', items: [{ kind: 'earnings', symbol: 'FDX', timing: 'amc' }] }];
-  assert.equal(app.nextWeekEvent(days, '21:36').symbol, 'FDX');
-  assert.equal(app.nextWeekEvent(days, '11:00').symbol, 'DAL');
-});
-
-test('India reads its own indices: an all-green day is a broad advance, led by the strongest', () => {
-  const india = { quotes: [
-    { symbol: '^NSEI', label: 'Nifty 50', change_pct: 1.3 }, { symbol: '^BSESN', label: 'Sensex', change_pct: 1.23 },
-    { symbol: '^NSEBANK', label: 'Bank Nifty', change_pct: 1.36 }, { symbol: '^CNXIT', label: 'Nifty IT', change_pct: 3.02 },
-    { symbol: '^INDIAVIX', label: 'India VIX', change_pct: -5.09 }, { symbol: 'USDINR=X', label: 'USD/INR', change_pct: -0.1 },
-    { symbol: 'GLD', label: 'Gold', change_pct: 1.57 }] };
-  assert.deepEqual(app.indexQuotes(india).map((q) => q.label), ['Nifty 50', 'Sensex', 'Bank Nifty', 'Nifty IT'], 'currency and gold are not indices');
-  const c = app.impactChain(india, {}, {});
-  assert.equal(c.label, 'Broad advance, led by Nifty IT');
-  assert.deepEqual(c.links.map((l) => [l.step, l.check]), [['Indices rise together', true], ['No clear leadership', false], ['Volatility eases', true]]);
-  const split = app.indexChain({ quotes: [{ symbol: '^NSEI', label: 'Nifty 50', change_pct: 0.4 }, { symbol: '^CNXIT', label: 'Nifty IT', change_pct: -0.6 }] });
-  assert.equal(split.label, 'Mixed tape');
+  assert.match(document.querySelector('#week-body > .ovx-fine').textContent, /US companies over \$10B/);
+  assert.match(document.querySelector('#week-key').textContent, /Before the open[\s\S]*After the close/);
 });
 
 test('display symbols drop the exchange suffix', () => {
@@ -269,46 +236,16 @@ test('India triggers count indices, and a factor change that keeps its word show
   const model = { vix: 14.4, breadth: 0, confidenceScore: 16, net: -1, factors: Array.from({ length: 10 }, () => ({ score: 0 })) };
   const t = app.regimeTriggers(model, {}, { above: 0, measured: 4, members: [{ symbol: '^NSEI' }, { symbol: '^BSESN' }, { symbol: '^NSEBANK' }, { symbol: '^CNXIT' }] }, 'Nifty 50');
   assert.ok(t.strengthen.some((r) => r.label === '3 of 4 indices in uptrends or more'));
-  app.renderWhatChanged({ ...market, regime_changes: [{ text: 'Momentum -2 → -1', tone: 'bull', kind: 'factor', label: 'Momentum', from: -2, to: -1 }] }, {}, {});
-  const cells = [...document.querySelectorAll('#changed-body tbody tr td')].map((c) => c.textContent.trim());
-  assert.equal(cells[0], 'Headwind (-2)');
-  assert.match(cells[1], /Headwind \(-1\)/);
-});
-
-test('the direction zone marks the score against the bearish and bullish cut-offs', () => {
-  const html = app.dirZone({ shown: '50', score10: 5 });
-  assert.match(html, /left:50%/);
-  assert.match(html, /35 or less reads bearish, 65 or more bullish/);
-  assert.equal(app.dirZone({ shown: '--', score10: 5 }), '', 'no zone without a score');
+  assert.equal(app.factorWord(-2), 'Headwind');
 });
 
 test('the regime says how long its posture has held', () => {
   const h = [{ date: '2026-10-06', posture: 'Lean Defensive' }, { date: '2026-10-07', posture: 'Neutral' }, { date: '2026-10-08', posture: 'Neutral' }, { date: '2026-10-09', posture: 'Neutral' }];
   assert.deepEqual(app.postureAge(h, 'Neutral'), { sessions: 3, since: '2026-10-07', prev: 'Lean Defensive', all: false });
-  assert.equal(app.postureAgeText(app.postureAge(h, 'Neutral'), 'Neutral'), 'Neutral since Oct 7, 3 sessions');
-  assert.equal(app.postureAgeText(app.postureAge(h.slice(0, 2), 'Neutral'), 'Neutral'), 'Neutral since today, from Lean Defensive');
+  assert.equal(app.postureAgeText(app.postureAge(h, 'Neutral'), 'Neutral'), 'Neutral for 3 sessions, since Wed Oct 7');
+  assert.equal(app.postureAgeText(app.postureAge(h.slice(0, 2), 'Neutral'), 'Neutral'), 'Neutral as of Wed Oct 7, from Lean Defensive');
+  assert.equal(app.postureAgeText(app.postureAge(h.slice(1, 2), 'Neutral'), 'Neutral'), 'Neutral in the first recorded session, Wed Oct 7');
   assert.equal(app.postureAge(h, 'Offensive'), null, 'a posture not yet recorded has no age');
-});
-
-test('the countdown and its time zone are exact', () => {
-  // 16:00 in New York on 12 Oct 2026 (EDT, UTC-4) is 20:00 UTC.
-  assert.equal(new Date(app.zonedEpoch('2026-10-12', '16:00', 'America/New_York')).toISOString(), '2026-10-12T20:00:00.000Z');
-  assert.equal(new Date(app.zonedEpoch('2026-01-12', '09:30', 'America/New_York')).toISOString(), '2026-01-12T14:30:00.000Z', 'EST in winter');
-  assert.equal(app.countdownText('2026-10-12', null, null, 'America/New_York', 2), 'in 2 days', 'no time: whole days');
-  const soon = new Date(Date.now() + 90 * 60000);
-  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(soon).reduce((o, x) => ({ ...o, [x.type]: x.value }), {});
-  assert.match(app.countdownText(`${p.year}-${p.month}-${p.day}`, `${p.hour}:${p.minute}`, null, 'America/New_York', 0), /^in 1 h (29|30) m$/);
-});
-
-test('the dial and the posture scale mark the reading', () => {
-  const svg = app.directionDial({ shown: '50', score10: 5 });
-  assert.match(svg, /data-at="50"/);
-  assert.match(svg, /rotate\(90\.0deg\)/, '50 points straight up');
-  assert.equal(app.directionDial({ shown: '--', score10: 5 }), '');
-  const ladder = app.postureScale('Neutral', '30-55% gross');
-  assert.match(ladder, /step 4 of 7/);
-  assert.equal((ladder.match(/is-on/g) || []).length, 1);
-  assert.equal(app.postureScale('Unknown posture', 'x'), '');
 });
 
 

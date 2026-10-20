@@ -134,6 +134,8 @@ On coarse pointers or at 640px and below, every tab, button and link is at least
 
 Research is flat. Tiles and the Decision band carry a 1px hairline and no shadow (`#an-results` sets `box-shadow: none`). Depth is tonal: Surface over Ground, Board Head strips over Surface. The shared `--panel-shadow` and frosted glass belong to app chrome (topbar, popovers), never behind a price.
 
+**The Overview Glass Rule.** The Overview adds frost (the glassmorphism skill, filtered through this system: IBM Plex and the azure accent stay) to its raised reading surfaces only: the market mood card, the lead news story and the "What to expect today" card, plus the hero chart's range tabs and the floating tooltips (glossary and chart crosshair). Frost is `--glass-blur` and `--glass-saturate` over a 62 to 66 percent surface, a 1px edge at 12 percent ink and a 1px top highlight; soft ambient light (the mood's tone and azure, about 15 to 20 percent) sits behind the hero and the news so the blur has something to read. Frost sits over static ambient light only, never over moving data or a scrolling list, so the contrast it was tested at holds; the lead story's stock bars use an opaque inset. Without `backdrop-filter`, or under `prefers-reduced-transparency`, every glass surface falls back to the solid Surface.
+
 **The Hairline Rule.** Structure is drawn with 1px `--border-soft` rules. A heavier stroke is a state (3px selected rule, 2px condensed underline), never a frame.
 
 ## Motion

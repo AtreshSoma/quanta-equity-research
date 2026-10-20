@@ -164,3 +164,90 @@ def format_horizon(sessions: int, start: Optional[_date] = None) -> str:
     """Render a session count as "12 sessions (by Fri 18 Sep)"."""
     target = add_trading_days(start or datetime.now().date(), sessions)
     return f"{sessions} sessions (by {target:%a %d %b})"
+
+
+# ── India (NSE / BSE) ───────────────────────────────────────────────────────
+# A minimal session calendar for India listings: weekdays on the IST clock,
+# less the NSE trading holidays below. The close is
+# thresholds.RESEARCH.INDIA_SESSION_CLOSE_IST.
+
+# India keeps no daylight saving, so a fixed offset is exact.
+_IST = timezone(timedelta(hours=5, minutes=30))
+
+INDIA_SUFFIXES = (".NS", ".BO")
+
+# NSE equity trading holidays that fall on weekdays. REFRESH THIS LIST EVERY
+# YEAR from the NSE holiday circular (published each December for the next
+# year). Only dates that are certain without the circular are listed: the
+# fixed-date national holidays and Good Friday (from Easter). Lunar-calendar
+# closures (Holi, Ram Navami, Mahavir Jayanti, Id, Muharram, Ganesh Chaturthi,
+# Dussehra, Diwali, Guru Nanak Jayanti ...) are left out until they are copied
+# from the circular. A missing holiday counts as a session, so a bar can only
+# read one session older than it is (stale on the safe side), never fresher.
+NSE_HOLIDAYS = frozenset({
+    # 2026 (15 Aug falls on a Saturday)
+    _date(2026, 1, 26),     # Republic Day
+    _date(2026, 4, 3),      # Good Friday
+    _date(2026, 4, 14),     # Dr. Baba Saheb Ambedkar Jayanti
+    _date(2026, 5, 1),      # Maharashtra Day
+    _date(2026, 10, 2),     # Mahatma Gandhi Jayanti
+    _date(2026, 12, 25),    # Christmas
+    # 2027 (1 May, 15 Aug, 2 Oct and 25 Dec fall on weekends)
+    _date(2027, 1, 26),     # Republic Day
+    _date(2027, 3, 26),     # Good Friday
+    _date(2027, 4, 14),     # Dr. Baba Saheb Ambedkar Jayanti
+})
+
+
+def listing_market(ticker: Optional[str]) -> str:
+    """'IN' for an NSE / BSE listing (by its .NS / .BO suffix), else 'US'."""
+    return "IN" if str(ticker or "").strip().upper().endswith(INDIA_SUFFIXES) else "US"
+
+
+def now_india(now: Optional[datetime] = None) -> datetime:
+    """*now* (default: the wall clock) expressed in India time (IST)."""
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return now.astimezone(_IST)
+
+
+def is_india_trading_day(day: _date) -> bool:
+    """True when NSE holds a regular session on *day* (see NSE_HOLIDAYS)."""
+    return day.weekday() < 5 and day not in NSE_HOLIDAYS
+
+
+def previous_india_trading_day(day: _date) -> _date:
+    """The last India session strictly before *day*."""
+    day -= timedelta(days=1)
+    while not is_india_trading_day(day):
+        day -= timedelta(days=1)
+    return day
+
+
+def india_trading_days_between(start: _date, end: _date) -> int:
+    """India sessions in the half-open interval (start, end]. Negative if end < start."""
+    if end < start:
+        return -india_trading_days_between(end, start)
+    count, day = 0, start
+    while day < end:
+        day += timedelta(days=1)
+        if is_india_trading_day(day):
+            count += 1
+    return count
+
+
+def last_completed_india_session(now: Optional[datetime] = None) -> _date:
+    """The most recent India session whose daily bar is final at *now*.
+
+    Before the IST close on a session day, today's bar is still forming, so the
+    last COMPLETED session is the previous one.
+    """
+    from .thresholds import RESEARCH
+
+    ist = now_india(now)
+    today = ist.date()
+    close_h, close_m = RESEARCH.INDIA_SESSION_CLOSE_IST
+    if is_india_trading_day(today) and ist.time() >= time(int(close_h), int(close_m)):
+        return today
+    return previous_india_trading_day(today)

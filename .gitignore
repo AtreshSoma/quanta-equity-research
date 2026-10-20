@@ -15,6 +15,9 @@ venv/
 .env
 .env.*
 
+# Compliance audit trail written by modules/compliance_manager.py into the working directory
+compliance_audit.json
+
 # Exports & runtime logs. Anchored: an unanchored `logs/` also hid docs/logs/,
 # the folder of implementation records, from git.
 exports/

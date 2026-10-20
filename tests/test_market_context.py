@@ -41,15 +41,15 @@ def test_calendar_keeps_only_the_coming_week(monkeypatch, tmp_path):
 def test_regime_history_records_the_engine_read_and_reports_its_changes(monkeypatch, tmp_path):
     monkeypatch.setattr(webapp_app, "_REGIME_HISTORY_PATH", tmp_path / "rh.json")
     import json
-    from datetime import datetime, timedelta
-    yesterday = (datetime.now().date() - timedelta(days=1)).isoformat()
+    # Sessions, not calendar days: Thursday's row, then Friday's read.
     (tmp_path / "rh.json").write_text(json.dumps({"US": [{
-        "date": yesterday, "tone": "Neutral", "net": 0, "vix": 15.0, "participation": 50, "ten_year": 5.2, "factors": {},
+        "date": "2026-10-15", "tone": "Neutral", "net": 0, "vix": 15.0, "participation": 50, "ten_year": 5.2, "factors": {},
         "posture": "Lean Long", "regime": "Mildly Constructive", "direction": 58, "confidence": 30,
         "engine_factors": {"news": {"label": "News Impact", "score": 0}}}]}), encoding="utf-8")
     engine = {"posture": "Neutral", "marketRegimeBase": "Mixed Market", "confidenceScore": 18,
               "factors": [{"key": "trend", "label": "Trend", "score": 1}, {"key": "news", "label": "News Impact", "score": -2}]}
-    out = webapp_app._regime_change_block("US", "Neutral", [], 15.0, 50, 5.2, engine=engine)
+    out = webapp_app._regime_change_block("US", "Neutral", [], 15.0, 50, 5.2, engine=engine,
+                                          session_date="2026-10-16")
     texts = [c["text"] for c in out["regime_changes"]]
     assert "Posture moved Lean Long \u2192 Neutral" in texts
     assert "Direction 58 \u2192 38 of 100" in texts  # two factors summing to -1 of a possible 4

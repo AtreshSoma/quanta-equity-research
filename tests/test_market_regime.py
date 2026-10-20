@@ -209,7 +209,7 @@ class V2RegimeModelTests(unittest.TestCase):
             # Label must communicate the uncertainty (low-confidence OR stale).
             regime = engine.get("marketRegime") or ""
             self.assertTrue(
-                ("Low Confidence" in regime) or ("Data Incomplete" in regime) or ("Cautious" in regime),
+                ("low confidence" in regime.lower()) or ("Data Incomplete" in regime) or ("Cautious" in regime),
                 f"regime label should flag uncertainty, got {regime!r}",
             )
             self.assertTrue(engine.get("confidenceReasons"))
@@ -237,7 +237,10 @@ class V2RegimeModelTests(unittest.TestCase):
         self.assertNotEqual(engine.get("colorTheme", {}).get("toneClass"), "bull")
         self.assertIn(engine.get("portfolioGuidance", {}).get("headlineTone"), {"warn", "bear"})
 
-    def test_high_impact_bearish_news_caps_bullish_posture_and_confidence(self):
+    def test_high_impact_bearish_news_lowers_confidence_but_never_caps_posture(self):
+        # News is a keyword lexicon: it scores through News Impact and lowers
+        # confidence, but no rule caps the posture on headlines alone
+        # (tests/test_regime_accuracy_1019.py covers a fully measured tape).
         fake_bull = _make_snapshot_factory(
             trend_pct=0.9, vix_price=13.0, yield_pct=-0.6, green_count=7
         )
@@ -258,12 +261,15 @@ class V2RegimeModelTests(unittest.TestCase):
         }
         snap = self._run_snapshot(fake_bull, news=bearish_news)
         engine = snap.get("market_regime_engine") or {}
-        self.assertNotIn(str(engine.get("posture")), {"Offensive", "Selective Offensive"})
         self.assertLessEqual(
             int(engine.get("confidenceScore") or 100),
             int(base.get("confidenceScore") or 0),
         )
         self.assertGreaterEqual(engine.get("newsImpact", {}).get("bearishHighImpact", 0), 2)
+        news = next(f for f in engine["factors"] if f["key"] == "news_impact")
+        self.assertEqual(engine["regimeScore"], base["regimeScore"] + news["score"])
+        self.assertFalse(any("headlines override" in o.lower() for o in engine.get("overridesTriggered", [])))
+        # The price/news disagreement is still disclosed.
         self.assertTrue(any("bearish" in o.lower() for o in engine.get("overridesTriggered", [])))
 
 

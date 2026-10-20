@@ -26,6 +26,9 @@ from .sources import load_official_calendar
 BENCHMARK = "SPY"
 BENCHMARK_NAME = "S&P 500 (SPY)"
 PRICE_TTL = 15 * 60
+# A failed price read is remembered only briefly: a recovered provider is picked up on the
+# next load instead of replaying the outage for the full PRICE_TTL.
+PRICE_RETRY_TTL = 30
 PROFILE_TTL = 24 * 3600
 INTRADAY_TTL = 120
 CANDIDATE_TTL = 10 * 60
@@ -154,7 +157,7 @@ class Insights:
         key = (tuple(sorted(set(symbols))), period)
         with self._lock:
             hit = self._closes.get(key)
-            if hit and time.time() - hit[0] < PRICE_TTL:
+            if hit and time.time() - hit[0] < (PRICE_TTL if hit[1] is not None else PRICE_RETRY_TTL):
                 return hit[1]
         try:
             frame = self.src.prices(sorted(set(symbols)), period)

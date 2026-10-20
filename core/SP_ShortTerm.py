@@ -1281,7 +1281,7 @@ def decision_for_setup(setup: TradingSetup) -> Decision:
                 "shares": setup.shares if action.allocates_new_capital else 0},
         sources=[SourceRef("px", "price", setup.price_source or "unknown",
                            as_of=setup.price_as_of)],
-        freshness=assess_price_freshness(price_date),
+        freshness=assess_price_freshness(price_date, ticker=setup.ticker),
     )
     if not setup.info_missing:
         decision.sources.append(SourceRef("info", "fundamentals", "yfinance"))
@@ -2556,7 +2556,7 @@ class StrategicStockAnalyzer:
             # Nothing previously checked the date of the last bar, so a stale
             # Stooq fallback or a halted name produced "current" entry prices.
             last_bar = pd.Timestamp(hist.index[-1]).date()
-            freshness = assess_price_freshness(last_bar)
+            freshness = assess_price_freshness(last_bar, ticker=ticker)
             if freshness.status == "stale":
                 logger.warning("%s: %s", ticker, "; ".join(freshness.notes))
                 self.diagnostics.record(ticker, Outcome.STALE_PRICE_DATA)

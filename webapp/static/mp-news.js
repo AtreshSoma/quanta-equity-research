@@ -151,7 +151,8 @@
     function itemHtml(i, open) {
       const w = i.when || whenText(i);
       const chips = (i.exposure.symbols || []).map((s) => `<button type="button" class="hp-sym mpn-sym" data-hp-inspect="${esc(s)}" aria-label="${esc(`${s} details`)}">${esc(s)}</button>`).join(' ');
-      const weight = i.exposure.weight != null ? `${pct(i.exposure.weight, 1)} of the account` : (i.exposure.scope || '');
+      // General market items say so; they are not about any one holding.
+      const weight = i.exposure.weight != null ? `${pct(i.exposure.weight, 1)} of the account` : (i.relevance === 'market' ? 'General market item, not about one holding' : (i.exposure.scope || ''));
       const est = i.exposure.estimate != null ? `, about ${priv(H.money(i.exposure.estimate, 2))} at your share count` : '';
       const src = i.source && /^https?:\/\//i.test(String(i.source.url || '')) ? `<a href="${esc(i.source.url)}" target="_blank" rel="noopener noreferrer">${esc(i.source.name)}<span class="sr-only"> (opens in a new tab)</span></a>` : esc((i.source || {}).name || '');
       return `<article class="mpn-item mpn-item--${esc(i.kind)}" aria-labelledby="ev-${esc(i.id)}">

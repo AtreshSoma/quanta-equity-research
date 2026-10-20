@@ -26,6 +26,12 @@ SURVIVORSHIP_CAVEAT = (
     "Universe is a static list of 42 present-day US large caps (survivorship "
     "and selection bias). Relative comparisons are more trustworthy than levels."
 )
+# The out-of-sample test of a composite measures ranking power only.
+RANKING_TEST_CAVEAT = (
+    "This is a ranking test (does a higher score precede a better 21- and 63-session retu"
+    "rn?). It does not simulate the live engine's entries, stops, position sizes or costs"
+    ", so it says nothing about the returns of following the calls."
+)
 T_THRESHOLD = 2.0
 
 
@@ -79,14 +85,14 @@ def elite_entry_from_oos(report: Dict[str, Any]) -> Dict[str, Any]:
              if v.get("mean_ic") is not None and v.get("t_stat") is not None]
     return {
         "status": status,
-        "summary": ("Composite score does not predict forward returns out of sample — "
+        "summary": ("Composite score does not predict forward returns out of sample. "
                     + "; ".join(parts)) if status == "NO_EDGE" else "; ".join(parts),
         "tested_through": report.get("end"),
         "scope": (f"Technical + risk components only ({report.get('composite_weight_covered', 0):.0%} "
                   "of composite weight); fundamentals have no point-in-time source."),
         "metrics": stats,
-        "caveats": [SURVIVORSHIP_CAVEAT,
-                    "Walk-forward trade simulation (2017-2026): CAGR 0.76% vs SPY 11.41%."],
+        # The pre-F01 trade-simulator CAGR is invalidated (INVALIDATED.md): never cite it.
+        "caveats": [SURVIVORSHIP_CAVEAT, RANKING_TEST_CAVEAT],
         "source": "apex_quant/_reports/elite_oos.json",
         "generated_utc": report.get("generated_at"),
     }
@@ -123,7 +129,7 @@ def shortterm_entry_from_backtest(summary: Dict[str, Any], source: str) -> Dict[
                     "Entry signals do not " + (
                         "beat SPY or random entries" if not (beats_spy or beats_random)
                         else "beat random entries" if beats_spy else "beat SPY")
-                    + " out of sample: " + stated),
+                    + " out of sample. " + stated),
         "tested_through": cfg.get("end"),
         "scope": (f"Price-based legs only (technical, momentum, pattern: {covered:.0%} of composite "
                   "weight); fundamental, quality and analyst legs held neutral. No regime "

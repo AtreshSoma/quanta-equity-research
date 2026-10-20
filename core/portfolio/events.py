@@ -332,9 +332,15 @@ def build_events(rows: Sequence[Dict[str, Any]], *, now: datetime, policy: Dict[
     rank = {"today": 0, "week": 1, "later": 2, "recent": 3}
     kind_rank = {"earnings": 0, "filing": 1, "dividend": 2, "macro": 3, "news": 4}
 
+    # Relevance: an item that names a holding is "holding"; a market-wide one is "market".
+    # Holding items lead each bucket so general stories cannot crowd them out.
+    for it in unique:
+        it["relevance"] = "holding" if (it.get("exposure") or {}).get("symbols") else "market"
+
     def key(it: Dict[str, Any]):
         recent = it["bucket"] == "recent"
-        return (rank[it["bucket"]], it["date"] if not recent else "", -(it.get("exposure", {}).get("weight") or 0),
+        return (rank[it["bucket"]], 0 if it["relevance"] == "holding" else 1,
+                it["date"] if not recent else "", -(it.get("exposure", {}).get("weight") or 0),
                 kind_rank.get(it["kind"], 9), "" if not recent else it.get("time") or "")
 
     unique.sort(key=key)

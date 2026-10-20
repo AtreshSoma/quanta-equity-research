@@ -276,11 +276,19 @@ def risk_level(conc: Dict[str, Any], sectors: List[Dict[str, Any]], beta: Dict[s
         drivers.append(f"Loss to stops would be {sl:.0%} of the portfolio")
     assessed = (top is not None) and (b is not None or v is not None)
     if not assessed:
-        return {"level": "Not assessed", "points": None, "drivers": drivers,
+        return {"level": "Not assessed", "points": None, "drivers": drivers, "partial": True,
+                "unmeasured": ["beta", "volatility"],
                 "note": "Not enough beta or volatility data to grade portfolio risk."}
+    # An input that could not be measured adds no points, so the score is a floor: say which.
+    unmeasured = []
+    if b is None or beta.get("coverage", 0) < 0.5:
+        unmeasured.append("beta")
+    if v is None or vol.get("coverage", 0) < 0.5:
+        unmeasured.append("volatility")
     level = ("Low" if points <= 1 else "Moderate" if points <= 3
              else "Elevated" if points <= 5 else "High")
-    return {"level": level, "points": points, "drivers": drivers, "note": ""}
+    return {"level": level, "points": points, "drivers": drivers, "note": "",
+            "partial": bool(unmeasured), "unmeasured": unmeasured}
 
 
 def change_impact(holdings: Sequence[Holding], total: float, cash: Optional[float],

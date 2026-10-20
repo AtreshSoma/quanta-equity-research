@@ -21,7 +21,7 @@ test('summaries take the right article', () => {
 test('My Portfolio shows one label for Hold / No New Money on every tab', () => {
   const mp = read('static/my-portfolio.js');
   assert.match(mp, /'Hold \/ No New Money': 'Hold, no new money'/);
-  assert.match(mp, /const actionChip = \(a(, ev)?\) => [^\n]*actionLabel\(a\)/);
+  assert.match(mp, /const actionChip = \(a(, ev)?(, g)?\) => [^\n]*actionLabel\(a(, g)?\)/);
   for (const f of ['static/my-portfolio.js', 'static/mp-overview.js', 'static/mp-guidance.js']) {
     assert.doesNotMatch(read(f), /Hold, no adds/, f);
   }

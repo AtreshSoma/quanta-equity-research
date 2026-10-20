@@ -8,9 +8,9 @@ Captures the fields the user asked for in the HOLD inflation diagnosis:
     final_action, final_action_reason (first), override_source.
 
 Run with the dashboard up on :5500:
-    python tests/uat_hold_audit.py
+    python tests/manual/uat_hold_audit.py
 or with a custom ticker list:
-    python tests/uat_hold_audit.py AAPL MSFT NVDA
+    python tests/manual/uat_hold_audit.py AAPL MSFT NVDA
 """
 from __future__ import annotations
 

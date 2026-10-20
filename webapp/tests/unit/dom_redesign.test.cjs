@@ -3,7 +3,7 @@
  * completeness guarantees for the Deep-Dive tear sheet and the Portfolio
  * Builder position list (jsdom, no network).
  *
- * Run: node --test tests/dom_redesign.test.cjs
+ * Run: node --test tests/unit/dom_redesign.test.cjs
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'templates', 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', '..', 'templates', 'index.html'), 'utf8');
 const dom = new JSDOM(html, { url: 'http://127.0.0.1:5500/' });
 global.document = dom.window.document;
 global.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
@@ -20,7 +20,7 @@ global.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () =
 global.requestAnimationFrame = () => 0;
 global.window = undefined;
 
-const app = require('../static/app.js');
+const app = require('../../static/app.js');
 
 function analysisFixture(over = {}) {
   return Object.assign({
@@ -431,7 +431,7 @@ test('A12: one shared evidence and disclaimer note near the results, no repeats'
 });
 
 test('A12: a long result list renders compact rows first and mounts a card on demand', () => {
-  const T = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, 'fixtures', 'thresholds.json'), 'utf8'));
+  const T = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'fixtures', 'thresholds.json'), 'utf8'));
   const n = T.UI.COMPACT_LIST_AFTER + 5;
   const fixture = picksFixture();
   const base = fixture.recommendations[0];
@@ -453,13 +453,13 @@ test('A12: a long result list renders compact rows first and mounts a card on de
 });
 
 test('A12: compact rows do not bring back the duplicate watchlist card', () => {
-  const T = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, 'fixtures', 'thresholds.json'), 'utf8'));
+  const T = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'fixtures', 'thresholds.json'), 'utf8'));
   const fixture = picksFixture();
   const base = fixture.recommendations[1];
   fixture.recommendations = Array.from({ length: T.UI.COMPACT_LIST_AFTER + 1 }, (_, i) => Object.assign({}, base, { ticker: `W${i}` }));
   fixture.analyzer_disagreement_watchlist = [{ ticker: 'W0', reason: 'x' }];
   app.renderPicks(fixture);
-  require('../static/elite-pro.js');
+  require('../../static/elite-pro.js');
   globalThis.QuantaPro.injectAnalyzerWatchlist(fixture);
   const stream = document.querySelector('#picks-results .picks-stream');
   assert.ok(stream.querySelector('.pick-lazy'));
@@ -468,7 +468,7 @@ test('A12: compact rows do not bring back the duplicate watchlist card', () => {
 
 test('A12: the Pro cards follow the shared note, so the note stays beside the summary', () => {
   app.renderPicks(picksFixture());
-  require('../static/elite-pro.js');
+  require('../../static/elite-pro.js');
   globalThis.QuantaPro.injectBuilderExtras(picksFixture());
   const root = document.querySelector('#picks-results');
   assert.ok(root.querySelector('.portfolio-summary').nextElementSibling.matches('[data-shared-note]'));

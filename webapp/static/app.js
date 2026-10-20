@@ -13491,7 +13491,7 @@ if (typeof module !== 'undefined' && module.exports) {
     highImpactNews,
     newsMeaning,
     upsideCell,
-    // DOM section renderers (exercised by tests/dom_render.test.cjs via jsdom)
+    // DOM section renderers (exercised by tests/unit/dom_render.test.cjs via jsdom)
     renderSessionBar,
     renderMarketRegime,
     renderMarketPulse,
@@ -13525,7 +13525,7 @@ if (typeof module !== 'undefined' && module.exports) {
     scoreBar,
     renderTrackRecord,
     trackPlainLine,
-    // Whole-view renderers (tests/dom_redesign.test.cjs)
+    // Whole-view renderers (tests/unit/dom_redesign.test.cjs)
     renderAnalysis,
     runAnalysis,
     setFieldError,

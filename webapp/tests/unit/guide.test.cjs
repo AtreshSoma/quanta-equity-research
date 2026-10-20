@@ -246,6 +246,9 @@ test('the posture ladder shows each band, and low confidence or stale data repla
   assert.equal(app.guidePosture('lean-long').text.includes('50-70% gross exposure'), true);
   assert.deepEqual(app.guidePosture('offensive', 'low').band, [30, 55]);
   assert.deepEqual(app.guidePosture('defensive', 'stale').band, [20, 45]);
+  // A low-confidence cap never lifts a defensive band (it once read 30-55%).
+  assert.deepEqual(app.guidePosture('defensive', 'low').band, [20, 50]);
+  assert.equal(app.guidePosture('defensive', 'low').capped, false);
   for (const row of $$('.hw-posture-row')) {
     const p = app.GUIDE_POSTURES[row.dataset.posture];
     assert.ok(p, row.dataset.posture);
@@ -554,19 +557,21 @@ test('score bands and the holder rule match the thresholds', () => {
 });
 
 test('posture bands match the Overview playbook', () => {
-  const band = (posture) => {
+  // One source: MARKET.EXPOSURE_BANDS feeds app.py's playbook and the Guide.
+  const B = globalThis.__QUANTA_THRESHOLDS__.MARKET.EXPOSURE_BANDS;
+  const key = (posture) => {
     const i = appPy.indexOf(posture);
     assert.ok(i > 0, posture);
-    return appPy.slice(i).match(/"band": "(\d+)-(\d+)% gross"/).slice(1).map(Number);
+    return appPy.slice(i).match(/"band": _band_text\("(\w+)"\)/)[1];
   };
-  assert.deepEqual(app.GUIDE_POSTURES.offensive.band, band('if posture in {"Offensive", "Selective Offensive"}'));
-  assert.deepEqual(app.GUIDE_POSTURES['lean-long'].band, band('elif posture == "Lean Long"'));
-  assert.deepEqual(app.GUIDE_POSTURES.neutral.band, band('elif posture == "Neutral"'));
-  const defensive = appPy.slice(appPy.indexOf('elif posture == "Neutral"')).match(/else:[\s\S]*?"band": "(\d+)-(\d+)% gross"/).slice(1).map(Number);
-  assert.deepEqual(app.GUIDE_POSTURES.defensive.band, defensive);
-  const cap = appPy.match(/"band": "(\d+)-(\d+)% gross" if stale else "(\d+)-(\d+)% gross"/).slice(1).map(Number);
-  assert.deepEqual(app.GUIDE_POSTURE_CAP.stale, cap.slice(0, 2));
-  assert.deepEqual(app.GUIDE_POSTURE_CAP.low, cap.slice(2));
+  assert.deepEqual(app.GUIDE_POSTURES.offensive.band, B[key('if posture in {"Offensive", "Selective Offensive"}')]);
+  assert.deepEqual(app.GUIDE_POSTURES['lean-long'].band, B[key('elif posture == "Lean Long"')]);
+  assert.deepEqual(app.GUIDE_POSTURES.neutral.band, B[key('elif posture == "Neutral"')]);
+  const defensive = appPy.slice(appPy.indexOf('elif posture == "Neutral"')).match(/else:[\s\S]*?"band": _band_text\("(\w+)"\)/)[1];
+  assert.deepEqual(app.GUIDE_POSTURES.defensive.band, B[defensive]);
+  assert.match(appPy, /cap_band = _band_text\("cap_stale" if stale else "cap_low_confidence"\)/);
+  assert.deepEqual(app.GUIDE_POSTURE_CAP.stale, B.cap_stale);
+  assert.deepEqual(app.GUIDE_POSTURE_CAP.low, B.cap_low_confidence);
   for (const label of ['Offensive', 'Selective Offensive', 'Lean Long', 'Neutral', 'Lean Defensive', 'Selective Defensive', 'Defensive']) {
     assert.ok(appPy.includes(`"${label}"`), `posture ${label}`);
   }

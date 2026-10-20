@@ -107,11 +107,11 @@ def apply_risk_override_details(
             # BUY.
             if candidate in (FinalAction.STRONG_BUY, FinalAction.BUY):
                 _add(
-                    "RISK_GRADE_D_CAP", f"Risk Grade D blocks fresh BUY — {candidate.value} → ACCUMULATE (reduced size)"
+                    "RISK_GRADE_D_CAP", f"Risk Grade D blocks fresh BUY: {candidate.value} → ACCUMULATE (reduced size)"
                 )
                 candidate = FinalAction.ACCUMULATE
             else:
-                _add("RISK_GRADE_D_HOLD", "Risk Grade D — hold at ACCUMULATE (reduced size)")
+                _add("RISK_GRADE_D_HOLD", "Risk Grade D: hold at ACCUMULATE (reduced size)")
 
     # 3b. Qualitative red-flag overrides shared by BOTH engines.
     #     These let the scanner and the deep analyzer feed the SAME signals

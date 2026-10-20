@@ -19,6 +19,9 @@
   // The range buttons, in order. 6M stays a valid range for older links and the export.
   const RANGES = ['1D', '1W', '1M', '3M', 'YTD', '1Y', 'MAX'];
   const RANGE_SHORT = { MAX: 'All' };
+  // The server remembers a failed price read for 30 seconds; one retry follows it.
+  const PERF_RETRY_MS = 35000;
+  const perfUnusable = (d) => !d || d.available === false || !Object.values(d.simulation || {}).some((s) => s && s.available);
   const EXPO_VIEWS = [['sector', 'Sector'], ['asset_class', 'Asset class'], ['geography', 'Geography'], ['holdings', 'Holdings']];
 
   const readJson = (k, dflt) => { try { const v = JSON.parse(root.localStorage.getItem(k)); return v && typeof v === 'object' ? v : dflt; } catch (_) { return dflt; } };
@@ -84,6 +87,13 @@
       if (key === 'perf' || key === 'intra') ins.animate = true;
       if (key === 'expo') ins.barsAnim = true;
       paint(key);
+      if (key === 'perf' && ins.perf.s === 'ok') {
+        if (!perfUnusable(ins.perf.data)) ins.perfRetried = false;
+        else if (!ins.perfRetried) {
+          ins.perfRetried = true;
+          root.setTimeout(() => { if (ins.perf.s === 'ok' && perfUnusable(ins.perf.data)) load('perf', true); }, PERF_RETRY_MS);
+        }
+      }
       if (key === 'events' && host.ext.onEvents) host.ext.onEvents();
     }
 
@@ -317,7 +327,13 @@
       const rd = rangeData(mode);
       if (!rd || !rd.d || !rd.d.available) {
         const reason = (rd && rd.d && rd.d.reason) || (P.data && P.data.reason) || 'Price history is unavailable.';
-        return `${head()}<div class="q-body mp-perf-body">${ctrls()}<p class="mp-unavail" role="status">No chart for this range. ${esc(reason)}</p></div>`;
+        const missing = ((rd && rd.d && rd.d.excluded) || []).map((e) => `${esc(e.symbol)} (${esc(String(e.reason).toLowerCase())})`);
+        const sims = (P.data && P.data.simulation) || {};
+        const alts = RANGES.filter((k) => k !== '1D' && k !== (rd && rd.rk) && sims[k] && sims[k].available);
+        const readAt = P.at ? new Date(P.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+        return `${head()}<div class="q-body mp-perf-body">${ctrls()}<p class="mp-unavail" role="status" data-chart-unavailable>No chart for this range. ${esc(reason)}</p>
+          ${missing.length ? `<p class="hp-fine mp-nochart" role="note">No usable prices for: ${missing.join(', ')}.</p>` : ''}
+          <p class="hp-fine mp-nochart">${readAt ? `Price history last read at ${esc(readAt)}. ` : ''}It is read again automatically once; <button type="button" class="q-btn q-btn--link" data-hp-x="retry:${key}">reload it now</button>${alts.length ? `, or show ${alts.map((k) => `<button type="button" class="q-btn q-btn--link" data-hp-x="range:${k}">${esc(RANGE_LABEL[k])}</button>`).join(' or ')} instead` : ''}.</p></div>`;
       }
       const excl = (rd.d.excluded || []);
       const cov = rd.d.coverage;

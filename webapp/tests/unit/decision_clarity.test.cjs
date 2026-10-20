@@ -31,7 +31,7 @@ function nbix(over = {}) {
     evidence: { status: 'UNTESTED', status_text: 'Never validated', permits_recommendation: false },
     freshness: { status: 'fresh', last_bar: '2026-09-25', lag_sessions: 0 },
     levels: { reference_price: 138.05, entry: 138.33, stop: 132.57, target: 180.06, reward_risk: 7.04 },
-    reasons: ['Composite score 62.7 → candidate ACCUMULATE', 'Risk Grade D — hold at ACCUMULATE (reduced size)'],
+    reasons: ['Composite score 62.7 → candidate ACCUMULATE', 'Risk Grade D: hold at ACCUMULATE (reduced size)'],
     blocking: ['Preliminary analysis; full checks were skipped.'], conflicts: [], scenarios: [],
   };
   return Object.assign({

@@ -120,33 +120,38 @@ const intelFixture = {
   analyst_picks: [],
 };
 
-test('Market Regime renders the call, its direction and confidence, and the strategy', () => {
+test('The mood card names the stance in plain words, a zoned dial, the money band and how sure the model is', () => {
   app.renderMarketRegime(marketFixture(), newsFixture, intelFixture);
   const el = document.querySelector('#decision-brief');
   const text = el.textContent;
-  assert.ok(el.querySelector('.q-regime-title'), 'regime title node present');
-  assert.match(text, /Constructive — Selective/);
-  assert.match(text, /Confidence/);
   assert.ok(!el.querySelector('.q-skel'), 'skeleton cleared');
   assert.ok(!/undefined|NaN|null/.test(text), `no raw undefined/NaN in: ${text.slice(0, 200)}`);
-  // Two labelled measures: direction (the factor sum, 0-100) and confidence.
-  // Index levels, VIX and participation live in the ribbon and their panel only.
-  assert.match(el.querySelector('.q-measure-v').textContent, /^\d+\/100$/);
-  assert.match(text, /Direction/);
-  assert.match(el.querySelector('.q-measure-s').textContent, /\d+ support, \d+ against, \d+ neutral/);
-  assert.ok(el.querySelector('.q-measure-note').textContent.length > 30, 'one sentence ties the two measures');
-  assert.equal(el.querySelectorAll('.q-metrics').length, 0, 'no repeated price strip');
-  assert.equal(el.querySelectorAll('h1').length, 0, 'the page has one h1; the regime is an h2');
-  // The evidence lives once, in the factor table and "What would change the
-  // call"; the card links to it instead of folding a copy behind "+".
-  assert.equal(el.querySelectorAll('details.q-disclose').length, 0, 'no folded copies of other panels');
-  assert.ok(el.querySelector('.q-textlink[data-jump="signal-check"]'), 'a link to the factor table');
-  // De-dup: the regime panel must not restate Signal Check or Market Drivers.
-  assert.ok(!el.querySelector('.q-fact'), 'no factor bars duplicated into the regime panel');
-  assert.ok(!/Top Market Drivers/.test(text));
+  assert.equal(el.querySelector('h1'), null, 'the page heading is the week sentence, not the mood');
+  assert.equal(el.querySelector('#mood-h').textContent.trim(), 'Market mood');
+  assert.equal(el.dataset.mood, 'confident');
+  assert.equal(el.querySelector('.ovx-mood-word').textContent, 'Confident');
+  assert.match(el.querySelector('.ovx-dial').getAttribute('aria-label'), /Mood score \d+ of 100: (cautious|mixed|confident) zone/);
+  assert.match(el.querySelector('.ovx-money').getAttribute('aria-label'), /Invest 60 to 80 percent/);
+  // Confidence is a score out of 100, never a percentage that reads as a probability.
+  assert.match(el.querySelector('.ovx-sure').textContent, /High[\s\S]*72\/100/);
+  assert.doesNotMatch(text, /72%/);
+  const why = el.querySelectorAll('.ovx-why li');
+  assert.ok(why.length >= 1 && why.length <= 3, 'one to three plain reasons');
+  // The model's own name for the stance is kept for pros.
+  assert.match(el.querySelector('.ovx-proline').textContent, /Selective Offensive/);
 });
 
-test('Market Regime surfaces backend risk caps as an inline flag', () => {
+test('The factor table keeps its open state across a refresh', () => {
+  const det = document.querySelector('#ov-pro-factors');
+  det.setAttribute('open', '');
+  app.renderSignalCheck(marketFixture(), newsFixture, intelFixture);
+  app.renderMarketRegime(marketFixture(), newsFixture, intelFixture);
+  assert.ok(det.hasAttribute('open'));
+  assert.ok(det.querySelector('#signal-check-body .q-fact'), 'the table renders inside its disclosure');
+  det.removeAttribute('open');
+});
+
+test('The mood card surfaces backend risk caps as an inline note', () => {
   app.renderMarketRegime(marketFixture({
     posture: 'Neutral',
     marketRegime: 'Mixed Market',
@@ -154,66 +159,39 @@ test('Market Regime surfaces backend risk caps as an inline flag', () => {
     overridesTriggered: ['VIX 26.4 > 25 — risk-on/offensive blocked (capped at Neutral)'],
   }), newsFixture, intelFixture);
   const el = document.querySelector('#decision-brief');
-  const note = Array.from(el.querySelectorAll('.q-flag')).map((n) => n.textContent).find((t) => /Risk caps active/.test(t));
-  assert.ok(note, 'override flag rendered');
+  const note = Array.from(el.querySelectorAll('.ovx-note')).map((n) => n.textContent).find((t) => /Risk caps active/.test(t));
+  assert.ok(note, 'override note rendered');
   assert.match(note, /VIX 26\.4/);
 });
 
-test('Market Regime shows the low-confidence reason even without backend reasons', () => {
+test('The mood card shows the low-confidence reason even without backend reasons', () => {
   app.renderMarketRegime(marketFixture({
     lowConfidence: true, confidenceScore: 38, confidenceLabel: 'Low', confidenceReasons: [],
     colorTheme: { toneClass: 'neutral' }, marketRegime: 'Mixed Market — Low Confidence',
   }), newsFixture, intelFixture);
   const el = document.querySelector('#decision-brief');
-  // The gauge owns the number and where it sits against the model thresholds;
-  // the flag owns the reason. Each fact is stated once.
-  assert.match(el.querySelector('.q-conf-num').textContent, /38%/);
-  assert.match(el.querySelector('.q-conf-band').textContent, /moderate begins at 50/i);
-  const fill = el.querySelector('.q-gauge-fill');
-  assert.equal(fill.style.width, '38%', 'gauge reads the actual score');
-  assert.deepEqual(Array.from(el.querySelectorAll('.q-gauge-tick')).map((t) => t.dataset.at), ['50', '70']);
-  const flag = el.querySelector('.q-regime-why');
-  assert.ok(flag && /Confidence is low/.test(flag.textContent), 'low-confidence reason rendered');
-  assert.ok(flag.textContent.trim().length > 30, 'a reason is present, not a headless banner');
-  // The engine suffixes the regime name for thin clients; the panel must not
-  // repeat what the gauge and the flag already say.
-  assert.ok(!/Low Confidence/.test(el.querySelector('.q-regime-title').textContent), 'title states the regime once');
+  assert.match(el.querySelector('.ovx-sure').textContent, /Low[\s\S]*38\/100/);
+  const flag = [...el.querySelectorAll('.ovx-note')].find((n) => /Low confidence/.test(n.textContent));
+  assert.ok(flag && flag.textContent.trim().length > 30, 'a reason is present, not a headless banner');
+  assert.doesNotMatch(el.querySelector('.ovx-mood-word').textContent, /Low Confidence/);
 });
 
-test('Playbook carries stance, exposure band and the avoid rule without pills', () => {
-  app.renderPlaybook(marketFixture(), newsFixture, intelFixture);
-  const body = document.querySelector('#allocator-body');
-  const text = body.textContent;
-  assert.match(text, /Selective Offensive/);
-  assert.doesNotMatch(text, /60-80% gross/, 'the band is stated once, in the head');
-  assert.match(text, /Avoid/);
-  assert.ok(body.querySelector('.q-dl'), 'playbook uses a label to value list');
-  assert.equal(body.querySelectorAll('.badge, .tag, .chip').length, 0, 'no decorative pills');
-  assert.match(document.querySelector('#playbook-meta').textContent, /60-80% gross/);
-  assert.ok(!/undefined|NaN/.test(text));
+test('A cap is named only when the engine held the band lower, with its reason', () => {
+  app.renderMarketRegime(marketFixture(), newsFixture, intelFixture);
+  assert.equal(document.querySelector('#decision-brief .ovx-cap'), null, 'no cap note when the engine set none');
+  const guided = engineFixture().portfolioGuidance;
+  app.renderMarketRegime(marketFixture({ portfolioGuidance: { ...guided, band: '30-55% gross', cappedFrom: '50-70% gross', capReason: 'confidence is low' } }), newsFixture, intelFixture);
+  assert.match(document.querySelector('#decision-brief .ovx-cap').textContent, /Held under the usual 50-70% gross while confidence is low/);
 });
 
-test('Risk panel states a level, the numbers behind it, and both triggers', () => {
-  app.renderRiskPanel(marketFixture(), newsFixture, intelFixture);
-  const body = document.querySelector('#risk-body');
-  const text = body.textContent;
-  // The level is the head's figure; the body gives reasons, counts and the main risk.
-  assert.doesNotMatch(text, /risk level/);
-  assert.match(text, /Main risk/);
-  assert.doesNotMatch(text, /Breaks the call/, 'the triggers panel owns what changes the call');
-  // Event counts only (VIX and participation are stated elsewhere), each with its universe.
-  assert.equal(body.querySelectorAll('.q-metrics .q-metric').length, 2);
-  assert.match(text, /next 7 days, tracked universe/);
-  assert.ok(!/undefined|NaN/.test(text));
-  assert.match(document.querySelector('#risk-meta').textContent, /Contained|Moderate|Elevated|High/);
-});
-
-test('Risk level escalates with volatility and never reads as price direction', () => {
-  const hot = marketFixture();
-  hot.vix_level = 27.5;
-  app.renderRiskPanel(hot, newsFixture, intelFixture);
-  assert.match(document.querySelector('#risk-meta').textContent, /High/);
-  assert.match(document.querySelector('#risk-body').textContent, /27\.5/);
+test('The Watch list counts events with the engine’s numbers and names a VIX jump beside its level', () => {
+  const m = marketFixture({ newsImpact: { netDirection: 'bearish', highImpactCount: 7, bullishHighImpact: 1, bearishHighImpact: 3 } });
+  m.quotes = m.quotes.map((q) => (q.symbol === '^VIX' ? { ...q, price: 19.99, change_pct: 21.45 } : q));
+  app.renderMarketRegime(m, newsFixture, intelFixture);
+  const watch = document.querySelector('#decision-brief .ovx-watch').textContent;
+  assert.match(watch, /7 high-impact headlines \(3 bearish, 1 bullish\)/);
+  assert.match(watch, /VIX 19\.99, up 21% .*inside its calm band, but rising fast/);
+  assert.doesNotMatch(watch, /is calm/, '"calm" is never said bare on a 21% spike');
 });
 
 test('Market Signal renders one diverging bar per factor and an honest 0-10 read', () => {
@@ -229,25 +207,16 @@ test('Market Signal renders one diverging bar per factor and an honest 0-10 read
   assert.ok(!body.querySelector('.q-sig-score b'), 'the direction score is not printed twice');
 });
 
-test('Market Drivers renders driver rows with meaning + response', () => {
-  app.renderMarketDrivers(marketFixture(), newsFixture, intelFixture);
-  const body = document.querySelector('#market-drivers-body');
-  assert.match(body.textContent, /Fed signals patience/);
-  assert.match(body.textContent, /Means/);
-  assert.match(body.textContent, /Do/);
-});
-
-test('Market Ribbon renders one row of instruments plus breadth', () => {
+test('Market pulse renders one hairline row of instruments and no breadth cell', () => {
   app.renderMarketPulse(marketFixture());
   const el = document.querySelector('#market-pulse');
   assert.match(el.textContent, /S&P 500/);
-  assert.match(el.textContent, /VIX/);
+  assert.match(el.textContent, /Fear index/);
   assert.ok(!/undefined/.test(el.textContent));
-  // Prices only, in a single scrolling row: participation is not a price and
-  // lives in the Participation & movers panel.
-  assert.equal(el.querySelectorAll('.q-ribbon-scroll').length, 1, 'one ribbon, not a tile grid');
-  assert.equal(el.querySelectorAll('.q-rb').length, 4);
-  assert.equal(el.querySelector('.q-rb--breadth'), null, 'participation is not repeated in the ribbon');
+  assert.equal(el.tagName, 'UL');
+  assert.equal(el.querySelectorAll('.ovx-pu').length, 4);
+  assert.equal(el.style.getPropertyValue('--n'), '4', 'the grid has one column per instrument');
+  assert.ok(el.querySelector('.tip[data-tip]'), 'each name explains what it measures');
 });
 
 test('The Security Monitor holds no second table of the same movers', () => {
@@ -255,7 +224,7 @@ test('The Security Monitor holds no second table of the same movers', () => {
   // its Read/Next-step columns only restated the sign of change_pct. The id
   // survives as the workspace grouping the board with the veto queue — the
   // duplicated table, its bucket tabs and their renderers do not.
-  assert.equal(document.querySelector('#movers-body'), null, 'mover table removed');
+  assert.equal(document.querySelector('#security-monitor #movers-body'), null, 'mover table removed');
   assert.equal(document.querySelector('#monitor-tabs'), null, 'bucket tabs removed');
   assert.equal(typeof app.renderMovers, 'undefined', 'renderer removed, not left dormant');
   assert.equal(typeof app.showMonitorPanel, 'undefined', 'tab machinery removed');
@@ -340,32 +309,28 @@ test('Top Opportunities empty state is compact and actionable', () => {
   assert.equal(body.querySelectorAll('table').length, 0, 'no empty table shell');
 });
 
-test('Upcoming Catalysts renders earnings rows and a useful empty state', () => {
-  app.renderCatalystCalendar(intelFixture, newsFixture);
-  const body = document.querySelector('#event-risk-body');
-  assert.match(body.textContent, /AAPL/);
-  assert.ok(body.querySelector('table.q-table'), 'catalysts render as a table');
-  const cols = Array.from(body.querySelectorAll('thead th')).map((n) => n.textContent.trim()).filter(Boolean);
-  assert.deepEqual(cols, ['When', 'Event', 'Affected', 'Category', 'Impact']);
-  // [DE-DUP] Catalysts is forward-looking only — it must NOT re-list live news
-  // headlines (those live in Market Impact / Market Drivers).
-  assert.ok(!/just-broken macro|Live ·/.test(body.textContent), 'no live-macro headlines duplicated in catalysts');
-  assert.ok(!/Fed signals patience/.test(body.textContent), 'driver headline not duplicated into catalysts');
-
-  // An empty feed means "nothing was returned", not "nothing is scheduled" —
-  // the empty state must not read as an all-clear the data cannot support.
-  app.renderCatalystCalendar({ earnings_week: [] }, { groups: {} });
-  const emptyText = document.querySelector('#event-risk-body').textContent;
-  assert.match(emptyText, /No earnings dates returned/);
-  assert.match(emptyText, /does not rule out/i, 'the empty state is not read as an all-clear');
+test('Largest movers lists each side against the biggest move and never draws an up/down share', () => {
+  app.state.dashboard = { market: marketFixture(), news: newsFixture, market_intel: intelFixture };
+  app.renderMoversRail(intelFixture);
+  const body = document.querySelector('#movers-body');
+  assert.match(body.textContent, /NVDA/);
+  assert.match(body.textContent, /XYZ/);
+  assert.equal(body.querySelectorAll('.ovx-mv').length, 2);
+  assert.equal(body.querySelector('.q-breadth-bar'), null);
+  assert.match(body.textContent, /not market breadth/);
+  app.renderMoversRail({ loading: false, movers_up: [], movers_down: [] });
+  assert.match(document.querySelector('#movers-body').textContent, /returned no movers/);
 });
 
-test('Top headlines bar renders drivers or an honest quiet state', () => {
-  app.renderTopHeadlines(marketFixture(), newsFixture);
-  assert.match(document.querySelector('#top-headlines').textContent, /Fed signals patience/);
-
-  app.renderTopHeadlines({ market_regime_engine: engineFixture({ marketDrivers: [] }) }, { groups: {} });
-  assert.match(document.querySelector('#top-headlines').textContent, /Headline tape is quiet/);
+test('The session bar says whether the market is open and which close the prices are from', () => {
+  app.state.dashboard = { generated_at: '2026-10-18T20:49:51+00:00', market: {} };
+  app.renderSessionBar({ quotes: [{ symbol: 'SPY', price: 1, quote_date: '2026-10-16' }, { symbol: 'BTC-USD', label: 'Bitcoin', price: 1, quote_date: '2026-10-18' }],
+    market_regime_engine: { sourceHealth: { quotesOk: 9, quotesTotal: 9, newsSourcesOk: 10, newsSourcesTotal: 10, state: 'healthy' } } });
+  const text = document.querySelector('#ov-session').textContent.replace(/\s+/g, ' ');
+  assert.match(text, /Prices are Friday’s close \(Oct 16\)/, 'crypto\'s weekend print never dates the session');
+  assert.match(text, /9 of 9 prices, 10 of 10 news feeds/);
+  assert.match(text, /Updated \d{1,2}:\d{2} [AP]M ET/);
+  assert.equal(document.querySelectorAll('#ov-session [data-ov-mode]').length, 2, 'Plain English and Pro');
 });
 
 test('Dashboard error state is friendly, not a raw browser error', () => {
@@ -523,14 +488,14 @@ test('Source ledger renders feed health from the news payload', () => {
   assert.ok(!/undefined/.test(body.textContent));
 });
 
-test('Market ribbon names the ETF behind an index label; real indices carry no tag', () => {
+test('Market pulse names the symbol behind a plain label; crypto carries no tag', () => {
   app.renderMarketPulse({ quotes: [
     { symbol: 'SPY', label: 'S&P 500', price: 767.18, change_pct: -0.08 },
     { symbol: '^VIX', label: 'VIX', price: 15.7, change_pct: 3.2 },
     { symbol: 'BTC-USD', label: 'Bitcoin', price: 84133, change_pct: -0.3 },
   ] });
-  const tags = Array.from(document.querySelectorAll('#market-pulse .q-rb-proxy')).map((n) => n.textContent);
-  assert.deepEqual(tags, ['SPY'], 'only the ETF proxy is tagged');
+  const tags = Array.from(document.querySelectorAll('#market-pulse .ovx-pu-sym')).map((n) => n.textContent);
+  assert.deepEqual(tags, ['SPY fund', 'VIX'], 'the fund behind the S&P 500 says it is a fund; the symbol behind "Fear index"');
 });
 
 test('Consensus candidates label the Street rating as the Street\'s, not QUANTA\'s', () => {

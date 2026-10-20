@@ -309,12 +309,17 @@ test('quote session time is reported apart from retrieval time', () => {
   assert.match(app.quoteFreshness({ quote_date: '2026-09-23' }, late).session, /^Close Sep 23/);
 });
 
-test('the ribbon says its prices are delayed and separates session from retrieval', () => {
+test('the session bar dates the board prices and keeps session apart from retrieval', () => {
   app.state.market = 'US';
-  app.renderMarketPulse({ quotes: [{ symbol: 'SPY', label: 'S&P 500', price: 500, change_pct: 0.4, quote_date: '2026-09-22', as_of: '2026-09-23T15:00:00Z' }] });
-  const el = $('#market-pulse');
-  assert.match(el.textContent, /can be delayed/);
-  assert.match(el.querySelector('.q-rb-time').textContent, /Previous close|In session|Close/);
+  const market = { quotes: [{ symbol: 'SPY', label: 'S&P 500', price: 500, change_pct: 0.4, quote_date: '2026-09-22', as_of: '2026-09-23T15:00:00Z' }] };
+  app.state.dashboard = { generated_at: '2026-09-23T15:00:00Z', market };
+  app.renderSessionBar(market);
+  const bar = $('#ov-session').textContent;
+  assert.match(bar, /Prices are Tuesday’s close \(Sep 22\)/, 'the session the prices belong to');
+  assert.match(bar, /Updated \d{1,2}:\d{2} [AP]M ET/, 'when the page read them, said apart');
+  app.renderMarketPulse(market);
+  // Each pulse cell still names its own session in its tooltip.
+  assert.match($('#market-pulse .ovx-pu').getAttribute('title'), /Previous close|In session|Close/);
 });
 
 // ---------------------------------------------------------------------------

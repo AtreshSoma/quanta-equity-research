@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  impactChain, confidenceRead, confidenceBand, vixTone, participationTone, newsImpactLevel, newsTiltRead,
+  confidenceRead, vixTone, participationTone, newsImpactLevel, volatilityLine,
 } = require('../../static/app.js');
 
 const QT = globalThis.__QUANTA_THRESHOLDS__;
@@ -33,39 +33,15 @@ test('the thresholds fixture carries the MARKET group the page reads', () => {
   }
 });
 
-test('a mixed tape with no quotes confirms nothing (no unconditional links)', () => {
-  const chain = impactChain({ quotes: [] }, {}, {});
-  assert.equal(chain.label, 'Mixed tape');
-  assert.equal(chain.confirmed, 0);
-  assert.equal(chain.verified, false);
-  assert.ok(chain.links.every((l) => l.check === false));
-});
-
-test('a mixed tape is confirmed only by the quotes each link names', () => {
-  const spread = M.CHAIN_LEADERSHIP_SPREAD_PCT;
-  // Indices split, Nasdaq and S&P within the spread, small caps the other way.
-  const split = impactChain({ quotes: quotes({ SPY: 0.1, QQQ: 0.1 + spread / 2, IWM: -0.6 }) }, {}, {});
-  assert.equal(split.confirmed, split.total);
-  assert.equal(split.verified, true);
-  // Every index up together is a broad advance, never "Mixed tape: indices split".
-  const together = impactChain({ quotes: quotes({ SPY: 0.5, QQQ: 0.5, IWM: 0.5 }) }, {}, {});
-  assert.equal(together.label, 'Broad advance');
-  assert.equal(together.verified, true);
-  assert.equal(impactChain({ quotes: quotes({ SPY: -0.5, QQQ: -0.6, IWM: -0.4 }) }, {}, {}).label, 'Broad decline');
-});
-
-test('an energy shock does not count a missing 10Y quote as rate fear', () => {
-  const chain = impactChain({ quotes: quotes({ USO: M.CHAIN_OIL_SHOCK_PCT + 1, SPY: 0.2, QQQ: 0.1 }) }, {}, {});
-  assert.equal(chain.label, 'Energy shock');
-  assert.equal(chain.links.find((l) => l.step === 'Inflation/rate fear').check, false);
-});
-
-test('chain triggers follow config, not page constants', () => {
-  const oil = M.CHAIN_OIL_SHOCK_PCT + 0.5;
-  assert.equal(impactChain({ quotes: quotes({ USO: oil }) }, {}, {}).label, 'Energy shock');
-  withMarket('CHAIN_OIL_SHOCK_PCT', oil + 1, () => {
-    assert.notEqual(impactChain({ quotes: quotes({ USO: oil }) }, {}, {}).label, 'Energy shock');
-  });
+test('the volatility line takes its bands from MARKET config and names a sharp move beside the level', () => {
+  const mk = (price, change_pct) => ({ quotes: [{ symbol: '^VIX', label: 'VIX', price, change_pct }] });
+  const ps = { phrase: 'on Fri Oct 16' };
+  assert.match(volatilityLine(mk(M.VIX_CALM_MAX - 0.01, 1), {}, ps), /inside its calm band$/);
+  assert.match(volatilityLine(mk(M.VIX_CALM_MAX - 0.01, M.VIX_SESSION_JUMP_PCT + 11), {}, ps), /up \d+% on Fri Oct 16: .*calm band, but rising fast$/);
+  assert.match(volatilityLine(mk(M.VIX_CALM_MAX, 0), {}, ps), /above its calm band/);
+  assert.match(volatilityLine(mk(M.VIX_STRESS, 0), {}, ps), /stress band/);
+  withMarket('VIX_STRESS', M.VIX_STRESS + 10, () => assert.doesNotMatch(volatilityLine(mk(M.VIX_STRESS - 10 + 0.5, 0), {}, ps), /stress band/));
+  assert.equal(volatilityLine({ quotes: [] }, {}, ps), null, 'no VIX, no line');
 });
 
 test('VIX and participation tones follow MARKET bands', () => {
@@ -86,17 +62,9 @@ test('a read with guidance withheld shows no confidence number', () => {
   const read = confidenceRead({ confidenceScore: 12, confidenceLabel: 'Low', guidanceWithheld: true });
   assert.equal(read.score, null);
   assert.equal(read.withheld, true);
-  assert.match(confidenceBand(read.score, read.label, read.withheld), /No read/);
   const live = confidenceRead({ confidenceScore: M.CONFIDENCE_HIGH });
   assert.equal(live.label, 'High');
-  assert.match(confidenceBand(live.score, live.label), new RegExp(`${M.CONFIDENCE_HIGH} threshold`));
-});
-
-test('a missing news read is unknown, never "Quiet tape"', () => {
-  assert.equal(newsTiltRead({}).label, 'News read unavailable');
-  assert.equal(newsTiltRead({ newsImpact: { netDirection: 'neutral' }, newsFeedsLive: false }).known, false);
-  assert.equal(newsTiltRead({ newsImpact: { netDirection: 'neutral' } }).label, 'Quiet tape');
-  assert.equal(newsTiltRead({ newsImpact: { netDirection: 'bearish' } }).tone, 'bear');
+  assert.equal(confidenceRead({ confidenceScore: M.CONFIDENCE_MODERATE }).label, 'Moderate');
 });
 
 test('the Overview code restates no market band and gives no per-headline trading instruction', () => {

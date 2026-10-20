@@ -53,7 +53,7 @@ test('the mandate control cannot clip its own option text', () => {
 
 test('an unfunded book reports measured zero capital and leaves ratios unavailable', () => {
   // Portfolio header.
-  assert.match(appJs, /const naCell = '<span class="pm-na">\u2014<\/span>'/);
+  assert.match(appJs, /const naCell = '<span class="pm-na">N\/A<\/span>'/);
   assert.match(appJs, /Planned loss at stops/);
   assert.match(appJs, /\$\{fmtMoney\(totalMaxLoss, sym, 0\)\}/);
   assert.match(appJs, /avgRR > 0 \? `\$\{fmtNumber\(avgRR, 2\)\}:1` : naCell/);
@@ -94,7 +94,12 @@ test('glass is confined to floating chrome, never to data surfaces', () => {
   const bare = css.replace(/[/][*][^]*?[*][/]/g, '');   // comments hold selector-like text
   const found = [...bare.matchAll(/([.#][\w-]+)\s*\{[^{}]*backdrop-filter\s*:\s*blur\(/g)]
     .map((m) => m[1]);
-  assert.deepEqual([...new Set(found)].sort(), ['.q-health-panel', '.topbar']);
+  assert.deepEqual([...new Set(found)].sort(), ['.ovx-ctip', '.ovx-tipbox', '.q-health-panel', '.topbar']);
+  // The Overview Glass Rule (DESIGN.md): frost on its raised reading surfaces (the
+  // market mood, the lead story, the outlook card) and the chart's range tabs, over
+  // static ambient light only, never over moving data.
+  const frosted = [...bare.matchAll(/([.#][\w-]+)\s*\{[^{}]*backdrop-filter\s*:\s*var\(--ovx-frost\)/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(frosted)].sort(), ['.ovx-lead', '.ovx-mood', '.ovx-outlook', '.ovx-rtabs']);
 
   // Every data surface stays opaque.
   for (const sel of ['.q-panel', '.q-table', '.pm-cell', '.card', '.q-board-table', '.qpro-card']) {

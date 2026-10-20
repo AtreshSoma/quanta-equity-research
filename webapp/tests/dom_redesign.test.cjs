@@ -223,11 +223,11 @@ function picksFixture() {
     risk_profile: { profile: 'conservative', multiplier: 0.7, adjusted: [{ ticker: 'AAPL', before: 1000, after: 700 }] },
     recommendations: [
       rec({}),
-      rec({ ticker: 'MSFT', company: 'Microsoft', sector: 'Technology', final_action: 'WATCHLIST', display_action: 'WATCHLIST', signal: 'HOLD', allocation: 0, allocation_after: 0, allocation_before: 800, shares: 0, is_funded: false, downgrade_flag: true, deep_action: 'WATCHLIST', deep_confirmation_reason: 'Bearish reversal — wait for confirmation', why: 'Bearish reversal — wait for confirmation' }),
+      rec({ ticker: 'MSFT', company: 'Microsoft', sector: 'Technology', final_action: 'WATCHLIST', display_action: 'WATCHLIST', signal: 'HOLD', allocation: 0, allocation_after: 0, allocation_before: 800, shares: 0, is_funded: false, downgrade_flag: true, deep_action: 'WATCHLIST', deep_confirmation_reason: 'Bearish reversal: wait for confirmation', why: 'Bearish reversal: wait for confirmation' }),
     ],
     deep_confirmation: { enabled: true, records: [
       { ticker: 'AAPL', scanner_action: 'BUY', deep_action: 'BUY', final_action: 'BUY', downgrade_flag: false, allocation_before: 1000, allocation_after: 700, reason: 'agreed — no downgrade', deep_mode: 'fast' },
-      { ticker: 'MSFT', scanner_action: 'BUY', deep_action: 'WATCHLIST', final_action: 'WATCHLIST', downgrade_flag: true, allocation_before: 800, allocation_after: 0, reason: 'Bearish reversal — wait for confirmation', deep_mode: 'fast' },
+      { ticker: 'MSFT', scanner_action: 'BUY', deep_action: 'WATCHLIST', final_action: 'WATCHLIST', downgrade_flag: true, allocation_before: 800, allocation_after: 0, reason: 'Bearish reversal: wait for confirmation', deep_mode: 'fast' },
     ], downgrades: [], not_confirmed: [], rejected: [] },
     chase_alerts: [{ ticker: 'AAPL', reason: 'gapped up 4%', rsi: 74, momentum_1m: 0.12, distance_from_20dma: 0.09 }],
     early_momentum: [], error_summary: { records: [] }, funnel: { universe_size: 30, opportunities: 5, final: 2, gate_stats: {} },

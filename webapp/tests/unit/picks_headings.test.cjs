@@ -45,7 +45,7 @@ test('form labels are sentence case; the footnote has no em dash', () => {
     const rest = l.split(/\s+/).slice(1).filter((w) => !/^(S&P|NASDAQ|US|ETF)$/.test(w));
     assert.ok(rest.every((w) => w === w.toLowerCase() || /^[A-Z]{2,}$/.test(w)), `sentence case: ${l}`);
   }
-  assert.ok(labels.includes('Capital budget') && labels.includes('Client mandate') && labels.includes('Max positions'));
+  assert.ok(labels.includes('Capital budget') && labels.includes('Risk profile') && labels.includes('Max positions'));
   assert.doesNotMatch(view().innerHTML, /—|&mdash;/, 'no em dash anywhere in the Picks view');
 });
 

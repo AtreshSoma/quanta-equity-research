@@ -62,13 +62,22 @@
         <span class="hp-num ${dirClass(r.dollars)}">${r.points == null ? NA : `${signedPts(r.points, 2)} pts`}</span></button></li>`;
       const helped = A.rows.filter((r) => r.dollars > 0).sort((a, b) => b.dollars - a.dollars).slice(0, 4);
       const hurt = A.rows.filter((r) => r.dollars < 0).sort((a, b) => a.dollars - b.dollars).slice(0, 4);
+      // Only the four largest on each side are listed; the rest are summed so the lines reconcile.
+      const listed = new Set([...helped, ...hurt].map((r) => r.symbol));
+      const others = A.rows.filter((r) => !listed.has(r.symbol));
+      const listedSum = [...helped, ...hurt].reduce((t, r) => t + r.dollars, 0);
+      const otherSum = others.reduce((t, r) => t + r.dollars, 0);
+      const otherPts = others.reduce((t, r) => t + (r.points || 0), 0);
+      const otherLine = others.length
+        ? `the ${listed.size} holdings listed add to ${signedMoney(listedSum)}; ${others.length} other ${plural(others.length, 'holding adds', 'holdings add')} ${signedMoney(otherSum)} (${signedPts(otherPts, 2)} pts); all together ${signedMoney(A.total)} (${signedPts(A.totalPts, 2)} pts).`
+        : `together the holdings shown add to ${signedMoney(A.total)} (${signedPts(A.totalPts, 2)} pts).`;
       const unknown = A.unknown.length ? `<p class="mp-limit" role="note">Not attributed: ${A.unknown.map((u) => `${esc(u.symbol)} (${esc(String(u.reason).toLowerCase())})`).join(', ')}.</p>` : '';
       return `${head}<div class="q-body">
         <div class="mp-grid2">
           <div><h3 class="hp-h3">Helped <span>${signedMoney(helped.reduce((t, r) => t + r.dollars, 0))}</span></h3>${helped.length ? `<ul class="mpa-list">${helped.map(li).join('')}</ul>` : '<p class="hp-empty">No holding added to the result in this range.</p>'}</div>
           <div><h3 class="hp-h3">Hurt <span>${signedMoney(hurt.reduce((t, r) => t + r.dollars, 0))}</span></h3>${hurt.length ? `<ul class="mpa-list">${hurt.map(li).join('')}</ul>` : '<p class="hp-empty">No holding subtracted from the result in this range.</p>'}</div>
         </div>
-        <p class="hp-fine">Points are a share ${esc(A.base)}; together the holdings shown add to ${signedMoney(A.total)} (${signedPts(A.totalPts, 2)} pts). ${esc(A.note)}</p>${unknown}
+        <p class="hp-fine" data-attrib-total>Points are a share ${esc(A.base)}; ${otherLine} ${esc(A.note)}</p>${unknown}
         ${retroHtml()}
       </div>`;
     }
@@ -253,14 +262,14 @@
       const need = pThr('OUTCOME_MIN_SAMPLE');
       const horizon = pThr('OUTCOME_HORIZON_DAYS');
       if (j.enabled && need > 0 && (j.entries || 0) < need) improve.push({ text: `The decision journal has ${j.entries || 0} ${plural(j.entries || 0, 'entry', 'entries')}${j.started ? ` since ${esc(X.dateText(j.started))}` : ' and starts with your next refresh'}. Outcome rates need ${need} completed calls, each measured ${horizon} trading days after it; keep using it.` });
-      return { helped, hurt, improve };
+      return { helped, hurt, improve, assessed: !!(rd && rd.d && rd.d.available) };
     }
 
     function lessonsSlot(pf) {
       const L = lessons(pf);
       const col = (title, items, empty, cls) => `<div class="mp-lesson mp-lesson--${cls}"><h3 class="hp-h3">${title}</h3>${items.length ? `<ul>${items.map((i) => `<li>${i.text}${i.go ? ` <button type="button" class="q-btn q-btn--link hp-inline-link" data-hp-tab-go="${i.go}">${esc(i.label || 'Open')}</button>` : ''}${i.ev ? `<span class="mp-ev">${esc(i.ev)}</span>` : ''}</li>`).join('')}</ul>` : `<p class="hp-empty">${empty}</p>`}</div>`;
       return `<header class="q-head mp-head"><div class="q-head-l"><h2 class="q-head-title" id="mp-ls-h">Helped, hurt, and what to improve</h2><p class="q-head-sub">Each line is tied to a record. Nothing here uses hindsight about when to buy or sell.</p></div></header>
-        <div class="q-body"><div class="mp-grid3">${col('What helped', L.helped, 'Nothing in the available records clearly helped in this range.', 'ok')}${col('What hurt', L.hurt, 'Nothing in the available records clearly hurt in this range.', 'bad')}${col('What to improve', L.improve, 'No issue in the records calls for action.', 'act')}</div></div>`;
+        <div class="q-body"><div class="mp-grid3">${col('What helped', L.helped, L.assessed ? 'Nothing in the available records clearly helped in this range.' : 'Unable to assess: price history for this range is not available.', 'ok')}${col('What hurt', L.hurt, L.assessed ? 'Nothing in the available records clearly hurt in this range.' : 'Unable to assess: price history for this range is not available.', 'bad')}${col('What to improve', L.improve, 'No issue in the records calls for action.', 'act')}</div></div>`;
     }
     X.slotRenderers['review-lessons'] = lessonsSlot;
 
@@ -299,7 +308,7 @@
       out.push('## Performance');
       if (rd && rd.d && rd.d.available) {
         const s = rd.d.stats;
-        out.push(`**${rd.kind === 'ledger' ? 'Equity sleeve return (order ledger)' : 'Current holdings simulation — not the account’s actual return'}**, ${rk()}: ${plain(priv(asPct(s.portfolio_return)))} vs ${rd.p.benchmark.name} ${asPct(s.benchmark_return)}. Max drop ${plain(priv(asPct((s.max_drawdown || {}).depth)))}.`, `Method: ${rd.d.method}`, `Basis: ${rd.d.basis}`, '');
+        out.push(`**${rd.kind === 'ledger' ? 'Equity sleeve return (order ledger)' : 'Current holdings simulation, not the account’s actual return'}**, ${rk()}: ${plain(priv(asPct(s.portfolio_return)))} vs ${rd.p.benchmark.name} ${asPct(s.benchmark_return)}. Max drop ${plain(priv(asPct((s.max_drawdown || {}).depth)))}.`, `Method: ${rd.d.method}`, `Basis: ${rd.d.basis}`, '');
       } else out.push('Not available: price history could not be loaded.', '');
       if (A) { out.push(`## Contributors (${A.kind === 'lots' ? 'open lots' : 'simulation'})`); A.rows.slice(0, 6).forEach((r) => out.push(`- ${r.symbol}: ${plain(signedMoney(r.dollars))} (${signedPts(r.points, 2)} pts)`)); out.push('', A.note, ''); }
       const ex = ins.expo.data;

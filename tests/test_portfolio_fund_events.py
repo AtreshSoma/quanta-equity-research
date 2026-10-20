@@ -17,7 +17,7 @@ def result(monkeypatch, kind="ETF", action="BUY", grade="B", codes=()):
     import TradingAnalysis_ELITE as ta
     from engine import decision as dc
     fresh = Freshness("fresh", "2026-09-25", 0, [])
-    monkeypatch.setattr(dc, "assess_price_freshness", lambda _: fresh)
+    monkeypatch.setattr(dc, "assess_price_freshness", lambda *_a, **_k: fresh)
     monkeypatch.setattr(ce, "check_many", lambda symbols, **_: {
         s: ce._unavailable("no SEC registrant found") for s in symbols})
     r = ta.AnalysisResult(ticker="SYNF", quote_type=kind, is_etf=True,

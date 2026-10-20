@@ -204,6 +204,50 @@ def _drop_unusable_bars(df):
         return df
 
 
+_IST = timezone(timedelta(hours=5, minutes=30))   # India has no daylight saving
+
+
+def _listing_market(ticker: str = "", index: Any = None) -> str:
+    """'IN' for an NSE/BSE listing (by suffix, else by an Asia/Kolkata bar index), else 'US'."""
+    if str(ticker or "").upper().endswith((".NS", ".BO")):
+        return "IN"
+    tz = getattr(index, "tz", None)
+    if tz is not None and str(tz) in ("Asia/Kolkata", "Asia/Calcutta"):
+        return "IN"
+    return "US"
+
+
+def _last_bar_is_live(data: Any, ticker: str = "", now: Any = None) -> bool:
+    """True when the newest daily bar is today's still-forming session.
+
+    US: the bar is dated after engine.market_calendar.last_completed_session.
+    India: the bar is dated today (IST) and the NSE close has not passed. A
+    holiday needs no calendar here: no session means no bar dated today.
+    """
+    try:
+        if data is None or len(data) == 0:
+            return False
+        last = pd.Timestamp(data.index[-1])
+    except (TypeError, ValueError, IndexError, AttributeError):
+        return False
+    from engine.market_calendar import last_completed_session, now_new_york
+    if _listing_market(ticker, data.index) == "IN":
+        current = now_new_york(now).astimezone(_IST)
+        bar_day = last.tz_convert(_IST).date() if last.tzinfo is not None else last.date()
+        close_h, close_m = _T.RESEARCH.INDIA_SESSION_CLOSE_IST
+        return bar_day == current.date() and (current.hour, current.minute) < (close_h, close_m)
+    bar_day = (last.tz_convert("America/New_York").date() if last.tzinfo is not None
+               else last.date())
+    return bar_day > last_completed_session(now)
+
+
+def _completed_bars(data: Any, ticker: str = "", now: Any = None) -> Any:
+    """``data`` without today's still-forming bar (unchanged after the close)."""
+    if _last_bar_is_live(data, ticker, now):
+        return data.iloc[:-1]
+    return data
+
+
 class Config:
     """Centralized configuration management"""
     
@@ -442,7 +486,10 @@ class TechnicalIndicators:
     vwap: float = 0.0
     vwap_distance: float = 0.0
     volume_confirmation: bool = False
-    
+    # Which session ``volume_ratio`` measures. During the session today's
+    # volume is partial, so the ratio reads the last completed session.
+    volume_ratio_basis: str = "latest session"
+
     # Ichimoku
     ichimoku_signal: str = "NEUTRAL"
     tenkan_sen: float = 0.0
@@ -498,6 +545,20 @@ class TechnicalIndicators:
     momentum_score: float = 50.0
     trend_score: float = 50.0
     volatility_score: float = 50.0
+
+    # Indicators that could not be computed ("rsi", "adx"). Their fields keep
+    # the neutral placeholder so comparisons never crash, but a placeholder is
+    # not a reading: scoring skips it, coverage counts it as missing and the
+    # JSON publishes null (the FundamentalData.reported pattern).
+    unmeasured: List[str] = field(default_factory=list)
+
+    def has(self, name: str) -> bool:
+        """True when ``name`` was computed from the bars."""
+        return name not in self.unmeasured
+
+    def mark_unmeasured(self, name: str) -> None:
+        if name not in self.unmeasured:
+            self.unmeasured.append(name)
 
 
 @dataclass
@@ -1882,12 +1943,19 @@ class TechnicalAnalyzer:
     def __init__(self):
         self.min_data_points = Config.MIN_DATA_POINTS
     
-    def analyze(self, data: pd.DataFrame) -> TechnicalIndicators:
-        """Perform comprehensive technical analysis"""
+    def analyze(self, data: pd.DataFrame, now: Any = None) -> TechnicalIndicators:
+        """Perform comprehensive technical analysis.
+
+        Price indicators read the live bar (they are current readings). The
+        relative-volume ratio does not: see ``_calculate_volume``. ``now`` is
+        for tests; the market is read from the bar index's timezone.
+        """
         result = TechnicalIndicators()
         
         if data is None or len(data) < self.min_data_points:
             logger.warning("Insufficient data for technical analysis")
+            result.mark_unmeasured("rsi")
+            result.mark_unmeasured("adx")
             return result
         
         try:
@@ -1911,7 +1979,8 @@ class TechnicalAnalyzer:
             result = self._calculate_volatility(close, high, low, current_price, result)
             
             # Volume Indicators
-            result = self._calculate_volume(close, high, low, volume, current_price, result)
+            result = self._calculate_volume(close, high, low, volume, current_price, result,
+                                            live_bar=_last_bar_is_live(data, "", now))
             
             # Ichimoku Cloud
             result = self._calculate_ichimoku(close, high, low, current_price, result)
@@ -1939,12 +2008,16 @@ class TechnicalAnalyzer:
     def _calculate_momentum(self, close: pd.Series, high: pd.Series, low: pd.Series, 
                            result: TechnicalIndicators) -> TechnicalIndicators:
         """Calculate momentum indicators"""
+        # Until RSI is computed it is the neutral placeholder, not a reading.
+        result.mark_unmeasured("rsi")
         try:
             # RSI
             rsi_indicator = RSIIndicator(close, window=14)
             result.rsi = float(rsi_indicator.rsi().iloc[-1])
             if np.isnan(result.rsi):
                 result.rsi = 50.0
+            else:
+                result.unmeasured.remove("rsi")
             
             # RSI Divergence Detection
             result.rsi_divergence = self._detect_rsi_divergence(close, rsi_indicator.rsi())
@@ -2015,6 +2088,8 @@ class TechnicalAnalyzer:
     def _calculate_trend(self, close: pd.Series, high: pd.Series, low: pd.Series,
                         result: TechnicalIndicators) -> TechnicalIndicators:
         """Calculate trend indicators"""
+        # Until ADX is computed it is the 25.0 placeholder, not a reading.
+        result.mark_unmeasured("adx")
         try:
             # MACD
             macd = MACD(close)
@@ -2030,14 +2105,19 @@ class TechnicalAnalyzer:
             else:
                 result.macd_signal = "NEUTRAL"
             
-            # ADX
+            # ADX. A NaN keeps the 25.0 placeholder, marked unmeasured, and
+            # publishes no trend strength or direction off it.
             adx = ADXIndicator(high, low, close)
             result.adx = float(adx.adx().iloc[-1]) if not np.isnan(adx.adx().iloc[-1]) else 25.0
             result.plus_di = float(adx.adx_pos().iloc[-1]) if not np.isnan(adx.adx_pos().iloc[-1]) else 25.0
             result.minus_di = float(adx.adx_neg().iloc[-1]) if not np.isnan(adx.adx_neg().iloc[-1]) else 25.0
-            
+            if not np.isnan(adx.adx().iloc[-1]):
+                result.unmeasured.remove("adx")
+
             # Trend Strength
-            if result.adx >= 40:
+            if not result.has("adx"):
+                pass
+            elif result.adx >= 40:
                 result.trend_strength = "VERY_STRONG"
             elif result.adx >= 30:
                 result.trend_strength = "STRONG"
@@ -2047,7 +2127,9 @@ class TechnicalAnalyzer:
                 result.trend_strength = "WEAK"
             
             # Trend Direction from DI
-            if result.plus_di > result.minus_di and result.adx > 20:
+            if not result.has("adx"):
+                result.trend_direction = "SIDEWAYS"
+            elif result.plus_di > result.minus_di and result.adx > 20:
                 result.trend_direction = "UP"
             elif result.minus_di > result.plus_di and result.adx > 20:
                 result.trend_direction = "DOWN"
@@ -2162,16 +2244,27 @@ class TechnicalAnalyzer:
         return result
     
     def _calculate_volume(self, close: pd.Series, high: pd.Series, low: pd.Series,
-                         volume: pd.Series, current_price: float, 
-                         result: TechnicalIndicators) -> TechnicalIndicators:
-        """Calculate volume indicators"""
+                         volume: pd.Series, current_price: float,
+                         result: TechnicalIndicators,
+                         live_bar: bool = False) -> TechnicalIndicators:
+        """Calculate volume indicators.
+
+        ``live_bar``: the newest bar is today's still-forming session. Its
+        partial volume against full-day averages reads as a collapse at 10 AM
+        ("0.20x"), so the ratio then compares the last COMPLETED session with
+        the 20 completed sessions before it (no intraday pro-rating, which
+        would assume a flat volume curve).
+        """
         try:
             # Volume SMA and Ratio
-            if len(volume) >= 20:
-                result.volume_sma = float(volume.rolling(20).mean().iloc[-1])
-                current_vol = float(volume.iloc[-1])
+            ratio_volume = volume.iloc[:-1] if live_bar else volume
+            if len(ratio_volume) >= 20:
+                result.volume_sma = float(ratio_volume.rolling(20).mean().iloc[-1])
+                current_vol = float(ratio_volume.iloc[-1])
                 result.volume_ratio = safe_divide(current_vol, result.volume_sma, 1.0)
                 result.volume_confirmation = result.volume_ratio > 1.2
+                if live_bar:
+                    result.volume_ratio_basis = "last completed session (today's is still trading)"
             
             # OBV
             obv = OnBalanceVolumeIndicator(close, volume)
@@ -2688,8 +2781,12 @@ class TechnicalAnalyzer:
                 macd_score = 45 + max(result.macd_histogram * 100, -20)  # Floor at 25
             
             # Weighted average: RSI 70%, MACD momentum 30%
-            # (MACD is less correlated with RSI than Stoch/Williams)
-            result.momentum_score = rsi_score * 0.70 + macd_score * 0.30
+            # (MACD is less correlated with RSI than Stoch/Williams).
+            # An unmeasured RSI is excluded, not read as a neutral 50.
+            if result.has("rsi"):
+                result.momentum_score = rsi_score * 0.70 + macd_score * 0.30
+            else:
+                result.momentum_score = macd_score
             
             # Trend Score (0-100)
             trend_factors = []
@@ -2744,7 +2841,7 @@ class TechnicalAnalyzer:
                 breakout_factors += 0.3
             if result.volume_confirmation:
                 breakout_factors += 0.2
-            if result.adx > 20 and result.adx < 30:
+            if result.has("adx") and 20 < result.adx < 30:   # not the 25.0 placeholder
                 breakout_factors += 0.2
             if abs(result.bollinger_width) < 3:  # Tight BB
                 breakout_factors += 0.15
@@ -3236,10 +3333,18 @@ class RiskAnalyzer:
             normalized = normalized.groupby(level=0).last()
         return normalized.sort_index()
     
-    def analyze(self, data: pd.DataFrame, ticker: str) -> RiskMetrics:
-        """Perform comprehensive risk analysis"""
+    def analyze(self, data: pd.DataFrame, ticker: str, now: Any = None) -> RiskMetrics:
+        """Perform comprehensive risk analysis.
+
+        Every figure here is a statistic over completed sessions (return
+        distribution, VaR, drawdown, average volume, the risk grade), so
+        today's still-forming bar is excluded during market hours: a partial
+        day's return and volume are not draws from the daily distribution.
+        ``now`` is for tests.
+        """
         result = RiskMetrics()
-        
+        data = _completed_bars(data, ticker, now)
+
         if data is None or len(data) < 30:
             logger.warning("Insufficient data for risk analysis")
             return result
@@ -5559,9 +5664,7 @@ class SignalGenerator:
         # Data coverage: how many component legs rest on measured inputs. No
         # "95% confidence interval" is published: the dispersion of five
         # heuristic sub-scores is not a sampling error of the composite.
-        score_values = [scores['technical'], scores['fundamental'], scores['valuation'],
-                       scores['quality'], scores['sentiment']]
-        data_sources = sum(1 for s in score_values if s != 50.0)  # Non-default scores
+        data_sources = self._data_sources(scores, technical)
         if data_sources >= 5:
             data_note = "HIGH - All data sources available"
         elif data_sources >= 3:
@@ -5583,6 +5686,20 @@ class SignalGenerator:
         
         return signal, confidence, breakdown, explanation
     
+    @staticmethod
+    def _data_sources(scores: Dict[str, float], technical: TechnicalIndicators) -> int:
+        """Component legs resting on measured inputs (a neutral 50 counts as missing).
+
+        A technical leg whose RSI or ADX failed is built on a placeholder, so it
+        is counted as missing too, even when MACD or the averages moved it.
+        """
+        legs = ('technical', 'fundamental', 'valuation', 'quality', 'sentiment')
+        count = sum(1 for k in legs if scores[k] != 50.0)
+        has = getattr(technical, 'has', None)
+        if scores['technical'] != 50.0 and callable(has) and not (has('rsi') and has('adx')):
+            count -= 1
+        return count
+
     def _get_regime_weights(self, regime: MarketRegime) -> Dict[str, float]:
         """Return normalized alpha weights; risk is assessed separately."""
         if regime is None or regime == MarketRegime.SIDEWAYS:
@@ -6069,6 +6186,13 @@ class PortfolioExposureManager:
             result['adjustments'].pop('max_position_value', None)
 
         result['correlation_risk'] = correlated_count / max(1, len(existing_positions))
+        unmeasured = int(getattr(self, '_unmeasured_correlations', 0) or 0)
+        result['correlation_unmeasured'] = unmeasured
+        if unmeasured:
+            result['warnings'].append(
+                f"Correlation with {new_ticker} not measured for {unmeasured} of "
+                f"{len(existing_positions)} holdings; those are not counted toward the limit"
+            )
 
         return result
     
@@ -6104,9 +6228,9 @@ class PortfolioExposureManager:
         try:
             corr_matrix = self._get_correlation_matrix([p['ticker'] for p in positions])
         except Exception:
-            # Fallback: assume moderate correlation of 0.3
-            corr_matrix = np.full((n, n), 0.3)
-            np.fill_diagonal(corr_matrix, 1.0)
+            # Correlations not measured: claim no diversification benefit
+            # (this used to assume an unmeasured 0.3).
+            corr_matrix = np.ones((n, n))
         
         # Build covariance matrix
         cov_matrix = np.outer(vols, vols) * corr_matrix
@@ -6129,20 +6253,30 @@ class PortfolioExposureManager:
         }
     
     def _count_correlated_positions(self, ticker: str, existing_tickers: List[str]) -> int:
-        """Count how many existing positions are highly correlated with ticker."""
+        """Count how many existing positions are highly correlated with ticker.
+
+        Pairs whose correlation could not be measured are not counted and are
+        tallied in ``self._unmeasured_correlations`` so the caller can say so.
+        """
         count = 0
+        self._unmeasured_correlations = 0
         for existing in existing_tickers:
             try:
                 corr = self._get_pairwise_correlation(ticker, existing)
-                if corr > self.CORRELATION_THRESHOLD:
-                    count += 1
             except Exception:
-                # If we can't compute correlation, assume moderate correlation
-                pass
+                corr = None
+            if corr is None:
+                self._unmeasured_correlations += 1
+            elif corr > self.CORRELATION_THRESHOLD:
+                count += 1
         return count
-    
-    def _get_pairwise_correlation(self, ticker1: str, ticker2: str) -> float:
-        """Get correlation between two tickers (cached)."""
+
+    def _get_pairwise_correlation(self, ticker1: str, ticker2: str) -> Optional[float]:
+        """Correlation between two tickers (cached), or None when not measured.
+
+        A failed fetch or too short an overlap used to return 0.3, a "moderate
+        correlation" nobody measured.
+        """
         cache_key = tuple(sorted([ticker1, ticker2]))
         if cache_key in self._returns_cache:
             return self._returns_cache[cache_key]
@@ -6162,13 +6296,16 @@ class PortfolioExposureManager:
             # Align indexes
             combined = pd.concat([returns1, returns2], axis=1, join='inner')
             if len(combined) < 50:
-                return 0.3  # Default moderate correlation
-            
+                return None
+
             corr = combined.iloc[:, 0].corr(combined.iloc[:, 1])
+            if corr is None or not np.isfinite(corr):
+                return None
+            corr = float(corr)
             self._returns_cache[cache_key] = corr
             return corr
         except Exception:
-            return 0.3  # Default moderate correlation
+            return None
     
     def _get_correlation_matrix(self, tickers: List[str]) -> np.ndarray:
         """Build correlation matrix for a list of tickers."""
@@ -6178,6 +6315,8 @@ class PortfolioExposureManager:
         for i in range(n):
             for j in range(i + 1, n):
                 corr = self._get_pairwise_correlation(tickers[i], tickers[j])
+                # Unmeasured: no diversification credit is claimed for the pair.
+                corr = 1.0 if corr is None else corr
                 corr_matrix[i, j] = corr
                 corr_matrix[j, i] = corr
         
@@ -6359,16 +6498,24 @@ class TradeSetupGenerator:
     # [T7 FIX] The one trailing-stop definition in this file. A hardcoded 7%
     # appeared in one panel, 9% in another, and an ATR multiple in a third.
     TRAILING_ATR_MULT = 2.0
-    # Stop distance band, in ATRs, for a multi-week holding period.
-    STOP_ATR_MIN = 1.5
-    STOP_ATR_DEFAULT = 2.0
-    STOP_ATR_MAX = 3.0
+    # One stop rule for both engines (owner decision 2026-10-19): the Picks
+    # scanner's ATR multiple from engine.thresholds, extended under support
+    # when support sits within one ATR below it.
+    STOP_ATR_MULT = _T.alias(_T.LEVELS, "STOP_ATR_MULTIPLIER")
     STOP_MAX_PCT = 0.25
     
     @classmethod
-    def round_trip_cost_pct(cls) -> float:
-        """Total round-trip transaction cost as a percentage."""
-        return (cls.SPREAD_BPS + cls.SLIPPAGE_BPS * 2) / 10000 * 100
+    def round_trip_cost_pct(cls, ticker: str = "") -> float:
+        """Total round-trip transaction cost as a percentage.
+
+        An NSE/BSE listing also pays the statutory levies on each side (STT,
+        stamp duty, exchange and SEBI fees, GST; see
+        thresholds.COSTS.INDIA_STATUTORY_COST_PER_SIDE).
+        """
+        pct = (cls.SPREAD_BPS + cls.SLIPPAGE_BPS * 2) / 10000 * 100
+        if _listing_market(ticker) == "IN":
+            pct += 2 * _T.LEVELS.RESEARCH_INDIA_STATUTORY_PER_SIDE * 100
+        return pct
     
     # Signals for which a long position is either being opened or already held.
     # Both need levels: an entry needs a stop, and so does a holding.
@@ -6380,8 +6527,12 @@ class TradeSetupGenerator:
     def generate(self, current_price: float, signal: Signal,
                  technical: TechnicalIndicators, risk: RiskMetrics,
                  confidence: float, currency_symbol: str = '$',
-                 valuation: Optional['ValuationMetrics'] = None) -> TradeSetup:
+                 valuation: Optional['ValuationMetrics'] = None,
+                 ticker: str = "") -> TradeSetup:
         """Generate a trade setup: entry, stop, targets and honest R:R.
+
+        ``ticker`` selects the market's round-trip cost (India adds statutory
+        levies); it changes nothing else.
 
         See :class:`TradeSetup` for why this now covers HOLD and NO_POSITION
         rather than only the buy tier.
@@ -6414,8 +6565,8 @@ class TradeSetupGenerator:
         if signal in self._EXIT_STANCE:
             result.is_actionable_entry = False
             result.levels_available = False
-            result.setup_basis = "exit signal — no long entry levels"
-            result.entry_conditions = ["Not applicable — the signal is to reduce or exit"]
+            result.setup_basis = "exit signal: no long entry levels"
+            result.entry_conditions = ["Not applicable: the signal is to reduce or exit"]
             result.exit_conditions = [
                 "Scale out into strength rather than at the market",
                 "Re-assess only after the trend or the thesis repairs",
@@ -6430,12 +6581,23 @@ class TradeSetupGenerator:
         result.is_actionable_entry = is_entry
 
         # ── Entry reference ───────────────────────────────────────────────
+        pullback_note = ""
         if is_entry:
-            # A stretched tape gets a pullback limit; otherwise a small premium
-            # to improve the odds of a fill.
-            if technical.rsi > 60:
-                result.entry_price = current_price * 0.99
-                entry_basis = "limit below spot (RSI extended)"
+            # A stretched tape used to get a pullback limit 1% below spot AS the
+            # entry, so reward/risk and size were priced from a fill a buyer at
+            # market does not get (a better R:R than buying now). The entry is
+            # now spot; the pullback limit is offered as an optional better fill.
+            # Otherwise a small premium to improve the odds of a fill (a worse
+            # R:R than spot, so the published figure stays conservative).
+            if technical.has('rsi') and technical.rsi > _T.RESEARCH.ENTRY_RSI_EXTENDED:
+                result.entry_price = current_price
+                pullback = current_price * (1 - _T.RESEARCH.PULLBACK_ENTRY_PCT / 100.0)
+                entry_basis = "spot (RSI extended; reward/risk measured from spot)"
+                pullback_note = (
+                    f"RSI is extended: a limit near {currency_symbol}{pullback:.2f} "
+                    f"({_T.RESEARCH.PULLBACK_ENTRY_PCT:g}% below spot) is a better fill; "
+                    f"the reward/risk and size shown are measured from spot"
+                )
             else:
                 result.entry_price = current_price * 1.002
                 entry_basis = "limit at a slight premium to spot"
@@ -6447,22 +6609,17 @@ class TradeSetupGenerator:
             entry_basis = "spot (reference only, not an order)"
 
         # ── Stop ──────────────────────────────────────────────────────────
-        # Sized for the SAME multi-week horizon the target is measured over:
-        # never inside 1.5xATR (a normal day's noise would take it out, which
-        # used to happen with support 0.8 ATR away and a blanket 5% cap), never
-        # beyond 3xATR. Position sizing absorbs the distance, not the stop.
+        # The scanner's rule, for the SAME multi-week horizon the target is
+        # measured over: STOP_ATR_MULT ATRs below entry (a 1.5xATR floor was
+        # taken out by ordinary noise), moved under support when support sits
+        # within one ATR below that. Position sizing absorbs the distance.
+        dist = self.STOP_ATR_MULT * atr
+        stop_basis = f"{self.STOP_ATR_MULT:g}xATR below entry"
         support = technical.support_level
-        if support > 0 and support < result.entry_price:
-            raw_dist = result.entry_price - support * 0.99
-            stop_basis = "below support"
-        else:
-            raw_dist = self.STOP_ATR_DEFAULT * atr
-            stop_basis = f"{self.STOP_ATR_DEFAULT:g}xATR below entry"
-        dist = min(max(raw_dist, self.STOP_ATR_MIN * atr), self.STOP_ATR_MAX * atr)
-        if dist > raw_dist + 1e-9:
-            stop_basis += f" (widened to {self.STOP_ATR_MIN:g}xATR)"
-        elif dist < raw_dist - 1e-9:
-            stop_basis += f" (capped at {self.STOP_ATR_MAX:g}xATR)"
+        vol_stop = result.entry_price - dist
+        if 0 < support < vol_stop and support >= vol_stop - atr:
+            dist = result.entry_price - support * 0.99
+            stop_basis = f"below support, beyond {self.STOP_ATR_MULT:g}xATR"
         # Floor against a micro-stop; cap so an extreme ATR cannot put the stop
         # at or below zero (beyond 25% it is no longer a trade stop).
         dist = min(max(dist, result.entry_price * 0.005), result.entry_price * self.STOP_MAX_PCT)
@@ -6496,7 +6653,7 @@ class TradeSetupGenerator:
             result.target_aggressive = 0.0
             target_basis = (
                 f"12-month valuation target {currency_symbol}{val_base:,.2f} "
-                f"({(val_base / current_price - 1) * 100:+.0f}%) is at or below spot — "
+                f"({(val_base / current_price - 1) * 100:+.0f}%) is at or below spot: "
                 f"no long reward; stop shown for holders only"
             )
         elif _usable(val_base):
@@ -6527,7 +6684,7 @@ class TradeSetupGenerator:
             result.target_conservative = 0.0
             result.target_base = 0.0
             result.target_aggressive = 0.0
-            target_basis = "no valuation blend available — no target or reward/risk published"
+            target_basis = "no valuation blend available: no target or reward/risk published"
 
         result.levels_available = True
         result.setup_basis = f"{entry_basis}; stop {stop_basis}; {target_basis}"
@@ -6543,9 +6700,7 @@ class TradeSetupGenerator:
         # Reward to the horizon target only: a 12-month target against a
         # multi-week stop compared two different holding periods.
         raw_reward = (result.horizon_target - result.entry_price) if result.horizon_target > 0 else 0.0
-        cost_per_share = result.entry_price * (
-            self.SPREAD_BPS + self.SLIPPAGE_BPS * 2
-        ) / 10000
+        cost_per_share = result.entry_price * self.round_trip_cost_pct(ticker) / 100
         result.reward_amount = max(0.0, raw_reward - cost_per_share)
         result.risk_amount = result.risk_amount + cost_per_share
         result.risk_reward_ratio = safe_divide(result.reward_amount, result.risk_amount, 0.0)
@@ -6589,11 +6744,13 @@ class TradeSetupGenerator:
 
         if is_entry:
             result.entry_conditions = [
-                f"Entry limit {sym}{result.entry_price:.2f} — do not chase above it",
+                f"Entry limit {sym}{result.entry_price:.2f}; do not chase above it",
                 f"Invalidated on a close below {sym}{result.stop_loss:.2f}",
                 "Volume at or above 1.5x the 20-day average on the entry day",
                 "No earnings inside the next 5 sessions",
             ]
+            if pullback_note:
+                result.entry_conditions.insert(1, pullback_note)
             result.exit_conditions = [
                 f"Take a third at {sym}{result.target_conservative:.2f} (tactical partial exit)",
                 f"Move the stop to breakeven once {sym}{result.entry_price + result.risk_amount:.2f} trades",
@@ -6603,7 +6760,7 @@ class TradeSetupGenerator:
             ]
         else:
             result.entry_conditions = [
-                "Reference levels only — this is not a new-money entry",
+                "Reference levels only: this is not a new-money entry",
                 f"Would become actionable on a close above {sym}{technical.resistance_level:.2f}"
                 if technical.resistance_level > current_price else
                 "Would become actionable once the setup and risk grade improve",
@@ -7147,7 +7304,8 @@ class ThesisGenerator:
             'Debt/Equity': result.fundamental.debt_to_equity,
             'Revenue Growth': f"{result.fundamental.revenue_growth_yoy:.1f}%",
             'Volatility': f"{result.risk.annualized_volatility:.1%}",
-            'Beta': result.risk.beta
+            # The 1.0 placeholder is not a measured beta.
+            'Beta': result.risk.beta if result.risk.beta_status == "measured" else None
         }
         
         # Recommendation rationale
@@ -7382,7 +7540,7 @@ def decision_for_analysis(result: "AnalysisResult"):
     scores = result.scores
     setup = result.trade_setup
     risk = result.risk
-    freshness = assess_price_freshness(as_of)
+    freshness = assess_price_freshness(as_of, ticker=result.ticker)
     blocking = list(getattr(result, "final_blocking_reasons", []) or [])
     blocking_codes = list(getattr(result, "final_action_codes", []) or [])
     transitions = list(getattr(result, "final_action_transitions", []) or [])
@@ -7783,17 +7941,18 @@ class QuantaEliteAnalyzer:
             return None
 
     @staticmethod
-    def _price_data_freshness(data: pd.DataFrame, now: Any = None):
-        """Apply the one market-session freshness policy used by Decisions."""
+    def _price_data_freshness(data: pd.DataFrame, now: Any = None, ticker: str = ""):
+        """Apply the one market-session freshness policy used by Decisions (India
+        listings on the India session calendar)."""
         from engine.decision import assess_price_freshness
 
         if data is None or data.empty:
-            return assess_price_freshness(None, now=now)
+            return assess_price_freshness(None, now=now, ticker=ticker or None)
         try:
             last_bar = pd.Timestamp(data.index[-1]).date()
         except (TypeError, ValueError, IndexError, OverflowError):
             last_bar = None
-        return assess_price_freshness(last_bar, now=now)
+        return assess_price_freshness(last_bar, now=now, ticker=ticker or None)
     
     def _load_tracked_positions(self) -> None:
         """Load tracked positions from signal history for portfolio risk checks."""
@@ -7914,7 +8073,7 @@ class QuantaEliteAnalyzer:
 
         if not check.get('holdings_known', False):
             sizing.warnings.append(
-                "Holdings unknown — sizing is a hypothetical allocation, not a "
+                "Holdings unknown: sizing is a hypothetical allocation, not a "
                 "portfolio-checked order."
             )
 
@@ -7949,7 +8108,7 @@ class QuantaEliteAnalyzer:
     
     def analyze(self, ticker: str, account_size: float = 100000,
                 fast_mode: bool = False, include_insider: bool = False,
-                market: Optional[str] = None) -> AnalysisResult:
+                market: Optional[str] = None, owned: bool = False) -> AnalysisResult:
         """Run comprehensive stock analysis.
 
         [PERF-FASTMODE] When ``fast_mode`` is True the network-heavy optional
@@ -7969,6 +8128,9 @@ class QuantaEliteAnalyzer:
         result = AnalysisResult()
         result.ticker = ticker.upper()
         result.requested_symbol = ticker.upper()
+        # The caller knows whether the account holds this name (My Portfolio does);
+        # a neutral score then reads HOLD, not "no existing position: Watchlist".
+        result.has_existing_position = bool(owned)
         result.fast_mode = bool(fast_mode)
         result.retrieval_timestamp = datetime.now(timezone.utc).isoformat()
         result.analysis_timestamp = result.retrieval_timestamp
@@ -8041,7 +8203,7 @@ class QuantaEliteAnalyzer:
                         result.final_action = FinalAction.INVALID.value
                         result.final_action_reasons = list(result.invalid_reasons)
                     result.key_insights.append(
-                        f"INVALID TICKER / NO DATA — {ticker} did not pass the "
+                        f"INVALID TICKER / NO DATA: {ticker} did not pass the "
                         f"data-validation gate."
                     )
                     logger.warning(f"INVALID ticker {ticker}: no historical data")
@@ -8084,7 +8246,7 @@ class QuantaEliteAnalyzer:
                 result.final_action_reasons = [reason]
                 result.invalid_reasons = []
                 result.key_insights.append(
-                    f"NOT CONFIRMED — {reason} The scanner signal was not "
+                    f"NOT CONFIRMED: {reason} The scanner signal was not "
                     f"independently validated."
                 )
                 logger.warning(
@@ -8129,7 +8291,7 @@ class QuantaEliteAnalyzer:
                 result.final_action = ""
                 result.final_action_reasons = [reason]
                 result.key_insights.append(
-                    f"NOT CONFIRMED — {reason} The scanner signal was not independently validated."
+                    f"NOT CONFIRMED: {reason} The scanner signal was not independently validated."
                 )
                 logger.warning("NOT CONFIRMED %s: status=%s (%s)", ticker, data_status, reason)
                 return result
@@ -8138,7 +8300,7 @@ class QuantaEliteAnalyzer:
             # delisted, or a stale cache). Use the same completed-session policy
             # that is published on Decision; calendar-day cutoffs disagree over
             # weekends and holidays and previously let four-session-old BUYs pass.
-            price_freshness = self._price_data_freshness(data)
+            price_freshness = self._price_data_freshness(data, ticker=ticker)
             if price_freshness.status != "fresh":
                 result.data_status = DataStatus.STALE_DATA
                 result.data_quality_status = "stale"
@@ -8149,7 +8311,7 @@ class QuantaEliteAnalyzer:
                 result.final_action = ""
                 result.final_action_reasons = [result.data_status_reason]
                 result.key_insights.append(
-                    "NOT CONFIRMED — stale market data; no recommendation generated."
+                    "NOT CONFIRMED: stale market data; no recommendation generated."
                 )
                 return result
 
@@ -8172,7 +8334,7 @@ class QuantaEliteAnalyzer:
                     result.final_action = FinalAction.INVALID.value
                     result.final_action_reasons = list(vrep.reasons)
                     result.key_insights.append(
-                        "INVALID TICKER / NO DATA — " + "; ".join(vrep.reasons)
+                        "INVALID TICKER / NO DATA: " + "; ".join(vrep.reasons)
                     )
                     logger.warning(f"INVALID ticker {ticker}: {vrep.reasons}")
                     return result
@@ -8345,6 +8507,7 @@ class QuantaEliteAnalyzer:
                 result.current_price, signal, result.technical, result.risk, confidence,
                 currency_symbol=result.currency_symbol,
                 valuation=result.valuation,
+                ticker=result.ticker,
             )
             _stage("trade_setup", _t, provider="local")
 
@@ -10339,7 +10502,7 @@ def display_what_to_do(result: 'AnalysisResult', sym: str = "$") -> None:
             print(f"  Risk at stop   {sym}{ps.dollar_risk:,.0f} ({ps.risk_percent:.2%} of account)")
             print(f"  Method         {ps.sizing_method}"
                   + (f"   ·   cap {ps.max_portfolio_weight:.0%}" if ps.max_portfolio_weight else ""))
-            cost_pct = TradeSetupGenerator.round_trip_cost_pct()
+            cost_pct = TradeSetupGenerator.round_trip_cost_pct(getattr(result, 'ticker', ''))
             cost_dollars = ps.position_value * cost_pct / 100
             print(f"  Round-trip cost {sym}{cost_dollars:,.2f} ({cost_pct:.2f}%) "
                   f"— already deducted from the R:R above")
@@ -10445,10 +10608,13 @@ def display_execution_context(result: 'AnalysisResult', sym: str = "$") -> None:
     # ── Cost drag ─────────────────────────────────────────────────────────
     print(f"\n  COST OF THE ROUND TRIP")
     _rule()
-    cost_pct = TradeSetupGenerator.round_trip_cost_pct()
+    _ticker = getattr(result, 'ticker', '')
+    cost_pct = TradeSetupGenerator.round_trip_cost_pct(_ticker)
+    _levies = (f" + {_T.LEVELS.RESEARCH_INDIA_STATUTORY_PER_SIDE * 10000:g}bps "
+               f"India statutory levies each way" if _listing_market(_ticker) == "IN" else "")
     print(f"  Modelled cost         {cost_pct:.2f}% "
           f"({TradeSetupGenerator.SPREAD_BPS}bps spread + "
-          f"{TradeSetupGenerator.SLIPPAGE_BPS}bps slippage each way)")
+          f"{TradeSetupGenerator.SLIPPAGE_BPS}bps slippage each way{_levies})")
     if ps and getattr(ps, 'position_value', 0) > 0:
         cost_dollars = ps.position_value * cost_pct / 100
         print(f"  On this position      {sym}{cost_dollars:,.2f}")
@@ -11286,7 +11452,7 @@ def monte_carlo_event_label(mc: 'MonteCarloResults') -> str:
     horizon = f"{days}-day" if days else "simulated"
     return (
         f"P(price above today's close at the end of the {horizon} horizon), "
-        f"model-conditional. Terminal outcome only — not the chance of "
+        f"model-conditional. Terminal outcome only: not the chance of "
         f"touching a target, and not target-vs-stop."
     )
 
@@ -11418,7 +11584,7 @@ def _compute_beginner_guidance(result: 'AnalysisResult') -> Dict[str, Any]:
         if ceiling == "NO":
             timing = "AVOID"
             action = (
-                "The overall verdict is negative, so this is not a buy — "
+                "The overall verdict is negative, so this is not a buy, "
                 "regardless of the bullish candle. Existing holders should "
                 "follow the exit plan; new buyers should stay out."
             )
@@ -11441,7 +11607,7 @@ def _compute_beginner_guidance(result: 'AnalysisResult') -> Dict[str, Any]:
     # ---- Position guidance ----
     if timing in ("AVOID", "WAIT", "WAIT / NO CLEAR EDGE", "NO CLEAR EDGE"):
         if risk_grade == "F":
-            new_buyer = "Avoid new buy — watchlist only"
+            new_buyer = "Avoid new buy; watchlist only"
             existing_holder = "Hold existing with strict stop"
         elif risk_grade == "D":
             new_buyer = "Wait"
@@ -11547,17 +11713,17 @@ def _compute_beginner_guidance(result: 'AnalysisResult') -> Dict[str, Any]:
 
     if result.sentiment and result.sentiment.news_volume > 0 \
        and not getattr(result.sentiment, 'last_news_timestamp', ''):
-        warnings.append("News date unavailable — sentiment freshness cannot be verified.")
+        warnings.append("News date unavailable: sentiment freshness cannot be verified.")
 
     # Insider sale context check (item 2) — N/A for ETFs (no insiders).
     ins = result.insider
     if not is_etf and ins and ins.insider_sentiment in ("BEARISH", "BULLISH") and not ins.key_transactions:
-        warnings.append("Insider sale type unavailable — net flow only.")
+        warnings.append("Insider sale type unavailable: net flow only.")
 
     fund = result.fundamental
     if fund and not getattr(fund, 'is_etf', False) and fund.pe_ratio <= 0 \
        and fund.roe == 0 and fund.revenue_growth_yoy == 0:
-        warnings.append("Limited fundamentals available — treat composite cautiously.")
+        warnings.append("Limited fundamentals available; treat composite cautiously.")
 
     # ---- Hard data-quality failures (always escalate to FAIL) ----
     hard_fail: List[str] = []
@@ -11586,7 +11752,7 @@ def _compute_beginner_guidance(result: 'AnalysisResult') -> Dict[str, Any]:
         if _gap_pct < 0.5:
             warnings.append(
                 f"Valuation target {target:,.2f} sits only {_gap_pct:.2f}% above the entry "
-                f"reference {entry_for_rr:,.2f} — reward is consumed by execution cost, so R:R is 0."
+                f"reference {entry_for_rr:,.2f}: reward is consumed by execution cost, so R:R is 0."
             )
         else:
             hard_fail.append("Risk/reward could not be computed despite valid entry, target, and stop.")
@@ -11594,7 +11760,7 @@ def _compute_beginner_guidance(result: 'AnalysisResult') -> Dict[str, Any]:
         # Informational, not a data fault.
         warnings.append(
             f"Valuation target {target:,.2f} is at or below the entry reference "
-            f"{entry_for_rr:,.2f} — no long reward, so R:R is 0 by definition."
+            f"{entry_for_rr:,.2f}: no long reward, so R:R is 0 by definition."
         )
     # Analyst rating inferred from zero analysts — N/A for ETFs (no analyst coverage).
     # Yahoo may provide an aggregate recommendation and a valid coverage count
@@ -13404,15 +13570,18 @@ def _mcp_result_to_dict(result: AnalysisResult) -> Dict[str, Any]:
     if result.technical:
         t = result.technical
         d['technical'] = {
-            'rsi': _mcp_safe_serialize(t.rsi),
+            # null, not the neutral placeholder, when the indicator failed.
+            'rsi': _mcp_safe_serialize(t.rsi) if t.has('rsi') else None,
             'macd_signal': t.macd_signal,
-            'adx': _mcp_safe_serialize(t.adx),
+            'adx': _mcp_safe_serialize(t.adx) if t.has('adx') else None,
+            'unmeasured': list(t.unmeasured),
             'trend_direction': t.trend_direction,
             'trend_strength': t.trend_strength,
             'golden_cross': t.golden_cross,
             'death_cross': t.death_cross,
             'bollinger_signal': t.bollinger_signal,
             'volume_ratio': _mcp_safe_serialize(t.volume_ratio),
+            'volume_ratio_basis': t.volume_ratio_basis,
             'squeeze_detected': t.squeeze_detected,
             'support_level': _mcp_safe_serialize(t.support_level),
             'resistance_level': _mcp_safe_serialize(t.resistance_level),
@@ -13895,7 +14064,7 @@ def _mcp_result_to_dict(result: AnalysisResult) -> Dict[str, Any]:
                 'Existing holders may hold with a trailing stop.'
             )
         else:
-            bottom_line = 'Mixed signals — defer new buying until a clearer setup emerges.'
+            bottom_line = 'Mixed signals; defer new buying until a clearer setup emerges.'
 
         d['portfolio_outlook'] = {
             'recommendation': recommendation_label,

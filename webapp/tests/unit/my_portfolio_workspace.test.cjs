@@ -73,7 +73,7 @@ test('Overview: KPI strip, performance beside allocation, holdings beside what d
   loaded();
   const ov = panel(render('overview'), 'overview');
   assert.deepEqual(titles(ov), ['Portfolio Overview', 'Holdings vs S&P 500']);
-  assert.deepEqual([...ov.querySelectorAll('.mpo-h h2')].map(words), ['Allocation', 'Holdings 8', 'What drove return', 'Action queue 3', 'Movers Latest session · Fri, Sep 25']);
+  assert.deepEqual([...ov.querySelectorAll('.mpo-h h2')].map(words), ['Allocation', 'Holdings 8', 'Unrealized gains by holding', 'Action queue 3', 'Movers Latest session · Fri, Sep 25']);
   // Catalysts: earnings, ex-dividend dates and filings for held names, nearest first.
   const cat = ov.querySelector('.mpo-queue [data-mp-slot="events-line"]');
   assert.match(words(cat.querySelector('.mpo-cat-h')), /^Catalysts next 30 days$/);
@@ -243,7 +243,7 @@ test('a simulation is labelled as one, everywhere, and never as account performa
   const spec = X.chartSpecFor('overview');
   assert.match(spec.ariaLabel, /^Current holdings simulation versus S&P 500 \(SPY\)/);
   assert.match(spec.table.caption, /^Current holdings versus S&P 500/);
-  assert.match(X.exportMarkdown(pf), /Current holdings simulation — not the account’s actual return/);
+  assert.match(X.exportMarkdown(pf), /Current holdings simulation, not the account’s actual return/);
   // Only a reconciled order ledger may be called actual; then the label changes with it.
   const ledger = clone(I.performance);
   ledger.actual = { available: true, kind: 'ledger', missing: ['Cash balances are not available.'], ranges: { '6M': clone(I.performance.simulation['6M']) } };

@@ -98,7 +98,7 @@ for (const theme of ['dark', 'light'] as const) {
     await setTheme(page, theme);
     const errors = trackConsole(page);
     await page.goto(NOCACHE(), { waitUntil: 'networkidle' });
-    await expect(page.locator('#decision-brief .q-regime-title')).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator('#decision-brief .ovx-mood-word')).toBeVisible({ timeout: 60_000 });
     expect(await page.locator('html').getAttribute('data-theme')).toBe(theme);
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])

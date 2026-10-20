@@ -993,7 +993,10 @@ class DataValidator:
         zone = 'Asia/Kolkata' if market == 'IN' else 'America/New_York'
         current = pd.Timestamp.now(tz=zone) if now is None else pd.Timestamp(now)
         current = current.tz_localize(zone) if current.tzinfo is None else current.tz_convert(zone)
-        close_minutes = 15 * 60 + 30 if market == 'IN' else 16 * 60
+        from engine.market_calendar import SESSION_CLOSE
+        close_h, close_m = (_T.RESEARCH.INDIA_SESSION_CLOSE_IST if market == 'IN'
+                            else (SESSION_CLOSE.hour, SESSION_CLOSE.minute))
+        close_minutes = int(close_h) * 60 + int(close_m)
         if current.hour * 60 + current.minute >= close_minutes:
             return hist
         dates = pd.DatetimeIndex(hist.index)
@@ -1002,6 +1005,33 @@ class DataValidator:
         keep = dates.date != current.date()
         return hist.loc[keep].copy() if not keep.all() else hist
     
+    @staticmethod
+    def sessions_behind(last_bar: pd.Timestamp, market: str = "US") -> int:
+        """Completed sessions after ``last_bar`` up to the last completed session.
+
+        US: the NYSE calendar. India: the NSE session calendar (weekdays on the
+        India clock less the listed NSE holidays). Both live in
+        engine.market_calendar, shared with the Decision freshness check.
+        """
+        now = datetime.now(timezone.utc)
+        if market == 'IN':
+            from engine.market_calendar import last_completed_india_session
+            zone = 'Asia/Kolkata'
+            expected = last_completed_india_session(now)
+        else:
+            from engine.market_calendar import last_completed_session
+            zone = 'America/New_York'
+            expected = last_completed_session(now)
+        bar = pd.Timestamp(last_bar)
+        bar_day = (bar.tz_convert(zone) if bar.tzinfo is not None else bar).date()
+        if bar_day >= expected:
+            return 0
+        if market == 'IN':
+            from engine.market_calendar import india_trading_days_between
+            return int(india_trading_days_between(bar_day, expected))
+        from engine.market_calendar import trading_days_between
+        return int(trading_days_between(bar_day, expected))
+
     # Split / bonus ratios seen in practice (forward and reverse are both
     # covered by testing the ratio and its inverse). 1.5, 4/3 and 5/4 are the
     # 3:2, 4:3 and 5:4 bonus issues that are common on NSE.
@@ -1063,8 +1093,15 @@ class DataValidator:
 
     @classmethod
     def validate_history(cls, hist: pd.DataFrame, ticker: str = "",
-                         max_age_days: Optional[int] = None) -> ValidationResult:
-        """Validate historical price data quality"""
+                         max_age_days: Optional[int] = None,
+                         max_age_sessions: Optional[int] = None,
+                         market: str = "US") -> ValidationResult:
+        """Validate historical price data quality.
+
+        ``max_age_sessions`` (the live scanner) bounds how many completed
+        sessions the latest bar may trail; ``max_age_days`` is the older
+        calendar-day form, kept for callers that pass it.
+        """
         errors = []
         warnings = []
         
@@ -1180,7 +1217,23 @@ class DataValidator:
                     )
             except Exception:
                 errors.append(f"{ticker}: history index has no valid market timestamp")
-        
+
+        # The live scanner's rule: completed sessions behind the last completed
+        # session, so a holiday weekend is not stale and a week-old bar is.
+        if max_age_sessions is not None:
+            try:
+                last_timestamp = pd.Timestamp(hist.index.max())
+                if pd.isna(last_timestamp):
+                    raise ValueError("missing latest timestamp")
+                lag = cls.sessions_behind(last_timestamp, market)
+                if lag > max_age_sessions:
+                    errors.append(
+                        f"{ticker}: latest bar ({last_timestamp.date().isoformat()}) is {lag} completed "
+                        f"sessions old (maximum {max_age_sessions})"
+                    )
+            except Exception:
+                errors.append(f"{ticker}: history index has no valid market timestamp")
+
         is_valid = len(errors) == 0
         return ValidationResult(is_valid=is_valid, errors=errors, warnings=warnings)
     
@@ -1229,6 +1282,11 @@ class DataValidator:
 # RISK LIMITS MODULE [NEW]
 # ============================================================================
 
+# The correlation cap below reads engine/thresholds.py (the main [F9] import is
+# further down the module, after this class is defined).
+from engine import thresholds as _T  # noqa: E402
+
+
 class RiskLimits:
     """
     Institutional-grade risk limits and checks.
@@ -1240,7 +1298,7 @@ class RiskLimits:
     VAR_LIMIT_PCT = 0.02   # 2% of account max daily VaR
     
     # Correlation Settings
-    MAX_PAIRWISE_CORRELATION = 0.70  # Block if > 0.7
+    MAX_PAIRWISE_CORRELATION = _T.alias(_T.BOOK, "MAX_PAIRWISE_CORRELATION")
     MIN_CORRELATION_PERIOD = 60  # Days for correlation calculation
     
     # Liquidity Settings
@@ -1807,9 +1865,65 @@ class AdaptivePacer:
 from engine import thresholds as _T  # noqa: E402
 
 
+def _funding_rr() -> float:
+    """The reward-to-risk a funded call's published levels must clear: the product's
+    funding hurdle (RR.SCANNER_MIN), never the Research engine's lower label line."""
+    return max(float(_T.RR.SCANNER_MIN), float(_T.RR.RESEARCH_MIN))
+
+
 def _listing_currency(ticker: Any) -> str:
     """[Picks revamp] The symbol a level is quoted in: rupees for NSE/BSE listings."""
     return "₹" if str(ticker or "").upper().endswith((".NS", ".BO")) else "$"
+
+
+def analyst_target_split_ratio(target: Any, price: Any, info: Optional[Dict[str, Any]],
+                               today: Optional[Any] = None) -> Optional[float]:
+    """The ratio of a recent split that explains a consensus target better than price.
+
+    A target written before a 2:1 split sits near 2x the post-split price, which
+    the 0.5x-3x sanity band accepts as upside. The provider's last split
+    (``lastSplitFactor`` "new:old", ``lastSplitDate`` epoch seconds) is used when
+    it falls within LEVELS.ANALYST_TARGET_SPLIT_LOOKBACK_DAYS: the target is
+    stale when it sits nearer price x ratio than price itself (log distance).
+    None when no such split explains it.
+    """
+    target, price = _clean_float(target), _clean_float(price)
+    if target <= 0 or price <= 0:
+        return None
+    info = info or {}
+    m = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*[:/]\s*(\d+(?:\.\d+)?)\s*", str(info.get('lastSplitFactor') or ''))
+    if not m:
+        return None
+    new, old = float(m.group(1)), float(m.group(2))
+    if new <= 0 or old <= 0 or new == old:
+        return None
+    try:
+        split_day = datetime.fromtimestamp(float(info.get('lastSplitDate')), tz=timezone.utc).date()
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+    today = today or datetime.now(timezone.utc).date()
+    age = (today - split_day).days
+    if age < 0 or age > _T.LEVELS.ANALYST_TARGET_SPLIT_LOOKBACK_DAYS:
+        return None
+    ratio = new / old
+    if abs(math.log(target / (price * ratio))) < abs(math.log(target / price)):
+        return ratio
+    return None
+
+
+def split_checked_analyst_target(info: Dict[str, Any], price: Any,
+                                 today: Optional[Any] = None) -> Tuple[float, Dict[str, Any], str]:
+    """(mean target, info, note). A target set before a recent split is stale: the
+    mean, low and high targets become unavailable (0 / None) and the note says why."""
+    info = info or {}
+    target = _clean_float(info.get('targetMeanPrice'))
+    ratio = analyst_target_split_ratio(target, price, info, today)
+    if ratio is None:
+        return target, info, ""
+    cleaned = dict(info, targetMeanPrice=None, targetLowPrice=None, targetHighPrice=None)
+    note = (f"consensus target {target:,.2f} sits nearer price x the {info.get('lastSplitFactor')} split "
+            f"ratio than price; treated as set before the split and not used")
+    return 0.0, cleaned, note
 from engine.style_screen import STYLE_OF_SCAN, screen as style_screen  # noqa: E402
 from engine import scan_filters  # noqa: E402
 
@@ -2053,7 +2167,7 @@ class TradingConfig:
     CORRELATION_WINDOW_DAYS: int = 180
     # Order-independent portfolio gate. The old greedy pairwise veto meant the
     # highest-scoring name in a sector arbitrarily blocked its peers.
-    MAX_AVERAGE_CORRELATION: float = 0.60
+    MAX_AVERAGE_CORRELATION: float = _T.alias(_T.BOOK, "MAX_AVERAGE_CORRELATION")
 
     # [M10 FIX] Earnings proximity scales the position instead of excluding
     # the name. A MISSING calendar is a data gap, not an all-clear — the old
@@ -2162,7 +2276,7 @@ class TradingConfig:
 
     # Data Requirements
     MIN_HISTORY_DAYS: int = _T.alias(_T.UNIVERSE, "MIN_HISTORY_DAYS")
-    MAX_LIVE_DATA_AGE_DAYS: int = _T.alias(_T.UNIVERSE, "MAX_LIVE_DATA_AGE_DAYS")
+    MAX_LIVE_DATA_AGE_SESSIONS: int = _T.alias(_T.UNIVERSE, "MAX_LIVE_DATA_AGE_SESSIONS")
     VWAP_WINDOW: int = 20  # daily-bar rolling VWAP proxy (not intraday session VWAP)
     LOOKBACK_PERIOD: str = "1y"  # 1 year historical data
     
@@ -2236,6 +2350,9 @@ class TradingConfig:
             return False
         max_risk = (cls.MAX_RISK_STRONG_BUY if getattr(rec, 'signal', None) == SignalType.STRONG_BUY.value
                     else cls.MAX_RISK_PER_TRADE)
+        # A forced single share may not risk more than SIZING.ONE_SHARE_MAX_RISK of
+        # capital: the 2% ceiling let a $2,500 account carry 4x its 0.48% target.
+        max_risk = min(max_risk, float(_T.SIZING.ONE_SHARE_MAX_RISK))
         return entry <= cls.max_position_dollars(capital) and (entry - stop) <= capital * max_risk
 
     @classmethod
@@ -2852,10 +2969,7 @@ GICS_SECTORS = {
 
 # **v6.0 PROPHET FIX #7.4: Crypto-Correlated Stocks**
 # These stocks move violently with Bitcoin - require special risk management
-CRYPTO_CORRELATED_STOCKS = {
-    'MARA', 'RIOT', 'COIN', 'MSTR', 'HIVE', 'BITF', 'HUT', 'CLSK',
-    'GBTC', 'BITO', 'CORZ', 'CIFR', 'BTBT', 'SOS', 'CAN', 'WULF'
-}
+CRYPTO_CORRELATED_STOCKS = frozenset(_T.SCORE.CRYPTO_CORRELATED_TICKERS)
 
 # **v6.0 PROPHET FIX #7.5: 2025 FOMC Meeting Dates**
 # Fed week = smaller positions, higher cash allocation
@@ -3775,7 +3889,7 @@ def decision_for_scan_result(rec: StockAnalysis):
         sources=[SourceRef("px", "price", rec.data_provider or "unknown",
                            as_of=as_of.isoformat() if as_of else None,
                            retrieved_at=rec.retrieval_timestamp or None)],
-        freshness=assess_price_freshness(as_of),
+        freshness=assess_price_freshness(as_of, ticker=rec.ticker),
         # The scanner scores on its own scale, so only the action-derived
         # new-money field is published here; the score stance is Research's.
         new_money=_new_money_for(action),
@@ -3900,7 +4014,7 @@ def evaluate_sell_triggers(analysis: "StockAnalysis",
     if grade == "F":
         escalate(2, "Risk grade fell to F (uninvestable)")
     elif grade == "D":
-        escalate(1, "Risk grade fell to D — trim one notch")
+        escalate(1, "Risk grade fell to D; trim one notch")
 
     if entry_score is not None and score_drop >= SELL_SCORE_DROP_EXIT:
         escalate(2, f"Composite collapsed {score_drop:.1f} pts vs entry "
@@ -4526,6 +4640,13 @@ class TechnicalAnalysisEngine:
             indicators.adx = TechnicalAnalysisEngine._calculate_adx(hist)
             indicators.trend_strength = indicators.adx / 100.0
 
+            # RSI and ADX feed the scores and the entry gates; a reading that
+            # could not be computed is a data gap (tech_indicators_failed), not
+            # a neutral value scored as measured.
+            if not (np.isfinite(indicators.rsi) and np.isfinite(indicators.adx)):
+                logger.debug("RSI or ADX could not be computed; indicators unavailable")
+                return None
+
             return indicators
 
         except Exception as e:
@@ -4539,11 +4660,14 @@ class TechnicalAnalysisEngine:
         Uses alpha=1/period which is the TRUE Wilder's smoothing.
         Previous version used com=period-1 which is mathematically equivalent
         but we now use explicit alpha for clarity.
+
+        An RSI that cannot be computed is NaN (missing), never 50: a neutral
+        reading would score as a measured one.
         """
         try:
             if len(prices) < period + 1:
-                return 50.0
-                
+                return float('nan')
+
             delta = prices.diff()
             
             # Separate gains and losses
@@ -4558,22 +4682,23 @@ class TechnicalAnalysisEngine:
             rs = ma_up / (ma_down + 1e-10)
             rsi = 100 - (100 / (1 + rs))
             
-            return float(rsi.iloc[-1]) if not rsi.empty else 50.0
+            return float(rsi.iloc[-1]) if not rsi.empty else float('nan')
         except Exception:
-            return 50.0
+            return float('nan')
 
     @staticmethod
     def _calculate_adx(hist: pd.DataFrame, period: int = 14) -> float:
         """
         **FIX #2 IMPROVED: ADX with data validation**
         ADX needs 150+ data points for reliable trend strength measurement.
-        Returns 0.0 if insufficient data.
+        Returns NaN (missing) if it cannot be computed, never 0: a zero would
+        read as a measured "no trend".
         """
         try:
             # FIX #2: ADX needs more data for accuracy
             if len(hist) < 150:
-                logger.debug(f"ADX: Insufficient data ({len(hist)} < 150), returning 0")
-                return 0.0
+                logger.debug(f"ADX: Insufficient data ({len(hist)} < 150), missing")
+                return float('nan')
                 
             high = hist['High']
             low = hist['Low']
@@ -4608,9 +4733,9 @@ class TechnicalAnalysisEngine:
             dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di + 1e-10)
             adx = dx.ewm(alpha=alpha, min_periods=period, adjust=False).mean()
 
-            return float(adx.iloc[-1]) if not adx.empty else 0.0
+            return float(adx.iloc[-1]) if not adx.empty else float('nan')
         except Exception:
-            return 0.0
+            return float('nan')
 
 
 # ============================================================================
@@ -4867,15 +4992,18 @@ class RiskAnalyticsEngine:
 
     @staticmethod
     def calculate_beta_alpha(stock_returns: pd.Series, market_returns: pd.Series,
-                             risk_free_rate: float = 0.04) -> Tuple[float, float]:
+                             risk_free_rate: float = 0.04) -> Tuple[Optional[float], Optional[float]]:
         """Calculate Blume-adjusted beta and Jensen's alpha relative to market.
 
         *risk_free_rate* defaults to the same 0.04 used by
         ``calculate_risk_metrics`` so Sharpe and alpha share one assumption.
+
+        (None, None) when they cannot be measured: a beta of 1.0 would read as
+        a measured market beta.
         """
         try:
             if len(stock_returns) < 30 or len(market_returns) < 30:
-                return 1.0, 0.0
+                return None, None
 
             # Align indices
             aligned = pd.DataFrame({
@@ -4884,13 +5012,15 @@ class RiskAnalyticsEngine:
             }).dropna()
 
             if len(aligned) < 30:
-                return 1.0, 0.0
+                return None, None
 
             # Calculate beta using covariance
             covariance = aligned['stock'].cov(aligned['market'])
             market_variance = aligned['market'].var()
+            if not market_variance > 0:
+                return None, None
 
-            beta = covariance / market_variance if market_variance > 0 else 1.0
+            beta = covariance / market_variance
             
             # FIX #3: Blume Beta Adjustment - regress toward 1.0
             # Academic research shows betas mean-revert over time
@@ -4913,7 +5043,7 @@ class RiskAnalyticsEngine:
 
         except Exception as e:
             logger.debug(f"Error calculating beta/alpha: {e}")
-            return 1.0, 0.0
+            return None, None
 
 
 # ============================================================================
@@ -5759,9 +5889,13 @@ class ScoringEngine:
             # the oversold-bounce setup is handled explicitly by
             # _determine_signal_regime_aware, which is where that thesis lives.
             rsi = indicators.rsi
-            if rsi is None or (isinstance(rsi, float) and np.isnan(rsi)):
-                rsi = 50.0  # Neutral default
-            if TradingConfig.RSI_OPTIMAL_LOW <= rsi <= TradingConfig.RSI_OPTIMAL_HIGH:
+            # A missing RSI earns no RSI points; the score is then judged on
+            # the inputs that were measured (_coverage_scaled, below). It used
+            # to read as 50, which sits in the optimal band and paid full points.
+            rsi_missing = rsi is None or (isinstance(rsi, float) and np.isnan(rsi))
+            if rsi_missing:
+                pass
+            elif TradingConfig.RSI_OPTIMAL_LOW <= rsi <= TradingConfig.RSI_OPTIMAL_HIGH:
                 score += 2.0
             elif TradingConfig.RSI_OPTIMAL_HIGH < rsi <= TradingConfig.RSI_OVERBOUGHT:
                 score += 1.5   # trending up, not yet extended
@@ -5853,7 +5987,11 @@ class ScoringEngine:
             logger.warning(f"technical scoring failed ({type(e).__name__}: {e}); scored neutral")
             return ScoringEngine.MISSING_DATA_NEUTRAL
 
-        return min(10.0, max(0.0, score))
+        score = min(10.0, max(0.0, score))
+        if rsi_missing:
+            # The RSI leg is 2.0 of the 10.5 points the legs above can pay.
+            score = min(10.0, ScoringEngine._coverage_scaled(score, 8.5, 10.5))
+        return score
 
     @staticmethod
     def calculate_fundamental_score(metrics: FundamentalMetrics) -> float:
@@ -8403,7 +8541,8 @@ class QuantaEliteTradingSystem:
 
             # **[P1 FIX] Validate & clean historical data before analysis**
             validation = DataValidator.validate_history(
-                hist, ticker, max_age_days=TradingConfig.MAX_LIVE_DATA_AGE_DAYS
+                hist, ticker, max_age_sessions=TradingConfig.MAX_LIVE_DATA_AGE_SESSIONS,
+                market="IN" if self.market == "INDIA" else "US",
             )
             if not validation.is_valid:
                 # [I8] The page names this ticker under "could not be analysed".
@@ -8657,10 +8796,10 @@ class QuantaEliteTradingSystem:
                 risk_metrics.beta = real_beta
                 risk_metrics.alpha = real_alpha
             else:
-                # Fallback to defaults if alignment failed
-                risk_metrics.beta = 1.0
-                risk_metrics.alpha = 0.0
-                logger.debug(f"{ticker}: Using default beta/alpha (alignment failed)")
+                # Not measured: missing, never a market beta of 1.0.
+                risk_metrics.beta = None
+                risk_metrics.alpha = None
+                logger.debug(f"{ticker}: beta/alpha not measured (alignment failed)")
 
             # Calculate scores
             tech_score = self.scoring_engine.calculate_technical_score(tech_indicators)
@@ -8782,7 +8921,10 @@ class QuantaEliteTradingSystem:
                     self.chase_alerts.append(alert)
 
             # ── Wall St. consensus ─────────────────────────────────────────
-            analyst_target = info.get('targetMeanPrice', 0) or 0
+            # A target written before a recent split is stale, not upside.
+            analyst_target, info, _split_note = split_checked_analyst_target(info, current_price)
+            if _split_note:
+                logger.info(f"{ticker}: {_split_note}")
             analyst_recommendation = (info.get('recommendationKey') or 'none').upper()
             # A bearish consensus is a negative factor whatever WE think, so
             # this no longer keys off our own (not yet derived) signal via a
@@ -8875,10 +9017,11 @@ class QuantaEliteTradingSystem:
             if root_ticker in CRYPTO_CORRELATED_STOCKS:
                 crypto_warning = "⚠️ HIGH CRYPTO CORRELATION - Bitcoin moves cause violent swings"
                 logger.warning(f"⚠️ {ticker}: High crypto correlation - extreme volatility risk")
-                if overall_score < TradingConfig.MIN_SCORE + 2.0:
+                _crypto_floor = TradingConfig.MIN_SCORE + _T.SCORE.CRYPTO_SCORE_PREMIUM
+                if overall_score < _crypto_floor:
                     self._record_candidate_rejection(ticker, 'crypto_score_low', overall_score,
                         f"Score {overall_score:.2f} below the crypto-correlation floor "
-                        f"{TradingConfig.MIN_SCORE + 2.0:.2f}")
+                        f"{_crypto_floor:.2f}")
                     logger.debug(f"{ticker}: Crypto stock below elevated threshold")
                     self._record_filter('crypto_score_low')
                     if not research_mode:
@@ -9123,10 +9266,12 @@ class QuantaEliteTradingSystem:
 
                 # Betting-Against-Beta (BAB)
                 annual_return = (1 + tech_indicators.momentum_6m) ** 2 - 1  # Proper annualization
-                elite_factors.bab_score, elite_factors.beta_adjusted_return = \
-                    EliteQuantEngine.calculate_betting_against_beta(
-                        risk_metrics.beta, annual_return
-                    )
+                _beta_measured = risk_metrics.beta is not None
+                if _beta_measured:
+                    elite_factors.bab_score, elite_factors.beta_adjusted_return = \
+                        EliteQuantEngine.calculate_betting_against_beta(
+                            risk_metrics.beta, annual_return
+                        )
 
                 # [W13 FIX] elite_composite_score was computed here and then
                 # NEVER READ — along with check_factor_vif,
@@ -9153,7 +9298,9 @@ class QuantaEliteTradingSystem:
                     + _to_ten(elite_factors.profitability_factor, -2.0, 3.0) * 0.20
                     + _to_ten(elite_factors.qmj_spread, -3.0, 3.25) * 0.25
                     + _to_ten(elite_factors.momentum_composite, -0.30, 0.50) * 0.25
-                    + _to_ten(elite_factors.bab_score, -2.0, 3.0) * 0.10,
+                    # An unmeasured beta is missing: the neutral value, not a market beta.
+                    + (_to_ten(elite_factors.bab_score, -2.0, 3.0) if _beta_measured
+                       else ScoringEngine.MISSING_DATA_NEUTRAL) * 0.10,
                     2,
                 )
             except Exception as e:
@@ -10076,8 +10223,8 @@ class QuantaEliteTradingSystem:
         except (TypeError, ValueError):
             relax = 0.0
         upside_hurdle = C.UPSIDE_HURDLE_PCT - (C.UPSIDE_HURDLE_PCT - C.UPSIDE_HURDLE_BULLISH_INSIDER_PCT) * relax
-        rr_hurdle = max(_T.RR.COMMITTEE_FLOOR,
-                        TradingConfig.RISK_REWARD_MIN - _T.RR.COMMITTEE_INSIDER_RELAX * relax)
+        # Insider buying never loosens the reward-to-risk hurdle (a funding threshold).
+        rr_hurdle = TradingConfig.RISK_REWARD_MIN
         score_floor = TradingConfig.ACCUMULATE_SCORE - C.SCORE_FLOOR_BULLISH_RELAX * relax
         analyst_limit = (C.ANALYST_DOWNSIDE_LIMIT_PCT
                          + (C.ANALYST_DOWNSIDE_LIMIT_BULLISH_PCT - C.ANALYST_DOWNSIDE_LIMIT_PCT) * relax)
@@ -10393,10 +10540,14 @@ class QuantaEliteTradingSystem:
                 continue
             days_until = (fomc_date - today).days
 
-            if 0 <= days_until <= 3:
-                return 0.70, f"⚠️ FOMC in {days_until} days - positions reduced 30%"
-            elif 4 <= days_until <= 7:
-                return 0.85, f"⚠️ FOMC in {days_until} days - positions reduced 15%"
+            _S = _T.SIZING
+            if 0 <= days_until <= _S.FOMC_NEAR_DAYS:
+                mult = _S.FOMC_NEAR_SIZE_MULT
+            elif _S.FOMC_NEAR_DAYS < days_until <= _S.FOMC_WEEK_DAYS:
+                mult = _S.FOMC_WEEK_SIZE_MULT
+            else:
+                continue
+            return mult, f"⚠️ FOMC in {days_until} days - positions reduced {(1 - mult) * 100:.0f}%"
 
         return 1.0, ""
 
@@ -11538,10 +11689,14 @@ class QuantaEliteTradingSystem:
         basis = (f"12-month valuation target {cur}{base:,.2f} pro-rated to {horizon} sessions"
                  if base > 0 else f"valuation target pro-rated to {horizon} sessions")
         cost_frac = (_T.LEVELS.RESEARCH_SPREAD_BPS + 2 * _T.LEVELS.RESEARCH_SLIPPAGE_BPS) / 10000
+        # An NSE/BSE listing also pays the statutory levies on each side, as the
+        # Research engine's own cost model does (TradeSetupGenerator.round_trip_cost_pct).
+        if str(getattr(pick, 'ticker', '')).upper().endswith(('.NS', '.BO')):
+            cost_frac += 2 * float(_T.LEVELS.RESEARCH_INDIA_STATUTORY_PER_SIDE)
         lv = publish_levels(
             "research", entry, stop, target, float(getattr(ts, 'risk_reward_ratio', 0) or 0),
             atr=getattr(getattr(res, 'technical', None), 'atr', None), cost_frac=cost_frac,
-            horizon_days=horizon, target_basis=basis, min_rr=_T.RR.RESEARCH_MIN, currency=cur)
+            horizon_days=horizon, target_basis=basis, min_rr=_funding_rr(), currency=cur)
         # [P5] The Research engine reads its own daily bars: its latest close and
         # session are the basis of these levels (and of the size, which uses them).
         try:
@@ -11889,12 +12044,12 @@ class QuantaEliteTradingSystem:
             _bind = getattr(pick, 'binding_levels', None) or {}
             if (_bind.get('source') == 'research' and deep_fa not in _non_allocating
                     and deep_fa != FinalAction.INVALID.value
-                    and float(_bind.get('risk_reward') or 0.0) < _T.RR.RESEARCH_MIN):
+                    and float(_bind.get('risk_reward') or 0.0) < _funding_rr()):
                 deep_fa = FinalAction.WATCHLIST.value
                 deep_reasons = deep_reasons + [
                     _bind.get('remedy') or (
                         f"Research R:R {float(_bind.get('risk_reward') or 0.0):.2f} is below "
-                        f"the {_T.RR.RESEARCH_MIN:.2f} hurdle on the published levels")]
+                        f"the {_funding_rr():.2f} funding hurdle on the published levels")]
                 if 'LOW_REWARD_RISK' not in recon_codes:
                     recon_codes = recon_codes + ['LOW_REWARD_RISK']
 
@@ -13277,8 +13432,10 @@ class QuantaEliteTradingSystem:
         else:
             narrative_parts.append("(High - size accordingly)\n")
         
-        narrative_parts.append(f"• Beta: {beta:.2f} ")
-        if beta < 0.8:
+        narrative_parts.append(f"• Beta: {beta:.2f} " if beta is not None else "• Beta: not measured\n")
+        if beta is None:
+            pass
+        elif beta < 0.8:
             narrative_parts.append("(Low market sensitivity)\n")
         elif beta < 1.2:
             narrative_parts.append("(Market-like)\n")
@@ -13300,7 +13457,7 @@ class QuantaEliteTradingSystem:
         # than anything else there.
         narrative_parts.append(
             f"• Worst 12-month decline observed: {max_dd*100:.1f}% "
-            f"(realized, not a forecast — future drawdowns can exceed it)"
+            f"(realized, not a forecast; future drawdowns can exceed it)"
         )
         
         # 6. Sector Context & Catalysts

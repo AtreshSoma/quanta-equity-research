@@ -10,7 +10,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  effectiveNewsImpact, highImpactNews, pulseInterp, newsMeaning, upsideCell, impactChain,
+  effectiveNewsImpact, highImpactNews, pulseInterp, newsMeaning, upsideCell, state,
 } = require('../../static/app.js');
 
 const DAY = 86400000;
@@ -31,32 +31,19 @@ test('the High Impact list is recency-weighted and de-duplicated across groups',
   assert.deepEqual(list.map((i) => i.url), ['a']);
 });
 
-test('a bearish news tilt on a green tape is read as the tape: a broad advance, never a risk-off story', () => {
-  // The 2026-09-25 tape: every index up, VIX down 5%, bitcoin slightly red.
-  const market = {
-    vix_level: 14.87,
-    quotes: [
-      { symbol: 'SPY', change_pct: 0.54 }, { symbol: 'QQQ', change_pct: 0.46 },
-      { symbol: 'IWM', change_pct: 0.11 }, { symbol: 'GLD', change_pct: 0.44 },
-      { symbol: '^TNX', change_pct: 0.43 }, { symbol: 'BTC-USD', change_pct: -0.53 },
-    ],
-    market_regime_engine: { colorTheme: { toneClass: 'neutral' }, newsImpact: { netDirection: 'bearish' } },
-  };
-  const chain = impactChain(market, {}, {});
-  assert.equal(chain.label, 'Broad advance');
-  assert.notEqual(chain.label, 'Risk-off rotation');
-  // A bearish tilt on a red tape is still the risk-off story.
-  const red = { ...market, quotes: market.quotes.map((q) => (['SPY', 'QQQ', 'IWM'].includes(q.symbol) ? { ...q, change_pct: -0.4 } : q)) };
-  red.quotes.find((q) => q.symbol === 'QQQ').change_pct = -0.6;
-  assert.equal(impactChain(red, {}, {}).label, 'Risk-off rotation');
-});
-
-test('the ribbon reads the 10Y with the model\'s own thresholds', () => {
-  const read = (ch) => pulseInterp('^TNX', '10Y Yield', ch, 5.18);
-  assert.equal(read(0.43).text, 'rising, rate pressure', '+0.43% is what the Rates factor scores as tightening');
-  assert.equal(read(0.2).text, 'steady');
-  assert.equal(read(0.9).tone, 'bear');
-  assert.equal(read(-0.5).text, 'easing, relief'); // no em dash since the styling pass
+test('the High impact list is exactly the set the engine counted, so every count agrees', () => {
+  // On 2026-10-18 the tab read 10, the risk card 10, the factor 3 and the
+  // engine 7: four counts of one thing. With the engine's keys there is one.
+  const a = { title: 'Hot PPI shows the Fed is not done', impact: 9, url: 'https://x.test/a', published: new Date().toISOString() };
+  const b = { title: 'Stocks slide on chip rout', impact: 8, url: 'https://x.test/b', published: new Date().toISOString() };
+  const essay = { title: 'I lost my home in the Great Recession', impact: 7, url: 'https://x.test/c', published: new Date().toISOString() };
+  state.dashboard = { market: { market_regime_engine: { newsImpact: { highImpactCount: 2, keys: ['https://x.test/a', 'https://x.test/b'] } } } };
+  try {
+    const list = highImpactNews({ big_news: [a, b, essay], macro: [a] });
+    assert.deepEqual(list.map((i) => i.url), ['https://x.test/a', 'https://x.test/b']);
+  } finally {
+    state.dashboard = null;
+  }
 });
 
 test('an index wrap is not a single-name catalyst', () => {

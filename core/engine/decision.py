@@ -23,7 +23,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from .evidence import Evidence, Presentation, present_action, stance_for
-from .market_calendar import last_completed_session, trading_days_between
+from .market_calendar import (india_trading_days_between, last_completed_india_session,
+                              last_completed_session, listing_market, trading_days_between)
 from .thresholds import LEVELS
 from .types import FinalAction
 
@@ -75,16 +76,25 @@ class Freshness:
 
 
 def assess_price_freshness(last_bar: Optional[_date], now: Optional[datetime] = None,
-                           max_lag_sessions: int = 1) -> Freshness:
+                           max_lag_sessions: int = 1, ticker: Optional[str] = None,
+                           market: Optional[str] = None) -> Freshness:
     """Is the latest daily bar recent enough to act on?
 
     ``lag_sessions`` counts completed sessions after ``last_bar``. A bar dated
     today during market hours is a live (partial) bar and counts as fresh.
+
+    Sessions are counted on the listing's own calendar: ``market`` ('US' / 'IN')
+    when given, else from the ``ticker`` suffix (.NS / .BO is India: the IST
+    close and the NSE holiday list); anything else uses the New York calendar.
     """
     if last_bar is None:
         return Freshness("unknown", None, None, ["No price date available"])
-    expected = last_completed_session(now)
-    lag = max(0, trading_days_between(last_bar, expected))
+    if str(market or listing_market(ticker)).upper() == "IN":
+        expected = last_completed_india_session(now)
+        lag = max(0, india_trading_days_between(last_bar, expected))
+    else:
+        expected = last_completed_session(now)
+        lag = max(0, trading_days_between(last_bar, expected))
     status = "fresh" if lag <= max_lag_sessions else "stale"
     notes = []
     if status == "stale":

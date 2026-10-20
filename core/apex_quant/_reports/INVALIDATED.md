@@ -2,7 +2,7 @@
 
 `elite_walkforward.txt` and the trade-level statistics in `elite_oos.txt` /
 `elite_oos.json` were produced by the portfolio simulator BEFORE audit finding
-F01 was corrected (see `docs/QUANTA_AUDIT_2026-09-07.md`).
+F01 was corrected (see `docs/audits/QUANTA_AUDIT_2026-09-07.md`).
 
 That simulator:
 

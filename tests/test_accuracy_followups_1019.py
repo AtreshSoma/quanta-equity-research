@@ -316,3 +316,14 @@ def test_research_and_shortterm_pass_the_ticker_to_the_freshness_check():
         assert calls, name
         for ln in calls:
             assert "ticker=" in ln, f"{name}: {ln.strip()}"
+
+
+def test_nse_2026_calendar_is_complete_and_a_holiday_week_counts_one_session_less():
+    # NSE's 2026 circular: 15 weekday closures; the lunar ones were missing until now.
+    assert len([d for d in mc.NSE_HOLIDAYS if d.year == 2026]) == 15
+    for month, day in [(3, 3), (3, 26), (3, 31), (5, 28), (6, 26), (9, 14), (10, 20), (11, 10), (11, 24)]:
+        assert not mc.is_india_trading_day(date(2026, month, day)), (month, day)
+    # Diwali Laxmi Pujan (8 Nov) and Independence Day fall on a weekend: no extra weekday closed.
+    assert mc.is_india_trading_day(date(2026, 11, 9))
+    # Dussehra (Tue 20 Oct): a bar from Mon 19 Oct is current the next morning, not a session behind.
+    assert mc.india_trading_days_between(date(2026, 10, 19), date(2026, 10, 21)) == 1

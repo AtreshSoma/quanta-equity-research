@@ -178,19 +178,34 @@ INDIA_SUFFIXES = (".NS", ".BO")
 
 # NSE equity trading holidays that fall on weekdays. REFRESH THIS LIST EVERY
 # YEAR from the NSE holiday circular (published each December for the next
-# year). Only dates that are certain without the circular are listed: the
-# fixed-date national holidays and Good Friday (from Easter). Lunar-calendar
-# closures (Holi, Ram Navami, Mahavir Jayanti, Id, Muharram, Ganesh Chaturthi,
-# Dussehra, Diwali, Guru Nanak Jayanti ...) are left out until they are copied
-# from the circular. A missing holiday counts as a session, so a bar can only
-# read one session older than it is (stale on the safe side), never fresher.
+# year). 2026 is complete: it follows NSE's published 2026 calendar (circular
+# of 12 December 2025, 12 weekday closures to Dussehra), cross-checked against
+# two broker listings that agree on all 15 weekday dates. The Maharashtra
+# municipal-election closure of 15 January 2026 appears in only some listings,
+# is not in the circular and is past, so it is left out. Weekend holidays
+# (Mahashivratri, Id-Ul-Fitr, Independence Day, Diwali Laxmi Pujan) close no
+# extra weekday. 2027 still holds only the dates that are certain without the
+# circular: the fixed-date national holidays and Good Friday (from Easter);
+# its lunar-calendar closures (Holi, Ram Navami, Mahavir Jayanti, Id, Muharram,
+# Ganesh Chaturthi, Dussehra, Diwali, Guru Nanak Jayanti ...) wait for the
+# December 2026 circular. A missing holiday counts as a session, so a bar can
+# only read one session older than it is (stale on the safe side), never fresher.
 NSE_HOLIDAYS = frozenset({
-    # 2026 (15 Aug falls on a Saturday)
+    # 2026 (15 Feb, 21 Mar, 15 Aug and 8 Nov fall on weekends)
     _date(2026, 1, 26),     # Republic Day
+    _date(2026, 3, 3),      # Holi
+    _date(2026, 3, 26),     # Shri Ram Navami
+    _date(2026, 3, 31),     # Shri Mahavir Jayanti
     _date(2026, 4, 3),      # Good Friday
     _date(2026, 4, 14),     # Dr. Baba Saheb Ambedkar Jayanti
     _date(2026, 5, 1),      # Maharashtra Day
+    _date(2026, 5, 28),     # Bakri Id
+    _date(2026, 6, 26),     # Muharram
+    _date(2026, 9, 14),     # Ganesh Chaturthi
     _date(2026, 10, 2),     # Mahatma Gandhi Jayanti
+    _date(2026, 10, 20),    # Dussehra
+    _date(2026, 11, 10),    # Diwali-Balipratipada
+    _date(2026, 11, 24),    # Prakash Gurpurb Sri Guru Nanak Dev
     _date(2026, 12, 25),    # Christmas
     # 2027 (1 May, 15 Aug, 2 Oct and 25 Dec fall on weekends)
     _date(2027, 1, 26),     # Republic Day

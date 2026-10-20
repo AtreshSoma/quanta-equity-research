@@ -107,7 +107,7 @@ pythonpath = [
     "webapp",
 ]
 addopts = "-ra --strict-markers --strict-config"
-# `uat_*.py` and `verify_*.py` in tests/ are manual HTTP drivers against a
+# The scripts in tests/manual/ (`uat_*.py`) are manual HTTP drivers against a
 # running server, not unit tests. They are excluded by the default
 # `test_*.py` discovery pattern; named here so that stays deliberate.
 python_files = ["test_*.py"]
@@ -134,20 +134,13 @@ markers = [
 line-length = 100
 target-version = "py311"
 extend-exclude = [
-    "archive",
     ".venv",
     "core/apex_quant/_cache",
-    # NOT importable modules -- they are source fragments that
-    # core/update_display.py and core/update_market.py splice into
-    # TradingAnalysis_ELITE.py, so they reference names (AnalysisResult,
-    # format_currency, HAS_CATALYST) that only exist in the destination file.
-    # Ruff reports 6 undefined names here; all 6 are artifacts of that pattern,
-    # not bugs. Phase 1 extracts their logic into core/engine/trade_levels.py
-    # and deletes all four files, at which point these exclusions go too.
+    # Not an importable module on its own: it is a source fragment that mirrors
+    # TradingAnalysis_ELITE.py and refers to names (AnalysisResult, format_currency)
+    # that exist only there. Ruff reports undefined names here by design; tests/
+    # test_thresholds_single_source.py and test_review_engine_fixes.py keep it in step.
     "core/rich_display.py",
-    "core/rich_market.py",
-    "core/update_display.py",
-    "core/update_market.py",
 ]
 
 [tool.ruff.lint]

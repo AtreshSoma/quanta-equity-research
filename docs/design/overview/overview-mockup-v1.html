@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUANTA Overview Mockup</title>
+<!-- Static design mockup. Data is the live read of Sunday 2026-10-18 (Friday's close), hardcoded.
+     Values marked "proposed field" in design/implementation.md are not yet served by the API. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0A0D14; --surface: #11151F; --elev: #171C28; --border: #232A3A; --border-strong: #33405A;
+  --text: #E9EEF6; --text-2: #B4BFCF; --muted: #8A96A8;
+  --up: #34D399; --down: #F87171; --accent: #5EA2F7; --warn: #FBBF24;
+  --up-tint: rgba(52, 211, 153, 0.07); --down-tint: rgba(248, 113, 113, 0.07);
+  --reg-defensive: #F2A93B; --reg-neutral: #9AA6B8; --reg-offensive: #A78BFA;
+  --regime: var(--reg-defensive);
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif; --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
+  --r-card: 12px; --r-tile: 10px; --r-ctl: 8px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 400 14px/20px var(--font-sans); -webkit-font-smoothing: antialiased; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+a { color: var(--accent); text-decoration: none; }
+button { font: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.label { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.sec-title { margin: 0; font-size: 18px; line-height: 24px; font-weight: 600; letter-spacing: -0.01em; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card); }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); padding: var(--s5) var(--s6) var(--s3); }
+.card-body { padding: 0 var(--s6) var(--s6); }
+.meta { font-size: 13px; color: var(--muted); }
+.chg--up { color: var(--up); } .chg--down { color: var(--down); } .chg--flat { color: var(--muted); }
+
+/* ---- shell ---- */
+.topbar { display: flex; align-items: center; gap: var(--s8); height: 56px; padding: 0 var(--s8); border-bottom: 1px solid var(--border); background: var(--bg); }
+.brand { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+.brand b { color: var(--accent); font-weight: 700; }
+.nav { display: flex; gap: var(--s6); font-size: 14px; color: var(--text-2); }
+.nav .on { color: var(--text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); padding-bottom: 17px; margin-bottom: -18px; }
+.top-r { margin-left: auto; display: flex; gap: var(--s3); align-items: center; color: var(--text-2); font-size: 13px; }
+.ctl { height: 32px; padding: 0 var(--s3); border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--surface); color: var(--text-2); display: inline-flex; align-items: center; }
+.page { max-width: 1360px; margin: 0 auto; padding: var(--s5) var(--s8) var(--s12); display: grid; gap: var(--s6); }
+
+/* ---- 1 status strip ---- */
+.status { display: flex; align-items: center; gap: var(--s4); flex-wrap: nowrap; white-space: nowrap; padding: 10px var(--s4); border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--surface); font-size: 13px; color: var(--text-2); }
+.pill { display: inline-flex; align-items: center; gap: var(--s2); height: 24px; padding: 0 10px; border-radius: 999px; background: var(--elev); color: var(--text); font-weight: 600; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.status .sep { width: 1px; height: 16px; background: var(--border-strong); }
+.status .ok { color: var(--text); }
+.seg { margin-left: auto; display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); overflow: hidden; }
+.seg button { height: 28px; padding: 0 14px; border: 0; background: none; color: var(--text-2); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--elev); color: var(--text); font-weight: 600; }
+
+/* ---- 2 hero ---- */
+.hero { display: grid; grid-template-columns: 3fr 2fr; overflow: hidden; position: relative; }
+.hero::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--regime); }
+.verdict { padding: var(--s8) var(--s8) var(--s6); display: grid; gap: var(--s5); }
+.v-word { display: flex; align-items: baseline; gap: var(--s4); margin: 6px 0 0; }
+.v-word h1 { margin: 0; font-size: 56px; line-height: 60px; font-weight: 700; letter-spacing: -0.03em; color: var(--text); }
+.v-tag { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--regime); background: color-mix(in srgb, var(--regime) 14%, transparent); }
+.v-tag i { width: 8px; height: 8px; border-radius: 2px; background: var(--regime); }
+.v-sum { margin: 0; font-size: 16px; line-height: 24px; color: var(--text-2); max-width: 60ch; }
+.instr { display: grid; grid-template-columns: 1.1fr 1fr 1.2fr; gap: 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.instr > div { padding: var(--s4) var(--s5) var(--s4) 0; }
+.instr > div + div { padding-left: var(--s5); border-left: 1px solid var(--border); }
+.gauge { display: flex; align-items: center; gap: var(--s4); }
+.gauge svg { width: 104px; height: 60px; overflow: visible; }
+.gauge path.trk { fill: none; stroke-width: 9; }
+.big { font-size: 32px; line-height: 36px; font-weight: 600; }
+.big small { font-size: 14px; color: var(--muted); font-weight: 500; }
+.sub { font-size: 13px; color: var(--muted); }
+.meter { position: relative; height: 6px; margin-top: 10px; border-radius: 3px; background: var(--elev); }
+.meter i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--text-2); }
+.meter b { position: absolute; top: -4px; width: 2px; height: 14px; background: var(--muted); }
+.band { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: color-mix(in srgb, var(--regime) 70%, transparent); }
+.ticks { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--muted); }
+.stance { display: grid; gap: var(--s2); }
+.stance-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.stance-row i { height: 10px; border-radius: 2px; background: var(--elev); }
+.stance-row i.d { background: color-mix(in srgb, var(--reg-defensive) 30%, var(--elev)); }
+.stance-row i.n { background: color-mix(in srgb, var(--reg-neutral) 30%, var(--elev)); }
+.stance-row i.o { background: color-mix(in srgb, var(--reg-offensive) 30%, var(--elev)); }
+.stance-row i.on { background: var(--reg-defensive); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--reg-defensive); }
+.stance-ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.v-foot { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--s6); align-items: start; }
+.hist { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; margin-top: 8px; }
+.hist i { height: 18px; border-radius: 3px; border: 1px dashed var(--border-strong); }
+.hist i.on { border: 0; background: var(--reg-defensive); }
+.hist-axis { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.agree { display: grid; gap: 4px; }
+.agree-row { display: flex; align-items: center; gap: var(--s2); font-size: 14px; color: var(--text); }
+.agree-row .ok-mark { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--text-2); display: inline-grid; place-items: center; }
+.agree-row .ok-mark::after { content: ""; width: 6px; height: 3px; border-left: 1.5px solid var(--text-2); border-bottom: 1.5px solid var(--text-2); transform: rotate(-45deg) translate(1px, -1px); }
+
+.flips { padding: var(--s8) var(--s6) var(--s6); border-left: 1px solid var(--border); background: color-mix(in srgb, var(--elev) 45%, var(--surface)); display: grid; gap: var(--s5); align-content: start; }
+.flip { display: grid; gap: 6px; }
+.flip-top { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); }
+.flip-name { font-size: 14px; font-weight: 600; }
+.flip-now { font-size: 13px; color: var(--text-2); }
+.prog { position: relative; height: 8px; border-radius: 4px; background: var(--elev); }
+.prog i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--reg-neutral); }
+.prog b { position: absolute; right: 0; top: -3px; width: 2px; height: 14px; background: var(--text); }
+.flip-gap { font-size: 12px; color: var(--muted); }
+.weaker { padding-top: var(--s4); border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); }
+.weaker b { color: var(--warn); font-weight: 600; }
+
+/* ---- briefing ---- */
+.brief { display: grid; grid-template-columns: 180px repeat(3, 1fr); gap: var(--s6); padding: var(--s5) var(--s6); }
+.brief p { margin: 0; font-size: 14px; line-height: 21px; color: var(--text-2); }
+.brief p b { color: var(--text); font-weight: 600; }
+.brief h2 { margin: 2px 0 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+
+/* ---- 3 pulse ---- */
+.pulse { display: grid; grid-template-columns: repeat(9, 1fr); gap: var(--s3); margin: 0; padding: 0; list-style: none; }
+.tile { display: grid; gap: 4px; padding: var(--s3) var(--s3) 10px; border-radius: var(--r-tile); border: 1px solid var(--border); background: var(--surface); min-width: 0; }
+.tile--up { background: linear-gradient(180deg, var(--up-tint), transparent 70%), var(--surface); }
+.tile--down { background: linear-gradient(180deg, var(--down-tint), transparent 70%), var(--surface); }
+.tile-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.tile-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile-sym { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.tile-px { font-size: 20px; line-height: 24px; font-weight: 600; }
+.tile-chg { display: grid; grid-template-columns: auto 1fr; column-gap: 6px; font-size: 13px; line-height: 17px; }
+.tile-k { font-size: 11px; color: var(--muted); align-self: center; }
+.spark { width: 100%; height: 34px; }
+.spark path { fill: none; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.spark--up path { stroke: var(--up); } .spark--down path { stroke: var(--down); }
+.spark--up circle { fill: var(--up); } .spark--down circle { fill: var(--down); }
+.tile-note { font-size: 11px; line-height: 14px; color: var(--muted); }
+
+/* ---- grid rows ---- */
+.row { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--s6); align-items: start; }
+.c7 { grid-column: span 7; } .c5 { grid-column: span 5; } .c8 { grid-column: span 8; } .c4 { grid-column: span 4; } .c12 { grid-column: span 12; }
+
+/* ---- 4 forecast ---- */
+.scale { position: relative; height: 150px; margin: var(--s2) 0 var(--s4); }
+.axis { position: absolute; left: 0; right: 0; top: 64px; height: 1px; background: var(--border-strong); }
+.axis span { position: absolute; top: 58px; transform: translateX(-50%); font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.axis span::before { content: ""; position: absolute; left: 50%; top: -62px; width: 1px; height: 6px; background: var(--border-strong); }
+.em { position: absolute; top: 52px; height: 24px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 22%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent); }
+.ses { position: absolute; top: 61px; height: 6px; border-radius: 3px; background: var(--text-2); opacity: 0.55; }
+.mk { position: absolute; transform: translateX(-50%); display: grid; justify-items: center; font-size: 12px; line-height: 15px; white-space: nowrap; }
+.mk::after { content: ""; width: 1px; background: var(--text-2); }
+.mk--top { bottom: 86px; } .mk--top::after { height: 22px; order: 2; }
+.mk--bot { top: 64px; } .mk--bot::after { height: 20px; order: -1; }
+.mk b { font-family: var(--font-mono); font-weight: 600; color: var(--text); }
+.mk span { color: var(--muted); }
+.mk--last b { color: var(--down); }
+.fc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-top: 1px solid var(--border); }
+.fc-grid > div { padding: var(--s4) var(--s4) 0 0; }
+.fc-grid > div + div { padding-left: var(--s4); border-left: 1px solid var(--border); }
+.fc-v { margin-top: 6px; font-size: 20px; line-height: 24px; font-weight: 600; }
+.fc-s { margin-top: 4px; font-size: 13px; line-height: 18px; color: var(--text-2); }
+.split { display: flex; height: 6px; margin-top: 8px; border-radius: 3px; overflow: hidden; }
+.split i { background: var(--up); } .split u { background: var(--down); }
+
+/* ---- 5 hot now ---- */
+.chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--border-strong); font-size: 13px; color: var(--text); }
+.chip .num { font-size: 12px; }
+.chip--theme { background: var(--elev); border-color: var(--elev); }
+.chip--theme span { color: var(--muted); }
+.news { display: grid; gap: var(--s3); margin: var(--s4) 0 0; padding: 0; list-style: none; }
+.ncard { display: grid; gap: 6px; padding: var(--s4); border-radius: var(--r-tile); border: 1px solid var(--border); background: var(--elev); }
+.ntags { display: flex; gap: var(--s2); align-items: center; font-size: 12px; color: var(--muted); }
+.tag { height: 20px; padding: 0 8px; border-radius: 999px; display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.tag--hi { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.tag--bear { color: var(--down); background: color-mix(in srgb, var(--down) 12%, transparent); }
+.tag--flat { color: var(--text-2); background: color-mix(in srgb, var(--text-2) 12%, transparent); }
+.ntitle { margin: 0; font-size: 15px; line-height: 21px; font-weight: 600; color: var(--text); }
+.nmean { margin: 0; font-size: 13px; line-height: 18px; color: var(--text-2); }
+.nmean b { color: var(--muted); font-weight: 600; margin-right: 4px; }
+
+/* ---- 6 sectors ---- */
+.breadth { display: flex; gap: var(--s8); margin-bottom: var(--s4); }
+.breadth div { display: grid; gap: 4px; }
+.breadth .v { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; }
+.marks { display: inline-flex; gap: 3px; }
+.marks i { width: 10px; height: 10px; border-radius: 2px; border: 1.5px solid var(--muted); }
+.marks i.on { background: var(--up); border-color: var(--up); }
+.tm { position: relative; height: 320px; margin: 0; padding: 0; list-style: none; }
+.tm-cell { position: absolute; padding: 3px; overflow: hidden; }
+.tm-cell::before { content: ""; position: absolute; inset: 2px; border-radius: 6px; }
+.tm--up::before { background: color-mix(in srgb, var(--up) calc(var(--k) * 55% + 8%), var(--surface)); }
+.tm--down::before { background: color-mix(in srgb, var(--down) calc(var(--k) * 55% + 8%), var(--surface)); }
+.tm-name, .tm-chg, .tm-trend { position: relative; display: block; padding: 0 8px; }
+.tm-name { padding-top: 8px; font-size: 14px; font-weight: 600; color: #fff; }
+.tm-chg { font-size: 15px; font-weight: 600; color: #fff; }
+.tm-trend { font-size: 11px; color: rgba(255, 255, 255, 0.85); }
+.tm-trend.is-above::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 2px; background: #fff; }
+.tm--small .tm-name { font-size: 12px; line-height: 15px; padding-top: 5px; } .tm--small .tm-chg { font-size: 12px; line-height: 15px; } .tm--small .tm-trend { display: none; }
+.tm-key { display: flex; gap: var(--s5); margin-top: var(--s3); font-size: 12px; color: var(--muted); }
+.movers { display: grid; gap: var(--s4); }
+.mv { display: grid; margin: 0; padding: 0; list-style: none; }
+.mv li { display: grid; grid-template-columns: 52px 1fr 64px; align-items: center; gap: 10px; height: 32px; border-top: 1px solid var(--border); font-size: 13px; }
+.mv li:first-child { border-top: 0; }
+.mv .bar { height: 6px; border-radius: 3px; }
+.mv .num.r { text-align: right; font-weight: 600; }
+
+/* ---- 7 ideas ---- */
+.ideas-empty { display: grid; grid-template-columns: 1.3fr 1fr; gap: var(--s8); padding: var(--s6); border: 1px dashed var(--border-strong); border-radius: var(--r-tile); }
+.ideas-empty h3 { margin: 0 0 var(--s2); font-size: 18px; line-height: 24px; font-weight: 600; }
+.ideas-empty p { margin: 0; color: var(--text-2); font-size: 14px; line-height: 21px; max-width: 62ch; }
+.cta-row { display: flex; align-items: center; gap: var(--s4); margin-top: var(--s5); }
+.btn { height: 40px; padding: 0 var(--s5); border-radius: var(--r-ctl); border: 0; background: var(--accent); color: #06101F; font-weight: 600; cursor: pointer; }
+.btn--ghost { background: none; border: 1px solid var(--border-strong); color: var(--text); }
+.fit { display: grid; gap: var(--s3); align-content: start; }
+.fit ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 14px; color: var(--text-2); }
+.fit li b { color: var(--text); font-weight: 600; }
+.idea-cards { display: none; grid-template-columns: repeat(3, 1fr); gap: var(--s4); }
+.show-sample .idea-cards { display: grid; } .show-sample .ideas-empty { display: none; }
+.icard { display: grid; gap: var(--s3); padding: var(--s5); border-radius: var(--r-tile); border: 1px solid var(--border); background: var(--elev); }
+.icard-top { display: flex; align-items: baseline; gap: var(--s3); }
+.rank { font-family: var(--font-mono); color: var(--muted); }
+.tick { font-family: var(--font-mono); font-size: 18px; font-weight: 600; }
+.dec { margin-left: auto; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); display: inline-flex; align-items: center; }
+.thesis { margin: 0; font-size: 14px; line-height: 20px; color: var(--text-2); }
+.kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s3); padding-top: var(--s3); border-top: 1px solid var(--border); }
+.kv span { display: block; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.kv b { font-family: var(--font-mono); font-size: 14px; font-weight: 600; }
+.sample-note { display: none; margin: 0 0 var(--s3); font-size: 13px; color: var(--warn); }
+.show-sample .sample-note { display: block; }
+
+/* ---- 8 week ---- */
+.wk { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; margin: 0; padding: 0; list-style: none; }
+.wk-day { padding: 0 var(--s4); border-left: 1px solid var(--border); display: grid; gap: var(--s2); align-content: start; }
+.wk-day:first-child { border-left: 0; padding-left: 0; }
+.wk-date { display: flex; align-items: baseline; gap: var(--s2); }
+.wk-dow { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.wk-num { font-size: 22px; font-weight: 600; }
+.wk-cnt { margin-left: auto; font-size: 12px; color: var(--muted); }
+.wk-bar { height: 4px; border-radius: 2px; background: var(--elev); }
+.wk-bar i { display: block; height: 100%; border-radius: 2px; background: var(--accent); opacity: 0.7; }
+.ev-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.ev { display: grid; grid-template-columns: 52px 1fr auto; gap: 8px; align-items: baseline; padding: 5px 8px; border-radius: 6px; background: var(--elev); font-size: 12px; color: var(--muted); }
+.ev b { font-size: 13px; color: var(--text); }
+.ev--big { background: color-mix(in srgb, var(--accent) 16%, var(--elev)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+.ev--big span { color: var(--text-2); }
+.ev-cap { font-size: 11px; }
+.wk-more { font-size: 12px; color: var(--muted); }
+.wk-macro { margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); }
+
+/* ---- collapsed detail ---- */
+.detail { display: grid; gap: 0; }
+.detail details { border-top: 1px solid var(--border); }
+.detail details:first-child { border-top: 0; }
+.detail summary { display: flex; align-items: center; gap: var(--s3); height: 52px; padding: 0 var(--s6); cursor: pointer; list-style: none; font-size: 15px; font-weight: 600; }
+.detail summary::-webkit-details-marker { display: none; }
+.detail summary::before { content: ""; width: 7px; height: 7px; border-right: 1.5px solid var(--text-2); border-bottom: 1.5px solid var(--text-2); transform: rotate(-45deg); }
+.detail details[open] summary::before { transform: rotate(45deg); }
+.detail summary span { font-weight: 400; font-size: 13px; color: var(--muted); }
+.detail .in { padding: 0 var(--s6) var(--s5); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 8px 12px 8px 0; border-top: 1px solid var(--border); vertical-align: top; }
+th { font-weight: 600; white-space: nowrap; }
+td { color: var(--text-2); }
+.f-s { font-weight: 600; width: 44px; }
+.f-s--for { color: var(--reg-offensive); } .f-s--against { color: var(--warn); } .f-s--flat { color: var(--muted); }
+.foot { padding: var(--s6) 0 0; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: var(--s6); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .spark path { stroke-dasharray: 400; stroke-dashoffset: 400; animation: draw 600ms ease-out forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">QUANTA <b>Elite</b></span>
+  <nav class="nav" aria-label="Main"><span class="on">Overview</span><span>Discover</span><span>Research</span><span>Picks</span><span>My Portfolio</span></nav>
+  <div class="top-r"><span class="ctl">Search ticker</span><span class="ctl">Guide</span><span class="ctl">Evidence</span></div>
+</header>
+
+<main class="page">
+
+  <!-- 1 STATUS STRIP -->
+  <div class="status" role="status">
+    <span class="pill"><span class="dot" aria-hidden="true"></span>Closed</span>
+    <span class="ok">Weekend: week in review and the week ahead</span>
+    <span class="sep" aria-hidden="true"></span>
+    <span>Prices from the Fri Oct 16 close</span>
+    <span class="sep" aria-hidden="true"></span>
+    <span>Next session Mon Oct 19, 9:30 AM ET</span>
+    <span class="sep" aria-hidden="true"></span>
+    <span>Data: 9/9 quotes, 10/10 feeds, 5:49 PM ET</span>
+    <div class="seg" role="group" aria-label="Market"><button aria-pressed="true">US</button><button aria-pressed="false">India</button></div>
+  </div>
+
+  <!-- 2 VERDICT HERO -->
+  <section class="card hero" aria-labelledby="verdict">
+    <div class="verdict">
+      <div>
+        <span class="label">Market verdict, Fri Oct 16 close</span>
+        <div class="v-word"><h1 id="verdict">Defensive</h1><span class="v-tag"><i aria-hidden="true"></i>Stance: capital preservation</span></div>
+      </div>
+      <p class="v-sum">Weak participation and narrow leadership favor protecting capital over adding risk; the long-term trend still holds.</p>
+      <div class="instr">
+        <div class="gauge">
+          <svg viewBox="0 0 104 60" role="img" aria-label="Direction score 33 of 100. 35 or less reads bearish, 65 or more bullish.">
+            <path class="trk" d="M 8 54 A 44 44 0 0 1 32.4 14.6" stroke="var(--reg-defensive)" opacity="0.85"/>
+            <path class="trk" d="M 34.2 13.6 A 44 44 0 0 1 69.8 13.6" stroke="var(--reg-neutral)" opacity="0.45"/>
+            <path class="trk" d="M 71.6 14.6 A 44 44 0 0 1 96 54" stroke="var(--reg-offensive)" opacity="0.45"/>
+            <line x1="52" y1="54" x2="28.7" y2="17.6" stroke="var(--text)" stroke-width="2.6" stroke-linecap="round"/>
+            <circle cx="52" cy="54" r="4" fill="var(--text)"/>
+          </svg>
+          <div><span class="label">Direction</span><div class="big num">33<small>/100</small></div><div class="sub">Bearish zone, 35 or less</div></div>
+        </div>
+        <div>
+          <span class="label">Confidence</span>
+          <div class="big">Moderate</div>
+          <div class="meter" role="img" aria-label="Confidence 59 of 100; high begins at 70"><i style="width:59%"></i><b style="left:50%"></b><b style="left:70%"></b></div>
+          <div class="ticks"><span>59 of 100</span><span>high at 70</span></div>
+        </div>
+        <div>
+          <span class="label">Recommended gross exposure</span>
+          <div class="big num">20-50<small>%</small></div>
+          <div class="meter" role="img" aria-label="Exposure band 20 to 50 percent of capital"><span class="band" style="left:20%;width:30%"></span></div>
+          <div class="ticks"><span>0%</span><span>50%</span><span>100%</span></div>
+        </div>
+      </div>
+      <div class="stance" role="img" aria-label="Stance: Defensive, step 1 of 7 from Defensive to Offensive">
+        <span class="label">Stance</span>
+        <div class="stance-row"><i class="on"></i><i class="d"></i><i class="d"></i><i class="n"></i><i class="o"></i><i class="o"></i><i class="o"></i></div>
+        <div class="stance-ends"><span>Defensive</span><span>Neutral</span><span>Offensive</span></div>
+      </div>
+      <div class="v-foot">
+        <div>
+          <span class="label">Verdict history, last 10 sessions</span>
+          <div class="hist" role="img" aria-label="Only one session recorded so far: Defensive on Fri Oct 16"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on"></i></div>
+          <div class="hist-axis"><span>Not yet recorded</span><span>Fri Oct 16: Defensive</span></div>
+        </div>
+        <div class="agree">
+          <span class="label">Price vs headlines</span>
+          <div class="agree-row"><span class="ok-mark" aria-hidden="true"></span>Agree: both lean negative</div>
+          <span class="sub">3 of 6 high-impact headlines bearish, none bullish</span>
+        </div>
+      </div>
+    </div>
+
+    <aside class="flips" aria-labelledby="flips-h">
+      <div><span class="label" id="flips-h">What flips the call</span><div class="sub" style="margin-top:4px">Toward Neutral. 0 of 3 hold now.</div></div>
+      <div class="flip">
+        <div class="flip-top"><span class="flip-name">VIX below 16</span><span class="flip-now num">20.0 now</span></div>
+        <div class="prog" role="img" aria-label="VIX 20.0, 56 percent of the way from 25 to 16"><i style="width:56%"></i><b></b></div>
+        <span class="flip-gap">4.0 points to go; it rose 21% on Friday</span>
+      </div>
+      <div class="flip">
+        <div class="flip-top"><span class="flip-name">S&amp;P 500 back above 50-day (767.40)</span><span class="flip-now num">763.25</span></div>
+        <div class="prog" role="img" aria-label="S&P 500 0.5 percent below its 50-day average"><i style="width:57%"></i><b></b></div>
+        <span class="flip-gap">0.5% below, less than half the next-session range</span>
+      </div>
+      <div class="flip">
+        <div class="flip-top"><span class="flip-name">3 of 4 index funds above 50-day</span><span class="flip-now num">0 of 4</span></div>
+        <div class="prog" role="img" aria-label="0 of 3 needed index funds above their 50-day average"><i style="width:0%"></i><b></b></div>
+        <span class="flip-gap">S&amp;P 500, Nasdaq 100, Dow and Russell 2000 all below</span>
+      </div>
+      <p class="weaker"><b>Weaker read:</b> 2 of 4 conditions already hold (S&amp;P below its 50-day, index funds 0 of 4). Next: VIX 25 or more, or S&amp;P below its 200-day at 721.88 (5.7% away).</p>
+    </aside>
+  </section>
+
+  <!-- UNIQUE FEATURE: MARKET IN 3 SENTENCES (weekend: week in review) -->
+  <section class="card brief" aria-labelledby="brief-h">
+    <div><span class="label">Week in review</span><h2 id="brief-h">The market in 3 sentences</h2></div>
+    <p>Stocks finished the week lower: the S&P 500 fell 2.0% to 763 and the Nasdaq 100 5.5%, with a 2.5% Nasdaq drop on Friday.</p>
+    <p>Energy (+2.5%) and defensive sectors led Friday while technology lost 3.0%; only 4 of 11 sector funds and none of the 4 index funds sit above their 50-day average.</p>
+    <p>The VIX rose 35% on the week to 20.0 and 65 earnings reports land this week, led by SpaceX on Tuesday and Meta and Tesla on Wednesday.</p>
+  </section>
+
+  <!-- 3 MARKET PULSE -->
+  <section aria-labelledby="pulse-h">
+    <h2 class="sec-title" id="pulse-h" style="margin-bottom:12px">Market pulse <span class="meta">22-session trend, Friday and week change</span></h2>
+    <ul class="pulse">
+      <li class="tile tile--down">
+        <div class="tile-head"><span class="tile-name">S&P 500</span><span class="tile-sym">SPY</span></div>
+        <div class="tile-px num">763.25</div>
+        <div class="tile-chg"><span class="chg chg--down num">-1.11%</span><span class="tile-k">Fri</span><span class="chg chg--down num">-2.0%</span><span class="tile-k">week</span></div>
+        <svg class="spark spark--down" viewBox="0 0 112 34" role="img" aria-label="S&P 500, 22 sessions: -2.0% over the last week"><path d="M2.0,30.2 L7.1,32.0 L12.3,11.6 L17.4,11.8 L22.6,21.5 L27.7,22.4 L32.9,15.3 L38.0,25.4 L43.1,27.4 L48.3,30.6 L53.4,27.9 L58.6,18.2 L63.7,9.2 L68.9,2.0 L74.0,5.4 L79.1,11.0 L84.3,3.0 L89.4,3.8 L94.6,3.9 L99.7,18.3 L104.9,14.7 L110.0,29.1"/><circle cx="110.0" cy="29.1" r="2.2"/></svg>
+        <div class="tile-note">Fri Oct 16 close</div>
+      </li>
+      <li class="tile tile--down">
+        <div class="tile-head"><span class="tile-name">Nasdaq 100</span><span class="tile-sym">QQQ</span></div>
+        <div class="tile-px num">709.80</div>
+        <div class="tile-chg"><span class="chg chg--down num">-2.50%</span><span class="tile-k">Fri</span><span class="chg chg--down num">-5.5%</span><span class="tile-k">week</span></div>
+        <svg class="spark spark--down" viewBox="0 0 112 34" role="img" aria-label="Nasdaq 100, 22 sessions: -5.5% over the last week"><path d="M2.0,27.8 L7.1,25.1 L12.3,13.0 L17.4,9.3 L22.6,13.1 L27.7,13.2 L32.9,11.2 L38.0,15.9 L43.1,15.1 L48.3,14.0 L53.4,12.6 L58.6,8.1 L63.7,4.1 L68.9,2.0 L74.0,3.1 L79.1,9.3 L84.3,7.1 L89.4,10.2 L94.6,11.6 L99.7,20.6 L104.9,21.1 L110.0,32.0"/><circle cx="110.0" cy="32.0" r="2.2"/></svg>
+        <div class="tile-note">Fri Oct 16 close</div>
+      </li>
+      <li class="tile tile--down">
+        <div class="tile-head"><span class="tile-name">Dow</span><span class="tile-sym">DIA</span></div>
+        <div class="tile-px num">519.10</div>
+        <div class="tile-chg"><span class="chg chg--down num">-0.38%</span><span class="tile-k">Fri</span><span class="chg chg--up num">+0.6%</span><span class="tile-k">week</span></div>
+        <svg class="spark spark--up" viewBox="0 0 112 34" role="img" aria-label="Dow, 22 sessions: +0.6% over the last week"><path d="M2.0,8.7 L7.1,14.5 L12.3,5.2 L17.4,9.6 L22.6,18.2 L27.7,22.1 L32.9,10.7 L38.0,18.7 L43.1,21.6 L48.3,32.0 L53.4,31.8 L58.6,25.9 L63.7,23.4 L68.9,17.7 L74.0,26.1 L79.1,24.7 L84.3,14.1 L89.4,9.8 L94.6,13.9 L99.7,15.1 L104.9,2.0 L110.0,6.9"/><circle cx="110.0" cy="6.9" r="2.2"/></svg>
+        <div class="tile-note">Fri Oct 16 close</div>
+      </li>
+      <li class="tile tile--down">
+        <div class="tile-head"><span class="tile-name">Russell 2000</span><span class="tile-sym">IWM</span></div>
+        <div class="tile-px num">270.44</div>
+        <div class="tile-chg"><span class="chg chg--down num">-1.69%</span><span class="tile-k">Fri</span><span class="chg chg--down num">-3.0%</span><span class="tile-k">week</span></div>
+        <svg class="spark spark--down" viewBox="0 0 112 34" role="img" aria-label="Russell 2000, 22 sessions: -3.0% over the last week"><path d="M2.0,5.1 L7.1,7.6 L12.3,4.9 L17.4,2.0 L22.6,11.3 L27.7,11.9 L32.9,11.4 L38.0,14.8 L43.1,16.6 L48.3,18.6 L53.4,16.6 L58.6,12.2 L63.7,8.8 L68.9,12.5 L74.0,19.0 L79.1,19.2 L84.3,16.8 L89.4,18.7 L94.6,20.7 L99.7,30.3 L104.9,23.7 L110.0,32.0"/><circle cx="110.0" cy="32.0" r="2.2"/></svg>
+        <div class="tile-note">Fri Oct 16 close</div>
+      </li>
+      <li class="tile tile--up">
+        <div class="tile-head"><span class="tile-name">VIX</span></div>
+        <div class="tile-px num">19.99</div>
+        <div class="tile-chg"><span class="chg chg--up num">+21.45%</span><span class="tile-k">Fri</span><span class="chg chg--up num">+34.7%</span><span class="tile-k">week</span></div>
+        <svg class="spark spark--up" viewBox="0 0 112 34" role="img" aria-label="VIX, 22 sessions: +34.7% over the last week"><path d="M2.0,25.6 L7.1,28.9 L12.3,28.6 L17.4,32.0 L22.6,27.0 L27.7,24.4 L32.9,28.6 L38.0,22.3 L43.1,22.6 L48.3,21.0 L53.4,20.7 L58.6,26.3 L63.7,25.2 L68.9,27.8 L74.0,27.5 L79.1,25.7 L84.3,28.7 L89.4,26.8 L94.6,26.5 L99.7,18.3 L104.9,20.3 L110.0,2.0"/><circle cx="110.0" cy="2.0" r="2.2"/></svg>
+        <div class="tile-note">Higher means more expected volatility</div>
+      </li>
+      <li class="tile tile--up">
+        <div class="tile-head"><span class="tile-name">10Y yield</span></div>
+        <div class="tile-px num">5.10</div>
+        <div class="tile-chg"><span class="chg chg--up num">+0.9 bp</span><span class="tile-k">Fri</span><span class="chg chg--down num">-14.6 bp</span><span class="tile-k">week</span></div>
+        <svg class="spark spark--down" viewBox="0 0 112 34" role="img" aria-label="10Y yield, 22 sessions: -14.6 bp over the last week"><path d="M2.0,32.0 L7.1,27.8 L12.3,30.7 L17.4,30.3 L22.6,18.2 L27.7,14.3 L32.9,12.5 L38.0,7.9 L43.1,6.6 L48.3,3.5 L53.4,8.1 L58.6,4.8 L63.7,2.0 L68.9,5.5 L74.0,4.8 L79.1,8.6 L84.3,7.5 L89.4,7.9 L94.6,9.7 L99.7,12.0 L104.9,20.3 L110.0,19.6"/><circle cx="110.0" cy="19.6" r="2.2"/></svg>
+        <div class="tile-note">Treasury yield, percent</div>
+      </li>
+      <li class="tile tile--down">
+        <div class="tile-head"><span class="tile-name">Gold</span><span class="tile-sym">GLD</span></div>
+        <div class="tile-px num">382.01</div>
+        <div class="tile-chg"><span class="chg chg--down num">-0.18%</span><span class="tile-k">Fri</span><span class="chg chg--down num">-0.7%</span><span class="tile-k">week</span></div>
+        <svg class="spark spark--down" viewBox="0 0 112 34" role="img" aria-label="Gold, 22 sessions: -0.7% over the last week"><path d="M2.0,5.5 L7.1,2.0 L12.3,5.4 L17.4,3.4 L22.6,12.0 L27.7,13.2 L32.9,11.3 L38.0,29.5 L43.1,23.5 L48.3,26.0 L53.4,23.8 L58.6,26.9 L63.7,27.6 L68.9,24.4 L74.0,32.0 L79.1,28.7 L84.3,21.7 L89.4,24.5 L94.6,25.1 L99.7,31.9 L104.9,23.9 L110.0,24.6"/><circle cx="110.0" cy="24.6" r="2.2"/></svg>
+        <div class="tile-note">Fri Oct 16 close</div>
+      </li>
+      <li class="tile tile--up">
+        <div class="tile-head"><span class="tile-name">Oil</span><span class="tile-sym">USO</span></div>
+        <div class="tile-px num">161.76</div>
+        <div class="tile-chg"><span class="chg chg--up num">+2.83%</span><span class="tile-k">Fri</span><span class="chg chg--up num">+9.1%</span><span class="tile-k">week</span></div>
+        <svg class="spark spark--up" viewBox="0 0 112 34" role="img" aria-label="Oil, 22 sessions: +9.1% over the last week"><path d="M2.0,12.5 L7.1,14.9 L12.3,24.1 L17.4,30.8 L22.6,23.0 L27.7,16.2 L32.9,23.9 L38.0,21.2 L43.1,32.0 L48.3,28.3 L53.4,21.1 L58.6,25.4 L63.7,31.0 L68.9,29.5 L74.0,31.1 L79.1,25.1 L84.3,24.0 L89.4,19.5 L94.6,16.1 L99.7,15.3 L104.9,9.3 L110.0,2.0"/><circle cx="110.0" cy="2.0" r="2.2"/></svg>
+        <div class="tile-note">Fri Oct 16 close</div>
+      </li>
+      <li class="tile tile--down">
+        <div class="tile-head"><span class="tile-name">Bitcoin</span></div>
+        <div class="tile-px num">81,024</div>
+        <div class="tile-chg"><span class="chg chg--down num">-0.44%</span><span class="tile-k">24h</span><span class="chg chg--down num">-2.6%</span><span class="tile-k">week</span></div>
+        <svg class="spark spark--down" viewBox="0 0 112 34" role="img" aria-label="Bitcoin, 22 sessions: -2.6% over the last week"><path d="M2.0,14.0 L7.1,19.9 L12.3,18.8 L17.4,19.3 L22.6,11.7 L27.7,13.7 L32.9,12.4 L38.0,2.0 L43.1,6.5 L48.3,7.6 L53.4,20.9 L58.6,30.2 L63.7,25.1 L68.9,23.1 L74.0,18.6 L79.1,29.9 L84.3,21.9 L89.4,30.9 L94.6,27.7 L99.7,31.3 L104.9,32.0 L110.0,31.1"/><circle cx="110.0" cy="31.1" r="2.2"/></svg>
+        <div class="tile-note">24-hour market, Sun Oct 18</div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- 4 FORECAST + 5 HOT NOW -->
+  <div class="row">
+    <section class="card c7" aria-labelledby="fc-h">
+      <div class="card-head"><h2 class="sec-title" id="fc-h">Next session: S&amp;P 500</h2><span class="meta">Mon Oct 19, SPY</span></div>
+      <div class="card-body">
+        <div class="scale" role="img" aria-label="Implied range 753.70 to 772.92. Last 763.25, 50-day 767.40, prior close 771.79, 200-day 721.88.">
+          <div class="axis"><span style="left:0%">715</span><span style="left:14.29%">725</span><span style="left:28.57%">735</span><span style="left:42.86%">745</span><span style="left:57.14%">755</span><span style="left:71.43%">765</span><span style="left:85.71%">775</span><span style="left:100%">785</span></div>
+          <div class="em" style="left:55.29%;width:27.46%" title="68% implied range from the VIX"></div>
+          <div class="ses" style="left:65.20%;width:18.01%" title="Friday's range"></div>
+          <div class="mk mk--top" style="left:9.83%"><span>200-day</span><b>721.88</b></div>
+          <div class="mk mk--top mk--last" style="left:68.93%"><span>Last</span><b>763.25</b></div>
+          <div class="mk mk--bot" style="left:74.86%"><b>767.40</b><span>50-day</span></div>
+          <div class="mk mk--top" style="left:81.13%"><span>Thu close</span><b>771.79</b></div>
+        </div>
+        <div class="fc-grid">
+          <div><span class="label">Implied range, 68%</span><div class="fc-v num">753.70 to 772.92</div><div class="fc-s">Plus or minus 9.61 (1.26%) from the VIX at 19.99</div></div>
+          <div><span class="label">After a 1% down day</span><div class="fc-v num">53.8% up</div><div class="split" role="img" aria-label="53.8 percent of 273 sessions closed up"><i style="width:53.8%"></i><u style="width:46.2%"></u></div><div class="fc-s">273 such sessions since 2016; all days 55.2%. History, not a forecast.</div></div>
+          <div><span class="label">Key levels</span><div class="fc-v num">767.40</div><div class="fc-s">50-day, 0.5% above. 200-day 721.88, 5.7% below.</div></div>
+          <div><span class="label">Main risk event</span><div class="fc-v">Meta, Tesla</div><div class="fc-s">Report Wed after the close, $3.2T combined; SpaceX Tue after the close.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card c5" aria-labelledby="hot-h">
+      <div class="card-head"><h2 class="sec-title" id="hot-h">Hot now</h2><a href="#" class="meta" style="color:var(--accent)">All 48 headlines</a></div>
+      <div class="card-body">
+        <div class="chips" aria-label="Trending">
+          <span class="chip chip--theme">Earnings <span class="num">8</span></span><span class="chip chip--theme">AI <span class="num">7</span></span><span class="chip chip--theme">Treasury yields <span class="num">5</span></span><span class="chip chip--theme">Fed <span class="num">3</span></span>
+          <span class="chip">META <span class="num chg--down">-3.72%</span></span><span class="chip">TSLA <span class="num chg--down">-2.13%</span></span><span class="chip">MSFT <span class="num chg--down">-1.93%</span></span><span class="chip">NVDA <span class="num chg--down">-1.43%</span></span><span class="chip">C <span class="num chg--up">+0.85%</span></span>
+        </div>
+        <ol class="news">
+          <li class="ncard"><div class="ntags"><span class="tag tag--hi">High impact</span><span class="tag tag--bear">Bearish</span><span>Yahoo Finance, 22 min ago</span></div>
+            <p class="ntitle">Dow Jones Futures: More AI Pain After Nasdaq Sell-Off? Meta, SpaceX, Tesla Earnings Key</p>
+            <p class="nmean"><b>Means</b>An index-level move: context for the tape, not a trigger for any one name.</p></li>
+          <li class="ncard"><div class="ntags"><span class="tag tag--hi">High impact</span><span class="tag tag--flat">Policy</span><span>CNBC, 14 h ago</span></div>
+            <p class="ntitle">Trump's Russia diesel deal may offer Putin more than money, and spell trouble for Ukraine</p>
+            <p class="nmean"><b>Means</b>Geopolitical risk: watch oil, defense, shipping and safe havens.</p></li>
+          <li class="ncard"><div class="ntags"><span class="tag tag--hi">High impact</span><span class="tag tag--flat">Earnings</span><span>MarketWatch, 1 d ago</span></div>
+            <p class="ntitle">Microsoft and 4 more AI stocks that are favorite Wall Street earnings plays</p>
+            <p class="nmean"><b>Means</b>Read guidance, margins and peer read-through before the reports.</p></li>
+        </ol>
+      </div>
+    </section>
+  </div>
+
+  <!-- 6 SECTORS + MOVERS -->
+  <div class="row">
+    <section class="card c8" aria-labelledby="sec-h">
+      <div class="card-head"><h2 class="sec-title" id="sec-h">Sectors</h2><span class="meta">Friday's move, tile size by S&amp;P 500 weight</span></div>
+      <div class="card-body">
+        <div class="breadth">
+          <div><span class="label">Sector funds above 50-day</span><span class="v num">4 of 11 <span class="marks" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span></div>
+          <div><span class="label">Index funds above 50-day</span><span class="v num">0 of 4 <span class="marks" aria-hidden="true"><i></i><i></i><i></i><i></i></span></span></div>
+          <div><span class="label">Sectors up on Friday</span><span class="v num">6 of 11</span></div>
+        </div>
+        <ul class="tm" aria-label="Sector treemap">
+        <li class="tm-cell tm--down" style="left:0.00%;top:0.00%;width:46.94%;height:71.74%;--k:1.00" title="Technology (XLK): -3.02% on Fri, below its 50-day average">
+        <span class="tm-name">Technology</span><span class="tm-chg num">-3.02%</span><span class="tm-trend">Below 50-day</span></li>
+        <li class="tm-cell tm--up" style="left:0.00%;top:71.74%;width:46.94%;height:28.26%;--k:0.15" title="Financials (XLF): +0.45% on Fri, below its 50-day average">
+        <span class="tm-name">Financials</span><span class="tm-chg num">+0.45%</span><span class="tm-trend">Below 50-day</span></li>
+        <li class="tm-cell tm--down" style="left:46.94%;top:0.00%;width:27.86%;height:38.46%;--k:0.28" title="Consumer disc. (XLY): -0.84% on Fri, below its 50-day average">
+        <span class="tm-name">Consumer disc.</span><span class="tm-chg num">-0.84%</span><span class="tm-trend">Below 50-day</span></li>
+        <li class="tm-cell tm--down" style="left:74.80%;top:0.00%;width:25.20%;height:38.46%;--k:0.63" title="Communication (XLC): -1.89% on Fri, below its 50-day average">
+        <span class="tm-name">Communication</span><span class="tm-chg num">-1.89%</span><span class="tm-trend">Below 50-day</span></li>
+        <li class="tm-cell tm--down" style="left:46.94%;top:38.46%;width:27.29%;height:33.65%;--k:0.09" title="Health care (XLV): -0.27% on Fri, above its 50-day average">
+        <span class="tm-name">Health care</span><span class="tm-chg num">-0.27%</span><span class="tm-trend is-above">Above 50-day</span></li>
+        <li class="tm-cell tm--down" style="left:74.23%;top:38.46%;width:25.77%;height:33.65%;--k:0.03" title="Industrials (XLI): -0.08% on Fri, below its 50-day average">
+        <span class="tm-name">Industrials</span><span class="tm-chg num">-0.08%</span><span class="tm-trend">Below 50-day</span></li>
+        <li class="tm-cell tm--up tm--small" style="left:46.94%;top:72.12%;width:18.30%;height:27.88%;--k:0.36" title="Staples (XLP): +1.08% on Fri, above its 50-day average">
+        <span class="tm-name">Staples</span><span class="tm-chg num">+1.08%</span><span class="tm-trend is-above">Above 50-day</span></li>
+        <li class="tm-cell tm--up tm--small" style="left:65.24%;top:72.12%;width:20.13%;height:15.21%;--k:0.84" title="Energy (XLE): +2.52% on Fri, above its 50-day average">
+        <span class="tm-name">Energy</span><span class="tm-chg num">+2.52%</span><span class="tm-trend is-above">Above 50-day</span></li>
+        <li class="tm-cell tm--up tm--small" style="left:65.24%;top:87.33%;width:20.13%;height:12.67%;--k:0.45" title="Utilities (XLU): +1.34% on Fri, above its 50-day average">
+        <span class="tm-name">Utilities</span><span class="tm-chg num">+1.34%</span><span class="tm-trend is-above">Above 50-day</span></li>
+        <li class="tm-cell tm--up tm--small" style="left:85.36%;top:72.12%;width:14.64%;height:13.94%;--k:0.13" title="Real estate (XLRE): +0.40% on Fri, below its 50-day average">
+        <span class="tm-name">Real estate</span><span class="tm-chg num">+0.40%</span><span class="tm-trend">Below 50-day</span></li>
+        <li class="tm-cell tm--up tm--small" style="left:85.36%;top:86.06%;width:14.64%;height:13.94%;--k:0.24" title="Materials (XLB): +0.71% on Fri, below its 50-day average">
+        <span class="tm-name">Materials</span><span class="tm-chg num">+0.71%</span><span class="tm-trend">Below 50-day</span></li>
+        </ul>
+        <div class="tm-key"><span>Green: rose Friday. Red: fell. Deeper tint: larger move.</span><span>Square mark: above its 50-day average.</span></div>
+      </div>
+    </section>
+    <section class="card c4" aria-labelledby="mv-h">
+      <div class="card-head"><h2 class="sec-title" id="mv-h">Largest movers</h2><span class="meta">Fri Oct 16</span></div>
+      <div class="card-body movers">
+        <div><span class="label">Gainers</span>
+          <ul class="mv">
+            <li><b class="num">CRGY</b><span class="bar" style="width:100%;background:var(--up)"></span><span class="num r chg--up">+10.1%</span></li>
+            <li><b class="num">PAYP</b><span class="bar" style="width:69%;background:var(--up)"></span><span class="num r chg--up">+7.0%</span></li>
+            <li><b class="num">MTDR</b><span class="bar" style="width:69%;background:var(--up)"></span><span class="num r chg--up">+7.0%</span></li>
+            <li><b class="num">AR</b><span class="bar" style="width:60%;background:var(--up)"></span><span class="num r chg--up">+6.1%</span></li>
+            <li><b class="num">NOG</b><span class="bar" style="width:54%;background:var(--up)"></span><span class="num r chg--up">+5.5%</span></li>
+          </ul></div>
+        <div><span class="label">Decliners</span>
+          <ul class="mv">
+            <li><b class="num">BSP</b><span class="bar" style="width:100%;background:var(--down)"></span><span class="num r chg--down">-15.6%</span></li>
+            <li><b class="num">TLK</b><span class="bar" style="width:88%;background:var(--down)"></span><span class="num r chg--down">-13.7%</span></li>
+            <li><b class="num">GRAL</b><span class="bar" style="width:84%;background:var(--down)"></span><span class="num r chg--down">-13.0%</span></li>
+            <li><b class="num">VICR</b><span class="bar" style="width:83%;background:var(--down)"></span><span class="num r chg--down">-12.9%</span></li>
+            <li><b class="num">NBIS</b><span class="bar" style="width:78%;background:var(--down)"></span><span class="num r chg--down">-12.2%</span></li>
+          </ul></div>
+        <span class="sub">Largest moves among 42 screened names: a sample of the tape, not market breadth.</span>
+      </div>
+    </section>
+  </div>
+
+  <!-- 7 IDEAS FOR THIS CALL -->
+  <section class="card" id="ideas" aria-labelledby="ideas-h">
+    <div class="card-head"><h2 class="sec-title" id="ideas-h">Ideas for this call</h2>
+      <button class="btn btn--ghost" type="button" id="preview" aria-pressed="false" style="height:32px;font-size:13px">Preview with scan results</button></div>
+    <div class="card-body">
+      <p class="sample-note">Sample layout with placeholder figures. Not a recommendation.</p>
+      <div class="ideas-empty">
+        <div>
+          <h3>No QUANTA ideas yet for this session</h3>
+          <p>A Picks scan ranks your universe under your mandate, sizes each idea from its stop and your capital, and keeps only Buy or Accumulate calls with net reward-to-risk of at least 1.8 after costs.</p>
+          <div class="cta-row"><button class="btn" type="button">Run a Picks scan</button><span class="sub">US market, $2,500 capital, Balanced mandate</span></div>
+        </div>
+        <div class="fit">
+          <span class="label">What fits a Defensive call</span>
+          <ul>
+            <li><b>Sectors above their 50-day:</b> Energy, Utilities, Staples, Health care</li>
+            <li><b>Sizing:</b> light exposure, higher cash buffer</li>
+            <li><b>Avoid:</b> averaging down and weak rebounds</li>
+          </ul>
+        </div>
+      </div>
+      <div class="idea-cards">
+        <article class="icard"><div class="icard-top"><span class="rank">1</span><span class="tick">XOM</span><span class="sub">Exxon Mobil</span><span class="dec">Accumulate</span></div>
+          <p class="thesis">Leader in the strongest sector; reclaimed its 50-day on volume after Friday's oil spike.</p>
+          <div class="kv"><div><span>Entry</span><b>112.40</b></div><div><span>Target</span><b>124.00</b></div><div><span>Stop</span><b>107.10</b></div><div><span>Size</span><b>$540</b></div><div><span>Reward to risk</span><b>2.2</b></div><div><span>Mandate</span><b>Fits</b></div></div></article>
+        <article class="icard"><div class="icard-top"><span class="rank">2</span><span class="tick">DUK</span><span class="sub">Duke Energy</span><span class="dec">Accumulate</span></div>
+          <p class="thesis">Utility above its 50-day with a support reclaim; low beta suits a defensive book.</p>
+          <div class="kv"><div><span>Entry</span><b>121.80</b></div><div><span>Target</span><b>131.50</b></div><div><span>Stop</span><b>117.40</b></div><div><span>Size</span><b>$480</b></div><div><span>Reward to risk</span><b>2.0</b></div><div><span>Mandate</span><b>Fits</b></div></div></article>
+        <article class="icard"><div class="icard-top"><span class="rank">3</span><span class="tick">PG</span><span class="sub">Procter &amp; Gamble</span><span class="dec">Buy</span></div>
+          <p class="thesis">Staples leader reporting Thursday before the open; enter only after the print holds.</p>
+          <div class="kv"><div><span>Entry</span><b>158.20</b></div><div><span>Target</span><b>171.00</b></div><div><span>Stop</span><b>151.60</b></div><div><span>Size</span><b>$410</b></div><div><span>Reward to risk</span><b>1.9</b></div><div><span>Mandate</span><b>Fits</b></div></div></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 WEEK AHEAD -->
+  <section class="card" aria-labelledby="wk-h">
+    <div class="card-head"><h2 class="sec-title" id="wk-h">Week ahead</h2><span class="meta">Oct 19 to 23: 65 earnings reports. Highlighted: the 3 largest.</span></div>
+    <div class="card-body">
+      <ol class="wk">
+      <li class="wk-day">
+        <div class="wk-date"><span class="wk-dow">Mon</span><span class="wk-num num">19</span><span class="wk-cnt num">2 reports</span></div>
+        <div class="wk-bar" aria-hidden="true"><i style="width:9%"></i></div>
+        <ul class="ev-list"><li class="ev"><b class="num">FITB</b><span>Before open</span><span class="ev-cap num">$46B</span></li><li class="ev"><b class="num">STLD</b><span>After close</span><span class="ev-cap num">$34B</span></li></ul>
+        
+      </li>
+      <li class="wk-day">
+        <div class="wk-date"><span class="wk-dow">Tue</span><span class="wk-num num">20</span><span class="wk-cnt num">13 reports</span></div>
+        <div class="wk-bar" aria-hidden="true"><i style="width:57%"></i></div>
+        <ul class="ev-list"><li class="ev ev--big"><b class="num">SPCX</b><span>After close</span><span class="ev-cap num">$1,925B</span></li><li class="ev"><b class="num">GE</b><span>Before open</span><span class="ev-cap num">$326B</span></li><li class="ev"><b class="num">NFLX</b><span>After close</span><span class="ev-cap num">$294B</span></li><li class="ev"><b class="num">RTX</b><span>Before open</span><span class="ev-cap num">$261B</span></li><li class="ev"><b class="num">ISRG</b><span>After close</span><span class="ev-cap num">$151B</span></li></ul>
+        <span class="wk-more">+8 more</span>
+      </li>
+      <li class="wk-day">
+        <div class="wk-date"><span class="wk-dow">Wed</span><span class="wk-num num">21</span><span class="wk-cnt num">23 reports</span></div>
+        <div class="wk-bar" aria-hidden="true"><i style="width:100%"></i></div>
+        <ul class="ev-list"><li class="ev ev--big"><b class="num">META</b><span>After close</span><span class="ev-cap num">$1,807B</span></li><li class="ev ev--big"><b class="num">TSLA</b><span>After close</span><span class="ev-cap num">$1,401B</span></li><li class="ev"><b class="num">LRCX</b><span>After close</span><span class="ev-cap num">$330B</span></li><li class="ev"><b class="num">PM</b><span>Before open</span><span class="ev-cap num">$320B</span></li><li class="ev"><b class="num">SAP</b><span>After close</span><span class="ev-cap num">$259B</span></li></ul>
+        <span class="wk-more">+18 more</span>
+      </li>
+      <li class="wk-day">
+        <div class="wk-date"><span class="wk-dow">Thu</span><span class="wk-num num">22</span><span class="wk-cnt num">23 reports</span></div>
+        <div class="wk-bar" aria-hidden="true"><i style="width:100%"></i></div>
+        <ul class="ev-list"><li class="ev"><b class="num">PG</b><span>Before open</span><span class="ev-cap num">$370B</span></li><li class="ev"><b class="num">UNP</b><span>Before open</span><span class="ev-cap num">$172B</span></li><li class="ev"><b class="num">SCCO</b><span>Time not set</span><span class="ev-cap num">$169B</span></li><li class="ev"><b class="num">VLO</b><span>Before open</span><span class="ev-cap num">$128B</span></li><li class="ev"><b class="num">LMT</b><span>Before open</span><span class="ev-cap num">$127B</span></li></ul>
+        <span class="wk-more">+18 more</span>
+      </li>
+      <li class="wk-day">
+        <div class="wk-date"><span class="wk-dow">Fri</span><span class="wk-num num">23</span><span class="wk-cnt num">4 reports</span></div>
+        <div class="wk-bar" aria-hidden="true"><i style="width:17%"></i></div>
+        <ul class="ev-list"><li class="ev"><b class="num">AXP</b><span>Before open</span><span class="ev-cap num">$212B</span></li><li class="ev"><b class="num">E</b><span>Time not set</span><span class="ev-cap num">$85B</span></li><li class="ev"><b class="num">SLB</b><span>Before open</span><span class="ev-cap num">$73B</span></li><li class="ev"><b class="num">INFY</b><span>Before open</span><span class="ev-cap num">$50B</span></li></ul>
+        
+      </li>
+      </ol>
+      <p class="wk-macro">Macro: no Fed or BLS release found for these days. Earnings cover US companies over $10B and the tracked universe.</p>
+    </div>
+  </section>
+
+  <!-- COLLAPSED DETAIL -->
+  <section class="card detail" aria-label="Model detail">
+    <details><summary>All 10 factors <span>1 support, 4 neutral, 5 against</span></summary>
+      <div class="in"><table><thead><tr><th scope="col">Factor</th><th scope="col">Score</th><th scope="col">Reading</th></tr></thead><tbody><tr><th scope="row">Trend</th><td class="num f-s f-s--for">+1</td><td>S&P 500 above 200-DMA with 50>200 trend alignment</td></tr><tr><th scope="row">Volatility</th><td class="num f-s f-s--flat">0</td><td>Volatility is in a normal range (20.0), up 21% in one session</td></tr><tr><th scope="row">Participation</th><td class="num f-s f-s--against">-2</td><td>Participation weak (0% indices above 50-DMA)</td></tr><tr><th scope="row">Rates / Credit</th><td class="num f-s f-s--flat">0</td><td>10Y Yield stable (+0.9 bp)</td></tr><tr><th scope="row">Session Move</th><td class="num f-s f-s--against">-1</td><td>S&P 500 -1.11% on Fri Oct 16 (one session; Trend is the structural read)</td></tr><tr><th scope="row">Sector Leadership</th><td class="num f-s f-s--against">-2</td><td>No major index group rose: Nasdaq 100, Russell 2000 and Dow</td></tr><tr><th scope="row">Momentum</th><td class="num f-s f-s--flat">0</td><td>21-day momentum +0.33% (total return)</td></tr><tr><th scope="row">Macro / Catalyst Risk</th><td class="num f-s f-s--flat">0</td><td>One macro stress flag active (oil spike +2.8%)</td></tr><tr><th scope="row">News Impact</th><td class="num f-s f-s--against">-2</td><td>3 high-impact bearish headline(s) lead the tape</td></tr><tr><th scope="row">Catalyst Risk</th><td class="num f-s f-s--against">-1</td><td>Heavy earnings week (65 reports in the next 7 days)</td></tr></tbody></table></div></details>
+    <details><summary>Price chart <span>S&amp;P 500, 22 sessions</span></summary>
+      <div class="in"><svg viewBox="0 0 600 160" style="width:100%;height:200px" role="img" aria-label="SPY over 22 sessions"><path d="M6.0,145.1 L34.0,154.0 L62.0,53.5 L90.0,54.2 L118.0,102.0 L146.0,106.6 L174.0,71.8 L202.0,121.3 L230.0,131.5 L258.0,147.2 L286.0,133.8 L314.0,86.0 L342.0,41.5 L370.0,6.0 L398.0,22.9 L426.0,50.4 L454.0,11.2 L482.0,15.0 L510.0,15.3 L538.0,86.6 L566.0,68.8 L594.0,139.8" fill="none" stroke="var(--down)" stroke-width="1.8"/></svg></div></details>
+    <details><summary>Cross-asset <span>One-session change on Fri Oct 16</span></summary>
+      <div class="in"><table><tbody>
+        <tr><th scope="row">10Y less 3-month</th><td class="num">+103 bp, +2.7 bp</td><td>Not inverted</td></tr>
+        <tr><th scope="row">High-yield vs investment-grade</th><td class="num">-0.25%</td><td>Risk aversion</td></tr>
+        <tr><th scope="row">Copper vs gold</th><td class="num">+0.69%</td><td>Risk appetite</td></tr>
+        <tr><th scope="row">Dollar index</th><td class="num">101.84, -0.16%</td><td>Softer dollar</td></tr>
+      </tbody></table></div></details>
+  </section>
+
+  <footer class="foot"><span>QUANTA is research software. Not investment advice. No strategy shown here has a validated out-of-sample record.</span><span>Model evidence and track record</span></footer>
+</main>
+<script>
+  // Mockup only: switch the Ideas panel between its empty state and a sample of the populated cards.
+  document.getElementById('preview').addEventListener('click', function () {
+    var on = this.getAttribute('aria-pressed') !== 'true';
+    this.setAttribute('aria-pressed', String(on));
+    this.textContent = on ? 'Show the empty state' : 'Preview with scan results';
+    document.getElementById('ideas').classList.toggle('show-sample', on);
+  });
+</script>
+</body>
+</html>

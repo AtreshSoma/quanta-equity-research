@@ -496,7 +496,7 @@ def _quanta_request_guard():
 
 # ---------------------------------------------------------------------------
 # Transfer: gzip for text bodies, long caching for versioned static files.
-# The page's scripts and styles are ~1.5 MB raw and ~0.3 MB gzipped; Werkzeug
+# The page's scripts and styles are ~2.0 MB raw and ~0.5 MB gzipped; Werkzeug
 # sends neither compression nor cache headers on its own. A production server
 # or proxy can take this over; it is harmless behind one that already does.
 # ---------------------------------------------------------------------------
@@ -805,6 +805,8 @@ def _classify_scan_status(
 
 _dashboard_cache: Dict[str, Any] = {"timestamp": 0.0, "payload": None}
 _dashboard_lock = threading.Lock()
+# One lock per dashboard cache key, so concurrent misses build the payload once.
+_dashboard_build_locks: Dict[str, threading.Lock] = {}
 DASHBOARD_CACHE_SECONDS = 180
 
 _analysis_runtime: Dict[str, Any] = {
@@ -5029,50 +5031,83 @@ def _dashboard_payload(force_refresh: bool = False, market: str = "US") -> Dict[
     # silently return a cached v2 payload (or vice versa).
     regime_variant = "v1" if (request.args.get("regime") == "v1") else "v2"
     cache_key = f"payload_{market_key}_{regime_variant}"
-    now = time.time()
-    with _dashboard_lock:
-        cached = _dashboard_cache.get(cache_key)
-        age = now - float(_dashboard_cache.get(f"timestamp_{market_key}_{regime_variant}") or 0)
-        has_quotes = cached and any(q.get('price') is not None and not q.get('stale') for q in (cached.get('market') or {}).get('quotes', []))
-        # A read built while an input was missing (history still loading, the
-        # earnings screen still warming up) is retried soon, not held for the
-        # full cache period: the inputs usually arrive seconds later.
-        missing = bool(cached and (((cached.get('market') or {}).get('market_regime_engine') or {})
-                                   .get('dataFreshness') or {}).get('missingInputs'))
-        cache_ttl = DASHBOARD_CACHE_SECONDS if has_quotes and not missing else MARKET_INTEL_RETRY_SECONDS
-        if cached and not force_refresh and age < cache_ttl:
-            # Refresh just the intel slot from latest cache so users don't see
-            # an empty card if the warmup completed after the dashboard cache.
-            cached = dict(cached)
-            cached["market_intel"] = _market_intel(market_key, blocking=False)
-            return cached
 
-    # Build news + intel FIRST so the regime engine can ingest the live headline
-    # tape and the dated earnings calendar (single source of truth).
-    market_intel = _market_intel(market_key, blocking=False)
-    news_digest = _build_news_digest(market_key)
+    def _fresh_read() -> Optional[Dict[str, Any]]:
+        with _dashboard_lock:
+            cached = _dashboard_cache.get(cache_key)
+            age = time.time() - float(_dashboard_cache.get(f"timestamp_{market_key}_{regime_variant}") or 0)
+            has_quotes = cached and any(q.get('price') is not None and not q.get('stale') for q in (cached.get('market') or {}).get('quotes', []))
+            # A read built while an input was missing (history still loading, the
+            # earnings screen still warming up) is retried soon, not held for the
+            # full cache period: the inputs usually arrive seconds later.
+            missing = bool(cached and (((cached.get('market') or {}).get('market_regime_engine') or {})
+                                       .get('dataFreshness') or {}).get('missingInputs'))
+            cache_ttl = DASHBOARD_CACHE_SECONDS if has_quotes and not missing else MARKET_INTEL_RETRY_SECONDS
+            if cached and age < cache_ttl:
+                return cached
+        return None
 
-    payload = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "selected_market": market_key,
-        "available_markets": [
-            {"code": code, "label": MARKET_UNIVERSES[code]["label"], "currency": MARKET_UNIVERSES[code]["currency"]}
-            for code in MARKET_UNIVERSES.keys()
-        ],
-        "market": _market_snapshot(market_key, news=news_digest, intel=market_intel),
-        "market_intel": market_intel,
-        "news": news_digest,
-        "engines": _engine_payload(),
-        "cache_seconds": DASHBOARD_CACHE_SECONDS,
-        # How soon a read with missing inputs is rebuilt (the page re-reads once).
-        "retry_seconds": MARKET_INTEL_RETRY_SECONDS,
-    }
+    def _serve_cached(cached: Dict[str, Any]) -> Dict[str, Any]:
+        # Refresh just the intel slot from latest cache so users don't see
+        # an empty card if the warmup completed after the dashboard cache.
+        cached = dict(cached)
+        cached["market_intel"] = _market_intel(market_key, blocking=False)
+        return cached
 
-    with _dashboard_lock:
-        _dashboard_cache[f"timestamp_{market_key}_{regime_variant}"] = now
-        _dashboard_cache[cache_key] = payload
+    if not force_refresh:
+        hit = _fresh_read()
+        if hit is not None:
+            return _serve_cached(hit)
 
-    return payload
+    # One build per market at a time: a second caller (another tab, the startup
+    # warm-up) waits for the build in flight and reads its result instead of
+    # repeating every provider call.
+    with _dashboard_build_locks.setdefault(cache_key, threading.Lock()):
+        if not force_refresh:
+            hit = _fresh_read()
+            if hit is not None:
+                return _serve_cached(hit)
+        now = time.time()
+
+        # Build news + intel FIRST so the regime engine can ingest the live headline
+        # tape and the dated earnings calendar (single source of truth).
+        market_intel = _market_intel(market_key, blocking=False)
+        news_digest = _build_news_digest(market_key)
+
+        payload = {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "selected_market": market_key,
+            "available_markets": [
+                {"code": code, "label": MARKET_UNIVERSES[code]["label"], "currency": MARKET_UNIVERSES[code]["currency"]}
+                for code in MARKET_UNIVERSES.keys()
+            ],
+            "market": _market_snapshot(market_key, news=news_digest, intel=market_intel),
+            "market_intel": market_intel,
+            "news": news_digest,
+            "engines": _engine_payload(),
+            "cache_seconds": DASHBOARD_CACHE_SECONDS,
+            # How soon a read with missing inputs is rebuilt (the page re-reads once).
+            "retry_seconds": MARKET_INTEL_RETRY_SECONDS,
+        }
+
+        with _dashboard_lock:
+            _dashboard_cache[f"timestamp_{market_key}_{regime_variant}"] = now
+            _dashboard_cache[cache_key] = payload
+
+        return payload
+
+
+def _warm_dashboard(market: str = "US") -> None:
+    """Build the default market's dashboard read before the first visitor asks.
+
+    Runs in a background thread at startup. Failure is harmless: the first
+    request then builds it, as it always did."""
+    try:
+        with app.test_request_context(f"/api/dashboard?market={market}"):
+            _dashboard_payload(market=market)
+        logger.info("dashboard warm-up done (%s)", market)
+    except Exception as exc:  # noqa: BLE001 - warm-up must never stop the server
+        logger.warning("dashboard warm-up failed (%s): %s", market, exc)
 
 
 # ---------------------------------------------------------------------------
@@ -8855,6 +8890,9 @@ def main():
 
     logger.info(f"QUANTA Web starting on http://{host}:{port}")
     _sec_contact_startup_check()
+
+    if os.getenv("QUANTA_NO_WARMUP") != "1":
+        threading.Thread(target=_warm_dashboard, name="dashboard-warmup", daemon=True).start()
 
     # Auto-open browser
     if os.getenv("QUANTA_NO_BROWSER") != "1":

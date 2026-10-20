@@ -18,6 +18,7 @@ install steps and architecture are in the [root README](../README.md).
 | [LIVE_MODEL_VALIDATION_STATUS.md](LIVE_MODEL_VALIDATION_STATUS.md) | What the live model has and has not demonstrated out of sample |
 | [../DESIGN.md](../DESIGN.md) | The web app's design system: tokens, type, colour and motion rules |
 | [../PRODUCT.md](../PRODUCT.md) | Who the product is for and what it will not do |
+| [OPEN_ITEMS.md](OPEN_ITEMS.md) | What is deliberately not done: owner decisions and engineering follow-ups |
 
 ## Layout
 

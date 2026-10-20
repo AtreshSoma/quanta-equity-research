@@ -571,7 +571,7 @@ quanta-equity-research/
 │   ├── saved_scans.py            Recent scans, kept for 24 hours
 │   ├── static/                   Front end: app.js, live-chart.js, mp-*.js, quanta.css, ...
 │   ├── templates/index.html      Single-page template
-│   └── tests/                    node:test + jsdom units, Playwright e2e, fixtures, tools
+│   └── tests/                    unit/ (node:test + jsdom), e2e/ (Playwright), fixtures/, tools/
 ├── core/                       Engines and analysis code
 │   ├── engine/                   Decision gates, thresholds, events, valuation, calendars
 │   ├── portfolio/, brokers/      Broker holdings, history and insights
@@ -586,7 +586,8 @@ quanta-equity-research/
 ├── modules/                    20 shared services (catalysts, risk, providers, SEC)
 ├── mcp_server/                 MCP server + client for LLM integration
 ├── tests/                      Python suite (engine, web app, golden master)
-│   └── golden/                   Recorded fixtures + pinned lockfile
+│   ├── golden/                   Recorded fixtures + pinned lockfile
+│   └── manual/                   HTTP drivers to run by hand against a live server (not collected)
 ├── docs/                       Indexed in docs/README.md
 │   ├── guides/                   Running, sharing and deploying
 │   ├── audits/                   What was checked and what was wrong
@@ -595,7 +596,7 @@ quanta-equity-research/
 │   ├── reference/                Comparisons and teardowns
 │   └── img/                      Screenshots used by this README
 ├── config/                     Reference data
-├── data/                       Static calendars and compliance data
+├── data/                       Static calendar data; runtime cache and ledger are created here (git-ignored)
 ├── scripts/                    Daily track-record job and its launchd scheduler
 ├── .github/workflows/          CI and the Windows executable build
 ├── PRODUCT.md, DESIGN.md       Product context and the web app's design system

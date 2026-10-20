@@ -2,7 +2,7 @@
 print the asset-type + applicability mapping the tear sheet relies on.
 
 Not part of the pytest suite — run manually:
-    .venv/bin/python tests/uat_asset_types.py
+    .venv/bin/python tests/manual/uat_asset_types.py
 """
 from __future__ import annotations
 

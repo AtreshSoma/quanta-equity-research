@@ -34,7 +34,7 @@ const {
   strategistBrief,
   signalCheckCounts,
   confidenceRead,
-} = require('../static/app.js');
+} = require('../../static/app.js');
 
 test('percentage math uses current and target prices', () => {
   const pct = upsidePct(310.59, 308.82);
@@ -909,7 +909,7 @@ test('computeRegimeModel with engine passes through backend posture and override
 });
 
 test('decision evidence line states the horizon and an unvalidated model plainly', () => {
-  const { decisionEvidenceHtml } = require('../static/app.js');
+  const { decisionEvidenceHtml } = require('../../static/app.js');
   const html = decisionEvidenceHtml({
     label: 'BUY', action: 'BUY', qualifier: 'Unproven model',
     horizon: { label: 'Position (~3 months)' },

@@ -13,7 +13,7 @@ Validates the structural pieces — without hitting the network — that:
 
 The peer-comparison skip and the cache-write skip are guarded in
 ``analyze()`` and ``webapp/app.py`` respectively; both branches are simple
-boolean gates that the integration test in ``tests/uat_asset_types.py``
+boolean gates that the integration test in ``tests/manual/uat_asset_types.py``
 exercises end-to-end against a live ticker.
 """
 from __future__ import annotations

@@ -61,8 +61,10 @@ test('selected market and destination are marked by state, weight and underline 
     await expect(page.locator('.nav-tab[aria-selected="true"]')).toHaveCount(1);
     await expect(tab).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator(`#view-${view}`)).toBeVisible();
-    // The underline is drawn on the bar's edge; weight changes too.
-    await expect.poll(() => tab.evaluate(el => getComputedStyle(el, '::after').backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+    // The underline is the nav's one travelling indicator, under the selected tab; weight changes too.
+    const indicator = page.locator('.nav-tabs .nav-indicator');
+    await expect.poll(() => indicator.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+    await expect.poll(() => indicator.evaluate(el => getComputedStyle(el).opacity)).toBe('1');
     expect(Number(await tab.evaluate(el => getComputedStyle(el).fontWeight))).toBeGreaterThanOrEqual(600);
     // No decorative gradient on the selected destination.
     expect(await tab.evaluate(el => getComputedStyle(el).backgroundImage)).toBe('none');

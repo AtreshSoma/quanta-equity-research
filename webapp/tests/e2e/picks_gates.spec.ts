@@ -79,7 +79,8 @@ function measure() {
 }
 
 // Tab label -> the fewest panels it must measure (guards against measuring nothing).
-const TABS: Record<string, number> = { 'Overview': 4, 'Analysis': 9, 'Momentum alerts': 2, 'Risk and execution': 3, 'Method': 4 };
+// On a phone the wide tables and the section tab strip scroll inside their own region, by design.
+const TABS: Record<string, number> = { 'Calls': 3, 'Analysis': 9, 'Momentum alerts': 2, 'Risk and execution': 3, 'Method': 4 };
 for (const tab of Object.keys(TABS)) {
   for (const theme of ['light', 'dark']) {
     for (const width of [1280, 1440, 390]) {
@@ -95,7 +96,7 @@ for (const tab of Object.keys(TABS)) {
         expect(m.spreads.filter((s) => s.spread > 0.15), 'side-by-side within 15% height').toEqual([]);
         expect(m.maxGap, 'section gap').toBeLessThanOrEqual(16);
         expect(m.overflow, 'no horizontal page scroll').toBe(0);
-        expect(m.scrollers.filter((c) => !(width < 700 && /table-scroll/.test(c))), 'no stray scroll boxes').toEqual([]);
+        expect(m.scrollers.filter((c) => !(width < 700 && /table-scroll|tablewrap|pk-tabs/.test(c))), 'no stray scroll boxes').toEqual([]);
         expect(m.wrapped, 'gauges one line each').toEqual([]);
         expect(m.clipped, 'no clipped readings').toEqual([]);
         const axe = await new AxeBuilder({ page }).include('#view-picks').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();

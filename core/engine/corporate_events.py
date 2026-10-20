@@ -29,7 +29,11 @@ Evidence comes from SEC EDGAR (the company's own filings), read through
   successor-issuer 8-K12B (holding-company reorganization) the 25-NSE removes
   the predecessor's shares while the ticker trades on, so it is not a delisting;
 * a 14D-9 answering a mini-tender offer (a sub-5% bid the company tells holders
-  to reject) is not an acquisition.
+  to reject) is not an acquisition;
+* a foreign private issuer (an ADR) files no 8-K or merger proxy: it announces a
+  deal in a free-form Form 6-K, which this check does not classify, so a 6-K in
+  the window makes the result "unavailable", never "clear". A Canadian target's
+  tender response (SC 14D9F) counts like an SC 14D9.
 
 A range collapse with no filing (20-day ATR far below the 120-day ATR) is only a
 caution: it caps a name at Watch and says to check for a deal.
@@ -418,6 +422,11 @@ UNAVAILABLE_REASONS: Dict[str, tuple] = {
                        "so more of their filing history is read"),
     "document_unreadable": ("a filing document could not be read", "{detail}", "Run the scan again"),
     "filing_ambiguous": ("a filing could not be read unambiguously", "{detail}", "None until the filing can be read unambiguously"),
+    "foreign_reports_unread": ("foreign issuer reports not classified",
+                               "{symbol} files as a foreign private issuer: a deal would be announced in a "
+                               "Form 6-K (latest filed {filed}), which is free-form and not read by this check",
+                               "None: check the company's recent 6-K reports on SEC EDGAR yourself "
+                               "before acting"),
     "not_covered": ("exchange not covered by an event source", "no corporate-event source covers {exchange} listings "
                     "(SEC EDGAR covers US registrants only)",
                     "None: names on exchanges no event source covers get no Buy call (owner decision)"),
@@ -474,7 +483,8 @@ def check(symbol: str, edgar: Any, today: Optional[date] = None, price: Optional
             return ev
     if edgar is None:
         return _unavailable("", "no_client")
-    forms = set(EVENTS.STRONG_FORMS) | set(EVENTS.DELISTING_FORMS) | set(EVENTS.SUCCESSION_FORMS) | {"8-K"}
+    forms = (set(EVENTS.STRONG_FORMS) | set(EVENTS.DELISTING_FORMS) | set(EVENTS.SUCCESSION_FORMS)
+             | set(EVENTS.FOREIGN_CURRENT_FORMS) | {"8-K"})
     res = edgar.recent_filings(symbol, today - timedelta(days=EVENTS.LOOKBACK_DAYS), forms=forms)
     status = (res or {}).get("status")
     if status == "no_cik":
@@ -543,7 +553,7 @@ def _check_filings(symbol: str, res: Dict[str, Any], today: date, price: Optiona
                 if text and form in ("DEFM14A", "PREM14A") and (
                         is_merger_acquirer(text) or filer_side(text, aliases) == "buyer"):
                     continue           # the buyer's proxy (e.g. a share issuance vote)
-                if text and form == "SC 14D9" and is_mini_tender_response(text):
+                if text and form in ("SC 14D9", "SC 14D9F") and is_mini_tender_response(text):
                     continue           # a sub-5% mini-tender the company tells holders to reject
                 if text and form in ("DEFM14A", "PREM14A") and not re.search(
                         r"\bmerger\b|plan\s+of\s+merger|tender\s+offer|scheme\s+of\s+arrangement", _plain(text), re.I):
@@ -598,6 +608,11 @@ def _check_filings(symbol: str, res: Dict[str, Any], today: date, price: Optiona
                           f"Daily range collapsed to {atr_pct_20:.1%} from {atr_pct_120:.1%} with no deal filing "
                           "found; check for a pending deal before treating this as a directional idea.",
                           "price behaviour", checked_at=stamp)
+    current = [f for f in filings if f.get("form") in EVENTS.FOREIGN_CURRENT_FORMS]
+    if current:
+        # A foreign private issuer files no 8-K or merger proxy; its 6-Ks are
+        # free-form and not classified here, so no deal found is not "clear".
+        return _unavailable("", "foreign_reports_unread", symbol=symbol, filed=current[0].get("filed") or "")
     return EventCheck("clear", checked_at=stamp)
 
 

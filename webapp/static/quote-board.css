@@ -54,8 +54,9 @@
 }
 
 .qb-na { color: var(--text-faint); font-weight: 500; }
-.qb-cell.is-high .qb-value { color: var(--bull-bright); }
-.qb-cell.is-low  .qb-value { color: var(--bear-bright); }
+/* The session high and low are levels, not good or bad news: no gain or loss colour. */
+.qb-cell.is-high .qb-value { color: var(--text-primary); }
+.qb-cell.is-low  .qb-value { color: var(--text-primary); }
 
 /* Terminal LTP cell — tinted plate, heavier weight, delta beneath.
    It is the number the trader acts on, so it is the one that carries weight. */

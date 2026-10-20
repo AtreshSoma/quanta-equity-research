@@ -105,9 +105,9 @@ def validate_dividend_yield(yield_fraction: float, market_cap: float = 0.0) -> T
     if y <= 0:
         return True, ""
     if y > SUPPRESS_THRESHOLD:
-        return False, f"dividend yield {y * 100:.1f}% exceeds {SUPPRESS_THRESHOLD * 100:.0f}% — data validation failed"
+        return False, f"dividend yield {y * 100:.1f}% exceeds {SUPPRESS_THRESHOLD * 100:.0f}%: data validation failed"
     if y > SUSPICIOUS_THRESHOLD:
         # large cap >= $10B: suspicious
         if market_cap and market_cap >= 10_000_000_000:
-            return True, f"suspicious dividend yield {y * 100:.1f}% for large-cap — verify source"
+            return True, f"suspicious dividend yield {y * 100:.1f}% for large-cap; verify source"
     return True, ""

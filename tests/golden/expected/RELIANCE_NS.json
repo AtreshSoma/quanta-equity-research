@@ -19,14 +19,14 @@
       "breakout_entry": 1604.38,
       "buy_now": "NO",
       "candlestick_timing": "WAIT / NO CLEAR EDGE",
-      "confidence": 56.6667,
+      "confidence": 58.3333,
       "data_quality": "PASS",
       "entry_quality": "Weak",
       "existing_holder": "Hold",
-      "existing_holder_stop": 1279.76,
-      "long_term_holder_stop": 1279.76,
+      "existing_holder_stop": 1252.79,
+      "long_term_holder_stop": 1252.79,
       "long_tf": "Review before adding",
-      "main_reason": "Risk/reward of 1.03:1 is below the 1.50:1 minimum.",
+      "main_reason": "Risk/reward of 0.50:1 is below the 1.50:1 minimum.",
       "mid_tf": "Hold existing / wait",
       "new_buyer": "Wait; no new position",
       "pullback_basis": "20-day MA",
@@ -36,7 +36,7 @@
       "recommendation_label": "WATCHLIST",
       "risk_conflict_warning": "",
       "risk_grade": "A",
-      "rr_label": "Unfavorable, 1.03:1",
+      "rr_label": "Unfavorable, 0.50:1",
       "short_tf": "Wait",
       "signal": "HOLD",
       "tactical_stop": 1302.71,
@@ -57,7 +57,7 @@
     },
     "company_name": "RELIANCE INDUSTRIES LTD",
     "confidence_level": "MEDIUM",
-    "confidence_score": 56.6667,
+    "confidence_score": 58.3333,
     "conviction_label": "MODERATE-CONVICTION",
     "country": "India",
     "currency": "INR",
@@ -85,7 +85,7 @@
         }
       ],
       "blocking": [
-        "R/R 1.03 below min 1.50 \u2192 WATCHLIST"
+        "R/R 0.50 below min 1.50 \u2192 WATCHLIST"
       ],
       "blocking_codes": [
         "EVENT_CHECK_NOT_COVERED",
@@ -118,6 +118,7 @@
       "evidence": {
         "caveats": [
           "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+          "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls.",
           "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
           "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
         ],
@@ -134,9 +135,9 @@
           {
             "change": "original composite",
             "status": "NO_EDGE",
-            "status_text": "Tested out of sample \u2014 no demonstrated edge",
+            "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
-            "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+            "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
           }
         ],
@@ -157,16 +158,16 @@
         "permits_recommendation": false,
         "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
         "status": "NO_EDGE",
-        "status_text": "Tested out of sample \u2014 no demonstrated edge",
+        "status_text": "Tested out of sample: no demonstrated edge",
         "strategy": "elite.research.v2",
-        "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
+        "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
         "tested_through": "2026-09-30"
       },
       "factor_scores": {
         "fundamental": 60,
         "quality": 47.5,
         "sentiment": 80,
-        "technical": 60,
+        "technical": 65,
         "valuation": 35.0
       },
       "freshness": {
@@ -189,12 +190,12 @@
       "levels": {
         "entry": 1312.12,
         "reference_price": 1309.5,
-        "reward_risk": 1.03322,
-        "stop": 1279.76,
-        "target": 1348.49,
+        "reward_risk": 0.498386,
+        "stop": 1252.79,
+        "target": 1348.57,
         "target_basis": "63-session target, pro-rated from the 12-month valuation target",
         "target_horizon_days": 63,
-        "valuation_target": 1457.6,
+        "valuation_target": 1457.92,
         "valuation_target_horizon_days": 252
       },
       "model_stance": "BULLISH",
@@ -207,8 +208,8 @@
       },
       "qualifier": "",
       "reasons": [
-        "Composite score 56.7 \u2192 candidate ACCUMULATE",
-        "R/R 1.03 below min 1.50 \u2192 WATCHLIST"
+        "Composite score 58.3 \u2192 candidate ACCUMULATE",
+        "R/R 0.50 below min 1.50 \u2192 WATCHLIST"
       ],
       "risk_grade": "A",
       "risk_grade_drivers": [
@@ -243,19 +244,19 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 498,
+      "risk_grade_lookback_days": 497,
       "risk_metrics": {
-        "beta": 0.898772,
+        "beta": 0.897322,
         "risk_score": 55,
-        "volatility": 0.207427
+        "volatility": 0.207529
       },
       "risks": [],
       "scenarios": [
         {
           "method": "range of analyst consensus, intrinsic value (lowest)",
           "name": "low_method",
-          "price": 1093.61,
-          "return_pct": -16.4864,
+          "price": 1094.45,
+          "return_pct": -16.4221,
           "source_ids": [
             "analyst_consensus",
             "intrinsic_value"
@@ -264,8 +265,8 @@
         {
           "method": "weighted blend of analyst consensus, intrinsic value",
           "name": "weighted",
-          "price": 1457.6,
-          "return_pct": 11.31,
+          "price": 1457.92,
+          "return_pct": 11.3341,
           "source_ids": [
             "analyst_consensus",
             "intrinsic_value"
@@ -283,7 +284,7 @@
         }
       ],
       "schema_version": 1,
-      "score": 56.6667,
+      "score": 58.3333,
       "score_basis": "Research composite (alpha factors only), 0-100",
       "sizing": {
         "dollar_risk": 0,
@@ -319,6 +320,7 @@
     "evidence": {
       "caveats": [
         "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+        "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls.",
         "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
         "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
       ],
@@ -335,9 +337,9 @@
         {
           "change": "original composite",
           "status": "NO_EDGE",
-          "status_text": "Tested out of sample \u2014 no demonstrated edge",
+          "status_text": "Tested out of sample: no demonstrated edge",
           "strategy": "elite.composite",
-          "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+          "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
           "tested_through": "2026-08-25"
         }
       ],
@@ -358,9 +360,9 @@
       "permits_recommendation": false,
       "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
       "status": "NO_EDGE",
-      "status_text": "Tested out of sample \u2014 no demonstrated edge",
+      "status_text": "Tested out of sample: no demonstrated edge",
       "strategy": "elite.research.v2",
-      "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
+      "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
       "tested_through": "2026-09-30"
     },
     "exchange": "NSI",
@@ -421,7 +423,7 @@
     "is_high_volatility": false,
     "is_invalid": false,
     "key_insights": [
-      "\u23f8\ufe0f HOLD signal with 57% confidence"
+      "\u23f8\ufe0f HOLD signal with 58% confidence"
     ],
     "last_bar_date": "2026-09-07",
     "market_cap": 17720800000000.0,
@@ -445,20 +447,20 @@
     "model_action": "WATCHLIST",
     "monte_carlo": {
       "days_simulated": 30,
-      "expected_return": -0.3124,
+      "expected_return": -0.2562,
       "expected_return_basis": "mean",
-      "mean_price": 1305.41,
-      "median_price": 1302.97,
-      "percentile_25": 1240.33,
-      "percentile_5": 1155.48,
-      "percentile_75": 1367.97,
-      "percentile_95": 1470.18,
-      "probability_10pct_gain": 0.0817,
-      "probability_10pct_loss": 0.0847,
-      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only \u2014 not the chance of touching a target, and not target-vs-stop.",
-      "probability_profit": 0.471,
+      "mean_price": 1306.15,
+      "median_price": 1303.7,
+      "percentile_25": 1240.99,
+      "percentile_5": 1156.05,
+      "percentile_75": 1368.77,
+      "percentile_95": 1471.1,
+      "probability_10pct_gain": 0.0827,
+      "probability_10pct_loss": 0.0827,
+      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only: not the chance of touching a target, and not target-vs-stop.",
+      "probability_profit": 0.474,
       "simulations_run": 3000,
-      "var_95": -11.762
+      "var_95": -11.7182
     },
     "net_assets": 0.0,
     "peer_comparison": {
@@ -478,13 +480,14 @@
     },
     "portfolio_outlook": {
       "bottom_line": "Existing holders can hold with a strict stop. New buyers should wait for pullback or breakout confirmation.",
-      "reason": "Risk/reward of 1.03:1 is below the 1.50:1 minimum.",
+      "reason": "Risk/reward of 0.50:1 is below the 1.50:1 minimum.",
       "recommendation": "WATCHLIST"
     },
     "portfolio_risk_check": {
       "adjustments": {},
       "approved": true,
       "correlation_risk": 0.0,
+      "correlation_unmeasured": 0,
       "holdings_known": false,
       "sector_exposure": {
         "Energy": 0.0918
@@ -506,7 +509,7 @@
     "recommendation_caveat": "",
     "recommendation_label": "WATCHLIST",
     "recommendation_qualifier": "",
-    "recommendation_text": "WATCHLIST - No new position | Confidence: 57% | Score: 57/100 | Risk: A",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 58% | Score: 58/100 | Risk: A",
     "relative_performance": {
       "basis": "total return, dividend-adjusted closes",
       "benchmark": "^NSEI",
@@ -544,10 +547,10 @@
     "requested_symbol": "RELIANCE.NS",
     "retrieval_timestamp": "<volatile>",
     "risk": {
-      "annualized_volatility": 0.2074,
-      "beta": 0.8988,
+      "annualized_volatility": 0.2075,
+      "beta": 0.8973,
       "beta_benchmark": "^NSEI",
-      "beta_observations": 246,
+      "beta_observations": 245,
       "beta_status": "measured",
       "cvar_95": -0.0284,
       "grade_drivers": [
@@ -587,21 +590,21 @@
       "overall_risk_score": 3,
       "risk_grade": "A",
       "risk_points": 3,
-      "sharpe_ratio": -0.362,
-      "sortino_ratio": -0.514,
+      "sharpe_ratio": -0.339,
+      "sortino_ratio": -0.4816,
       "var_95_daily": -0.0207
     },
     "risk_warnings": [],
     "scores": {
       "component_details": {},
-      "composite_score": 56.6667,
+      "composite_score": 58.3333,
       "data_quality_note": "HIGH - All data sources available",
       "fundamental_score": 60,
       "quality_score": 47.5,
       "risk_score": 55,
       "score_confidence_margin": 0.0,
       "sentiment_score": 80,
-      "technical_score": 60,
+      "technical_score": 65,
       "valuation_score": 35.0,
       "weights": {
         "fundamental": 0.2778,
@@ -666,14 +669,14 @@
     },
     "signal": "HOLD",
     "signal_explanation": {
-      "composite_score": 56.6667,
+      "composite_score": 58.3333,
       "overrides_triggered": [],
-      "primary_reason": "Composite score 57 meets ACCUMULATE threshold",
+      "primary_reason": "Composite score 58 meets ACCUMULATE threshold",
       "risk_factors": [
-        "Monte Carlo tail shape is unfavorable (4.5% 75th-percentile upside vs 11.8% 5th-percentile downside); diagnostic only"
+        "Monte Carlo tail shape is unfavorable (4.5% 75th-percentile upside vs 11.7% 5th-percentile downside); diagnostic only"
       ],
       "supporting_factors": [
-        "Technical score 60 (bullish)",
+        "Technical score 65 (bullish)",
         "Fundamental score 60 (strong)",
         "Sentiment score 80 (positive)",
         "4 bullish confirmations"
@@ -788,8 +791,10 @@
       "trend_direction": "SIDEWAYS",
       "trend_score": 56.6667,
       "trend_strength": "WEAK",
+      "unmeasured": [],
       "volatility_score": 60,
-      "volume_ratio": 0.9634,
+      "volume_ratio": 1.2413,
+      "volume_ratio_basis": "last completed session (today's is still trading)",
       "week_52_basis": "provider-reported traded range",
       "week_52_high": 1611.8,
       "week_52_low": 1249.8
@@ -805,7 +810,7 @@
         "Analyst target implies 28.0% upside"
       ],
       "risks": [],
-      "summary": "RELIANCE INDUSTRIES LTD (RELIANCE.NS) should be held at current levels with a 57% confidence score. Composite score of 57/100."
+      "summary": "RELIANCE INDUSTRIES LTD (RELIANCE.NS) should be held at current levels with a 58% confidence score. Composite score of 58/100."
     },
     "ticker": "RELIANCE.NS",
     "trade_setup": {
@@ -814,11 +819,11 @@
       "has_long_reward": true,
       "is_actionable_entry": false,
       "levels_available": true,
-      "risk_reward_ratio": 1.0332,
-      "setup_basis": "limit at a slight premium to spot; stop below support (widened to 1.5xATR); 63-session target pro-rated from the 12-month valuation target \u20b91,457.60; Target 1 is a tactical partial exit",
-      "stop_loss": 1279.76,
+      "risk_reward_ratio": 0.4984,
+      "setup_basis": "limit at a slight premium to spot; stop 2.75xATR below entry; 63-session target pro-rated from the 12-month valuation target \u20b91,457.92; Target 1 is a tactical partial exit",
+      "stop_loss": 1252.79,
       "target_aggressive": 1676.0,
-      "target_base": 1457.6,
+      "target_base": 1457.92,
       "target_conservative": 1328.0,
       "time_horizon": "POSITION",
       "trailing_stop": 0.0,
@@ -826,10 +831,10 @@
       "win_probability": 0.0
     },
     "valuation": {
-      "dcf_fair_value": 1280.14,
+      "dcf_fair_value": 1281.82,
       "dcf_method": "earnings_based",
       "dcf_status": "measured",
-      "dcf_upside": -2.2421,
+      "dcf_upside": -2.1135,
       "fair_value_sources": [
         "graham",
         "dcf"
@@ -837,8 +842,8 @@
       "graham_number": 907.082,
       "graham_status": "measured",
       "target_aggressive": 1676.0,
-      "target_agreement_pct": 57.9,
-      "target_base": 1457.6,
+      "target_agreement_pct": 58.0,
+      "target_base": 1457.92,
       "target_components": [
         {
           "source": "analyst_consensus",
@@ -847,12 +852,12 @@
         },
         {
           "source": "intrinsic_value",
-          "value": 1093.61,
+          "value": 1094.45,
           "weight": 0.375
         }
       ],
-      "target_confidence": 57.9,
-      "target_conservative": 1093.61,
+      "target_confidence": 58.0,
+      "target_conservative": 1094.45,
       "target_probability": 0.0,
       "target_source_count": 2,
       "target_sources": [

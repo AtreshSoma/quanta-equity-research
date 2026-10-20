@@ -857,6 +857,8 @@ td.mono { font-family: var(--font-mono); }
 .q-opps { position: relative; }
 .q-opps .q-tablewrap { max-height: 540px; overflow: auto; }
 .q-workspace .q-tablewrap { max-height: 420px; overflow: auto; }
+/* The movers boards hold at most eight names: show them all rather than hide two behind a scroll box. */
+.q-workspace .q-board .q-tablewrap { max-height: none; }
 
 /* -- Row 0 · tape ---------------------------------------------------------- */
 
@@ -952,6 +954,11 @@ td.mono { font-family: var(--font-mono); }
 .q-rank { color: var(--text-faint); font-family: var(--font-mono); font-size: var(--fs-xs); }
 .q-tick { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .q-tick-s { font-family: var(--font-mono); font-size: var(--fs-md); font-weight: 700; letter-spacing: 0.01em; color: var(--text-primary); }
+/* A ticker that opens its TradingView chart: a link, underlined on hover, with a 24px target. */
+a.q-tick-tv { display: inline-flex; align-items: center; align-self: flex-start; min-height: 24px; text-decoration: none; border-radius: var(--r-xs); }
+@media (hover: hover) { a.q-tick-tv:hover { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; } }
+a.q-tick-tv:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.q-tick-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-2); }
 .q-tick-n { font-size: var(--fs-2xs); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
 .q-price { font-family: var(--font-mono); font-weight: 600; color: var(--text-primary); }
 .q-chg { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
@@ -967,6 +974,9 @@ td.mono { font-family: var(--font-mono); }
 .q-status-cell.neutral { color: var(--text-secondary); }
 .q-caret { display: inline-block; width: 0; height: 0; border-left: 4px solid var(--text-faint); border-top: 3.5px solid transparent; border-bottom: 3.5px solid transparent; transition: transform var(--dur-fast) var(--ease-out); }
 .q-tr.is-open .q-caret { transform: rotate(90deg); }
+/* The row's expand control: a real button with a 24px target around the caret. */
+.q-expand { display: inline-grid; place-items: center; min-width: 24px; min-height: 24px; border: 0; padding: 0; background: transparent; border-radius: var(--r-xs); cursor: pointer; }
+.q-expand:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* Expanded detail row — progressive disclosure, not a second card. */
 .q-detail > td { padding: 0 !important; border-bottom: 1px solid var(--border-soft); background: var(--bg-elev-2); }
@@ -1030,6 +1040,10 @@ td.mono { font-family: var(--font-mono); }
 .q-board-sym b { display: block; font-family: var(--font-mono); font-size: var(--fs-md); font-weight: 700; color: var(--text-primary); }
 .q-board-sym small { display: block; font-size: var(--fs-2xs); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
 .q-board-open { all: unset; display: block; min-height: 24px; cursor: pointer; border-radius: var(--r-xs); }
+span.q-board-open { cursor: default; }
+@media (hover: hover) { a.q-board-tv:hover b { color: var(--primary); } }
+/* Research: a small link-styled button under the ticker. */
+button.q-board-research { border: 0; background: none; padding: 0; font: inherit; font-size: var(--fs-2xs); cursor: pointer; }
 .q-board-open:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 @media (hover: hover) { .q-board-open:hover b { text-decoration: underline; } }
 .q-board-chart { position: relative; display: inline-block; margin-top: 2px; font-size: var(--fs-2xs); color: var(--text-muted); text-decoration: underline; }
@@ -6860,7 +6874,7 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 2px; cur
 /* Glossary terms: a 24px target; the definition is a JS tooltip (role=tooltip). */
 #view-dashboard .tip { display: inline-block; padding: 3px 0; line-height: 18px; cursor: help; text-decoration: underline dotted var(--text-faint); text-underline-offset: 4px; border-radius: 3px; }
 #view-dashboard .tip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.ovx-tipbox { position: fixed; z-index: 80; max-width: 280px; padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--glass-border); background: var(--glass-tint-panel); box-shadow: var(--shadow-lg); font: 400 var(--t-13)/18px var(--font-sans); color: var(--text-primary); pointer-events: none; }
+.ovx-tipbox { position: fixed; z-index: 80; max-width: 280px; padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--glass-border); background: var(--glass-tint-panel); box-shadow: var(--shadow-lg); font: 400 var(--t-13, 13px)/18px var(--font-sans); color: var(--text-primary); pointer-events: none; }
 .ovx-tipbox[hidden] { display: none; }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .ovx-tipbox { -webkit-backdrop-filter: blur(var(--glass-blur)); backdrop-filter: blur(var(--glass-blur)); }
@@ -7413,6 +7427,271 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 2px; cur
 .ovx-today-ext i { display: inline-block; width: 14px; height: 0; margin-right: 6px; vertical-align: middle; border-top: 2px dashed var(--primary); }
 .ovx-bell-m.is-ext { top: 34%; bottom: 0; }
 
+/* ======================= Discover: glass over static ambient light =======================
+   The Overview Glass Rule, carried further on Discover (owner request, 2026-10-19: rich glass,
+   charts where they help, tighter rhythm, fewer frames). Three static azure lights sit behind
+   the page; the at-a-glance band and the two panels are frost with a luminous edge (a light top
+   left fading to a faint azure foot). Tables read on a near-solid inset (88 to 92 percent
+   surface) over that static light, so contrast holds as tested. One frame per section: the
+   monitor's tabs sit in its header row, and the boards and notes are regions, not boxes. */
+#view-discover { position: relative; isolation: isolate; gap: 10px;
+  --dsc-glass: color-mix(in srgb, var(--bg-elev-1) 58%, transparent);
+  --dsc-inset: color-mix(in srgb, var(--bg-elev-1) 88%, transparent);
+  --dsc-head: color-mix(in srgb, var(--bg-elev-3) 72%, transparent);
+  --dsc-row-hover: color-mix(in srgb, var(--primary) 7%, var(--bg-elev-2));
+  --dsc-hair: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  --dsc-edge: linear-gradient(165deg, rgba(255, 255, 255, .20), rgba(255, 255, 255, .05) 34%, rgba(255, 255, 255, .03) 70%, color-mix(in srgb, var(--primary) 34%, transparent));
+  --dsc-glass-hi: inset 0 1px 0 rgba(255, 255, 255, .07);
+  --dsc-drop: 0 28px 64px -40px rgba(0, 0, 0, .7), 0 2px 6px -2px rgba(0, 0, 0, .25);
+  --dsc-frost: blur(var(--glass-blur, 20px)) saturate(var(--glass-saturate, 180%)); }
+:root:not([data-theme="dark"]) #view-discover {
+  --dsc-glass: color-mix(in srgb, #fff 62%, transparent);
+  --dsc-inset: color-mix(in srgb, #fff 92%, transparent);
+  --dsc-head: color-mix(in srgb, var(--bg-elev-3) 80%, transparent);
+  --dsc-edge: linear-gradient(165deg, rgba(255, 255, 255, .95), rgba(255, 255, 255, .55) 40%, color-mix(in srgb, var(--primary) 26%, #dfe6f0));
+  --dsc-glass-hi: inset 0 1px 0 rgba(255, 255, 255, .9);
+  --dsc-drop: 0 24px 56px -36px rgba(30, 50, 90, .35), 0 1px 3px rgba(30, 50, 90, .08); }
+#view-discover::before { content: ""; position: absolute; z-index: -1; inset: -24px -8px 0; pointer-events: none;
+  background:
+    radial-gradient(40% 420px at 88% 60px, color-mix(in srgb, var(--primary) 22%, transparent), transparent 70%),
+    radial-gradient(34% 380px at 4% 520px, color-mix(in srgb, var(--primary) 15%, transparent), transparent 72%),
+    radial-gradient(30% 360px at 70% 1100px, color-mix(in srgb, var(--primary) 11%, transparent), transparent 72%); }
+#view-discover > .page-head { padding: 0; }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  #view-discover > .q-panel, #view-discover > .dsc-pulse {
+    border: 1px solid transparent;
+    background: linear-gradient(var(--dsc-glass), var(--dsc-glass)) padding-box, var(--dsc-edge) border-box;
+    box-shadow: var(--dsc-glass-hi), var(--dsc-drop);
+    -webkit-backdrop-filter: var(--dsc-frost); backdrop-filter: var(--dsc-frost); }
+  #view-discover .q-workspace-tabs { background: color-mix(in srgb, var(--bg-elev-3) 55%, transparent); border-color: color-mix(in srgb, var(--text-primary) 10%, transparent); box-shadow: var(--dsc-glass-hi); }
+  #view-discover .q-workspace-tabs .q-tab.is-active { background: color-mix(in srgb, var(--bg-elev-1) 85%, transparent); box-shadow: 0 1px 3px rgba(0, 0, 0, .2), inset 0 1px 0 rgba(255, 255, 255, .08), 0 0 0 1px color-mix(in srgb, var(--text-primary) 10%, transparent); }
+}
+
+/* Tighter rhythm: one compact head per section, rows at 8px. */
+#view-discover .q-head { padding: 14px 18px 10px; gap: 6px 16px; }
+#view-discover .q-head-sub { max-width: 92ch; }
+#view-discover .q-table tbody td { padding: 8px 10px; }
+#view-discover .q-table thead th:first-child, #view-discover .q-table tbody td:first-child { padding-left: 18px; }
+#view-discover .q-table thead th:last-child, #view-discover .q-table tbody td:last-child { padding-right: 14px; }
+#view-discover .q-note { padding: 9px 18px; border-top-color: var(--dsc-hair); }
+#view-discover .q-more { padding: 8px; border-top-color: var(--dsc-hair); }
+
+/* The inset: rows read on a near-solid surface; header strips stay translucent. */
+#view-discover .q-tablewrap { background: var(--dsc-inset); }
+/* Header strips are solid: they stick over scrolling rows, and a price must never show through. */
+#view-discover .q-table thead th, #view-discover .q-board-table thead th { background: color-mix(in srgb, var(--bg-elev-3) 70%, var(--bg-elev-1)); }
+/* At most ten names: the list shows them all rather than scroll inside its own box. */
+#view-discover .q-opps .q-tablewrap { max-height: none; }
+@media (hover: hover) { #view-discover .q-table tbody tr.q-tr:hover > td, #view-discover .q-board-row:hover td { background: var(--dsc-row-hover); } }
+#view-discover .q-boardpanel { background: transparent; border: 0; box-shadow: none; }
+
+/* Security monitor: the tabs join the header row; the board heading steps down to a sub-head. */
+#security-monitor { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+#security-monitor > .q-head { grid-column: 1; }
+#security-monitor > .q-workspace-tabs { grid-column: 2; grid-row: 1; margin: 12px 16px 0 0; align-self: start; }
+#security-monitor > [role="tabpanel"] { grid-column: 1 / -1; }
+#security-monitor > [role="tabpanel"] > .q-head { padding: 10px 18px 8px; border-top: 1px solid var(--dsc-hair); }
+#security-monitor > [role="tabpanel"] > .q-head .q-head-title { font-size: var(--fs-sm); }
+@media (max-width: 980px) {
+  #security-monitor { grid-template-columns: minmax(0, 1fr); }
+  #security-monitor > .q-workspace-tabs { grid-column: 1; grid-row: auto; margin: 0 18px 10px; max-width: calc(100% - 36px); }
+}
+
+/* Boards: two columns split by one hairline, no frame around each. */
+#view-discover .q-board { gap: 0; background: var(--dsc-inset); }
+#view-discover .q-board-col { background: transparent; padding-bottom: 4px; }
+#view-discover .q-board-col + .q-board-col { border-left: 1px solid var(--dsc-hair); }
+#view-discover .q-board .q-tablewrap { background: transparent; }
+#view-discover .q-board-cap { padding: 10px 16px 6px; font-size: var(--fs-sm); }
+#view-discover .q-board-table tbody td { padding: 6px 10px; }
+#view-discover .q-board-table tbody td:first-child { padding-left: 16px; }
+#view-discover .q-board-table tbody td:last-child { padding-right: 16px; }
+#view-discover .q-board-chart { text-decoration: none; color: var(--text-faint); }
+@media (hover: hover) { #view-discover .q-board-row:hover .q-board-chart { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; } }
+
+/* Last / change: the fill is the move, drawn to the largest move on the board. */
+#view-discover .q-board-ltp, #view-discover .q-board-ltp.up, #view-discover .q-board-ltp.dn { position: relative; background: transparent; min-width: 128px; }
+#view-discover .q-board-ltp > b, #view-discover .q-board-ltp > .q-board-delta { position: relative; z-index: 1; }
+.q-board-ltp i.q-board-mag { position: absolute; z-index: 0; top: 5px; bottom: 5px; right: 8px; margin: 0; max-width: calc(100% - 16px);
+  border-radius: 5px; background: color-mix(in srgb, var(--text-muted) 14%, transparent); }
+.q-board-ltp.up i.q-board-mag { background: linear-gradient(270deg, color-mix(in srgb, var(--bull) 30%, transparent), color-mix(in srgb, var(--bull) 10%, transparent)); box-shadow: inset -2px 0 0 color-mix(in srgb, var(--bull) 70%, transparent); }
+.q-board-ltp.dn i.q-board-mag { background: linear-gradient(270deg, color-mix(in srgb, var(--bear) 30%, transparent), color-mix(in srgb, var(--bear) 10%, transparent)); box-shadow: inset -2px 0 0 color-mix(in srgb, var(--bear) 70%, transparent); }
+
+/* Opportunities: sector under the name, upside as a gold bar, the Street's call over its count. */
+.q-tick-sec { color: var(--text-faint); }
+#view-discover .q-tick-n { max-width: 300px; }
+.q-upbar-h { min-width: 140px; }
+.q-upbar { display: grid; grid-template-columns: 56px minmax(56px, 1fr); align-items: center; gap: 10px; text-align: right; }
+.q-upbar > i { position: relative; height: 6px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--text-primary) 7%, transparent); overflow: hidden; }
+.q-upbar > i > b { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 40%, transparent), var(--gold)); }
+.q-street b { display: block; font-weight: 600; color: var(--text-primary); }
+.q-street small { display: block; font-size: var(--fs-2xs); color: var(--text-muted); }
+#view-discover .q-rt-bar, #view-discover .q-drng-bar { height: 6px; }
+#view-discover .q-rt-gap { background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 25%, transparent), color-mix(in srgb, var(--gold) 60%, transparent)); }
+
+/* -- At a glance: four plain readings, each one labelled chart ---------------------------
+   Sector slots reuse the allocation palette (no slot is green or red: those mean gain and
+   loss). Every chart control is a native button with a tooltip and a spoken label. */
+#view-discover {
+  --cat-1: #2a78d6; --cat-2: #eb6834; --cat-3: #0e8ea8; --cat-4: #eda100; --cat-5: #e87ba4; --cat-6: #8a6a3e; --cat-7: #4a3aa7; --cat-other: #9aa3b2; }
+[data-theme="dark"] #view-discover {
+  --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #22a6c0; --cat-4: #c98500; --cat-5: #d55181; --cat-6: #a8875a; --cat-7: #9085e9; --cat-other: #5b6474; }
+.s-1 { background: var(--cat-1); } .s-2 { background: var(--cat-2); } .s-3 { background: var(--cat-3); } .s-4 { background: var(--cat-4); }
+.s-5 { background: var(--cat-5); } .s-6 { background: var(--cat-6); } .s-7 { background: var(--cat-7); } .s-other { background: var(--cat-other); }
+
+.dsc-pulse { border-radius: var(--r-lg); border: 1px solid var(--border-soft); background: var(--bg-elev-1); }
+.dsc-pulse:not([hidden]) { animation: dsc-in 520ms var(--ease-out) both; }
+@keyframes dsc-in { from { opacity: .35; transform: translateY(4px); } }
+@keyframes dsc-fade { from { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .dsc-pulse:not([hidden]) { animation: dsc-fade 240ms linear both; } }
+.dsc-pulse-in { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.3fr); margin: 0; }
+.dsc-pc { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 18px 14px; }
+.dsc-pc + .dsc-pc { border-left: 1px solid var(--dsc-hair); }
+.dsc-pc dt { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.dsc-pc dd { display: flex; flex-direction: column; gap: 8px; margin: 0; min-width: 0; }
+.dsc-headline { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.dsc-fig { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 700; line-height: 1; letter-spacing: -0.01em; color: var(--text-primary); }
+.dsc-fig.gold { color: var(--gold); }
+.dsc-fig.warn { color: var(--warn); }
+.dsc-sub { font-size: var(--fs-xs); color: var(--text-muted); }
+.dsc-hint { margin: 0; font-size: var(--fs-2xs); color: var(--text-faint); line-height: 1.4; }
+
+/* Tooltip terms: a dotted underline says "there is more here". */
+#view-discover span.tip { cursor: help; text-decoration: underline dotted var(--text-faint); text-underline-offset: 4px; border-radius: 3px; }
+#view-discover span.tip:focus-visible, #view-discover .q-rt.tip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+#view-discover .q-rt.tip, #view-discover .q-drng.tip { cursor: help; }
+
+/* Upside: every idea as a dot on one gold line, lowest to highest, the median marked. */
+.dsc-range { display: flex; flex-direction: column; gap: 4px; padding-top: 18px; margin-top: 2px; }
+.dsc-range-track { position: relative; height: 12px; }
+.dsc-range-track::before { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 25%, transparent), color-mix(in srgb, var(--gold) 70%, transparent)); }
+.dsc-dot { position: absolute; top: 0; width: 12px; height: 12px; margin-left: -6px; padding: 0; border: 2px solid var(--bg-elev-1); border-radius: 50%;
+  background: var(--gold); cursor: pointer; transition: transform var(--dur-fast) var(--ease-out); }
+.dsc-dot::after { content: ""; position: absolute; inset: -7px; }
+@media (hover: hover) { .dsc-dot:hover { transform: scale(1.35); z-index: 2; } }
+.dsc-dot:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; z-index: 2; }
+.dsc-med { position: absolute; top: -12px; bottom: -3px; width: 0; border-left: 2px solid var(--text-primary); pointer-events: none; }
+.dsc-med em { position: absolute; bottom: 100%; left: 0; transform: translateX(-50%); margin-bottom: 1px; font-style: normal; font-size: var(--fs-2xs); line-height: 1; color: var(--text-muted); white-space: nowrap; }
+.dsc-range-ends { display: flex; justify-content: space-between; gap: 8px; font-size: var(--fs-2xs); color: var(--text-muted); }
+.dsc-range-ends b { font-family: var(--font-mono); font-weight: 600; color: var(--text-secondary); }
+
+/* Sectors: one stacked bar; the legend is the sector filter. */
+.dsc-stack { display: flex; gap: 2px; height: 10px; border-radius: var(--r-pill); overflow: hidden; }
+.dsc-stack i { min-width: 6px; transition: opacity var(--dur-fast) var(--ease-out); }
+.dsc-stack i.is-dim { opacity: .25; }
+.dsc-legend { display: flex; flex-wrap: wrap; gap: 4px; }
+.dsc-leg { display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 2px 8px; border: 1px solid transparent; border-radius: var(--r-pill);
+  background: transparent; color: var(--text-muted); font-size: var(--fs-2xs); font-weight: 500; cursor: pointer; }
+.dsc-leg b { font-family: var(--font-mono); font-weight: 600; color: var(--text-secondary); }
+@media (hover: hover) { .dsc-leg:hover { background: color-mix(in srgb, var(--text-primary) 6%, transparent); color: var(--text-primary); } }
+.dsc-leg.is-on { border-color: var(--primary-line); background: var(--primary-soft); color: var(--text-primary); }
+.dsc-leg:focus-visible, .dsc-earn button:focus-visible, .dsc-mv:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.dsc-sw { flex: none; width: 9px; height: 9px; border-radius: 3px; }
+
+/* Earnings soon: one amber chip per name, nearest first. */
+.dsc-earn { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.dsc-earn button { display: inline-flex; align-items: baseline; gap: 5px; min-height: 26px; padding: 3px 9px; border-radius: var(--r-pill); border: 1px solid var(--warn-line);
+  background: var(--warn-dim); color: var(--warn-bright); font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 700; cursor: pointer; }
+.dsc-earn button span { font-weight: 500; opacity: .85; }
+@media (hover: hover) { .dsc-earn button:hover { background: color-mix(in srgb, var(--warn) 22%, transparent); } }
+
+/* Today's biggest moves: three each way as labelled bars on one scale. */
+.dsc-moves { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; }
+.dsc-moves ul { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.dsc-mvh { font-size: var(--fs-2xs); font-weight: 600; }
+.dsc-mvh.bull { color: var(--bull); } .dsc-mvh.bear { color: var(--bear); }
+.dsc-mv { display: grid; grid-template-columns: minmax(52px, auto) minmax(24px, 1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 24px; padding: 2px 6px;
+  border: 0; border-radius: var(--r-xs); background: transparent; color: var(--text-primary); text-align: left; cursor: pointer; }
+@media (hover: hover) { .dsc-mv:hover { background: color-mix(in srgb, var(--text-primary) 6%, transparent); } }
+.dsc-mv-s { font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dsc-mv-b { position: relative; height: 6px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--text-primary) 7%, transparent); overflow: hidden; }
+.dsc-mv-b i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; }
+.dsc-mv.up .dsc-mv-b i { background: var(--bull); }
+.dsc-mv.dn .dsc-mv-b i { background: var(--bear); }
+.dsc-mv-v { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-2xs); font-weight: 600; }
+.dsc-mv.up .dsc-mv-v { color: var(--bull); } .dsc-mv.dn .dsc-mv-v { color: var(--bear); }
+
+/* -- Filter bar on Top opportunities: always in view above the list ----------------------- */
+.dsc-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 0 18px 12px; }
+.dsc-fgroup { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.dsc-flabel { margin-right: 4px; font-size: var(--fs-2xs); font-weight: 600; color: var(--text-muted); }
+.dsc-chip, .dsc-seg-b, .dsc-switch, .dsc-clear { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 11px; border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent); background: color-mix(in srgb, var(--bg-elev-2) 70%, transparent);
+  color: var(--text-secondary); font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.dsc-chip b, .dsc-switch b { font-family: var(--font-mono); font-weight: 600; color: var(--text-muted); }
+@media (hover: hover) { .dsc-chip:hover, .dsc-seg-b:hover, .dsc-switch:hover { border-color: var(--border-strong); color: var(--text-primary); } }
+.dsc-chip.is-on, .dsc-seg-b.is-on { border-color: var(--primary-line); background: var(--primary-soft); color: var(--text-primary); }
+.dsc-chip.is-on b { color: var(--primary); }
+.dsc-chip:focus-visible, .dsc-seg-b:focus-visible, .dsc-switch:focus-visible, .dsc-clear:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.dsc-sort { margin-left: auto; }
+.dsc-switch-t { position: relative; flex: none; width: 28px; height: 16px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--text-primary) 18%, transparent); transition: background var(--dur-fast) var(--ease-out); }
+.dsc-switch-t i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--bg-elev-1); box-shadow: 0 1px 2px rgba(0, 0, 0, .35); transition: transform var(--dur-fast) var(--ease-out); }
+.dsc-switch[aria-checked="true"] { border-color: var(--primary-line); color: var(--text-primary); }
+.dsc-switch[aria-checked="true"] .dsc-switch-t { background: var(--primary); }
+.dsc-switch[aria-checked="true"] .dsc-switch-t i { transform: translateX(12px); }
+.dsc-clear { border-color: transparent; background: transparent; color: var(--primary); }
+@media (pointer: coarse) { .dsc-chip, .dsc-seg-b, .dsc-switch, .dsc-clear, .dsc-leg, .dsc-earn button, .dsc-mv { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .dsc-switch-t i, .dsc-dot { transition: none; } }
+
+/* A row found from the band flashes once. */
+#view-discover .q-table tbody tr.q-tr.is-flash > td { animation: dsc-flash 1600ms var(--ease-out); }
+@keyframes dsc-flash { from { background: color-mix(in srgb, var(--primary) 22%, transparent); } }
+
+@media (max-width: 1100px) {
+  .dsc-pulse-in { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dsc-pc:nth-child(3) { border-left: 0; }
+  .dsc-pc:nth-child(n + 3) { border-top: 1px solid var(--dsc-hair); }
+  .dsc-sort { margin-left: 0; }
+}
+@media (max-width: 520px) {
+  .dsc-pulse-in { grid-template-columns: minmax(0, 1fr); }
+  .dsc-pc + .dsc-pc { border-left: 0; border-top: 1px solid var(--dsc-hair); }
+  .dsc-pc { padding: 10px 14px 12px; }
+  #view-discover .q-head { padding: 12px 14px 8px; }
+  /* Every filter stays on screen: the groups wrap rather than scroll out of sight. */
+  .dsc-filters { padding: 0 14px 10px; gap: 8px; }
+  .dsc-fgroup { width: 100%; }
+  .dsc-flabel { width: 100%; margin: 0 0 2px; }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  #view-discover > .q-panel, #view-discover > .dsc-pulse { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: var(--bg-elev-1) !important; border: 1px solid var(--border-soft) !important; }
+  #view-discover .q-tablewrap, #view-discover .q-board { background: var(--bg-elev-1); }
+  #view-discover .q-table thead th, #view-discover .q-board-table thead th { background: var(--board-head); }
+  #view-discover::before { display: none; }
+}
+
+/* Day range: low and high under a 4px track; the move since the open fills in its direction. */
+.q-drng-h { min-width: 150px; }
+.q-drng { display: grid; grid-template-columns: 1fr auto; row-gap: 3px; min-width: 132px; }
+.q-drng-bar { grid-column: 1 / -1; position: relative; height: 4px; margin: 6px 0 2px; border-radius: var(--r-pill); background: var(--border-soft); }
+.q-drng-move { position: absolute; top: 0; bottom: 0; border-radius: var(--r-pill); background: color-mix(in srgb, var(--text-muted) 55%, transparent); }
+.q-drng.up .q-drng-move { background: color-mix(in srgb, var(--bull) 70%, transparent); }
+.q-drng.dn .q-drng-move { background: color-mix(in srgb, var(--bear) 70%, transparent); }
+.q-drng-open, .q-drng-prev { position: absolute; top: -3px; width: 0; height: 10px; transform: translateX(-50%); }
+.q-drng-open { border-left: 1.5px solid var(--text-muted); }
+.q-drng-prev { border-left: 1.5px dashed var(--text-faint); }
+.q-drng-last { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%; transform: translate(-50%, -50%);
+  background: var(--text-primary); box-shadow: 0 0 0 2px var(--bg-elev-1); }
+.q-drng.up .q-drng-last { background: var(--bull-bright); }
+.q-drng.dn .q-drng-last { background: var(--bear-bright); }
+.q-drng-lo, .q-drng-hi, .q-rt-lo, .q-rt-hi { font-family: var(--font-mono); font-size: var(--fs-2xs); font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.q-drng-hi, .q-rt-hi { text-align: right; }
+
+/* 52 weeks and target: the year's range, the price dot and the Street target in gold. */
+.q-rt-h { min-width: 160px; }
+.q-rt { display: grid; grid-template-columns: 1fr auto; row-gap: 3px; min-width: 150px; }
+.q-rt-bar { grid-column: 1 / -1; position: relative; height: 4px; margin: 6px 0 2px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--border-soft) 60%, transparent); }
+.q-rt-span { position: absolute; top: 0; bottom: 0; border-radius: var(--r-pill); background: var(--border-strong, var(--text-faint)); }
+.q-rt-gap { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--gold) 45%, transparent); }
+.q-rt-px { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%; transform: translate(-50%, -50%); background: var(--text-primary); box-shadow: 0 0 0 2px var(--bg-elev-1); }
+.q-rt-tg { position: absolute; top: 50%; width: 9px; height: 9px; transform: translate(-50%, -50%) rotate(45deg); background: var(--gold); box-shadow: 0 0 0 2px var(--bg-elev-1); }
+
+/* Earnings inside the warning window: a caution chip under the company name. */
+.q-earn { display: inline-flex; align-items: center; margin-top: 4px; padding: 1px 7px; border-radius: var(--r-pill); border: 1px solid var(--warn-line); background: var(--warn-dim); color: var(--warn-bright); font-size: var(--fs-2xs); font-weight: 600; white-space: nowrap; }
+
 /* Phone width: the wide data tables keep only the columns a reader decides on,
    fit the screen and wrap their text, so the page and the table do not scroll
    sideways. What is hidden stays in each row's expanded detail (Discover) or on
@@ -7423,10 +7702,13 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 2px; cur
     white-space: normal; overflow-wrap: anywhere; padding-inline: 6px; min-width: 0;
   }
   /* Discover analyst list: ticker, price, upside, expand. */
-  .q-table--analyst :is(th, td):is(:nth-child(1), :nth-child(3), :nth-child(5), :nth-child(7), :nth-child(8), :nth-child(9)) { display: none; }
+  .q-table--analyst :is(th, td):is(:nth-child(1), :nth-child(4), :nth-child(6), :nth-child(7)) { display: none; }
+  .q-table--analyst .q-upbar { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  #view-discover .q-table--analyst :is(th, td):last-child { width: 40px; padding-left: 0; padding-right: 6px; }
   .q-table--analyst :is(th, td):last-child { width: 28px; }
   /* Movers boards: symbol, then last and change. */
-  .q-board-table :is(th, td):is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)) { display: none; }
+  .q-board-table :is(th, td):is(:nth-child(2), :nth-child(3)) { display: none; }
+  .q-board-table--ohlc :is(th, td):is(:nth-child(4), :nth-child(5)) { display: none; }
   /* Evidence by engine: engine, result and what it means. */
   .q-table--evidence :is(th, td):is(:nth-child(3), :nth-child(4)) { display: none; }
   .q-table--evidence .track-engine, .q-table--evidence .q-status-cell { white-space: normal; }

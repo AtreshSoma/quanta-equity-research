@@ -212,3 +212,108 @@ test('My Portfolio: Review and Activity state their limits where the reader look
   assert.match(act, /'Assets bought'/);
   assert.match(mp('mp-news.js'), /General market item, not about one holding/);
 });
+
+test('Discover names: Yahoo short-name truncation is repaired, never shown cut open', () => {
+  assert.equal(app.companyName('Charles Schwab Corporation (The'), 'The Charles Schwab Corporation');
+  assert.equal(app.companyName('Charles Schwab Corporation (The)'), 'The Charles Schwab Corporation');
+  assert.equal(app.companyName('Berkshire Hathaway Inc. (Holdi'), 'Berkshire Hathaway Inc.');
+  assert.equal(app.companyName('Uber Technologies, Inc.'), 'Uber Technologies, Inc.');
+  assert.equal(app.companyName('Alphabet Inc. (Class A)'), 'Alphabet Inc. (Class A)', 'a closed bracket stays');
+});
+
+test('Discover: every ticker cell is a TradingView link, opening in a new tab', () => {
+  const box = document.createElement('div');
+  box.innerHTML = app.qTickerCell('RELIANCE', 'Reliance Industries', app.tradingViewUrl('RELIANCE.NS'));
+  const a = box.querySelector('a[data-tv-link]');
+  assert.match(a.href, /symbol=NSE%3ARELIANCE$/, 'India listings chart on NSE');
+  assert.equal(a.getAttribute('rel'), 'noopener noreferrer');
+  assert.match(appJs, /qTickerCell\(String\(r\.symbol \|\| ''\)\.replace\(\/\\.NS\$\/, ''\), r\.name \|\| '', tradingViewUrl\(r\.symbol, r\.exchange\)[,)]/);
+  // The sector rides in the name line, so it costs no column.
+  assert.match(box.innerHTML.replace(/\s+/g, ' '), /Reliance Industries/);
+  const withSector = document.createElement('div');
+  withSector.innerHTML = app.qTickerCell('UBER', 'Uber Technologies, Inc.', null, 'Technology');
+  assert.equal(withSector.querySelector('.q-tick-n .q-tick-sec').textContent.trim(), '· Technology');
+});
+
+test('Discover rows: no control nested in another; the expand control is a real button', () => {
+  assert.doesNotMatch(appJs, /data-expand="(opp|cons)-\$\{i\}" tabindex="0" role="button"/, 'rows holding a link are not buttons');
+  assert.match(appJs, /class="q-expand" data-expand-btn="opp-\$\{i\}" aria-expanded="false" aria-controls="q-detail-opp-\$\{i\}"/);
+  assert.match(appJs, /class="q-expand" data-expand-btn="cons-\$\{i\}" aria-expanded="false" aria-controls="q-detail-cons-\$\{i\}"/);
+  assert.match(appJs, /id="q-detail-cons-\$\{i\}" data-detail="cons-\$\{i\}"/);
+  assert.doesNotMatch(appJs, /<tr class="q-tr" data-ticker-open="\$\{escapeHtml\(ticker\)\}" tabindex="0" role="button">/, 'Avoid rows are not buttons');
+});
+
+test('Discover day range: low to high as a bar, the figures kept as text, the move in its direction', () => {
+  const box = document.createElement('div');
+  box.innerHTML = app.dayRangeHtml({ low: 100, high: 120, open: 105, prevClose: 104 }, 115, '$');
+  const fig = box.querySelector('.q-drng[role="img"]');
+  assert.ok(fig.classList.contains('up'), 'above the previous close');
+  assert.match(fig.getAttribute('aria-label'), /Day range \$100\.00 to \$120\.00; last \$115\.00, opened \$105\.00, previous close \$104\.00/);
+  assert.equal(box.querySelector('.q-drng-last').style.left, '75%');
+  assert.equal(box.querySelector('.q-drng-move').style.left, '25%', 'fill starts at the open');
+  assert.equal(box.querySelector('.q-drng-move').style.width, '50%');
+  assert.match(box.textContent, /\$100\.00[\s\S]*\$120\.00/, 'low and high stay readable');
+  assert.match(app.dayRangeHtml({ low: null, high: 120 }, 115, '$'), /N\/A/, 'no range without both ends');
+});
+
+test('Discover 52-week bar: the price and Street target share one scale, a high target widens it', () => {
+  const box = document.createElement('div');
+  box.innerHTML = app.rangeTargetHtml({ week52_low: 50, week52_high: 100, price: 75, target_mean: 150 }, '$');
+  const fig = box.querySelector('.q-rt[role="img"]');
+  assert.match(fig.getAttribute('aria-label'), /Street target \$150\.00, above the 52-week high/);
+  assert.equal(box.querySelector('.q-rt-tg').style.left, '100%', 'target is never clipped');
+  assert.equal(box.querySelector('.q-rt-px').style.left, '25%');
+  assert.equal(box.querySelector('.q-rt-gap').style.width, '75%', 'distance from price to target is shaded');
+  box.innerHTML = app.rangeTargetHtml({ week52_low: 50, week52_high: 100, price: 75 }, '$');
+  assert.equal(box.querySelector('.q-rt-tg'), null, 'no target, no mark');
+  assert.match(app.rangeTargetHtml({ week52_low: 100, week52_high: 100, price: 75 }, '$'), /N\/A/);
+});
+
+test('Discover earnings chip: shown only inside WHY.EARNINGS_NEAR_DAYS', () => {
+  const now = Date.parse('2026-10-19T12:00:00');
+  const near = Number(app.thr('WHY.EARNINGS_NEAR_DAYS'));
+  assert.match(app.earningsChipHtml('2026-10-22', now), /Earnings in 3 days/);
+  assert.match(app.earningsChipHtml('2026-10-20', now), /Earnings in 1 day</);
+  assert.match(app.earningsChipHtml('2026-10-19', now), /Earnings today/);
+  const past = new Date(now + (near + 1) * 864e5).toISOString().slice(0, 10);
+  assert.equal(app.earningsChipHtml(past, now), '', 'outside the window');
+  assert.equal(app.earningsChipHtml('2026-10-01', now), '', 'already reported');
+  assert.equal(app.earningsChipHtml(null, now), '');
+});
+
+test('Discover at a glance: each reading is labelled, and the sector legend filters the list', () => {
+  const picks = [
+    { symbol: 'AAA', name: 'Alpha Inc.', price: 10, sector: 'Technology', recommendation: 'buy', target_mean: 14, analyst_count: 20, upside_pct: 40 },
+    { symbol: 'BBB', name: 'Beta Inc.', price: 10, sector: 'Technology', recommendation: 'buy', target_mean: 13, analyst_count: 30, upside_pct: 30 },
+    { symbol: 'CCC', name: 'Gamma Inc.', price: 10, sector: 'Energy', recommendation: 'buy', target_mean: 12, analyst_count: 12, upside_pct: 20 },
+  ];
+  const intel = { analyst_picks: picks, movers_up: [{ symbol: 'UP', change_pct: 5 }], movers_down: [{ symbol: 'DN', change_pct: -3 }] };
+  app.renderTopOpportunities(intel);
+  const band = document.querySelector('#discover-pulse');
+  assert.equal(band.hidden, false);
+  const titles = [...band.querySelectorAll('dt')].map((n) => n.textContent.trim());
+  assert.deepEqual(titles.slice(0, 2), ['Upside to target', 'Sector mix']);
+  assert.match(titles[3], /^Today's biggest moves$/);
+  band.querySelectorAll('dt .tip').forEach((t) => assert.ok(t.dataset.tip && t.getAttribute('tabindex') === '0', 'every reading explains itself on focus'));
+  assert.equal(band.querySelectorAll('.dsc-dot[data-pulse-jump][aria-label]').length, 3, 'one labelled dot per name');
+  assert.match(band.textContent, /67%\s*in Technology \(2 of 3\)/);
+
+  // The legend and the filter bar share one state.
+  const rows = () => [...document.querySelectorAll('#portfolio-scan-body tr.q-tr')].map((r) => r.dataset.sym);
+  band.querySelector('.dsc-leg[data-fk="leg:Energy"]').click();
+  assert.deepEqual(rows(), ['CCC']);
+  assert.equal(document.querySelector('#opps-filters [data-fk="sec:Energy"]').getAttribute('aria-pressed'), 'true');
+  assert.match(document.querySelector('#scan-meta').textContent, /^1 of 3 consensus candidates/);
+  document.querySelector('#opps-filters [data-opp-clear]').click();
+  assert.deepEqual(rows(), ['AAA', 'BBB', 'CCC']);
+
+  // Sort keeps the Street rank in the # column.
+  document.querySelector('#opps-filters [data-opp-sort="analysts"]').click();
+  assert.deepEqual(rows(), ['BBB', 'AAA', 'CCC']);
+  assert.equal(document.querySelector('#portfolio-scan-body tr.q-tr .q-rank').textContent, '2');
+  document.querySelector('#opps-filters [data-opp-sort="upside"]').click();
+
+  // The earnings switch is a real switch.
+  const sw = document.querySelector('#opps-filters [role="switch"][data-opp-earn]');
+  assert.equal(sw.getAttribute('aria-checked'), 'false');
+});

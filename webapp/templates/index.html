@@ -264,17 +264,19 @@
           <p class="page-sub">Ranked ideas and the names moving today, each labelled by the model&rsquo;s Decision or a plain price condition.</p>
         </div>
       </header>
+      <section class="dsc-pulse" id="discover-pulse" aria-label="Discover at a glance" hidden></section>
       <section class="q-panel q-opps" aria-labelledby="opps-title">
         <header class="q-head">
           <div class="q-head-l">
             <h2 class="q-head-title" id="opps-title">Top opportunities</h2>
-            <p class="q-head-sub">Scan-qualified setups when a Picks scan has run; otherwise Street research candidates. Expand a row for evidence and levels; open a name for its full tear sheet.</p>
+            <p class="q-head-sub">Scan-qualified setups after a Picks scan; until then, Street research candidates. A ticker opens its TradingView chart (new tab); expand a row for evidence, levels and its tear sheet.</p>
           </div>
           <div class="q-head-r">
             <span class="q-head-meta" id="scan-meta">Waiting</span>
             <button type="button" class="q-btn q-btn--primary" id="opps-scan-btn" data-jump-view="picks">Run a scan</button>
           </div>
         </header>
+        <div class="dsc-filters" id="opps-filters" hidden></div>
         <div id="portfolio-scan-body" class="q-body q-body--flush portfolio-scan-body">
           <div class="q-empty q-empty--inline">Checking scan status…</div>
         </div>
@@ -289,7 +291,7 @@
         <header class="q-head">
           <div class="q-head-l">
             <h2 class="q-head-title" id="board-title">Top gainers &amp; losers</h2>
-            <p class="q-head-sub">Ranked by today's move, with the session board. Select a row to open its Research tear sheet; Open chart shows it on TradingView.</p>
+            <p class="q-head-sub">Ranked by today's move; the fill behind each change is drawn to the largest move on the board.</p>
           </div>
           <span class="q-head-meta" id="top-movers-meta">Fetching</span>
         </header>
@@ -1116,7 +1118,7 @@
               <div class="hw-tabcards" data-reveal>
                 <p class="hw-mini-k">What each Discover tab shows</p>
                 <dl class="hw-tabs-dl">
-                  <div><dt>Top Opportunities</dt><dd>After a scan: the Buy and Accumulate picks with entry, stop, target, reward/risk, score, conviction and horizon. Before one: Street research candidates, marked Research only, with QUANTA's levels left blank.</dd></div>
+                  <div><dt>Top Opportunities</dt><dd>After a scan: the Buy and Accumulate picks with entry, stop, target, reward/risk, score, conviction and horizon. Before one: Street research candidates, each placed on its 52-week range beside the Street target, with QUANTA's levels left blank.</dd></div>
                   <div><dt>Market Moves and Open = L/H</dt><dd>Today's gainers and losers on a session board, and names that opened at the day's low or high. Price conditions, not recommendations.</dd></div>
                   <div><dt>Watchlist</dt><dd>Early-momentum names from the last scan that are not picks yet: at least <span data-threshold="CHASE.EARLY_MOMENTUM_MIN_SIGNALS" data-threshold-fmt="int"></span> of six checks, such as RSI, volume and trend.</dd></div>
                   <div><dt>Extended</dt><dd>Names that ran too far, too fast: gap-ups and sharp five- or ten-day moves. Not extended-hours trading.</dd></div>

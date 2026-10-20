@@ -3,7 +3,7 @@
  * renders real content (not skeletons, not "undefined") from a canonical
  * backend payload, and that failure paths degrade honestly.
  *
- * Run: node --test tests/dom_render.test.cjs
+ * Run: node --test tests/unit/dom_render.test.cjs
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -15,14 +15,14 @@ const { JSDOM } = require('jsdom');
 // Boot a jsdom document from the real template, then load app.js against it.
 // Scripts are NOT executed by jsdom (Jinja tags in the HTML are inert).
 // ---------------------------------------------------------------------------
-const html = fs.readFileSync(path.join(__dirname, '..', 'templates', 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', '..', 'templates', 'index.html'), 'utf8');
 const dom = new JSDOM(html, { url: 'http://127.0.0.1:5500/' });
 global.document = dom.window.document;
 global.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
 // NOTE: `window` is deliberately NOT set: app.js skips its DOMContentLoaded
 // bootstrap when window is undefined, which is exactly what we want here.
 
-const app = require('../static/app.js');
+const app = require('../../static/app.js');
 
 test('ticker rows with button semantics open from Enter and Space', () => {
   const row = document.createElement('div');
@@ -462,7 +462,7 @@ test('Discover tables: the ticker is a TradingView link and clicking it does not
   box.innerHTML = app.qTickerCell('^XYZ', '', null);
   assert.equal(box.querySelector('a'), null);
   // A link inside a row that opens the tear sheet keeps its own job.
-  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'static', 'app.js'), 'utf8');
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'static', 'app.js'), 'utf8');
   assert.match(src, /const link = ev\.target\.closest && ev\.target\.closest\('a\[href\]'\);\s*if \(link && link !== btn\) return;/);
   assert.match(src, /if \(ev\.target !== tr\) return;/, 'Enter on the ticker link follows the link');
 });

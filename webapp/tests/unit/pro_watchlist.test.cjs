@@ -10,7 +10,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { disagreementWatchlistCard } = require('../static/elite-pro.js');
+const { disagreementWatchlistCard } = require('../../static/elite-pro.js');
 
 test('not-confirmed row labels analyzer as NOT CONFIRMED, never INVALID', () => {
   const data = {
@@ -88,7 +88,7 @@ test('empty watchlist renders nothing', () => {
   assert.equal(disagreementWatchlistCard({}), '');
 });
 
-const pro = require('../static/elite-pro.js');
+const pro = require('../../static/elite-pro.js');
 
 test('funded means an allocating resolved action with capital attached', () => {
   assert.equal(pro.isFundedRec({ final_action: 'BUY', allocation_after: 1200 }), true);

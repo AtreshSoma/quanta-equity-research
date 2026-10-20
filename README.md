@@ -24,7 +24,7 @@ describes the live model and the limits of its evidence.
 | Section | What you'll find |
 |---|---|
 | [Quick start](#quick-start) | Install, start the web app, or produce a CLI report |
-| [The web app](#the-web-app) | What each page does |
+| [The web app](#the-web-app) | What each page does, how calls are labelled, and the rules behind them |
 | [What's in the box](#whats-in-the-box) | The four engines and when to reach for each |
 | [The short-term scanner](#the-short-term-scanner) | Primary CLI, flags, and how to read its output |
 | [Validation harness](#validation-harness) | Walk-forward testing, leakage and cost guards |
@@ -43,7 +43,7 @@ describes the live model and the limits of its evidence.
 
 - **Python 3.11+** (CI runs 3.12)
 - **Node.js 20+** only to run the web app's JavaScript tests
-- No API keys needed for the default path — market data comes from Yahoo Finance via `yfinance`
+- No API keys needed for the default path: market data comes from Yahoo Finance via `yfinance`
 
 ### Install
 
@@ -56,6 +56,16 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
 pip install -e ".[dev,webapp]"
 ```
+
+`pyproject.toml` and `webapp/requirements.txt` state the version ranges the code supports.
+`webapp/constraints.txt` pins the exact set the test suites pass on; `start.ps1` and `start.sh`
+install with it. To reproduce a known-good environment by hand:
+
+```bash
+pip install -e ".[dev,webapp]" -c webapp/constraints.txt
+```
+
+To move to newer releases, upgrade, run the Python and JavaScript suites, then update the pins.
 
 ### Start the web app
 
@@ -124,10 +134,10 @@ entry and risk references. Roughly 4–6 minutes; the request throttle is delibe
 ──────────────────────────────────────────────────────────────────────────────
  1.  AT A GLANCE
 ──────────────────────────────────────────────────────────────────────────────
-   • 5 positions to open — MU, FTNT, CVX, CF, VEEV
+   • 5 positions to open: MU, FTNT, CVX, CF, VEEV
    • Deploy $6,916.62 of $25,000.00 (27.7%); keep $18,083.38 in cash
    • Total risk if every stop is hit: $549.94 (2.20%) against a 6% budget
-   • Lead idea: MU — buy $950.00, stop $833.57, first target $1,254.81 (2.6:1)
+   • Lead idea: MU, buy $950.00, stop $833.57, first target $1,254.81 (2.6:1)
    • Horizon: 12 sessions (~2026-09-17); close everything by 2026-10-05
 
 ──────────────────────────────────────────────────────────────────────────────
@@ -167,18 +177,50 @@ Jinja template. It imports the engines in-process.
 | **Discover** | Ranked ideas and the names moving today, each labelled by the model's Decision |
 | **Research** | One-ticker tear sheet: decision and levels, live chart, colour-coded technical signals, valuation, peers and risks; searchable US and Indian listings |
 | **Picks** | Runs a scan through the engine's gates and lists Buy / Accumulate / Watchlist calls sized to your capital, with the rules each name passed or failed |
-| **My Portfolio** | Read-only Robinhood holdings with guidance, intraday, what-if and an Activity ledger |
-| **Track record** | Whether each model is validated out of sample, and how published Decisions did |
+| **My Portfolio** | Read-only Robinhood holdings with guidance, intraday, what-if, an Activity ledger and a Review tab. Every performance chart is a replay of today's holdings, not the account's own return |
+| **Evidence** | Whether each model is validated out of sample, in plain language, and how published Decisions did |
 | **Guide** | Live demonstrations of the rules the engine applies |
 
 Decision thresholds have one source, `core/engine/thresholds.py`; the front end reads an exported
 copy (`webapp/tests/fixtures/thresholds.json`), and a test fails if the two drift.
 
+### How calls are labelled
+
+Calls keep their plain names (Buy, Accumulate, Watchlist), and each one carries a flag that states
+what is known about the model behind it:
+
+| Flag | Meaning |
+|---|---|
+| **Tested: no edge found** | The model was tested out of sample and showed no reliable predictive power |
+| **Model not yet validated** | The model has not been tested, or its test is out of date |
+| *(no flag)* | The model passed out-of-sample validation (none does today) |
+
+The Picks scanner has no test of its own. Every Buy or Accumulate it publishes must first pass the
+Research model, so Picks shows the Research model's result. Sizes are a risk budget, not advice to
+buy, and each call is accompanied by a not-advice line.
+
+### Decision rules
+
+The values below are the current defaults in `core/engine/thresholds.py`.
+
+| Rule | Value |
+|---|---|
+| Reward-to-risk a Buy or Accumulate must clear, on its published entry, stop and target, net of costs | 1.8 |
+| Reward-to-risk label line used by the Research engine on its own | 1.5 |
+| Stop distance, both engines (extended under support when support sits within one ATR) | 2.75 x ATR |
+| Largest loss a forced single share may carry, as a share of the account | 1% |
+| Picks deployment ceiling | The top of the Overview exposure band in force |
+| Oldest accepted daily bar for a scan | 3 trading sessions |
+| Discover analyst list | At least 10 analysts and no more than 50% upside to the consensus target |
+
+Insider buying never relaxes the reward-to-risk rule. India listings are charged the statutory
+levies (about 24 bps round trip) on top of spread and slippage.
+
 ---
 
 ## What's in the box
 
-Four engines share the `core/` tree. They are **independent** — pick the one that matches your
+Four engines share the `core/` tree. They are **independent**: pick the one that matches your
 question.
 
 | Engine | File | Use it when you want |
@@ -190,12 +232,12 @@ question.
 
 Supporting subsystems:
 
-- **`core/apex_quant/`** — walk-forward validation harness with explicit leakage, cost-model and
+- **`core/apex_quant/`**: walk-forward validation harness with explicit leakage, cost-model and
   reproducibility guards
-- **`core/sp_shortterm_backtest.py`** — point-in-time replay of the scanner's technical core
-- **`modules/`** — 20 shared services: catalyst intelligence, SEC EDGAR parsing, portfolio risk,
+- **`core/sp_shortterm_backtest.py`**: point-in-time replay of the scanner's technical core
+- **`modules/`**: 20 shared services: catalyst intelligence, SEC EDGAR parsing, portfolio risk,
   data-quality validation, provider adapters
-- **`mcp_server/`** — Model Context Protocol server exposing the engine to LLM clients
+- **`mcp_server/`**: Model Context Protocol server exposing the engine to LLM clients
 
 ---
 
@@ -265,16 +307,16 @@ work.
 
 **Key concepts:**
 
-- **R** — one unit of the trade's own risk (entry − stop). A 2R target pays twice what you risk.
+- **R**: one unit of the trade's own risk (entry − stop). A 2R target pays twice what you risk.
   `+14%` means something different on a name stopped 4% away than one stopped 12% away.
-- **R/R** — reward-to-risk to Target 1, **net** of a modelled 0.30% round-trip cost.
-- **Break-even hit rate** — `1 / (1 + R/R)`. The Target-1 hit rate the geometry needs just to stop
+- **R/R**: reward-to-risk to Target 1, **net** of a modelled 0.30% round-trip cost.
+- **Break-even hit rate**: `1 / (1 + R/R)`. The Target-1 hit rate the geometry needs just to stop
   losing money. Arithmetic, not a forecast.
-- **Factor grades** — percentile rank against *sector peers in this scan*, A+ (top 5%) to F
+- **Factor grades**: percentile rank against *sector peers in this scan*, A+ (top 5%) to F
   (bottom 8%). A P/E of 30 is expensive for a utility and unremarkable for a chipmaker; absolute
   bands punish whole sectors for their structure, so grading is relative.
-- **⚠ LOW** — conviction downgrade. Position size is already halved; treat as confirmation-only.
-- **Sessions** — trading days with weekends and the ten NYSE holidays excluded, not calendar days.
+- **⚠ LOW**: conviction downgrade. Position size is already halved; treat as confirmation-only.
+- **Sessions**: trading days with weekends and the ten NYSE holidays excluded, not calendar days.
 
 ### Exports
 
@@ -282,7 +324,7 @@ work.
 
 | Format | Purpose |
 |---|---|
-| `.md` | Human-readable briefing — the one to keep or paste into a journal |
+| `.md` | Human-readable briefing: the one to keep or paste into a journal |
 | `.json` | Full dataclass snapshot including every field |
 | `.csv` | Flat table for spreadsheets, with run metadata on each row |
 
@@ -318,13 +360,13 @@ circular block-bootstrap intervals, Benjamini-Hochberg across factors, and a Sha
 for the number of variants tried.
 
 If the strategy is not validated, the runner **says so and refuses to emit position sizes**. Plain
-text only — no decorative output.
+text only: no decorative output.
 
 The harness carries its own guards in `core/apex_quant/tests/`:
 
-- `test_leakage.py` — no future information reaches a training fold
-- `test_costs.py` — the friction model is applied everywhere
-- `test_reproducibility.py` — identical inputs produce identical outputs
+- `test_leakage.py`: no future information reaches a training fold
+- `test_costs.py`: the friction model is applied everywhere
+- `test_reproducibility.py`: identical inputs produce identical outputs
 
 **Results so far: no model has a demonstrated edge.** They are kept visible rather than buried:
 
@@ -422,8 +464,8 @@ gross 2.0R does not sneak through at 1.97R net.
 
 Two optional JSON files, read from the working directory or alongside the module:
 
-- **`ticker_aliases.json`** — `{"SQ": "XYZ"}` remaps renamed symbols
-- **`stale_tickers.json`** — `["TWTR", "ATVI"]` excludes delisted names
+- **`ticker_aliases.json`**: `{"SQ": "XYZ"}` remaps renamed symbols
+- **`stale_tickers.json`**: `["TWTR", "ATVI"]` excludes delisted names
 
 Sensible defaults are built in, so both are optional.
 
@@ -432,7 +474,7 @@ Sensible defaults are built in, so both are optional.
 ## Testing
 
 ```bash
-pytest -m "not golden" -q     # fast unit suite — this is CI's gate
+pytest -m "not golden" -q     # fast unit suite: this is CI's gate
 pytest -q                     # everything, including golden master
 pytest tests/test_sp_shortterm.py -q
 pytest -m "not network"       # skip anything hitting a live API
@@ -442,10 +484,22 @@ Web app (from `webapp/`):
 
 ```bash
 npm ci
-npm test                      # node:test + jsdom unit suite — also a CI gate
+npm test                      # node:test + jsdom unit suite: also a CI gate
 npx playwright install chromium
-QUANTA_PORT=5821 python app.py &   # a scratch server
-BASE_URL=http://127.0.0.1:5821 npm run test:e2e   # desktop, tablet and mobile projects
+npm run test:e2e                # desktop, tablet and mobile projects
+```
+
+`npm run test:e2e` starts its own server on port 5810 with its caches, saved scans, regime history
+and signal ledger in a temporary folder, so a test run never touches your saved scans or your track
+record. If the `python` on your PATH is not the interpreter that has the app's packages, set
+`QUANTA_E2E_PYTHON` to its path. Set `BASE_URL` to test a server you started yourself instead; it
+then writes to that server's own data.
+
+After an intended change to engine output, re-freeze the golden snapshots from the stored fixtures
+(no network) and read the diff before accepting it:
+
+```bash
+python tests/golden/record.py --expected-only AAPL NVDA   # or name every ticker
 ```
 
 ### Test markers
@@ -460,14 +514,14 @@ BASE_URL=http://127.0.0.1:5821 npm run test:e2e   # desktop, tablet and mobile p
 
 The fixtures in `tests/golden/fixtures/` are **gzipped pickles of pandas DataFrames**, and pickle
 is not a stable cross-version format. A pandas or numpy major-version bump can make a fixture fail
-to load — or worse, load with subtly different dtypes and shift a score.
+to load, or worse, load with subtly different dtypes and shift a score.
 
 So CI runs the golden job against `tests/golden/requirements-lock.txt`, the exact environment the
 fixtures were recorded in. **If you run `pytest -q` in a modern venv you will see ~11 golden
 failures. That is the version mismatch, not a regression.** Use `-m "not golden"` for day-to-day
 work, or install the lockfile to replay fixtures faithfully.
 
-A genuine golden failure means engine output changed. That is not automatically a bug — but it
+A genuine golden failure means engine output changed. That is not automatically a bug, but it
 must be acknowledged by re-freezing the snapshot in the same commit.
 
 ---
@@ -480,7 +534,7 @@ must be acknowledged by re-freezing the snapshot in the same commit.
 ruff check .          # the CI gate
 ```
 
-Line length 100, target `py311`. The lint gate is **errors only** (`E9`, `F63`, `F7`, `F82`) —
+Line length 100, target `py311`. The lint gate is **errors only** (`E9`, `F63`, `F7`, `F82`):
 syntax errors, broken comparisons, misplaced control flow, undefined names. Things that are always
 wrong.
 
@@ -498,7 +552,7 @@ Known debt, deliberately not gated yet: ~107 `F401` unused-import findings acros
 | `golden` | ~3m | every push | Replays fixtures in the pinned recording environment |
 
 No job touches the network: the unit suites are mocked, the golden suite replays with HTTP
-blocked. The Python job installing from dependency *ranges* is deliberate — it doubles as an early
+blocked. The Python job installing from dependency *ranges* is deliberate: it doubles as an early
 warning when an upstream release breaks the build.
 
 `.github/workflows/build_exe.yml` builds the Windows scanner executable when the engine changes.
@@ -517,7 +571,7 @@ pip install -e ".[providers]"  # Polygon, pandas-datareader, TextBlob
 
 1. Branch from `main`
 2. Keep `ruff check .` clean, `pytest -m "not golden"` and `npm test` green
-3. Add a regression test for every behaviour change — the suite is the safety net that makes this
+3. Add a regression test for every behaviour change: the suite is the safety net that makes this
    tree editable
 4. If engine output changes, re-freeze the golden snapshot **in the same commit**
 
@@ -529,7 +583,7 @@ pip install -e ".[providers]"  # Polygon, pandas-datareader, TextBlob
 <summary><strong>The scan is slow</strong></summary>
 
 This is intentional. `yfinance` issues one un-throttled HTTP request per call, and a thread pool
-fan-out makes Yahoo answer `429` — which silently returns empty frames and collapses the scan. A
+fan-out makes Yahoo answer `429`, which silently returns empty frames and collapses the scan. A
 process-wide minimum interval (`YF_MIN_REQUEST_INTERVAL`, 0.35s) spaces requests out and widens
 adaptively when a 429 appears. Budget ~4–6 minutes for a standard scan.
 
@@ -555,7 +609,7 @@ is rate-limiting this address; wait 30-60 minutes and run fewer parallel workers
 <summary><strong>"UNIVERSE DEGRADED" in the output</strong></summary>
 
 An index constituent list could not be fetched and a small built-in fallback was used instead, so
-coverage is materially reduced. The scan still completes. Check `apex_trading.log` — usually a
+coverage is materially reduced. The scan still completes. Check `apex_trading.log`: usually a
 Wikipedia layout change or a network issue.
 
 </details>
@@ -574,7 +628,7 @@ If it's `below_min_position_size`, raise `--capital` or enable `--fractional`.
 
 Yahoo intermittently returns 401/429 under concurrent load. The scanner retries with backoff,
 falls back to Stooq, then reports the failure honestly rather than counting it as "no data". A
-handful per scan is normal; dozens means you are being rate-limited — wait and re-run.
+handful per scan is normal; dozens means you are being rate-limited; wait and re-run.
 
 </details>
 
@@ -606,6 +660,22 @@ Stated plainly, because the alternative is you discovering them with real money.
   session, not which direction. "T1 due 17 Sep" means *if* it works, roughly then.
 - **Levels move.** Entries, stops and targets are ATR-scaled and change daily. Re-run before acting
   on a stale report.
+- **The live engine is not what was backtested.** The validation harness ranks a composite score
+  against forward returns. It does not simulate the live engine's entries, stops, position sizes
+  or costs, so it says nothing about the returns of following the calls.
+- **Picks inherits the Research model's result.** The scanner's own score is untested. Calls are
+  flagged accordingly and are research ideas.
+- **ADRs stay on Watchlist.** Foreign issuers file 6-K reports, whose text the corporate-event
+  check does not read, so a recent 6-K makes the check "unavailable", never "clear".
+- **India calendar is partial.** The NSE holiday list holds fixed-date holidays and Good Friday.
+  Lunar-calendar holidays (Holi, Diwali and others) must be added from the NSE circular each year.
+  A missing holiday can only make a price look one session older than it is.
+- **My Portfolio shows simulated, not actual, performance.** Robinhood's fills do not reconcile to
+  today's quantities and daily account values are not available, so charts replay today's holdings
+  over past prices. Funds are not looked through to their constituents, so sector and company
+  exposure understates overlap. The risk score says when volatility could not be measured.
+- **Risk grade is absolute.** It measures a stock's own swings and drawdowns, not a comparison with
+  its sector, so a volatile leader can grade F.
 
 ---
 
@@ -618,8 +688,9 @@ modify, merge, publish, distribute, sublicense and sell the code, provided the c
 licence text are kept. The software is provided "as is", without warranty of any kind.
 
 The licence covers this repository's source code and documentation only. It does not cover market
-data you download with it. Yahoo Finance, SEC EDGAR, Robinhood and any other provider keep their
-own terms; you are responsible for complying with them. This project is not affiliated with or
+data you download with it. Yahoo Finance, SEC EDGAR, the news feeds it reads (MarketWatch, the FT,
+CNBC and others), Robinhood and any other provider keep their own terms, which generally allow
+personal use only; you are responsible for complying with them. This project is not affiliated with or
 endorsed by any of them. Third-party dependencies keep their own licences (see `pyproject.toml`).
 
 ### Disclaimer
@@ -630,6 +701,13 @@ This software produces model output from public market data. It does not know yo
 tax position, or risk tolerance, and it has no demonstrated ability to predict prices. Nothing it
 prints is a recommendation to buy or sell any security.
 
-Verify every price against your broker before placing an order. Past performance — and backtested
-performance especially — does not indicate future results. You are solely responsible for your own
+Verify every price against your broker before placing an order. Past performance, and backtested
+performance especially, does not indicate future results. You are solely responsible for your own
 trading decisions and any losses that follow.
+
+### Your broker connection
+
+My Portfolio reads a broker account only while the app runs on your own computer and you are
+signed in. The sign-in is held in the running server's memory: it is never written to disk,
+committed to this repository or sent anywhere else, so a copy of the code (on GitHub or a
+clone) never carries your account. Restarting the app means signing in again.

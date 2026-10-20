@@ -55,7 +55,7 @@ MARKER="$VENV/.quanta_reqs_hash"
 
 if [[ $INSTALL -eq 1 ]]; then
     if command -v shasum >/dev/null; then SHA=(shasum -a 256); else SHA=(sha256sum); fi
-    HASH="$(cat webapp/requirements.txt pyproject.toml | "${SHA[@]}" | cut -d' ' -f1)"
+    HASH="$(cat webapp/requirements.txt webapp/constraints.txt pyproject.toml | "${SHA[@]}" | cut -d' ' -f1)"
     CACHED="$(cat "$MARKER" 2>/dev/null || true)"
     MISSING="$("$PY" -c "$PROBE" "${CRITICAL[@]}" || true)"
     if [[ $REINSTALL -eq 0 && "$HASH" == "$CACHED" && -z "$MISSING" ]]; then
@@ -64,7 +64,8 @@ if [[ $INSTALL -eq 1 ]]; then
         [[ -n "$MISSING" ]] && warn "Missing Python modules: $MISSING"
         cyan "Installing QUANTA dependencies (a minute or two the first time) ..."
         "$PY" -m pip install -q --upgrade pip || warn "Could not upgrade pip (offline?); continuing."
-        "$PY" -m pip install -q -e ".[webapp,providers]" || "$PY" -m pip install -q -e ".[webapp]" \
+        # webapp/constraints.txt pins the versions the test suites pass on.
+        "$PY" -m pip install -q -c webapp/constraints.txt -e ".[webapp,providers]" || "$PY" -m pip install -q -c webapp/constraints.txt -e ".[webapp]" \
             || warn "Dependency install failed; checking what already imports."
         if "$PY" -c "$PROBE" "${CRITICAL[@]}" >/dev/null; then
             printf '%s' "$HASH" > "$MARKER"

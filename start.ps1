@@ -66,6 +66,8 @@ if (-not $WebAppRoot) {
 }
 
 $RequirementsPath = Join-Path $WebAppRoot "requirements.txt"
+# Exact tested versions; installs use it as a pip constraints file.
+$ConstraintsPath = Join-Path $WebAppRoot "constraints.txt"
 $AppPath = Join-Path $WebAppRoot "app.py"
 if (-not (Test-Path $RequirementsPath)) {
     throw "Could not find requirements file at $RequirementsPath"
@@ -108,6 +110,7 @@ if (-not $NoInstall) {
     # invalidate the cache, and a drift between the two (they declare the same
     # set) forces a clean resolve.
     $hashInputs = @($RequirementsPath)
+    if (Test-Path $ConstraintsPath) { $hashInputs += $ConstraintsPath }
     if (Test-Path $PyProjectPath) { $hashInputs += $PyProjectPath }
     # .NET directly, not Get-FileHash: Windows PowerShell 5.1 started from a
     # PowerShell 7 terminal inherits 7's PSModulePath, cannot load Get-FileHash,
@@ -143,7 +146,8 @@ if (-not $NoInstall) {
         Write-Host "Installing QUANTA dependencies (this can take a minute the first time)..." -ForegroundColor Cyan
 
         python -m pip install --upgrade pip -q
-        python -m pip install -r $RequirementsPath
+        $constraintArgs = if (Test-Path $ConstraintsPath) { @("-c", $ConstraintsPath) } else { @() }
+        python -m pip install -r $RequirementsPath @constraintArgs
         if ($LASTEXITCODE -ne 0) { throw "pip install -r $RequirementsPath failed." }
 
         if (Test-Path $PyProjectPath) {
@@ -158,9 +162,9 @@ if (-not $NoInstall) {
             # $() subexpression so PowerShell doesn't read "$ProjectRoot[providers]"
             # as an index expression on the path string.
             $editableTarget = "$($ProjectRoot)[providers]"
-            python -m pip install -e $editableTarget
+            python -m pip install -e $editableTarget @constraintArgs
             if ($LASTEXITCODE -ne 0) {
-                python -m pip install -e $ProjectRoot
+                python -m pip install -e $ProjectRoot @constraintArgs
                 if ($LASTEXITCODE -ne 0) {
                     Write-Host "Editable engine install failed; continuing on the web requirements only." -ForegroundColor Yellow
                 }

@@ -15,9 +15,12 @@ venv/
 .env
 .env.*
 
-# Exports & logs
+# Exports & runtime logs. Anchored: an unanchored `logs/` also hid docs/logs/,
+# the folder of implementation records, from git.
 exports/
-logs/
+/logs/
+/core/logs/
+/webapp/logs/
 *.log
 
 # Cache (yfinance disk cache, etc.)

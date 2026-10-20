@@ -1,5 +1,10 @@
 # QUANTA Elite — End-to-End Test Suite & Production-Readiness Review
 
+> **Status: the original test plan, kept because the e2e specs cite its case IDs.** It was written
+> before the suites existed, so its file paths (`ui/stock-analysis/...`) and its "no jsdom/Playwright
+> suite" gap are out of date. The suites that exist now are `tests/unit/` (jsdom), `tests/e2e/`
+> (Playwright) and the Python suite in the repository's `tests/`; see the root README, "Testing".
+
 > Scope: `ui/stock-analysis/webapp` (Flask + vanilla JS SPA). Three views — **Dashboard**, **Portfolio Builder** (`#view-picks`), **Stock Deep-Dive** (`#view-analyze`). Reviewed as a financial trading-intelligence product, not just a website.
 >
 > Test app at `http://127.0.0.1:5500`. Backend routes: `/`, `/api/dashboard`, `/api/market-intel`, `/api/engines`, `/api/health`, `/api/cache/stats`, `/api/cache/clear`, `/api/stock-picks` (POST), `/api/analyze` (POST + job), `/api/jobs/<id>`, `/api/jobs/<id>/stream` (SSE).

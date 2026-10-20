@@ -913,9 +913,14 @@ Stated plainly, because the alternative is you discovering them with real money.
   flagged accordingly and are research ideas.
 - **ADRs stay on Watchlist.** Foreign issuers file 6-K reports, whose text the corporate-event
   check does not read, so a recent 6-K makes the check "unavailable", never "clear".
-- **India calendar is partial.** The NSE holiday list holds fixed-date holidays and Good Friday.
-  Lunar-calendar holidays (Holi, Diwali and others) must be added from the NSE circular each year.
-  A missing holiday can only make a price look one session older than it is.
+- **India calendar is complete for 2026 only.** The NSE holiday list follows NSE's 2026 circular.
+  2027 holds the fixed-date holidays and Good Friday; its lunar-calendar holidays (Holi, Diwali and
+  others) must be added from the circular NSE publishes each December. A missing holiday can only
+  make a price look one session older than it is.
+- **Event-risk sizing is a judgment, not a fit.** New positions shrink to 70% inside 3 days of an FOMC
+  decision and 85% inside 7 (`SIZING.FOMC_*` in `core/engine/thresholds.py`). These multipliers are
+  conventional caution; no test here shows they improve outcomes. The calendar runs to the end of 2027
+  and the engine logs a warning when it is exhausted.
 - **My Portfolio shows simulated, not actual, performance.** Robinhood's fills do not reconcile to
   today's quantities and daily account values are not available, so charts replay today's holdings
   over past prices. Funds are not looked through to their constituents, so sector and company

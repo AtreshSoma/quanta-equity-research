@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * Picks measured design gates (docs/PICKS_DESIGN_BRIEF.md, item 12), all five tabs.
+ * Picks measured design gates (docs/design/PICKS_DESIGN_BRIEF.md, item 12), all five tabs.
  * A synthetic job (tests/fixtures/picks_synth_job.json, built through the real
  * _picks_view) is routed into the page; no market data is fetched.
  * At 1280, 1440 and 390 px in both themes:

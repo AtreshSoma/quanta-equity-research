@@ -14,7 +14,7 @@ import sys
 import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-APP = os.path.join(HERE, "..", "app.py")
+APP = os.path.join(HERE, "..", "webapp", "app.py")
 
 
 @pytest.fixture(scope="module")

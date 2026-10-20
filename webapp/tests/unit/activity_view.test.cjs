@@ -81,7 +81,7 @@ test('the view switch drives KPI tiles, chart, ranking and table together', () =
     };
   }
   assert.deepEqual(seen.sales.kpis, ['Realized P&L', 'Closing trades', 'Average win / loss', 'Best / worst trade', 'Positive months']);
-  assert.deepEqual(seen.buys.kpis, ['Capital deployed', 'Purchases', 'Stocks bought', 'Average purchase', 'Largest purchase']);
+  assert.deepEqual(seen.buys.kpis, ['Capital deployed', 'Purchases', 'Assets bought', 'Average purchase', 'Largest purchase']);
   assert.deepEqual(seen.lots.kpis, ['Unrealized P&L', 'Open lots', 'Cost basis', 'Value', 'Lots by age']);
   assert.match(seen.sales.chart, /^Realized P&L per month$/);
   assert.match(seen.buys.chart, /^Capital deployed per /);

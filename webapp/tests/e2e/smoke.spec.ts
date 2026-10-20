@@ -32,26 +32,18 @@ test.describe('@smoke landing / dashboard', () => {
 
     // Core dashboard sections exist and leave their skeleton/loading state.
     const sectionIds = [
-      '#top-headlines', '#decision-brief', '#market-pulse', '#risk-body', '#breadth-body',
-      '#signal-check-body', '#allocator-body',
-      '#news-body',
+      '#ov-bulletin', '#ov-session', '#ov-week', '#decision-brief', '#market-pulse', '#sector-body',
+      '#week-body', '#news-body', '#movers-body',
     ];
     for (const id of sectionIds) {
       await expect(page.locator(id)).toBeVisible();
     }
 
-    // Market Signal and Drivers share one tabbed workspace, so Drivers loads
-    // behind an inactive tab and is `hidden` on arrival. Asserting it visible
-    // on load asserted against the information architecture, not against the
-    // section loading -- select the tab and check it there.
-    await expect(page.locator('#market-drivers-body')).toBeAttached();
-    await expect(page.locator('#market-drivers-body')).not.toBeVisible();
-    await page.locator('#tab-market-drivers').click();
-    await expect(page.locator('#market-drivers-body')).toBeVisible();
-    // The dated catalyst calendar is the third tab of the same workspace.
-    await page.locator('#tab-event-risk').click();
-    await expect(page.locator('#event-risk-body')).toBeVisible();
-    await page.locator('#tab-signal-check').click();
+    // The full factor table sits in the For pros section, one disclosure away:
+    // attached on load, it opens in place.
+    await expect(page.locator('#signal-check-body')).toBeAttached();
+    await expect(page.locator('#signal-check-body')).not.toBeVisible();
+    await page.locator('#ov-pro-factors > summary').click();
     await expect(page.locator('#signal-check-body')).toBeVisible();
 
     // Opportunities and the security monitor live one step on, in Discover.
@@ -80,7 +72,8 @@ test.describe('@smoke landing / dashboard', () => {
 
     // The regime panel must show the call, not just a skeleton.
     await expect(page.locator('#decision-brief .q-skel')).toHaveCount(0);
-    await expect(page.locator('#decision-brief .q-regime-title')).toBeVisible();
+    await expect(page.locator('#decision-brief .ovx-mood-word')).toBeVisible();
+    await expect(page.locator('#week-h')).toBeVisible();
     await assertNotOffline(page);
     expect(errors, `console/page errors:\n${errors.join('\n')}`).toEqual([]);
   });
@@ -97,7 +90,9 @@ test.describe('@smoke landing / dashboard', () => {
       return factors.filter((f: any) => (f.score ?? 0) > 0).length;
     });
 
-    const chipText = (await page.locator('#signal-check-body .q-sig-tally .bull b').first().innerText().catch(() => '')) || '';
+    // The factor disclosure's summary reads "N support, N neutral, N against".
+    const meta = (await page.locator('#signal-check-meta').innerText().catch(() => '')) || '';
+    const chipText = (meta.match(/^(\d+) support/) || [])[1] || '';
     if (chipText) {
       expect(Number(chipText)).toBe(apiConfirmed);
     } else {
@@ -132,6 +127,9 @@ test.describe('@smoke portfolio builder', () => {
     await page.goto(NOCACHE(), { waitUntil: 'domcontentloaded' });
     await page.locator('.nav-tab[data-view="picks"]').click();
 
+    // With a saved scan on screen, narrow layouts fold the form behind "Edit scan setup".
+    const editSetup = page.locator('#sp-setup-toggle');
+    if (await editSetup.isVisible() && (await editSetup.getAttribute('aria-expanded')) === 'false') await editSetup.click();
     await page.locator('#sp-scan').selectOption('custom');
     await page.locator('#sp-custom-tickers').fill('AAPL');
     await page.locator('#sp-capital').fill('2500');
@@ -190,8 +188,10 @@ test.describe('@smoke theme + market toggles', () => {
     await page.goto(NOCACHE(), { waitUntil: 'domcontentloaded' });
     const before = await page.locator('html').getAttribute('data-theme');
     await page.locator('#theme-toggle').click();
+    // The switch cross-fades through a View Transition, which applies the new
+    // theme on the next frame: wait for it rather than reading in the same tick.
+    await expect(page.locator('html')).not.toHaveAttribute('data-theme', before || '');
     const after = await page.locator('html').getAttribute('data-theme');
-    expect(after).not.toBe(before);
 
     await page.reload({ waitUntil: 'domcontentloaded' });
     expect(await page.locator('html').getAttribute('data-theme')).toBe(after);

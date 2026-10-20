@@ -4,7 +4,7 @@
     "elite.composite": {
       "caveats": [
         "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
-        "Walk-forward trade simulation (2017-2026): CAGR 0.76% vs SPY 11.41%."
+        "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls."
       ],
       "generated_utc": "2026-08-27T19:41:39+00:00",
       "metrics": {
@@ -24,12 +24,13 @@
       "scope": "Technical + risk components only (40% of composite weight); fundamentals have no point-in-time source.",
       "source": "apex_quant/_reports/elite_oos.json",
       "status": "NO_EDGE",
-      "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+      "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
       "tested_through": "2026-08-25"
     },
     "elite.research.v2": {
       "caveats": [
         "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+        "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls.",
         "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
         "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
       ],
@@ -52,7 +53,7 @@
       "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
       "source": "apex_quant/_reports/research_v2_oos.json",
       "status": "NO_EDGE",
-      "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
+      "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
       "tested_through": "2026-09-30"
     },
     "shortterm.composite": {
@@ -91,7 +92,7 @@
       "scope": "Price-based legs only (technical, momentum, pattern: 58% of composite weight); fundamental, quality and analyst legs held neutral. No regime multiplier, peer re-scoring or portfolio caps.",
       "source": "apex_quant/_reports/shortterm/summary_latest.json",
       "status": "NO_EDGE",
-      "summary": "Entry signals do not beat SPY or random entries out of sample: 1284 trades 2016-01-01..2026-09-30: excess vs SPY +0.03% per weekly entry cohort (95% CI -0.29% to +0.36%; -0.10% per trade); vs random entries +0.11% (CI -0.27% to +0.49%)",
+      "summary": "Entry signals do not beat SPY or random entries out of sample. 1284 trades 2016-01-01..2026-09-30: excess vs SPY +0.03% per weekly entry cohort (95% CI -0.29% to +0.36%; -0.10% per trade); vs random entries +0.11% (CI -0.27% to +0.49%)",
       "tested_through": "2026-09-30"
     }
   },

@@ -29,6 +29,7 @@
     const RISK_MAX = 9;
     const zoneOf = (level) => (RISK_ZONES.find((z) => z.label === level) || {}).key || 'none';
     X.RISK_ZONES = RISK_ZONES;
+    X.RISK_MAX = RISK_MAX;
     X.riskGauge = (risk, o = {}) => {
       const Ch = Q();
       if (!Ch || !risk || num(risk.points) === null) return '';
@@ -114,7 +115,8 @@
       const drivers = (risk.drivers || []).map((d) => driverTag(d, pf));
       ins.ov.drivers = drivers;
       const riskCell = cell('Risk', `<dd class="mpk-risk"><span class="mpk-gauge">${X.riskGauge(risk, { size: 'sm' })}</span>
-          <span class="mpk-risk-r"><b class="hp-kpi-v mpk-lvl mpk-lvl--${zoneOf(risk.level)}">${esc(risk.level || 'Not rated')}</b>${num(risk.points) !== null ? `<span class="hp-kpi-s">${risk.points} of ${RISK_MAX} points</span>` : `<span class="hp-kpi-s">${esc(risk.note || 'Not assessed')}</span>`}</span></dd>
+          <span class="mpk-risk-r"><b class="hp-kpi-v mpk-lvl mpk-lvl--${zoneOf(risk.level)}">${esc(risk.level || 'Not rated')}</b>${num(risk.points) !== null ? `<span class="hp-kpi-s">${risk.points} of ${RISK_MAX} points${risk.partial ? ', partial' : ''}</span>` : `<span class="hp-kpi-s">${esc(risk.note || 'Not assessed')}</span>`}</span></dd>
+        ${risk.partial && num(risk.points) !== null ? `<dd class="hp-kpi-s mpk-risk-partial" data-risk-partial>Partial risk assessment: ${esc((risk.unmeasured || []).join(' and ') || 'some inputs')} not measured, so the true score may be higher.</dd>` : ''}
         ${drivers.length ? `<dd class="mpk-drivers" aria-label="${esc(`${drivers.length} ${plural(drivers.length, 'driver', 'drivers')}`)}">${drivers.map((d, i) => `<button type="button" class="mpk-tag" data-hp-x="driver:${i}"${d.sym ? ` data-sym="${esc(d.sym)}"` : ''}${d.sector ? ` data-sector="${esc(d.sector)}"` : ''} title="${esc(risk.drivers[i])}">${esc(d.label)}</button>`).join('')}</dd>` : ''}`,
       ` mpk-risk-c is-${zoneOf(risk.level)}`);
       return `<h2 class="q-head-title sr-only" id="hp-ov-h">Portfolio Overview</h2>
@@ -251,7 +253,7 @@
     }
 
     const posOf = (pf, sym) => (pf.positions || []).find((r) => r.symbol === sym);
-    const callText = (g) => (g.status !== 'ok' ? 'No call' : H.actionLabel(g.action));
+    const callText = (g) => (g.status !== 'ok' ? 'No call' : H.actionLabel(g.action, g));
     const callChip = (g) => `<span class="mpo-call mpo-call--${esc({ Trim: 'trim', 'Exit Review': 'exit', Accumulate: 'add', Hold: 'hold', 'Hold / No New Money': 'noadd' }[g.action] || 'none')}">${esc(callText(g))}</span>`;
 
     function allocData(pf) {
@@ -379,6 +381,9 @@
       const rows = sortOv(pf.positions || []);
       const sparks = (ins.perf.data && ins.perf.data.sparks) || null;
       const loadingSparks = ins.perf.s === 'idle' || ins.perf.s === 'loading';
+      // Why a trend is missing: the price history could not be read at all, or this name has
+      // fewer than a month of daily prices.
+      const sparkWhy = ins.perf.s === 'error' || (ins.perf.data && ins.perf.data.available === false) ? 'Price history could not be loaded' : 'Less than a month of price history';
       const maxW = Math.max(...rows.map((r) => num(r.broker.weight) || 0), 0.01);
       const rets = rows.map((r) => num(r.broker.unrealized_pnl_pct)).filter((x) => x !== null);
       const maxR = Math.max(...rets.map(Math.abs), 1);
@@ -396,7 +401,7 @@
           <td><span class="mpo-bar"><i class="mpo-anim${cap !== null && w >= cap ? ' is-over' : ''}" style="--s:${((w || 0) / maxW).toFixed(4)}"></i></span><span class="mpo-n">${pct(w, 1)}</span></td>
           <td class="mpo-n ${dirClass(day)}">${day === null ? NA : priv(pct(day, 2, false, true))}</td>
           <td><span class="mpo-div" aria-hidden="true">${ret === null ? '' : `<i class="${ret < 0 ? 'is-down' : 'is-up'} mpo-anim" style="--s:${(Math.abs(ret) / maxR / 2).toFixed(4)}"></i>`}</span><span class="mpo-n ${dirClass(ret)}">${ret === null ? NA : priv(pct(ret, 1, false, true))}</span></td>
-          <td>${sp && Ch ? `${Ch.sparkHtml(sp.values, sp.change >= 0 ? 'bull' : 'bear')}<span class="mpo-n ${dirClass(sp.change)}">${pct(sp.change, 1, true, true)}</span>` : loadingSparks ? '<span class="mp-skel mpo-sk"></span>' : `<span class="mpo-n">${NA}</span>`}</td>
+          <td>${sp && Ch ? `${Ch.sparkHtml(sp.values, sp.change >= 0 ? 'bull' : 'bear')}<span class="mpo-n ${dirClass(sp.change)}">${pct(sp.change, 1, true, true)}</span>` : loadingSparks ? '<span class="mp-skel mpo-sk"></span>' : `<span class="mpo-n" title="${esc(sparkWhy)}">${NA}</span><span class="sr-only">${esc(sparkWhy)}</span>`}</td>
           <td>${callChip(r.guidance)}</td>
         </tr>`;
       }).join('');
@@ -413,13 +418,14 @@
     }
     X.slotRenderers['hold-overview'] = holdInner;
 
-    // What drove return: each holding's unrealized gain on cost, largest first, and the total.
+    // Unrealized gains by holding: each holding's unrealized gain on cost, largest first, and the total.
+    // (Not a return attribution: it leaves out sold positions, dividends and the period.)
     function contribInner(pf) {
       const u = (pf.overview || {}).unrealized_pnl || {};
       const rows = (pf.positions || []).filter((r) => num(r.broker.unrealized_pnl) !== null).map((r) => ({ symbol: r.symbol, v: r.broker.unrealized_pnl }))
         .sort((a, b) => b.v - a.v);
       const missing = (pf.positions || []).filter((r) => num(r.broker.unrealized_pnl) === null).map((r) => r.symbol);
-      const head = `<header class="mpo-h"><h2 id="mpo-con-h">What drove return</h2><span class="mpo-h-s">Unrealized gain on cost</span></header>`;
+      const head = `<header class="mpo-h"><h2 id="mpo-con-h">Unrealized gains by holding</h2><span class="mpo-h-s">Gain on cost, positions still held</span></header>`;
       if (!rows.length) return `${head}<p class="mpo-empty">No cost basis reported, so there is nothing to attribute.</p>`;
       const LIMIT = 18;
       let shown = rows;

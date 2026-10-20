@@ -99,6 +99,9 @@ test.describe('My Portfolio', () => {
     for (const w of WIDTHS) {
       await page.setViewportSize({ width: w, height: 900 });
       await page.waitForTimeout(250);
+      // Right after a resize, mobile emulation can report the previous layout width; one
+      // forced reflow settles it, so the measurement below is of the page at this width.
+      await page.evaluate(() => { document.body.style.display = 'none'; void document.body.offsetWidth; document.body.style.display = ''; void document.body.offsetWidth; });
       const over = await page.evaluate(() => ({
         pixels: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         elements: [...document.querySelectorAll('body *')].filter((e) => !e.closest('.hp-table-scroll, .mpc-table-wrap') && e.getBoundingClientRect().width > 0 && e.getBoundingClientRect().right > innerWidth + 1).map((e) => `${e.tagName}.${e.className}`),

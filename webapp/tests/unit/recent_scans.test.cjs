@@ -46,7 +46,6 @@ const reset = () => {
 };
 // The list's body inside the Recent scans section (its header and note stay).
 const body = () => $('#pk-recent [data-pk-recent-body]');
-const rowText = (c) => [T(c.querySelector('.recent-scan-name')), T(c.querySelector('.recent-scan-age')), T(c.querySelector('.recent-scan-sub'))];
 const render = (data) => { global.window = {}; try { app.renderPicks(data); } finally { global.window = undefined; } };
 const respond = (routes) => {
   const calls = [];
@@ -77,27 +76,32 @@ test('each saved scan is a row, newest first, with the one on screen marked', ()
   body().innerHTML = app.recentScansHtml(LIST(), 'bbbbbbbbbbbb', NOW);
   const rows = [...body().querySelectorAll('[data-pk-recent]')];
   assert.deepEqual(rows.map((c) => c.dataset.pkRecent), ['aaaaaaaaaaaa', 'bbbbbbbbbbbb', 'cccccccccccc']);
-  assert.deepEqual(rows.map(rowText), [
-    ['Standard', '5m ago', '1 Buy or Accumulate, 2 Watchlist'],
-    ['Growth Leaders', '2h ago', '1 Buy or Accumulate, 2 Watchlist'],
-    ['ETF Sleeve', '10h ago', '1 Buy or Accumulate, 2 Watchlist']]);
+  assert.deepEqual(rows.map(c => c.querySelector('time').dateTime), LIST().map(s => s.saved_at));
+  for (const row of rows) {
+    assert.equal(T(row), T(row.querySelector('time')), 'only the datetime is visible');
+    assert.match(T(row), /2026/);
+    assert.doesNotMatch(T(row), /ago|Watchlist|Accumulate|Standard|Growth|ETF/);
+    assert.match(row.getAttribute('aria-label'), /Open .+ scan from /);
+  }
   assert.deepEqual(rows.map((c) => c.getAttribute('aria-current')), [null, 'true', null], 'only the scan on screen is current');
   assert.match(rows[0].title, /Standard, \$2,500, Balanced mandate, up to 5 positions, 1 Buy or Accumulate, 2 Watchlist/);
   assert.equal(T($('#pk-recent-h')), 'Recent scans');
 });
 
-test('two scans of one universe say how they differ', () => {
+test('two scans of one universe keep distinguishing settings in their tooltips', () => {
   const twins = [scan('aaaaaaaaaaaa', 'standard', 5), scan('bbbbbbbbbbbb', 'standard', 30, { capital: 10000, risk_profile: 'conservative' })];
   body().innerHTML = app.recentScansHtml(twins, null, NOW);
-  assert.deepEqual([...body().querySelectorAll('[data-pk-recent]')].map((c) => T(c.querySelector('.recent-scan-sub'))),
-    ['$2,500, Balanced · 1 Buy or Accumulate, 2 Watchlist', '$10,000, Conservative · 1 Buy or Accumulate, 2 Watchlist']);
+  const rows = [...body().querySelectorAll('[data-pk-recent]')];
+  assert.match(rows[0].title, /\$2,500, Balanced/);
+  assert.match(rows[1].title, /\$10,000, Conservative/);
+  assert.notEqual(T(rows[0]), T(rows[1]), 'different run times distinguish the buttons');
 });
 
 test('a scan from before the last close is marked, and a custom list shows its size', () => {
   body().innerHTML = app.recentScansHtml([scan('aaaaaaaaaaaa', 'custom', 5, { custom_count: 3 }),
     scan('bbbbbbbbbbbb', 'standard', 700, { closed_since: true, as_of_session: '2026-10-14' })], null, NOW);
   const [custom, old] = [...body().querySelectorAll('[data-pk-recent]')];
-  assert.equal(T(custom.querySelector('.recent-scan-name')), 'Custom (3)');
+  assert.match(custom.title, /Custom \(3\)/);
   assert.ok(old.classList.contains('is-stale'));
   assert.match(old.title, /prices from before the last market close/);
 });
@@ -109,7 +113,14 @@ test('refreshRecentScans reads the list for the market and marks the newest when
   assert.deepEqual(calls, ['/api/stock-picks/recent?market=US']);
   assert.equal($('#pk-recent').hidden, false);
   assert.equal($('#pk-recent [aria-current="true"]').dataset.pkRecent, 'aaaaaaaaaaaa');
-  assert.equal(T($('#pk-recent [data-pk-recent-keep]')), 'Kept 24 hours', 'the retention comes from config');
+  assert.equal($('#pk-recent [data-pk-recent-keep]'), null, 'no retention note in the compact strip');
+});
+
+test('invalid scan timestamps stay readable without emitting an invalid datetime', () => {
+  body().innerHTML = app.recentScansHtml([scan('aaaaaaaaaaaa', 'standard', 5, { saved_at: 'invalid' }), ...LIST().slice(1)], null);
+  const first = body().querySelector('[data-pk-recent]');
+  assert.equal(T(first), 'Time unavailable');
+  assert.equal(first.querySelector('time'), null);
 });
 
 test('a market that changed while the list was loading is ignored', async () => {
@@ -198,12 +209,13 @@ test('a failed request leaves the page as it was', async () => {
   assert.match(T($('#pk-recent [data-pk-recent-note]')), /could not be opened/);
 });
 
-test('Recent scans sits in the setup panel, after the form, so folding the form on a phone keeps it', () => {
+test('Recent scans sits above the report, outside the folding setup and refreshed results', () => {
   const box = $('#pk-recent');
-  assert.ok(box.closest('aside.form-card'), 'inside the setup panel');
+  assert.equal(box.closest('aside.form-card'), null, 'outside the setup panel');
   assert.equal(box.closest('#picks-form'), null, 'not inside the form that folds');
-  assert.equal(box.previousElementSibling.id, 'picks-form');
-  assert.equal($('#picks-results').parentElement.querySelector('#pk-recent'), null, 'nothing above the report');
+  assert.equal(box.parentElement, $('#picks-results').parentElement, 'in the results column');
+  assert.equal(box.parentElement.firstElementChild, box, 'first, above the report');
+  assert.equal($('#picks-results').contains(box), false, 'survives report replacement');
 });
 
 test('reopening the newest scan on page load also restores its settings', async () => {

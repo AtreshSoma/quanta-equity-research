@@ -397,7 +397,7 @@ test('guidance tones avoid alarm red and the stylesheet stays within its rules',
   // Red is P&L direction only: table/detail P&L, the KPI band, the inspector's
   // session move and the performance-driver bars.
   const pnlOnly = section
-    .replace(/\.hp-(table|dl) \.bear[^}]*}/g, '').replace(/\.hp-kpi-v\.bear, \.hp-ov-sec \.bear[^}]*}/g, '')
+    .replace(/\.hp-(table|dl) \.bear[^}]*}/g, '').replace(/\.hp-kpi-v\.bear(?:, \.hp-ov-sec \.bear)?[^}]*}/g, '')
     .replace(/\.hp-insp-dl \.bear[^}]*}/g, '').replace(/\.hp-mv-bar i\.is-down[^}]*}/g, '').replace(/\.hp-mv-v\.bear, \.hp-mv-p\.bear[^}]*}/g, '')
     .replace(/\.hp-mm-row \.bear[^}]*}/g, '')
     // Workspace: P&L cells, attribution bars and the drawdown area (a loss) only.

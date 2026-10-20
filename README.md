@@ -1,21 +1,25 @@
 # QUANTA Equity Research
 
-A research workstation for US and Indian equities: a Flask web app (Overview, Discover, Research,
-Picks, My Portfolio) built on multi-factor screening, risk-first position sizing and
-walk-forward validation engines.
+A research workstation for US and Indian equities. A local Flask web app (Overview, Discover,
+Research, Picks, My Portfolio) sits on multi-factor screening, risk-first position sizing and
+walk-forward validation engines, and tells you, next to every call, what is known about the model
+behind it.
 
 [![CI](https://github.com/AtreshSoma/quanta-equity-research/actions/workflows/ci.yml/badge.svg)](https://github.com/AtreshSoma/quanta-equity-research/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![Lint](https://img.shields.io/badge/ruff-clean-brightgreen)](#code-style)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-> **Educational software, released under the [MIT License](LICENSE).** This is not financial advice, and no strategy here has a demonstrated
-> out-of-sample edge. See [Licence and disclaimer](#licence-and-disclaimer) before you act on
-> anything it prints.
+![QUANTA Overview: market mood, quote board, and the live chart](docs/img/overview.jpg)
 
-The [QUANTA Alpha audit and build blueprint](docs/QUANTA-ALPHA/README.md) is a
-dated design reference. The [current validation status](docs/LIVE_MODEL_VALIDATION_STATUS.md)
-describes the live model and the limits of its evidence.
+> **Educational software, released under the [MIT License](LICENSE).** This is not financial advice,
+> and no strategy here has a demonstrated out-of-sample edge. See
+> [Licence and disclaimer](#licence-and-disclaimer) before you act on anything it prints.
+
+The [QUANTA Alpha audit and build blueprint](docs/audits/QUANTA-ALPHA/README.md) is a dated design
+reference. The [current validation status](docs/LIVE_MODEL_VALIDATION_STATUS.md) describes the live
+model and the limits of its evidence. All other design notes, audits and logs are indexed in
+[docs/README.md](docs/README.md).
 
 ---
 
@@ -23,17 +27,70 @@ describes the live model and the limits of its evidence.
 
 | Section | What you'll find |
 |---|---|
+| [At a glance](#at-a-glance) | What it is, what it is not, and how the parts fit |
 | [Quick start](#quick-start) | Install, start the web app, or produce a CLI report |
-| [The web app](#the-web-app) | What each page does, how calls are labelled, and the rules behind them |
+| [The web app](#the-web-app) | Each page, how calls are labelled, and the rules behind them |
+| [How a Decision is made](#how-a-decision-is-made) | The flow from data to a labelled call |
+| [Track record](#track-record) | How calls are recorded, scored and made tamper-evident |
 | [What's in the box](#whats-in-the-box) | The four engines and when to reach for each |
 | [The short-term scanner](#the-short-term-scanner) | Primary CLI, flags, and how to read its output |
 | [Validation harness](#validation-harness) | Walk-forward testing, leakage and cost guards |
+| [Performance](#performance) | What is measured, what is in place, and what bounds a cold start |
 | [Project layout](#project-layout) | Directory map |
-| [Configuration](#configuration) | Tunable knobs and their meaning |
-| [Testing](#testing) | How to run the suite; why 11 tests need a pinned env |
+| [Configuration](#configuration) | Environment variables and engine knobs |
+| [Testing](#testing) | The four suites and how to run each |
 | [Development](#development) | Code style, CI, contributing |
 | [Troubleshooting](#troubleshooting) | Common failures and their causes |
 | [Known limitations](#known-limitations) | What this does *not* do |
+
+---
+
+## At a glance
+
+| It is | It is not |
+|---|---|
+| A local research tool: it runs on your computer, on loopback only | A hosted service or a trading bot; it places no orders |
+| Honest about evidence: every call carries a flag saying whether its model was tested out of sample | A source of validated signals: **no model here has a demonstrated edge** |
+| Risk-first: sizes are a risk budget, stops are ATR-based, and a call is refused when its reward-to-risk fails | A promise of returns; a high win rate with no excess return is the trap its tests exist to catch |
+| Free-data by default: Yahoo Finance via `yfinance`, no API key | Real-time: intraday bars are about 15 minutes delayed |
+
+```mermaid
+flowchart LR
+    subgraph Sources["Data sources"]
+        YF["Yahoo Finance<br/>(yfinance, Stooq fallback)"]
+        SEC["SEC EDGAR<br/>corporate events"]
+        RH["Broker holdings<br/>(read-only, in memory)"]
+    end
+
+    subgraph Core["core/ and modules/"]
+        ENG["Engines<br/>SP_ShortTerm · SP_ELITE_PRO<br/>TradingAnalysis_ELITE"]
+        DEC["engine/<br/>Decision core + thresholds"]
+        VAL["apex_quant/<br/>walk-forward validation"]
+        TRK["tracking/<br/>signal ledger"]
+    end
+
+    subgraph Surfaces["Where you use it"]
+        WEB["Web app<br/>Flask + vanilla JS"]
+        CLI["CLI reports"]
+        ST["Streamlit desk"]
+        MCP["MCP server"]
+    end
+
+    YF --> ENG
+    SEC --> ENG
+    RH --> WEB
+    ENG --> DEC
+    VAL -- "evidence flag" --> DEC
+    DEC --> WEB
+    DEC --> CLI
+    DEC --> ST
+    DEC --> MCP
+    DEC --> TRK
+    TRK -- "outcomes" --> WEB
+```
+
+Every surface renders **one** `Decision` object per ticker, built as the engine's last step, so the
+web app, the CLI, Streamlit, the MCP server and the ledger can never disagree about a verdict.
 
 ---
 
@@ -42,7 +99,7 @@ describes the live model and the limits of its evidence.
 ### Requirements
 
 - **Python 3.11+** (CI runs 3.12)
-- **Node.js 20+** only to run the web app's JavaScript tests
+- **Node.js 20+** only to run the web app's JavaScript tests (CI runs 22)
 - No API keys needed for the default path: market data comes from Yahoo Finance via `yfinance`
 
 ### Install
@@ -84,8 +141,6 @@ Before the first scan, copy `.env.example` to `.env` and set `QUANTA_SEC_CONTACT
 address. SEC EDGAR requires it, and without it the corporate-event check fails closed and **no
 Picks name can be funded**. `--port 5600` (or `QUANTA_PORT`) serves on another port.
 
-![QUANTA Overview: market regime, playbook, quote board and live chart](docs/img/overview.jpg)
-
 ### Build a track record (recommended)
 
 The ledger only proves anything if calls are recorded every day and scored when their horizon
@@ -98,24 +153,8 @@ scripts/quanta_daily.sh            # or run the job once by hand
 ```
 
 launchd cannot read a checkout under `~/Documents`, `~/Desktop` or `~/Downloads` unless `/bin/bash`
-has Full Disk Access (macOS privacy protection); a checkout elsewhere needs nothing.
-
-Each run resolves finished calls against SPY / Nifty, runs the short-term scanner (its calls enter
-the ledger immutably), posts a notification for any stop or target an open call touched, and logs
-the benchmarked report to `logs/daily/`. Results appear on the **Evidence** page, which also has a
-**Resolve outcomes** button for unscheduled use.
-
-The record is built to be checked, not trusted:
-
-- Every call stores the **fingerprint of the engine code** that produced it and a snapshot of the
-  full Decision behind it, so a period can be shown to have run on frozen code and any call can be
-  replayed. The Evidence page shows how many calls the current code made.
-- Each run exports `track_record/ledger.csv` with a per-call hash of the forecast fields and
-  appends a hash-chained line to `track_record/chain.jsonl`. Set `QUANTA_PUBLISH_COMMIT=1` to
-  commit it daily, so git timestamps every link. `python -m tracking verify` (from `core/`) detects
-  any forecast or link edited after publication.
-
-![Model evidence and track record page](docs/img/track-record.jpg)
+has Full Disk Access (macOS privacy protection); a checkout elsewhere needs nothing. How the record
+is kept, and checked, is under [Track record](#track-record).
 
 ### Run your first CLI scan
 
@@ -169,17 +208,36 @@ python -m tracking resolve | report | alerts | publish | verify   # from core/: 
 ## The web app
 
 `webapp/` is a Flask server (`app.py`) with a vanilla-JavaScript front end (`static/`) and a single
-Jinja template. It imports the engines in-process.
+Jinja template. It imports the engines in-process, serves on loopback only (it refuses any other
+host), and has no build step.
 
 | Page | What it does |
 |---|---|
-| **Overview** | Market regime, session quote board and an interactive price chart, for the US or India |
-| **Discover** | Ranked ideas and the names moving today, each labelled by the model's Decision |
+| **Overview** | Market mood, a session quote board, a plain-English read of the day and an interactive price chart, for the US or India |
+| **Discover** | Ranked ideas and the names moving today, each labelled by the model's Decision, with filters for sector and near earnings |
 | **Research** | One-ticker tear sheet: decision and levels, live chart, colour-coded technical signals, valuation, peers and risks; searchable US and Indian listings |
 | **Picks** | Runs a scan through the engine's gates and lists Buy / Accumulate / Watchlist calls sized to your capital, with the rules each name passed or failed |
 | **My Portfolio** | Read-only Robinhood holdings with guidance, intraday, what-if, an Activity ledger and a Review tab. Every performance chart is a replay of today's holdings, not the account's own return |
 | **Evidence** | Whether each model is validated out of sample, in plain language, and how published Decisions did |
 | **Guide** | Live demonstrations of the rules the engine applies |
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/img/discover.jpg" alt="Discover: at-a-glance band, sector mix, earnings chips and the ranked Top opportunities table"><br><sub><b>Discover</b>: ranked Street candidates with upside, sector mix and earnings in view</sub></td>
+    <td width="50%"><img src="docs/img/research.jpg" alt="Research tear sheet for one ticker: Decision, key levels, chart and technical signals"><br><sub><b>Research</b>: one Decision, its blocker, key levels and the signals behind it</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/img/track-record.jpg" alt="Evidence page: each model's out-of-sample validation status"><br><sub><b>Evidence</b>: what each model has and has not shown out of sample</sub></td>
+    <td width="50%"><img src="docs/img/guide.jpg" alt="Guide hero: a worked example of a Decision with target, entry, stop and size"><br><sub><b>Guide</b>: a worked example of how a call is built</sub></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td><img src="docs/img/overview-light.jpg" alt="Overview in the light theme" width="640"><br><sub>Light and dark follow your system setting, or the toggle in the top bar</sub></td>
+    <td><img src="docs/img/overview-phone.jpg" alt="Overview on a 390 pixel wide phone" width="200"><br><sub>Phone width: no horizontal scroll</sub></td>
+  </tr>
+</table>
 
 Decision thresholds have one source, `core/engine/thresholds.py`; the front end reads an exported
 copy (`webapp/tests/fixtures/thresholds.json`), and a test fails if the two drift.
@@ -218,6 +276,81 @@ levies (about 24 bps round trip) on top of spread and slippage.
 
 ---
 
+## How a Decision is made
+
+Every Research page and every Picks call ends the same way. A name that fails a gate does not
+disappear: it is kept as a Watchlist call that names the rule that held it back and the condition
+that would clear it.
+
+```mermaid
+flowchart TD
+    A["Daily bars + fundamentals<br/>+ analyst data"] --> B{"Price data fresh?<br/>within 3 sessions"}
+    B -- no --> W
+    B -- yes --> C["Factor scores 0 to 100<br/>technical · fundamental · valuation<br/>quality · sentiment · risk"]
+    C --> D["Score band<br/>Accumulate and above = bullish"]
+    D --> E{"Corporate-event check<br/>SEC EDGAR, fails closed"}
+    E -- "unavailable or flagged" --> W
+    E -- clear --> F["Levels<br/>entry · stop at 2.75 x ATR · target"]
+    F --> G{"Net reward-to-risk<br/>at least 1.8 (Picks) / 1.5 (Research)"}
+    G -- no --> W
+    G -- yes --> H["Sizing<br/>risk budget · 1% cap on a forced share<br/>Overview exposure ceiling"]
+    H --> I["BUY / ACCUMULATE<br/>with shares and levels"]
+    W["WATCHLIST<br/>primary blocker + what would clear it"]
+    I --> J["Evidence flag<br/>Tested: no edge found<br/>Model not yet validated"]
+    W --> J
+    J --> K["One Decision object<br/>rendered by every surface<br/>and recorded in the ledger"]
+```
+
+The diagram simplifies the order; `core/engine/decision.py` and `core/engine/blockers.py` are the
+authority, and every blocker carries a stable code, a category and the condition that clears it.
+
+The Picks scan wraps that path in a funnel across the whole universe:
+
+```mermaid
+flowchart LR
+    U["Universe<br/>index or custom list"] --> L["Universe and data gates"]
+    L --> R["Regime read<br/>sets the exposure ceiling"]
+    R --> S["Score every name"]
+    S --> Q["Levels and sizing<br/>per name"]
+    Q --> BK["Book gates<br/>sector cap · correlation · max positions"]
+    BK --> DC["Deep confirmation<br/>the Research model re-checks<br/>every Buy and Accumulate"]
+    DC --> OUT["Calls: Buy / Accumulate / Watchlist<br/>with a reason for every name held back"]
+```
+
+---
+
+## Track record
+
+The ledger only proves anything if it is built to be checked, not trusted:
+
+```mermaid
+flowchart LR
+    SCAN["Daily scan<br/>each completed NY session once"] --> LED[("Signal ledger<br/>immutable rows")]
+    LED --> FP["Per call: code fingerprint<br/>+ snapshot of the full Decision"]
+    LED --> RES["Resolve finished calls<br/>vs SPY / Nifty"]
+    RES --> EV["Evidence page"]
+    LED --> CSV["track_record/ledger.csv<br/>per-call hash of forecast fields"]
+    CSV --> CH["track_record/chain.jsonl<br/>hash-chained, one line per run"]
+    CH --> GIT["QUANTA_PUBLISH_COMMIT=1<br/>git timestamps every link"]
+    CH --> VER["python -m tracking verify<br/>detects any edit after publication"]
+```
+
+- Every call stores the **fingerprint of the engine code** that produced it and a snapshot of the
+  full Decision behind it, so a period can be shown to have run on frozen code and any call can be
+  replayed. The Evidence page shows how many calls the current code made.
+- The fingerprint hashes the raw bytes of `core/engine/*.py`, `SP_ShortTerm.py`,
+  `TradingAnalysis_ELITE.py`, `SP_ELITE_PRO.py` and the evidence registry. **Editing any of those,
+  even a comment, starts a new fingerprint period.** Documentation moves must not touch them.
+- Each run exports `track_record/ledger.csv` with a per-call hash of the forecast fields and
+  appends a hash-chained line to `track_record/chain.jsonl`. Set `QUANTA_PUBLISH_COMMIT=1` to
+  commit it daily, so git timestamps every link. `python -m tracking verify` (from `core/`) detects
+  any forecast or link edited after publication.
+- The daily job also posts a notification for any stop or target an open call touched, and logs
+  the benchmarked report to `logs/daily/`. The **Resolve outcomes** button on the Evidence page
+  does the resolving step for unscheduled use.
+
+---
+
 ## What's in the box
 
 Four engines share the `core/` tree. They are **independent**: pick the one that matches your
@@ -226,14 +359,18 @@ question.
 | Engine | File | Use it when you want |
 |---|---|---|
 | **Short-term scanner** | `core/SP_ShortTerm.py` | Swing-trade setups with concrete entry/stop/target levels and dated horizons. **Start here.** |
-| **QUANTA Elite Pro** | `core/SP_ELITE_PRO.py` | A conversational, profile-aware screen with narrative recommendations |
-| **Trading Analysis Elite** | `core/TradingAnalysis_ELITE.py` | Deep single-name analysis: news sentiment, catalysts, compliance, portfolio risk |
+| **QUANTA Elite Pro** | `core/SP_ELITE_PRO.py` | The engine behind web Picks: a conversational, profile-aware screen with narrative recommendations |
+| **Trading Analysis Elite** | `core/TradingAnalysis_ELITE.py` | Deep single-name analysis (it powers Research): news sentiment, catalysts, compliance, portfolio risk |
 | **Alpha Picks Engine** | `core/Alpha_Picks_Engine.py` | High-conviction screening weighted toward analyst ratings and fundamentals |
 
 Supporting subsystems:
 
+- **`core/engine/`**: the shared decision core (gates, thresholds, blockers, levels, sizing,
+  market calendars, corporate events, valuation)
 - **`core/apex_quant/`**: walk-forward validation harness with explicit leakage, cost-model and
   reproducibility guards
+- **`core/portfolio/`** and **`core/brokers/`**: read-only broker holdings, history, guidance and insights
+- **`core/tracking/`**: the signal ledger, fingerprints, alerts and the publish and verify CLI
 - **`core/sp_shortterm_backtest.py`**: point-in-time replay of the scanner's technical core
 - **`modules/`**: 20 shared services: catalyst intelligence, SEC EDGAR parsing, portfolio risk,
   data-quality validation, provider adapters
@@ -380,31 +517,83 @@ A high win rate with no excess return is the trap these tests exist to catch.
 
 ---
 
+## Performance
+
+Measured on 20 October 2026: Windows 11, Python 3.12, Chromium driven by Playwright, the server on
+loopback, Overview page, US market.
+
+| What | Measure |
+|---|---|
+| Page weight | 1.96 MB of scripts and styles raw, **0.52 MB gzipped**; the page HTML is 156 KB raw |
+| Repeat visit (assets cached) | First contentful paint **90 to 145 ms** over three runs; DOMContentLoaded 90 to 155 ms |
+| First visit ever | First contentful paint 1.2 s, which includes the web-font stylesheet and the server's first gzip of each file |
+| Weight on screen | About 3,900 DOM elements on the Overview, about 7 MB of JavaScript heap |
+| Long tasks on load | Two (99 ms and 55 ms) while the 820 KB `app.js` and the page build run |
+| `/api/dashboard`, warm | 7 to 12 ms |
+| `/api/dashboard`, cold, US | About 8.9 s with the startup warm-up; about 11.3 s without it (two runs each) |
+| `/api/dashboard`, cold, India | About 10.6 s |
+
+**What is in place**
+
+- Text responses are gzipped, and the compressed body of each static file is cached by its ETag.
+- Static files are fingerprinted (`?v=<mtime>`) and sent `Cache-Control: public, max-age=31536000,
+  immutable`, so a repeat visit makes no request for them.
+- Scripts are `defer`red; the theme is set by a tiny blocking script so there is no flash.
+- The dashboard read is built **once per market at a time**: a second tab, or the first visitor
+  arriving while the startup warm-up is still running, waits for the build in flight instead of
+  repeating every provider call.
+- The server warms the US dashboard in a background thread on start, so the first visitor
+  does not pay for it alone. Set `QUANTA_NO_WARMUP=1` to turn that off.
+- Provider responses are cached (info 1 hour, history 15 minutes, on disk), and the market-context
+  panels keep their last good result on disk so a restart serves them while the refresh runs.
+- The server is `waitress` when installed (streams scan progress unbuffered), else Flask's
+  development server.
+
+**What bounds a cold start.** A cold dashboard needs a few dozen Yahoo requests. The process-wide
+rate limiter (`YF_MIN_REQUEST_INTERVAL`, 350 ms) deliberately spaces them out, because
+un-throttled bursts make Yahoo answer `429` and empty frames. That limiter, not the code, sets the
+roughly 9 to 11 s floor; widening the pool would trade it for rate-limit failures.
+
+**Where the next gains are.** `app.js` (820 KB) and `quanta.css` (624 KB) are served unminified,
+and the My Portfolio scripts (about 440 KB raw) load on every page. Splitting those out, or
+minifying, would cut parse time on a first visit; both change the load order the 746-test
+JavaScript suite relies on, so they are left as a deliberate follow-up.
+
+---
+
 ## Project layout
 
 ```
 quanta-equity-research/
-├── webapp/                     Flask web app
-│   ├── app.py                    Server and /api routes
+├── webapp/                     Flask web app (loopback only, no build step)
+│   ├── app.py                    Server, /api routes, caching and transfer headers
 │   ├── portfolio_routes.py       My Portfolio and Activity routes
-│   ├── static/                   Front end (app.js, live-chart.js, quanta.css, ...)
+│   ├── saved_scans.py            Recent scans, kept for 24 hours
+│   ├── static/                   Front end: app.js, live-chart.js, mp-*.js, quanta.css, ...
 │   ├── templates/index.html      Single-page template
 │   └── tests/                    node:test + jsdom units, Playwright e2e, fixtures, tools
 ├── core/                       Engines and analysis code
-│   ├── engine/                   Decision gates, thresholds, events, valuation
-│   ├── portfolio/                Broker holdings, history and insights
-│   ├── SP_ShortTerm.py           Short-term scanner (primary entry point)
-│   ├── SP_ELITE_PRO.py           Conversational multi-factor engine
-│   ├── TradingAnalysis_ELITE.py  Institutional analysis platform
+│   ├── engine/                   Decision gates, thresholds, events, valuation, calendars
+│   ├── portfolio/, brokers/      Broker holdings, history and insights
+│   ├── tracking/                 Signal ledger, code fingerprint, alerts, publish and verify
+│   ├── apex_quant/               Walk-forward validation package and its recorded reports
+│   ├── SP_ShortTerm.py           Short-term scanner (primary CLI entry point)
+│   ├── SP_ELITE_PRO.py           Picks engine and conversational multi-factor screen
+│   ├── TradingAnalysis_ELITE.py  Research engine and institutional analysis platform
 │   ├── Alpha_Picks_Engine.py     Analyst/fundamental screening
 │   ├── sp_shortterm_backtest.py  Point-in-time replay harness
-│   ├── streamlit_app.py          Browser research desk
-│   └── apex_quant/               Walk-forward validation package
+│   └── streamlit_app.py          Browser research desk
 ├── modules/                    20 shared services (catalysts, risk, providers, SEC)
 ├── mcp_server/                 MCP server + client for LLM integration
-├── tests/                      Python suite (engine and web app)
+├── tests/                      Python suite (engine, web app, golden master)
 │   └── golden/                   Recorded fixtures + pinned lockfile
-├── docs/                       Design notes, audits, redesign logs
+├── docs/                       Indexed in docs/README.md
+│   ├── guides/                   Running, sharing and deploying
+│   ├── audits/                   What was checked and what was wrong
+│   ├── design/                   Redesign briefs, proposals, mockups
+│   ├── logs/                     Plans and implementation or fix logs
+│   ├── reference/                Comparisons and teardowns
+│   └── img/                      Screenshots used by this README
 ├── config/                     Reference data
 ├── data/                       Static calendars and compliance data
 ├── scripts/                    Daily track-record job and its launchd scheduler
@@ -425,10 +614,33 @@ quanta-equity-research/
 
 ## Configuration
 
-Most behaviour lives in the `Config` class at the top of `core/SP_ShortTerm.py`. The knobs you're
-most likely to touch:
+### Environment
 
-### Risk and sizing
+Set these in your shell or in `.env` (copy `.env.example`). Every one is optional except
+`QUANTA_SEC_CONTACT`.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `QUANTA_SEC_CONTACT` | none | Your email or website, sent to SEC EDGAR. Without it no Picks name can be funded |
+| `QUANTA_PORT` | `5500` | Port to serve on |
+| `QUANTA_HOST` | `127.0.0.1` | Must be a loopback address; anything else is refused |
+| `QUANTA_NO_BROWSER` | unset | `1` stops the app opening a browser tab on start |
+| `QUANTA_NO_WARMUP` | unset | `1` skips the startup warm-up of the US dashboard |
+| `QUANTA_SERVER` | `waitress` if installed | `dev` forces Flask's development server |
+| `QUANTA_CACHE_DIR` | `data/cache` | Where provider and market-context caches live |
+| `QUANTA_LEDGER_PATH` | `data/ledger` | The signal ledger |
+| `QUANTA_TRACKING_DISABLED` | unset | `1` records no calls (every test run sets it) |
+| `QUANTA_PUBLISH_COMMIT` | unset | `1` commits the daily `track_record/` export |
+| `QUANTA_YF_INFO_TTL`, `QUANTA_YF_HIST_TTL` | 3600 s, 900 s | How long Yahoo info and history are cached |
+| `QUANTA_VERSION` | git commit | The build label in the footer |
+| `POLYGON_API_KEY`, `FINNHUB_API_KEY`, `FMP_API_KEY`, `ALPHA_VANTAGE_KEY` | none | Optional providers; the default path needs none |
+
+### Engine knobs
+
+Most scanner behaviour lives in the `Config` class at the top of `core/SP_ShortTerm.py`. The knobs
+you're most likely to touch:
+
+#### Risk and sizing
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -439,7 +651,7 @@ most likely to touch:
 | `MIN_POSITION` | `150` | Dust-trade floor in dollars |
 | `ALLOW_FRACTIONAL_SHARES` | `False` | Whole-share accounting by default |
 
-### Screening
+#### Screening
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -450,7 +662,7 @@ most likely to touch:
 | `MAX_SECTOR_POSITIONS` | `2` | Sector concentration limit |
 | `CORRELATION_THRESHOLD` | `0.78` | Reject a pick this correlated to a holding |
 
-### Execution costs
+#### Execution costs
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -460,7 +672,7 @@ most likely to touch:
 Round-trip friction is debited from the reward leg *before* the R/R gate, so a setup built to a
 gross 2.0R does not sneak through at 1.97R net.
 
-### Ticker hygiene
+#### Ticker hygiene
 
 Two optional JSON files, read from the working directory or alongside the module:
 
@@ -472,6 +684,15 @@ Sensible defaults are built in, so both are optional.
 ---
 
 ## Testing
+
+Four suites, each runnable on its own:
+
+| Suite | Command | Scope | CI gate |
+|---|---|---|---|
+| Python | `pytest -m "not golden" -q` | Engine, decision core, ledger, web-app routes | yes |
+| Golden master | `pytest -m golden -q` | Engine output replayed from recorded fixtures | yes, in a pinned environment |
+| JavaScript | `npm test` (in `webapp/`) | `node:test` + jsdom: rendering, wording, accessibility rules, config-driven UI | yes |
+| Browser e2e | `npm run test:e2e` (in `webapp/`) | Playwright on desktop dark, desktop light, tablet and phone | no (run before a release) |
 
 ```bash
 pytest -m "not golden" -q     # fast unit suite: this is CI's gate
@@ -494,6 +715,9 @@ and signal ledger in a temporary folder, so a test run never touches your saved 
 record. If the `python` on your PATH is not the interpreter that has the app's packages, set
 `QUANTA_E2E_PYTHON` to its path. Set `BASE_URL` to test a server you started yourself instead; it
 then writes to that server's own data.
+
+New JavaScript tests must be added to the `test` script in `webapp/package.json`; a test file that
+is not listed does not run.
 
 After an intended change to engine output, re-freeze the golden snapshots from the stored fixtures
 (no network) and read the diff before accepting it:
@@ -574,6 +798,10 @@ pip install -e ".[providers]"  # Polygon, pandas-datareader, TextBlob
 3. Add a regression test for every behaviour change: the suite is the safety net that makes this
    tree editable
 4. If engine output changes, re-freeze the golden snapshot **in the same commit**
+5. Do not edit `core/engine/`, `SP_ShortTerm.py`, `TradingAnalysis_ELITE.py` or `SP_ELITE_PRO.py`
+   for anything but a behaviour change: their bytes are the code fingerprint of every recorded call
+6. Put new design notes, audits and logs in the matching `docs/` folder and link them from
+   [docs/README.md](docs/README.md)
 
 ---
 
@@ -586,6 +814,16 @@ This is intentional. `yfinance` issues one un-throttled HTTP request per call, a
 fan-out makes Yahoo answer `429`, which silently returns empty frames and collapses the scan. A
 process-wide minimum interval (`YF_MIN_REQUEST_INTERVAL`, 0.35s) spaces requests out and widens
 adaptively when a 429 appears. Budget ~4–6 minutes for a standard scan.
+
+</details>
+
+<details>
+<summary><strong>The first page load waits several seconds for the market read</strong></summary>
+
+The first dashboard read after a start fetches a few dozen quotes at the throttled pace (see
+[Performance](#performance)), about 9 s for the US and 11 s for India. It is cached afterwards
+(milliseconds). The server starts that read for the US itself, so opening the page a few seconds
+after the start skips part of the wait.
 
 </details>
 
@@ -633,6 +871,14 @@ handful per scan is normal; dozens means you are being rate-limited; wait and re
 </details>
 
 <details>
+<summary><strong>"QUANTA is not starting: ... already in use"</strong></summary>
+
+Another server (often an earlier QUANTA, possibly from a different checkout) holds the port. Stop
+it, or start this one on another port with `QUANTA_PORT=5600`.
+
+</details>
+
+<details>
 <summary><strong>~11 test failures on a fresh install</strong></summary>
 
 Expected. See [Why the golden suite needs a pinned environment](#why-the-golden-suite-needs-a-pinned-environment).
@@ -676,6 +922,8 @@ Stated plainly, because the alternative is you discovering them with real money.
   exposure understates overlap. The risk score says when volatility could not be measured.
 - **Risk grade is absolute.** It measures a stock's own swings and drawdowns, not a comparison with
   its sector, so a volatile leader can grade F.
+- **Cold start is throttled.** The first market read after a start takes about 9 to 11 seconds
+  by design (see [Performance](#performance)).
 
 ---
 

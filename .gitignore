@@ -77,3 +77,10 @@ core/SP_ELITE_PRO_Main.py
 
 # Generated knowledge-graph output (large, regenerable)
 graphify-out/
+
+# AI-assistant tooling: installed skills and their lockfile (local, regenerable)
+.agents/
+skills-lock.json
+
+# Linter cache
+.ruff_cache/

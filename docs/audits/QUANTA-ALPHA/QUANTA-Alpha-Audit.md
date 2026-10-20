@@ -589,7 +589,7 @@ New paths below are proposed; they do not exist in the reviewed repository. “R
 | `core/apex_quant/elite_scorer.py`, `elite_strategy.py`, `strategy.py` | Preserve as explicit baselines | Clearly named partial/legacy strategies; new models use the same evaluation kernel | P1 |
 | `core/apex_quant/walkforward.py`, `elite_oos.py`, `metrics.py`, `baselines.py` | Refactor/extend | Date-grouped purging, model/calibrator fitting, trial registry, dependence-aware intervals, matched baselines, coherent OOS portfolio state | P1 |
 | `core/apex_quant/validation.py`, `run.py` | Extend and wire to product | Evidence state and identity gate for the specific model/portfolio policy being invoked; one unambiguous artifact lookup | P0/P1 |
-| `core/apex_quant/_reports/*`, `docs/RECALIBRATION_PLAN.md` | Quarantine/relabel | Historical invalidated outputs retained for audit; no old metrics promoted as current strategy evidence | P0 |
+| `core/apex_quant/_reports/*`, `docs/logs/RECALIBRATION_PLAN.md` | Quarantine/relabel | Historical invalidated outputs retained for audit; no old metrics promoted as current strategy evidence | P0 |
 | `modules/backtest_engine.py`, `modules/robust_backtesting_engine.py` | Retire as authoritative evaluators | Migrate needed analytics to canonical evaluation; retain explicit legacy diagnostic adapters only if required | P1 |
 | `core/sp_shortterm_backtest.py` | Adapt | Short-term policy replay on canonical simulator and label contracts | P1 |
 | `core/quant/factor_model.py` | Replace/rename | Real factor attribution or honestly named ETF exposure regression; HAC/robust inference and versioned inputs | P1 |

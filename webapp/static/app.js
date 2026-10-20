@@ -3684,12 +3684,111 @@ function qTable(headHtml, bodyHtml, cls = '') {
   return `<div class="q-tablewrap"><table class="q-table ${cls}"><thead>${headHtml}</thead><tbody>${bodyHtml}</tbody></table></div>`;
 }
 
-/** Ticker + company name cell (the identity column of every securities table). */
-function qTickerCell(ticker, name) {
+/** Ticker + company name cell (the identity column of every securities table). With a
+ *  chart URL the ticker is a link to its TradingView chart, in a new tab. */
+// [PURE] What "Partial coverage" or "Stale" on a Discover panel means, for its tooltip.
+function coverageTitle(intel = {}) {
+  if (intel.stale) return 'The quote feed did not refresh; these figures are from the last good read.';
+  if (intel.partial) return 'Partial coverage: the quote feed did not answer for every tracked name within its time limit, so the lists are built from the names that did.';
+  return '';
+}
+
+function qTickerCell(ticker, name, chartUrl = null, sector = '') {
   return `<div class="q-tick">
-    <span class="q-tick-s">${escapeHtml(ticker || 'N/A')}</span>
-    ${name ? `<span class="q-tick-n">${escapeHtml(name)}</span>` : ''}
+    ${chartUrl ? tvTickerLink(ticker, chartUrl, 'q-tick-s q-tick-tv') : `<span class="q-tick-s">${escapeHtml(ticker || 'N/A')}</span>`}
+    ${name ? `<span class="q-tick-n">${escapeHtml(companyName(name))}${sector ? `<span class="q-tick-sec"> · ${escapeHtml(sector)}</span>` : ''}</span>` : ''}
   </div>`;
+}
+
+/** A ticker as a link to its TradingView chart, opening in a new tab. */
+function tvTickerLink(ticker, url, cls, inner = null) {
+  const t = escapeHtml(ticker || '');
+  return `<a class="${cls}" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="Open the ${t} chart on TradingView" aria-label="${t}: open its chart on TradingView (opens in a new tab)" data-tv-link>${inner == null ? t : inner}</a>`;
+}
+
+// [PURE] Where v sits between lo and hi, as a percentage clamped to 0..100.
+function pctAlong(v, lo, hi) {
+  return hi > lo ? Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100)) : 50;
+}
+
+/* The session as one bar: the low and high at its ends, the move from the open to the last
+   price filled in its direction's colour, the open and previous close as ticks. The figures
+   stay in text beside it, so the bar adds where the price sits without hiding a number. */
+function dayRangeHtml(q, last, sym) {
+  const lo = numOrNull(q.low); const hi = numOrNull(q.high); const px = numOrNull(last);
+  if (lo == null || hi == null || px == null || hi < lo) return '<span class="q-na">N/A</span>';
+  const open = numOrNull(q.open); const prev = numOrNull(q.prevClose);
+  const at = (v) => pctAlong(v, lo, hi).toFixed(1);
+  const dir = prev != null ? (px > prev ? 'up' : px < prev ? 'dn' : '') : '';
+  const from = open != null ? open : px;
+  const label = `Day range ${fmtPrice(lo, sym)} to ${fmtPrice(hi, sym)}; last ${fmtPrice(px, sym)}`
+    + (open != null ? `, opened ${fmtPrice(open, sym)}` : '') + (prev != null ? `, previous close ${fmtPrice(prev, sym)}` : '');
+  const left = Math.min(Number(at(from)), Number(at(px)));
+  const width = Math.abs(Number(at(px)) - Number(at(from)));
+  const tip = `Low ${fmtPrice(lo, sym)} · High ${fmtPrice(hi, sym)}` + (open != null ? ` · Open ${fmtPrice(open, sym)}` : '')
+    + (prev != null ? ` · Previous close ${fmtPrice(prev, sym)}` : '') + ` · Last ${fmtPrice(px, sym)}. The coloured stretch is the move since the open.`;
+  return `<div class="q-drng ${dir} tip" data-tip="${escapeHtml(tip)}" role="img" aria-label="${escapeHtml(label)}">
+      <span class="q-drng-bar" aria-hidden="true">
+        <i class="q-drng-move" style="left:${left.toFixed(1)}%;width:${width.toFixed(1)}%"></i>
+        ${prev != null && prev >= lo && prev <= hi ? `<i class="q-drng-prev" style="left:${at(prev)}%"></i>` : ''}
+        ${open != null ? `<i class="q-drng-open" style="left:${at(open)}%"></i>` : ''}
+        <b class="q-drng-last" style="left:${at(px)}%"></b>
+      </span>
+      <span class="q-drng-lo">${escapeHtml(fmtPrice(lo, sym))}</span><span class="q-drng-hi">${escapeHtml(fmtPrice(hi, sym))}</span>
+    </div>`;
+}
+
+/* A consensus candidate on one scale: its 52-week low to high, the price as a dot and the
+   Street target as a gold mark, with the distance between them shaded. A target above the
+   52-week high extends the scale so it is never clipped. */
+function rangeTargetHtml(r, sym) {
+  const lo = numOrNull(r.week52_low); const hi = numOrNull(r.week52_high);
+  const px = numOrNull(r.price); const tg = numOrNull(r.target_mean);
+  if (lo == null || hi == null || px == null || !(hi > lo)) return '<span class="q-na">N/A</span>';
+  const bot = Math.min(lo, px); const top = Math.max(hi, px, tg == null ? hi : tg);
+  const at = (v) => pctAlong(v, bot, top);
+  const label = `52-week range ${fmtPrice(lo, sym)} to ${fmtPrice(hi, sym)}; price ${fmtPrice(px, sym)}`
+    + (tg != null ? `; Street target ${fmtPrice(tg, sym)}${tg > hi ? ', above the 52-week high' : ''}` : '');
+  const gap = tg != null ? `<i class="q-rt-gap" style="left:${Math.min(at(px), at(tg)).toFixed(1)}%;width:${Math.abs(at(tg) - at(px)).toFixed(1)}%"></i>` : '';
+  const tip = `Price ${fmtPrice(px, sym)}` + (tg != null ? ` · Street target ${fmtPrice(tg, sym)}${tg > hi ? ' (above the 52-week high)' : ''}` : '')
+    + ` · 52-week low ${fmtPrice(lo, sym)}, high ${fmtPrice(hi, sym)}` + (px > lo ? ` · ${fmtNumber(((px - lo) / lo) * 100, 1)}% above the low` : '');
+  return `<div class="q-rt tip" data-tip="${escapeHtml(tip)}" role="img" aria-label="${escapeHtml(label)}">
+      <span class="q-rt-bar" aria-hidden="true">
+        <i class="q-rt-span" style="left:${at(lo).toFixed(1)}%;width:${(at(hi) - at(lo)).toFixed(1)}%"></i>
+        ${gap}
+        <b class="q-rt-px" style="left:${at(px).toFixed(1)}%"></b>
+        ${tg != null ? `<b class="q-rt-tg" style="left:${at(tg).toFixed(1)}%"></b>` : ''}
+      </span>
+      <span class="q-rt-lo">${escapeHtml(fmtPrice(lo, sym))}</span><span class="q-rt-hi">${escapeHtml(fmtPrice(hi, sym))}</span>
+    </div>`;
+}
+
+/* Upside to a target as a figure over a gold bar scaled to the largest upside in the list,
+   so the ranking reads at a glance. Gold, not green: it is an estimate, not a move made. */
+function upsideBarHtml(up, max) {
+  if (up == null || !Number.isFinite(up)) return '<span class="q-na" title="Upside unavailable">Upside unavailable</span>';
+  const w = max > 0 ? Math.max(0, Math.min(100, (up / max) * 100)) : 0;
+  return `<span class="q-upbar"><span class="q-chg">${fmtPct(up, 1, false)}</span><i aria-hidden="true"><b style="width:${w.toFixed(1)}%"></b></i></span>`;
+}
+
+// [PURE] Days until a report when it falls inside WHY.EARNINGS_NEAR_DAYS, else null.
+function earningsNearDays(isoDate, now = Date.now()) {
+  const t = Date.parse(`${String(isoDate || '').slice(0, 10)}T12:00:00`);
+  if (!Number.isFinite(t)) return null;
+  const days = Math.round((t - now) / 864e5);
+  const near = Number(thr('WHY.EARNINGS_NEAR_DAYS'));
+  return days >= 0 && near > 0 && days <= near ? days : null;
+}
+
+// [PURE] An "Earnings in N days" caution chip when a report falls inside WHY.EARNINGS_NEAR_DAYS.
+function earningsChipHtml(isoDate, now = Date.now()) {
+  const t = Date.parse(`${String(isoDate || '').slice(0, 10)}T12:00:00`);
+  if (!Number.isFinite(t)) return '';
+  const days = Math.round((t - now) / 864e5);
+  const near = Number(thr('WHY.EARNINGS_NEAR_DAYS'));
+  if (!(days >= 0) || !(near > 0) || days > near) return '';
+  const text = days === 0 ? 'Earnings today' : `Earnings in ${days} ${days === 1 ? 'day' : 'days'}`;
+  return `<span class="q-earn" title="A report inside the next ${near} days can move the price sharply">${text}</span>`;
 }
 
 /** Signed percentage with a direction glyph — never colour alone (§7). */
@@ -3718,18 +3817,28 @@ function wireExpandableRows(root) {
       if (!detail) return;
       const open = tr.classList.toggle('is-open');
       detail.hidden = !open;
-      tr.setAttribute('aria-expanded', open ? 'true' : 'false');
+      const btn = tr.querySelector('[data-expand-btn]');
+      if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      else tr.setAttribute('aria-expanded', open ? 'true' : 'false');
     };
     tr.addEventListener('click', (ev) => {
+      if (ev.target.closest('[data-expand-btn]')) { toggle(); return; }
       if (ev.target.closest('a, button')) return;
       toggle();
     });
     tr.addEventListener('keydown', (ev) => {
+      // Only the row itself: Enter on the ticker link inside it must follow the link.
+      if (ev.target !== tr) return;
       if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(); }
     });
   });
   $$('[data-ticker-open]', root).forEach((btn) => {
-    btn.addEventListener('click', (ev) => { ev.stopPropagation(); openTickerTearSheet(btn.dataset.tickerOpen); });
+    btn.addEventListener('click', (ev) => {
+      const link = ev.target.closest && ev.target.closest('a[href]');
+      if (link && link !== btn) return;
+      ev.stopPropagation();
+      openTickerTearSheet(btn.dataset.tickerOpen);
+    });
     // A row (or other non-native element) given role="button" is focusable but
     // gets no Enter/Space activation from the browser; native buttons and links
     // already do, so only the former need it.
@@ -3879,12 +3988,16 @@ const pulseName = (q) => (isVolIndex(q.symbol) ? (/india/i.test(q.label || '') ?
 function wireOverviewTips(root) {
   if (!root || root.dataset.tips || typeof window === 'undefined') return;
   root.dataset.tips = '1';
-  const box = document.createElement('div');
-  box.className = 'ovx-tipbox';
-  box.id = 'ovx-tipbox';
-  box.setAttribute('role', 'tooltip');
-  box.hidden = true;
-  document.body.appendChild(box);
+  // One tooltip element serves every view that wires tips (Overview, Discover).
+  let box = document.getElementById('ovx-tipbox');
+  if (!box) {
+    box = document.createElement('div');
+    box.className = 'ovx-tipbox';
+    box.id = 'ovx-tipbox';
+    box.setAttribute('role', 'tooltip');
+    box.hidden = true;
+    document.body.appendChild(box);
+  }
   let cur = null;
   const hide = () => { if (cur) cur.removeAttribute('aria-describedby'); cur = null; box.hidden = true; };
   const show = (el) => {
@@ -5469,6 +5582,7 @@ function scanRanClause() {
 // state), the header's button steps aside.
 function renderTopOpportunities(intel = {}) {
   renderTopOpportunitiesBody(intel);
+  renderDiscoverPulse(intel);
   const body = $('#portfolio-scan-body');
   const headBtn = $('#opps-scan-btn');
   if (headBtn) headBtn.hidden = !!(body && body.querySelector('[data-jump-view="picks"]'));
@@ -5479,14 +5593,16 @@ function renderTopOpportunitiesBody(intel = {}) {
   if (!body) return;
   const meta = $('#scan-meta');
   const picks = livePicks()?.recommendations || [];
-  const funded = picks.filter(isFundedPick);
+  const fundedAll = picks.filter(isFundedPick);
+  const funded = fundedAll.filter((rec) => oppPasses(rec.sector, rec.earnings_date));
   const scanned = livePicks()?.total_scanned || livePicks()?.universe_size || 0;
   const sym = livePicks()?.currency || _currencySymbol();
 
+  if (fundedAll.length && !funded.length) { renderOppNoMatch(body, meta, fundedAll.length, 'qualified setups'); return; }
   if (funded.length) {
     const chaseCount = (livePicks()?.chase_alerts || []).length;
     const vetoCount = (livePicks()?.deep_confirmation?.rejected || []).length;
-    if (meta) meta.textContent = `${funded.length} qualified · ${scanned || 0} scanned`;
+    if (meta) meta.textContent = `${oppFiltered() ? `${funded.length} of ${fundedAll.length}` : funded.length} qualified · ${scanned || 0} scanned`;
 
     const head = `<tr>
       <th class="mid" style="width:34px">#</th>
@@ -5496,6 +5612,7 @@ function renderTopOpportunitiesBody(intel = {}) {
       <th class="mid">Conviction</th><th>Horizon</th><th>Status</th><th style="width:22px"></th>
     </tr>`;
 
+    const upMax = Math.max(0, ...funded.slice(0, 10).map((rec) => upsidePct(firstUsable(rec.price_target, rec.target_price), firstUsable(rec.entry_price, rec.current_price)) || 0));
     const rows = funded.slice(0, 10).map((rec, i) => {
       const ticker = normalizeTicker(rec.ticker || rec.symbol || '');
       if (ticker) state.shownSymbols.add(ticker);
@@ -5544,23 +5661,23 @@ function renderTopOpportunitiesBody(intel = {}) {
         </div>
       </div>`;
 
-      return `<tr class="q-tr" data-expand="opp-${i}" tabindex="0" role="button" aria-expanded="false">
+      return `<tr class="q-tr" data-expand="opp-${i}" data-sym="${escapeHtml(ticker)}" tabindex="-1">
           <td class="mid q-rank">${i + 1}</td>
-          <td>${qTickerCell(ticker, rec.company || rec.sector || '')}</td>
+          <td>${qTickerCell(ticker, rec.company || rec.sector || '', tradingViewUrl(rec.ticker || ticker, rec.exchange))}</td>
           <td>${escapeHtml(setup)}</td>
           <td class="num q-price">${fmtPrice(price, sym)}</td>
           <td class="num">${fmtPrice(entry, sym)}</td>
           <td class="num bear">${fmtPrice(stop, sym)}</td>
           <td class="num gold">${fmtPrice(target, sym)}</td>
-          <td class="num">${up == null ? '<span class="q-na">N/A</span>' : `<span class="q-chg ${up >= 0 ? 'bull' : 'bear'}">${fmtPct(up, 1, false)}</span>`}</td>
+          <td class="num">${up == null ? '<span class="q-na">N/A</span>' : upsideBarHtml(up, upMax)}</td>
           <td class="num">${rr > 0 ? fmtNumber(rr, 2) + ':1' : '<span class="q-na">N/A</span>'}</td>
           <td class="num q-quant">${score ? fmtScore100(score) : '<span class="q-na">N/A</span>'}</td>
           <td class="mid">${conviction != null ? `${escapeHtml(String(conviction))}/5` : '<span class="q-na">N/A</span>'}</td>
           <td>${escapeHtml(horizon)}</td>
           <td>${qStatus(am.label, am.tone)}</td>
-          <td class="mid"><span class="q-caret" aria-hidden="true"></span></td>
+          <td class="mid"><button type="button" class="q-expand" data-expand-btn="opp-${i}" aria-expanded="false" aria-controls="q-detail-opp-${i}" aria-label="Show details for ${escapeHtml(ticker)}"><span class="q-caret" aria-hidden="true"></span></button></td>
         </tr>
-        <tr class="q-detail" data-detail="opp-${i}" hidden><td colspan="14">${detail}</td></tr>`;
+        <tr class="q-detail" id="q-detail-opp-${i}" data-detail="opp-${i}" hidden><td colspan="14">${detail}</td></tr>`;
     }).join('');
 
     body.innerHTML = qTable(head, rows) +
@@ -5572,17 +5689,23 @@ function renderTopOpportunitiesBody(intel = {}) {
   }
 
   // -- No scan yet: analyst-consensus candidates, with QUANTA levels marked N/A.
-  const consensus = (intel.analyst_picks || []).slice(0, 8);
+  const consensusAll = (intel.analyst_picks || []).slice(0, 8).map((r, k) => ({ ...r, _rank: k + 1 }));
+  const at52 = (r) => { const lo = numOrNull(r.week52_low); const hi = numOrNull(r.week52_high); const px = numOrNull(r.price);
+    return lo != null && hi > lo && px != null ? pctAlong(px, lo, hi) : Infinity; };
+  const sorters = { upside: (a, b) => a._rank - b._rank, analysts: (a, b) => (Number(b.analyst_count) || 0) - (Number(a.analyst_count) || 0) || a._rank - b._rank, low: (a, b) => at52(a) - at52(b) || a._rank - b._rank };
+  const consensus = consensusAll.filter((r) => oppPasses(r.sector, r.earnings_date)).sort(sorters[_oppFilter.sort] || sorters.upside);
+  if (consensusAll.length && !consensus.length) { renderOppNoMatch(body, meta, consensusAll.length, 'consensus candidates'); return; }
   if (consensus.length) {
-    if (meta) meta.textContent = `${consensus.length} consensus candidates${intel.stale ? ' · Stale research' : intel.partial ? ' · Partial coverage' : ''}`;
+    if (meta) { meta.textContent = `${oppFiltered() ? `${consensus.length} of ${consensusAll.length}` : consensus.length} consensus candidates${intel.stale ? ' · Stale research' : intel.partial ? ' · Partial coverage' : ''}`; meta.title = coverageTitle(intel); }
     const head = `<tr>
       <th class="mid" style="width:34px">#</th>
-      <th>Ticker</th><th>Sector</th>
+      <th>Ticker</th>
       <th class="num">Price</th>
-      <th class="num">Street target</th><th class="num">Upside</th><th class="num">Analysts</th>
-      <th title="Sell-side analyst consensus, not a QUANTA verdict">Street rating</th><th>Status</th><th style="width:22px"></th>
+      <th class="num"><span class="tip" tabindex="0" data-tip="The average 12-month price target of the analysts who cover the stock.">Street target</span></th><th class="q-upbar-h"><span class="tip" tabindex="0" data-tip="How far the Street target sits above today's price. The longest bar is the largest upside in this list.">Upside</span></th>
+      <th><span class="tip" tabindex="0" data-tip="The analysts' consensus rating, with how many analysts it covers. It is the Street's view, not a QUANTA verdict.">Street rating</span></th><th class="q-rt-h"><span class="tip" tabindex="0" data-tip="The grey line runs from the 52-week low to the 52-week high. The white dot is today's price; the gold diamond is the Street target; the gold stretch is the distance between them.">52 weeks and target</span></th><th style="width:28px"><span class="sr-only">Details</span></th>
     </tr>`;
     const normalizeRating = streetRating;
+    const upMax = Math.max(0, ...consensus.map((r) => numOrNull(r.upside_pct) || 0));
     const rows = consensus.map((r, i) => {
       const ticker = normalizeTicker(r.symbol || '');
       if (ticker) state.shownSymbols.add(ticker);
@@ -5606,19 +5729,17 @@ function renderTopOpportunitiesBody(intel = {}) {
           </div>
         </div>
       </div>`;
-      return `<tr class="q-tr" data-expand="cons-${i}" tabindex="0" role="button" aria-expanded="false">
-          <td class="mid q-rank">${i + 1}</td>
-          <td>${qTickerCell(String(r.symbol || '').replace(/\.NS$/, ''), r.name || '')}</td>
-          <td>${escapeHtml(r.sector || 'N/A')}</td>
+      return `<tr class="q-tr" data-expand="cons-${i}" data-sym="${escapeHtml(String(r.symbol || '').replace(/\.NS$/, ''))}" tabindex="-1">
+          <td class="mid q-rank">${r._rank}</td>
+          <td>${qTickerCell(String(r.symbol || '').replace(/\.NS$/, ''), r.name || '', tradingViewUrl(r.symbol, r.exchange), r.sector || '')}${earningsChipHtml(r.earnings_date)}</td>
           <td class="num q-price">${fmtPrice(r.price, _currencySymbol())}</td>
           <td class="num gold">${fmtPrice(r.target_mean, _currencySymbol())}</td>
-          <td class="num">${up != null ? `<span class="q-chg">${fmtPct(up, 1, false)}</span>` : '<span class="q-na" title="Upside unavailable">Upside unavailable</span>'}</td>
-          <td class="num">${r.analyst_count || '<span class="q-na">N/A</span>'}</td>
-          <td>${escapeHtml(normalizeRating(r.recommendation))}</td>
-          <td>${qStatus('Research only', 'info')}</td>
-          <td class="mid"><span class="q-caret" aria-hidden="true"></span></td>
+          <td class="q-upbar-cell">${upsideBarHtml(up, upMax)}</td>
+          <td class="q-street"><b>${escapeHtml(normalizeRating(r.recommendation))}</b><small>${r.analyst_count ? `${escapeHtml(String(r.analyst_count))} analysts` : 'Analyst count N/A'}</small></td>
+          <td class="q-rt-cell">${rangeTargetHtml(r, _currencySymbol())}</td>
+          <td class="mid"><button type="button" class="q-expand" data-expand-btn="cons-${i}" aria-expanded="false" aria-controls="q-detail-cons-${i}" aria-label="Show details for ${escapeHtml(ticker)}"><span class="q-caret" aria-hidden="true"></span></button></td>
         </tr>
-        <tr class="q-detail" data-detail="cons-${i}" hidden><td colspan="10">${detail}</td></tr>`;
+        <tr class="q-detail" id="q-detail-cons-${i}" data-detail="cons-${i}" hidden><td colspan="8">${detail}</td></tr>`;
     }).join('');
     body.innerHTML = qTable(head, rows, 'q-table--analyst') +
       `<p class="q-note"><strong>Analyst consensus, not a QUANTA setup.</strong> Entry, stop, reward-to-risk and position size are absent because ${scanRanClause()}; QUANTA does not estimate levels it has not computed. ${Number(thr('MARKET.ANALYST_PICK_MIN_ANALYSTS')) > 0 && Number(thr('MARKET.ANALYST_PICK_MAX_UPSIDE_PCT')) > 0 ? `Listed: buy-rated names with at least ${escapeHtml(String(thr('MARKET.ANALYST_PICK_MIN_ANALYSTS')))} analysts and an upside up to ${escapeHtml(String(thr('MARKET.ANALYST_PICK_MAX_UPSIDE_PCT')))}%; a wider upside is usually a stale target. ` : ''}${livePicks() ? 'Adjust the mandate or rerun the scan to look again.' : 'Run a scan to add them.'}</p>`;
@@ -5652,8 +5773,225 @@ function renderTopOpportunitiesBody(intel = {}) {
   </div>`;
   attachDashboardActionHandlers(body);
 }
+function renderOppNoMatch(body, meta, total, noun) {
+  if (meta) meta.textContent = `0 of ${total} ${noun}`;
+  body.innerHTML = `<div class="q-empty q-empty--inline" role="status">No listed name matches these filters.
+    <button type="button" class="q-btn" data-opp-clear>Clear filters</button></div>`;
+}
+
 // Back-compat alias: the intel poller and tests still call the old name.
 const renderPortfolioScanPanel = renderTopOpportunities;
+
+/* =========================================================================
+   DISCOVER AT A GLANCE + CANDIDATE FILTERS. Four plain readings over the
+   panels (upside, sectors, earnings soon, today's biggest moves), each with
+   one labelled chart, and one filter bar on Top opportunities. Every reading
+   is computed from what the panels list; nothing new is claimed. Sector and
+   earnings filters are shared: a legend button in the band and a chip in the
+   bar set the same state.
+   ========================================================================= */
+let _pulseIntel = {};
+const _oppFilter = { sector: '', hideEarn: false, sort: 'upside' };
+const OPP_SORTS = [['upside', 'Upside'], ['analysts', 'Most analysts'], ['low', 'Nearest 52-week low']];
+
+function medianOf(xs) {
+  const v = xs.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const m = Math.floor(v.length / 2);
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+}
+const oppSector = (s) => (s && String(s).trim()) || 'Not reported';
+function oppPasses(sector, earn) {
+  if (_oppFilter.sector && oppSector(sector) !== _oppFilter.sector) return false;
+  if (_oppFilter.hideEarn && earningsNearDays(earn) != null) return false;
+  return true;
+}
+const oppFiltered = () => !!(_oppFilter.sector || _oppFilter.hideEarn);
+
+// [PURE] The ideas Discover lists, in one shape: scan picks when a scan funded any, else Street candidates.
+function discoverIdeas(intel = {}) {
+  const funded = (livePicks()?.recommendations || []).filter(isFundedPick).slice(0, 10);
+  if (funded.length) {
+    return { kind: 'scan', items: funded.map((rec) => {
+      const target = firstUsable(rec.price_target, rec.target_price);
+      return { sym: normalizeTicker(rec.ticker || rec.symbol || ''), name: rec.company || '', sector: rec.sector, earn: rec.earnings_date,
+        target, up: upsidePct(target, firstUsable(rec.entry_price, rec.current_price)) };
+    }) };
+  }
+  return { kind: 'street', items: (intel.analyst_picks || []).slice(0, 8).map((r) => ({
+    sym: String(r.symbol || '').replace(/\.NS$/, ''), name: r.name || '', sector: r.sector, earn: r.earnings_date,
+    target: numOrNull(r.target_mean), up: numOrNull(r.upside_pct) })) };
+}
+
+// [PURE] Sectors by count, most first, each with its stable colour slot.
+function sectorSlots(items) {
+  const counts = new Map();
+  items.forEach((x) => { const k = oppSector(x.sector); counts.set(k, (counts.get(k) || 0) + 1); });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([name, n], i) => ({ name, n, slot: i < 7 ? String(i + 1) : 'other' }));
+}
+
+function earnDateLabel(iso) {
+  const t = Date.parse(`${String(iso || '').slice(0, 10)}T12:00:00`);
+  return Number.isFinite(t) ? new Date(t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+}
+const inDays = (d) => (d === 0 ? 'today' : d === 1 ? 'tomorrow' : `in ${d} days`);
+
+/* The filter bar over the candidate table: sector chips, the earnings switch and the sort.
+   Always visible while there are ideas; the controls are native buttons with pressed state. */
+function renderOppFilters(intel = _pulseIntel) {
+  const bar = $('#opps-filters');
+  if (!bar) return;
+  const { kind, items } = discoverIdeas(intel);
+  if (!items.length) { bar.hidden = true; bar.innerHTML = ''; return; }
+  bar.hidden = false;
+  const slots = sectorSlots(items);
+  if (_oppFilter.sector && !slots.some((s) => s.name === _oppFilter.sector)) _oppFilter.sector = '';
+  const near = Number(thr('WHY.EARNINGS_NEAR_DAYS'));
+  const soon = items.filter((x) => earningsNearDays(x.earn) != null).length;
+  const chip = (label, n, value, slot) => {
+    const on = _oppFilter.sector === value;
+    return `<button type="button" class="dsc-chip${on ? ' is-on' : ''}" data-opp-sector="${escapeHtml(value)}" data-fk="sec:${escapeHtml(value)}" aria-pressed="${on}">${slot ? `<i class="dsc-sw s-${slot}" aria-hidden="true"></i>` : ''}${escapeHtml(label)}<b>${n}</b></button>`;
+  };
+  bar.innerHTML = `
+    <div class="dsc-fgroup" role="group" aria-label="Filter by sector"><span class="dsc-flabel" aria-hidden="true">Sector</span>
+      ${chip('All', items.length, '', '')}${slots.map((s) => chip(s.name, s.n, s.name, s.slot)).join('')}</div>
+    ${near > 0 ? `<button type="button" class="dsc-switch tip" role="switch" aria-checked="${_oppFilter.hideEarn}" data-opp-earn data-fk="earn" data-tip="Hides names that report results within ${escapeHtml(String(near))} days. A report can move a price sharply either way.">
+      <span class="dsc-switch-t" aria-hidden="true"><i></i></span>Hide earnings within ${escapeHtml(String(near))} days<b>${soon}</b></button>` : ''}
+    ${kind === 'street' ? `<div class="dsc-fgroup dsc-sort" role="group" aria-label="Sort candidates"><span class="dsc-flabel" aria-hidden="true">Sort</span>
+      ${OPP_SORTS.map(([k, label]) => `<button type="button" class="dsc-seg-b${_oppFilter.sort === k ? ' is-on' : ''}" data-opp-sort="${k}" data-fk="sort:${k}" aria-pressed="${_oppFilter.sort === k}">${label}</button>`).join('')}</div>` : ''}
+    ${oppFiltered() ? '<button type="button" class="dsc-clear" data-opp-clear>Clear filters</button>' : ''}`;
+}
+
+function renderDiscoverPulse(intel = _pulseIntel) {
+  _pulseIntel = intel || {};
+  wireDiscoverControls();
+  renderOppFilters(_pulseIntel);
+  const box = $('#discover-pulse');
+  if (!box) return;
+  const { kind, items: ideas } = discoverIdeas(_pulseIntel);
+  const up = (_pulseIntel.movers_up || []).filter((r) => Number.isFinite(Number(r.change_pct)));
+  const dn = (_pulseIntel.movers_down || []).filter((r) => Number.isFinite(Number(r.change_pct)));
+  if (!ideas.length && !up.length && !dn.length) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  const sym = kind === 'scan' ? (livePicks()?.currency || _currencySymbol()) : _currencySymbol();
+  const term = (label, tip) => `<span class="tip" tabindex="0" data-tip="${escapeHtml(tip)}">${escapeHtml(label)}</span>`;
+  const card = (title, body, cls = '') => `<div class="dsc-pc ${cls}"><dt>${title}</dt><dd>${body}</dd></div>`;
+  const ofN = `${ideas.length} ${kind === 'scan' ? 'qualified setup' : 'Street candidate'}${ideas.length === 1 ? '' : 's'}`;
+  const out = [];
+
+  // 1 · Upside: the median, then every idea on one labelled line from lowest to highest.
+  if (ideas.length) {
+    const withUp = ideas.filter((x) => x.up != null && Number.isFinite(x.up)).sort((a, b) => a.up - b.up);
+    const med = medianOf(withUp.map((x) => x.up));
+    let chart = '';
+    if (withUp.length > 1 && withUp[withUp.length - 1].up > withUp[0].up) {
+      const lo = withUp[0]; const hi = withUp[withUp.length - 1];
+      const at = (v) => pctAlong(v, lo.up, hi.up).toFixed(1);
+      chart = `<div class="dsc-range">
+          <div class="dsc-range-track">
+            ${med != null ? `<span class="dsc-med" style="left:${at(med)}%" aria-hidden="true"><em>median</em></span>` : ''}
+            ${withUp.map((x) => `<button type="button" class="dsc-dot tip" style="left:${at(x.up)}%" data-pulse-jump="${escapeHtml(x.sym)}"
+              data-tip="${escapeHtml(`${x.sym}${x.name ? ` (${shortName(x.name)})` : ''}: ${fmtPct(x.up, 1, false)} to ${x.target != null ? `a ${fmtPrice(x.target, sym)} target` : 'its target'}. Select to find it in the list.`)}"
+              aria-label="${escapeHtml(`${x.sym}, upside ${fmtPct(x.up, 1, false)}. Show in the list`)}"></button>`).join('')}
+          </div>
+          <div class="dsc-range-ends"><span><b>${escapeHtml(fmtPct(lo.up, 1, false))}</b> ${escapeHtml(lo.sym)}</span><span>${escapeHtml(hi.sym)} <b>${escapeHtml(fmtPct(hi.up, 1, false))}</b></span></div>
+        </div>`;
+    }
+    out.push(card(term('Upside to target', kind === 'scan'
+      ? 'How far each scan target sits above its entry price. A model estimate, not a promise.'
+      : "How far the Street's average 12-month price target sits above today's price. An analyst estimate, not a QUANTA forecast."),
+    `<div class="dsc-headline"><span class="dsc-fig gold">${med != null ? escapeHtml(fmtPct(med, 1, false)) : 'N/A'}</span><span class="dsc-sub">median across ${escapeHtml(ofN)}</span></div>
+     ${chart}<p class="dsc-hint">Each dot is one name. Select one to find it in the list.</p>`));
+  }
+
+  // 2 · Sectors: one stacked bar in categorical colours; the legend filters the list.
+  if (ideas.length) {
+    const slots = sectorSlots(ideas);
+    const lead = slots[0];
+    const share = Math.round((lead.n / ideas.length) * 100);
+    out.push(card(term('Sector mix', 'Which sectors the listed names come from. A list crowded into one sector moves together, so it carries more of that sector\'s risk.'),
+      `<div class="dsc-headline"><span class="dsc-fig">${share}%</span><span class="dsc-sub">in ${escapeHtml(lead.name)} (${lead.n} of ${ideas.length})</span></div>
+       <div class="dsc-stack" aria-hidden="true">${slots.map((s) => `<i class="s-${s.slot}${_oppFilter.sector && _oppFilter.sector !== s.name ? ' is-dim' : ''}" style="flex:${s.n}"></i>`).join('')}</div>
+       <div class="dsc-legend" role="group" aria-label="Filter the list by sector">${slots.map((s) => {
+         const on = _oppFilter.sector === s.name;
+         return `<button type="button" class="dsc-leg tip${on ? ' is-on' : ''}" data-opp-sector="${escapeHtml(on ? '' : s.name)}" data-fk="leg:${escapeHtml(s.name)}" aria-pressed="${on}"
+           data-tip="${escapeHtml(`${s.name}: ${s.n} of ${ideas.length} (${Math.round((s.n / ideas.length) * 100)}%). Select to ${on ? 'show every sector' : 'list only this sector'}.`)}"><i class="dsc-sw s-${s.slot}" aria-hidden="true"></i>${escapeHtml(s.name)} <b>${s.n}</b></button>`;
+       }).join('')}</div>`));
+  }
+
+  // 3 · Earnings soon: who reports inside the window, nearest first.
+  if (ideas.length) {
+    const near = Number(thr('WHY.EARNINGS_NEAR_DAYS'));
+    const soon = ideas.map((x) => ({ ...x, d: earningsNearDays(x.earn) })).filter((x) => x.d != null).sort((a, b) => a.d - b.d);
+    out.push(card(term(near > 0 ? `Earnings within ${near} days` : 'Earnings soon', 'Companies due to report results soon. Results can move a price sharply in either direction, so a new position just before them carries extra risk.'),
+      `<div class="dsc-headline"><span class="dsc-fig${soon.length ? ' warn' : ''}">${soon.length}</span><span class="dsc-sub">of ${escapeHtml(ofN)} report${soon.length === 1 ? 's' : ''} soon</span></div>
+       ${soon.length ? `<ul class="dsc-earn">${soon.map((x) => `<li><button type="button" class="tip" data-pulse-jump="${escapeHtml(x.sym)}"
+           data-tip="${escapeHtml(`${x.name ? shortName(x.name) : x.sym} reports ${inDays(x.d)}${earnDateLabel(x.earn) ? ` (${earnDateLabel(x.earn)})` : ''}. Select to find it in the list.`)}"
+           aria-label="${escapeHtml(`${x.sym} reports ${inDays(x.d)}. Show in the list`)}">${escapeHtml(x.sym)} <span>${x.d === 0 ? 'today' : `${x.d}d`}</span></button></li>`).join('')}</ul>`
+         : `<p class="dsc-hint">No listed name reports inside the window.</p>`}`, soon.length ? 'is-warn' : ''));
+  }
+
+  // 4 · Today's biggest moves: the top three each way, as labelled bars that open Research.
+  if (up.length || dn.length) {
+    const all = [...up, ...dn];
+    const m = Math.max(...all.map((r) => Math.abs(Number(r.change_pct)))) || 1;
+    const row = (r, cls) => {
+      const s = normalizeTicker(r.symbol || ''); const c = Number(r.change_pct);
+      const px = firstUsable(r.price, r.ltp);
+      return `<li><button type="button" class="dsc-mv ${cls} tip" data-pulse-open="${escapeHtml(s)}"
+          data-tip="${escapeHtml(`${companyName(r.name || '') || s}: ${c >= 0 ? '+' : ''}${fmtNumber(c, 2)}% today${px != null ? `, last ${fmtPrice(px, _currencySymbol())}` : ''}. Select to open its Research tear sheet.`)}"
+          aria-label="${escapeHtml(`${s} ${c >= 0 ? 'up' : 'down'} ${fmtNumber(Math.abs(c), 2)} percent today. Open Research`)}">
+          <span class="dsc-mv-s">${escapeHtml(s)}</span><span class="dsc-mv-b" aria-hidden="true"><i style="width:${Math.max(4, (Math.abs(c) / m) * 100).toFixed(1)}%"></i></span><span class="dsc-mv-v">${c >= 0 ? '+' : '−'}${escapeHtml(fmtNumber(Math.abs(c), 1))}%</span></button></li>`;
+    };
+    const top = (rows, dir) => rows.slice().sort((a, b) => dir * (Number(b.change_pct) - Number(a.change_pct))).slice(0, 3);
+    out.push(card(term("Today's biggest moves", `The largest gains and losses among the ${all.length} names on the board below, from the quote feed. A sample of the tape, not the whole market. Select a name to open its tear sheet.`),
+      `<div class="dsc-moves">
+         <div><span class="dsc-mvh bull">Gains</span><ul>${top(up, 1).map((r) => row(r, 'up')).join('') || '<li class="dsc-hint">None listed</li>'}</ul></div>
+         <div><span class="dsc-mvh bear">Losses</span><ul>${top(dn, -1).map((r) => row(r, 'dn')).join('') || '<li class="dsc-hint">None listed</li>'}</ul></div>
+       </div>`, 'dsc-pc--moves'));
+  }
+  box.innerHTML = `<dl class="dsc-pulse-in" style="--n:${out.length}">${out.join('')}</dl>`;
+}
+
+// Re-render after a filter change, keeping keyboard focus on the control that was used.
+function applyOppFilter() {
+  const fk = document.activeElement?.dataset?.fk;
+  renderTopOpportunities(_pulseIntel);
+  if (fk) [...document.querySelectorAll('#view-discover [data-fk]')].find((el) => el.dataset.fk === fk)?.focus();
+}
+
+// Bring a listed name into view and mark it briefly; opens the full list when it sits past the top five.
+function jumpToOpp(symbol) {
+  const body = $('#portfolio-scan-body');
+  if (!body) return;
+  let row = body.querySelector(`tr.q-tr[data-sym="${CSS.escape(symbol)}"]`);
+  if (!row && oppFiltered()) { _oppFilter.sector = ''; _oppFilter.hideEarn = false; renderTopOpportunities(_pulseIntel); row = body.querySelector(`tr.q-tr[data-sym="${CSS.escape(symbol)}"]`); }
+  if (!row) return;
+  if (row.hidden) body.querySelector('.q-more')?.click();
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  row.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+  row.classList.remove('is-flash'); void row.offsetWidth; row.classList.add('is-flash');
+  row.focus({ preventScroll: true });
+}
+
+function wireDiscoverControls() {
+  const view = document.getElementById('view-discover');
+  if (!view || view.dataset.dscWired) return;
+  view.dataset.dscWired = '1';
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') wireOverviewTips(view);
+  view.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-opp-sector], [data-opp-earn], [data-opp-sort], [data-opp-clear], [data-pulse-jump], [data-pulse-open]');
+    if (!t || !view.contains(t)) return;
+    const d = t.dataset;
+    if ('oppSector' in d) { _oppFilter.sector = d.oppSector; applyOppFilter(); }
+    else if ('oppEarn' in d) { _oppFilter.hideEarn = !_oppFilter.hideEarn; applyOppFilter(); }
+    else if ('oppSort' in d) { _oppFilter.sort = d.oppSort; applyOppFilter(); }
+    else if ('oppClear' in d) { _oppFilter.sector = ''; _oppFilter.hideEarn = false; renderTopOpportunities(_pulseIntel); $('#opps-filters [data-opp-sector=""]')?.focus(); }
+    else if ('pulseJump' in d) jumpToOpp(d.pulseJump);
+    else if ('pulseOpen' in d) openTickerTearSheet(d.pulseOpen);
+  });
+}
 
 /* =========================================================================
    ROW 4a — MARKET SIGNAL. The factor model as a score plus diverging bars,
@@ -5769,8 +6107,8 @@ const TV_SYMBOL_ALIAS = {
 };
 
 /** Build a TradingView chart URL for a ticker, exchange-qualified when known. */
-/* D4: the symbol button (keyboard and screen readers) and a click anywhere else
-   on the row open the Research tear sheet; the Open chart link keeps its own job. */
+/* The symbol is a link to the TradingView chart. The Research button (keyboard and
+   screen readers) and a click anywhere else on the row open the Research tear sheet. */
 function wireBoardRows(body) {
   $$('.q-board-row[data-board-ticker]', body).forEach((row) => {
     row.addEventListener('click', (ev) => {
@@ -5778,7 +6116,7 @@ function wireBoardRows(body) {
       openTickerTearSheet(row.dataset.boardTicker);
     });
   });
-  $$('.q-board-open[data-ticker-open]', body).forEach((btn) => {
+  $$('.q-board-research[data-ticker-open]', body).forEach((btn) => {
     btn.addEventListener('click', (ev) => { ev.stopPropagation(); openTickerTearSheet(btn.dataset.tickerOpen); });
   });
 }
@@ -5835,9 +6173,15 @@ function sortBoardRows(rows, sort) {
 const BOARD_TONE = { gainers: 'bull', losers: 'bear', openlow: 'bull', openhigh: 'bear' };
 const BOARD_CAPTION = { gainers: 'Top gainers', losers: 'Top losers' };
 
-function boardTable(side, rows, sym, caption) {
+// scaleMax: the largest absolute move the fills are drawn against. The movers board passes
+// one value for both sides so a 10% loser and a 10% gainer fill the same width.
+function boardTable(side, rows, sym, caption, scaleMax = null) {
   const sort = _boardSort[side];
   const sorted = sortBoardRows(rows, sort);
+  const magMax = scaleMax > 0 ? scaleMax : Math.max(0, ...rows.map((r) => Math.abs(Number(r.change_pct)) || 0));
+  // The open-extreme boards qualify a row by its open matching the low or high, so they keep
+  // those figures as columns; the movers board reads the session as one Day range bar.
+  const ohlc = side === 'openlow' || side === 'openhigh';
   const arrow = (key) => (sort.key === key
     ? `<span class="q-sort is-on">${sort.dir === 'desc' ? '▼' : '▲'}</span>`
     : '<span class="q-sort">⇅</span>');
@@ -5845,9 +6189,8 @@ function boardTable(side, rows, sym, caption) {
   const head = `<tr>
       <th aria-sort="${sort.key === 'symbol' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}"><button class="q-sortable" data-board-sort="symbol" data-board-side="${side}" type="button"
           aria-label="Sort by symbol">Symbol ${arrow('symbol')}</button></th>
-      <th class="num">Open</th>
-      <th class="num">High</th>
-      <th class="num">Low</th>
+      ${ohlc ? '<th class="num">Open</th><th class="num">High</th><th class="num">Low</th>'
+    : '<th class="q-drng-h"><span class="tip" tabindex="0" data-tip="Today\'s low to high. The coloured stretch is the move since the open, the solid tick the open, the dashed tick the previous close and the dot the last price.">Day range</span></th>'}
       <th class="num">Prev. Close</th>
       <th class="num" aria-sort="${sort.key === 'change' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}"><button class="q-sortable" data-board-sort="change" data-board-side="${side}" type="button"
           aria-label="Sort by daily percentage change" title="Last traded price and the day's change">Last / Change ${arrow('change')}</button></th>
@@ -5867,22 +6210,21 @@ function boardTable(side, rows, sym, caption) {
     ].filter(Boolean).join('  ');
     const cell = (v) => (v == null ? '<span class="q-na">N/A</span>' : escapeHtml(fmtPrice(v, sym)));
     const extended = setupQualityForMover(r) === SETUP_QUALITY.extended;
-    // D4: a row opens the in-app Research tear sheet; TradingView is a secondary link.
+    // The symbol opens its TradingView chart; the row and Research open the tear sheet.
+    const flag = extended ? '<span class="q-board-flag" title="Move is too extended for a fresh entry">Extended</span>' : '';
+    const ident = `<b>${escapeHtml(ticker)}${flag}</b><small>${escapeHtml(companyName(r.name || ''))}</small>`;
     return `<tr class="q-board-row" data-board-ticker="${escapeHtml(ticker)}">
       <td class="q-board-sym">
-        <button type="button" class="q-board-open" data-ticker-open="${escapeHtml(ticker)}" title="Open the ${escapeHtml(ticker)} Research tear sheet">
-          <b>${escapeHtml(ticker)}${extended ? '<span class="q-board-flag" title="Move is too extended for a fresh entry">Extended</span>' : ''}</b>
-          <small>${escapeHtml(r.name || '')}</small>
-        </button>
-        ${url ? `<a class="q-board-chart" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" aria-label="Open the ${escapeHtml(ticker)} chart on TradingView (opens in a new tab)">Open chart</a>` : ''}
+        ${url ? tvTickerLink(ticker, url, 'q-board-open q-board-tv', ident) : `<span class="q-board-open">${ident}</span>`}
+        <button type="button" class="q-board-chart q-board-research" data-ticker-open="${escapeHtml(ticker)}" aria-label="Open the ${escapeHtml(ticker)} Research tear sheet">Research</button>
       </td>
-      <td class="num">${cell(q.open)}</td>
-      <td class="num q-hi">${cell(q.high)}</td>
-      <td class="num q-lo">${cell(q.low)}</td>
+      ${ohlc ? `<td class="num">${cell(q.open)}</td><td class="num q-hi">${cell(q.high)}</td><td class="num q-lo">${cell(q.low)}</td>`
+    : `<td class="q-drng-cell">${dayRangeHtml(q, firstUsable(r.price, q.ltp), sym)}</td>`}
       <td class="num">${cell(q.prevClose)}</td>
       <td class="num q-board-ltp ${dir}">
+        ${Number.isFinite(chg) && magMax > 0 ? `<i class="q-board-mag" aria-hidden="true" style="width:${Math.min(100, (Math.abs(chg) / magMax) * 100).toFixed(1)}%"></i>` : ''}
         <b>${cell(firstUsable(r.price, q.ltp))}</b>
-        ${deltaBits ? `<i>${escapeHtml(deltaBits)}</i>` : ''}
+        ${deltaBits ? `<i class="q-board-delta">${escapeHtml(deltaBits)}</i>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -5895,13 +6237,14 @@ function boardTable(side, rows, sym, caption) {
       ${escapeHtml(title)}
       <span>${rows.length} name${rows.length === 1 ? '' : 's'}</span>
     </h3>
-    ${sorted.length ? `<div class="q-tablewrap" tabindex="0" role="region" aria-label="${escapeHtml(title)}: all ${rows.length} results"><table class="q-board-table"><thead>${head}</thead><tbody>${body}</tbody></table></div>` : '<p class="q-empty q-empty--inline">No matching quotes in this snapshot.</p>'}
+    ${sorted.length ? `<div class="q-tablewrap" tabindex="0" role="region" aria-label="${escapeHtml(title)}: all ${rows.length} results"><table class="q-board-table${ohlc ? ' q-board-table--ohlc' : ''}"><thead>${head}</thead><tbody>${body}</tbody></table></div>` : '<p class="q-empty q-empty--inline">No matching quotes in this snapshot.</p>'}
   </div>`;
 }
 
 function renderTopMovers(intel = {}) {
   const body = $('#top-movers-body');
   if (!body) return;
+  renderDiscoverPulse(intel);
   const meta = $('#top-movers-meta');
   const up = (intel.movers_up || []).filter((r) => r.change_pct != null && Number.isFinite(Number(r.change_pct)));
   const dn = (intel.movers_down || []).filter((r) => r.change_pct != null && Number.isFinite(Number(r.change_pct)));
@@ -5923,9 +6266,10 @@ function renderTopMovers(intel = {}) {
   }
 
   const sym = _currencySymbol();
-  if (meta) meta.textContent = `${up.length} up · ${dn.length} down${intel.stale ? ' · Stale quotes' : intel.partial ? ' · Partial coverage' : ''}`;
-  body.innerHTML = `<div class="q-board">${boardTable('gainers', up, sym)}${boardTable('losers', dn, sym)}</div>
-    <p class="q-note">Session open, high, low and previous close as reported by the quote feed, which does not report exchange quote times: treat prices as delayed${intel.as_of ? ` (retrieved ${escapeHtml(new Date(intel.as_of).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: currentMarketTz().tz }))} ${escapeHtml(currentMarketTz().label)})` : ''}. Select a row to open its Research tear sheet; Open chart shows the symbol on TradingView in a new tab.</p>`;
+  if (meta) { meta.textContent = `${up.length} up · ${dn.length} down${intel.stale ? ' · Stale quotes' : intel.partial ? ' · Partial coverage' : ''}`; meta.title = coverageTitle(intel); }
+  const magMax = Math.max(0, ...[...up, ...dn].map((r) => Math.abs(Number(r.change_pct)) || 0));
+  body.innerHTML = `<div class="q-board">${boardTable('gainers', up, sym, undefined, magMax)}${boardTable('losers', dn, sym, undefined, magMax)}</div>
+    <p class="q-note">Session open, high, low and previous close as reported by the quote feed, which does not report exchange quote times: treat prices as delayed${intel.as_of ? ` (retrieved ${escapeHtml(new Date(intel.as_of).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: currentMarketTz().tz }))} ${escapeHtml(currentMarketTz().label)})` : ''}. Select a ticker for its TradingView chart (opens in a new tab); select anywhere else on the row, or Research, for its tear sheet.</p>`;
 
   wireBoardRows(body);
 
@@ -5991,12 +6335,13 @@ function renderOpenExtremes(intel = {}) {
   if (meta) {
     meta.textContent = `${atLow.length} at low · ${atHigh.length} at high` +
       (scanned ? ` · ${scanned} scanned` : '') + (intel.stale ? ' · Stale quotes' : intel.partial ? ' · Partial coverage' : '');
+    meta.title = coverageTitle(intel);
   }
   body.innerHTML = coverageHtml + `<div class="q-board">
       ${boardTable('openlow', atLow, sym, 'Opened at the low · no lower reported price')}
       ${boardTable('openhigh', atHigh, sym, 'Opened at the high · no higher reported price')}
     </div>
-    <p class="q-note">Session snapshot, not a buy or sell signal. Single-price and unusable OHLC quotes are excluded; their cause cannot be determined from prices alone. Select a row to open its Research tear sheet; Open chart shows the symbol on TradingView in a new tab. Last / Change sorts by daily percentage change.</p>`;
+    <p class="q-note">Session snapshot, not a buy or sell signal. Single-price and unusable OHLC quotes are excluded; their cause cannot be determined from prices alone. Select a ticker for its TradingView chart (opens in a new tab); select anywhere else on the row, or Research, for its tear sheet. Last / Change sorts by daily percentage change.</p>`;
 
   wireBoardRows(body);
 
@@ -6042,9 +6387,9 @@ function renderSecurityQueues(intel = {}) {
       const rsi = firstUsable(row.rsi);
       const distance = firstUsable(row.distance_from_20dma);
       const reason = row.reason || (row.signals || []).join(' · ') || 'Extended move; wait for a defined entry from analysis.';
-      return `<tr><td><button type="button" class="q-security-link" data-ticker-open="${escapeHtml(ticker)}">${qTickerCell(ticker, row.company || row.name || row.sector)}</button></td><td class="num">${price == null ? qNA(null) : fmtPrice(price, _currencySymbol())}</td><td class="num q-quant">${score == null ? qNA(null) : fmtScore100(score)}</td><td class="num">${rsi == null ? qNA(null) : fmtNumber(rsi, 1)}</td><td class="num">${distance == null ? qNA(null) : fmtPct(distance, 1, false)}</td><td>${escapeHtml(reason)}</td></tr>`;
+      return `<tr><td><div class="q-tick-row">${qTickerCell(ticker, row.company || row.name || row.sector, tradingViewUrl(row.ticker || row.symbol, row.exchange))}<button type="button" class="q-board-chart q-board-research" data-ticker-open="${escapeHtml(ticker)}" aria-label="Open the ${escapeHtml(ticker)} Research tear sheet">Research</button></div></td><td class="num">${price == null ? qNA(null) : fmtPrice(price, _currencySymbol())}</td><td class="num q-quant">${score == null ? qNA(null) : fmtScore100(score)}</td><td class="num">${rsi == null ? qNA(null) : fmtNumber(rsi, 1)}</td><td class="num">${distance == null ? qNA(null) : fmtPct(distance, 1, false)}</td><td>${escapeHtml(reason)}</td></tr>`;
     }).join('');
-    body.innerHTML = qTable(head, content) + '<p class="q-note">Observed screen results, not entry instructions. Entry, stop and target levels require a completed analysis; select a ticker to open its tear sheet.</p>';
+    body.innerHTML = qTable(head, content) + '<p class="q-note">Observed screen results, not entry instructions. Entry, stop and target levels require a completed analysis. The ticker opens its TradingView chart in a new tab; Research opens its tear sheet.</p>';
     wireExpandableRows(body);
   }
 }
@@ -6087,8 +6432,8 @@ function renderSetupStatusCard(intel = {}) {
   const head = `<tr><th>Ticker</th><th>Flag</th><th>Why it was rejected</th><th>Becomes valid again when</th></tr>`;
   const rowsHtml = rows.map((r) => {
     const ticker = normalizeTicker(r.ticker || '');
-    return `<tr class="q-tr" data-ticker-open="${escapeHtml(ticker)}" tabindex="0" role="button">
-      <td><span class="q-tick-s">${escapeHtml(ticker || 'N/A')}</span></td>
+    return `<tr class="q-tr" data-ticker-open="${escapeHtml(ticker)}">
+      <td><div class="q-tick-row">${ticker && tradingViewUrl(r.ticker) ? tvTickerLink(ticker, tradingViewUrl(r.ticker), 'q-tick-s q-tick-tv') : `<span class="q-tick-s">${escapeHtml(ticker || 'N/A')}</span>`}${ticker ? `<button type="button" class="q-board-chart q-board-research" data-ticker-open="${escapeHtml(ticker)}" aria-label="Open the ${escapeHtml(ticker)} Research tear sheet">Research</button>` : ''}</div></td>
       <td>${qStatus(r.flag, r.tone)}${r.metric ? ` <span class="q-tick-n">${escapeHtml(r.metric)}</span>` : ''}</td>
       <td>${escapeHtml(r.reason)}</td>
       <td class="q-tick-n">${escapeHtml(r.revalidate)}</td>
@@ -6332,7 +6677,12 @@ function earningsScopeShort(intel = {}) {
 const LOWER_WORDS = new Set(['AND', 'OF', 'THE', 'FOR', 'IN']);
 const TITLE_WORDS = new Set(['LTD', 'INC', 'CO', 'CORP', 'PLC']);
 function companyName(name) {
-  const n = String(name || '').trim();
+  let n = String(name || '').trim();
+  // Yahoo's short names stop at 30 characters, leaving "Charles Schwab Corporation (The" or
+  // another bracket cut open: put a trailing "(The)" first, and drop any other open bracket.
+  const the = /^(.*?)\s*\(The\)?$/i.exec(n);
+  if (the) n = `The ${the[1]}`;
+  else if ((n.match(/\(/g) || []).length > (n.match(/\)/g) || []).length) n = n.slice(0, n.lastIndexOf('(')).trim();
   if (!n || n !== n.toUpperCase() || !/[A-Z]{4,}/.test(n)) return n;
   return n.split(/\s+/).map((w, i) => {
     if (LOWER_WORDS.has(w) && i > 0) return w.toLowerCase();
@@ -13160,6 +13510,11 @@ if (typeof module !== 'undefined' && module.exports) {
     renderOpenExtremes,
     clearMarketDependentPanels,
     tradingViewUrl,
+    dayRangeHtml,
+    rangeTargetHtml,
+    earningsChipHtml,
+    qTickerCell,
+    companyName,
     renderNews,
     renderSourceLedger,
     renderDashboardError,

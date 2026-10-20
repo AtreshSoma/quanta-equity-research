@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUANTA Overview Mockup</title>
+<!-- Static design mockup, revision 2. Real data from Sunday 2026-10-18 (Friday's close) is baked in.
+     Fields marked as proposed in design/implementation.md are not yet served by the API. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #090C12; --bg-2: #0D1119; --surface: #121722; --elev: #1A2030; --line: #1F2636; --line-2: #2C3549;
+  --text: #EDF1F7; --text-2: #B6C0CF; --muted: #8B97A9;
+  --up: #34D399; --down: #F87171; --accent: #5EA2F7; --warn: #FBBF24;
+  --cautious: #F2A93B; --mixed: #9AA6B8; --confident: #A78BFA;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif; --mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; color: var(--text); font: 400 14px/21px var(--sans); -webkit-font-smoothing: antialiased; }
+body { background: radial-gradient(1200px 520px at 15% -10%, rgba(94, 162, 247, 0.08), transparent 60%), var(--bg); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.up { color: var(--up); } .down { color: var(--down); }
+a { color: var(--accent); text-decoration: none; }
+button { font: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.kick { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h2.sh { margin: 0; font-size: 22px; line-height: 28px; font-weight: 650; letter-spacing: -.015em; }
+.ssub { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.shead { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
+.wrap { max-width: 1360px; margin: 0 auto; padding: 0 32px; }
+section.blk { padding: 40px 0 0; }
+.mode-pro .plain { display: none !important; } body:not(.mode-pro) .pro { display: none !important; }
+
+/* glossary tooltips */
+.tip { position: relative; cursor: help; text-decoration: underline dotted var(--muted); text-underline-offset: 4px; }
+.tip:hover::after, .tip:focus::after { content: attr(data-tip); position: absolute; left: 0; top: calc(100% + 8px); z-index: 20; width: max-content; max-width: 260px; padding: 8px 10px; border-radius: 8px; background: #0F1420; border: 1px solid var(--line-2); box-shadow: 0 10px 30px rgba(0,0,0,.45); font: 400 13px/18px var(--sans); color: var(--text); text-transform: none; letter-spacing: 0; white-space: normal; }
+
+/* ---- top bar ---- */
+.top { position: sticky; top: 0; z-index: 10; background: rgba(9, 12, 18, .86); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 28px; height: 58px; }
+.brand { font-weight: 700; font-size: 17px; }
+.brand b { color: var(--accent); }
+.nav { display: flex; gap: 22px; color: var(--text-2); }
+.nav .on { color: var(--text); font-weight: 600; }
+.tr { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.search { width: 220px; height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--bg-2); color: var(--muted); display: flex; align-items: center; font-size: 13px; }
+.seg { display: inline-flex; padding: 3px; border-radius: 9px; background: var(--bg-2); border: 1px solid var(--line-2); }
+.seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: none; color: var(--text-2); cursor: pointer; font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--elev); color: var(--text); font-weight: 600; }
+
+/* ---- bulletin ---- */
+.bul { border-bottom: 1px solid var(--line); background: var(--bg-2); }
+.bul .wrap { display: flex; align-items: center; gap: 16px; height: 44px; overflow: hidden; }
+.bul-k { flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; height: 24px; border-radius: 6px; background: rgba(251, 191, 36, .14); color: var(--warn); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.bul-k i { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+.bul-view { flex: 1; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+.bul-track { display: flex; gap: 40px; width: max-content; margin: 0; padding: 0; list-style: none; }
+.bul-track li { display: flex; gap: 10px; align-items: baseline; white-space: nowrap; font-size: 14px; }
+.bul-track time { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.bul-track em { font-style: normal; font-size: 12px; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) {
+  .bul-track { animation: tape 90s linear infinite; }
+  .bul:hover .bul-track, .bul:focus-within .bul-track { animation-play-state: paused; }
+  @keyframes tape { to { transform: translateX(-50%); } }
+}
+
+/* ---- status line ---- */
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 18px 0 0; font-size: 13px; color: var(--text-2); }
+.closed { display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 12px; border-radius: 999px; background: var(--elev); color: var(--text); font-weight: 600; }
+.closed i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.status .r { margin-left: auto; color: var(--muted); }
+
+/* ---- pulse ---- */
+.pulse { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.pu { display: grid; gap: 2px; padding: 14px 14px 12px; min-width: 0; }
+.pu + .pu { border-left: 1px solid var(--line); }
+.pu-name { font-size: 13px; font-weight: 600; color: var(--text-2); justify-self: start; }
+.pu-px { font-size: 21px; line-height: 26px; font-weight: 600; }
+.pu-chg { font-size: 13px; }
+.pu-chg b { font-weight: 600; }
+.pu-k { color: var(--muted); font-size: 12px; }
+.pu-sp { width: 100%; height: 36px; margin: 4px 0 2px; }
+.pu-sp path { fill: none; stroke-width: 1.7; stroke-linejoin: round; }
+.pu-sp.up path { stroke: var(--up); } .pu-sp.down path { stroke: var(--down); }
+.pu-sp.up circle { fill: var(--up); } .pu-sp.down circle { fill: var(--down); }
+.pu-wk { font-size: 12px; color: var(--muted); }
+.pu-wk b { font-weight: 600; }
+
+/* ---- hero ---- */
+.hero { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(380px, 1fr); gap: 40px; align-items: start; }
+.hero h1 { margin: 6px 0 0; font-size: 40px; line-height: 46px; font-weight: 700; letter-spacing: -.025em; }
+.hero h1 .down { color: var(--down); }
+.hero .lede { margin: 10px 0 0; max-width: 64ch; font-size: 16px; line-height: 25px; color: var(--text-2); }
+.chartbox { position: relative; margin-top: 22px; }
+.hc { display: block; width: 100%; height: auto; overflow: visible; }
+.hc .hl { fill: none; stroke: var(--down); stroke-width: 2; stroke-linejoin: round; }
+.hc .hdot { fill: var(--down); stroke: var(--bg); stroke-width: 2; }
+.hc .sep { stroke: var(--line); stroke-dasharray: 2 4; }
+.hc .ref { stroke: var(--line-2); stroke-dasharray: 5 5; }
+.hc .ref--50 { stroke: var(--mixed); opacity: .7; }
+.hc .reft { font: 500 11px var(--sans); fill: var(--muted); }
+.dl { position: relative; height: 40px; margin-top: 6px; }
+.dl span { position: absolute; transform: translateX(-50%); display: grid; justify-items: center; font-size: 13px; }
+.dl b { font-weight: 600; color: var(--text-2); }
+.dl i { font-style: normal; font-family: var(--mono); font-size: 12px; }
+.callout { position: absolute; top: 4px; transform: translateX(-100%); width: 236px; padding: 8px 12px; border-radius: 8px; background: rgba(18, 23, 34, .92); border: 1px solid rgba(248, 113, 113, .45); font-size: 13px; line-height: 18px; color: var(--text); }
+.callout b { color: var(--down); }
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 18px; border-top: 1px solid var(--line); }
+.facts div { padding: 14px 16px 0 0; }
+.facts div + div { padding-left: 16px; border-left: 1px solid var(--line); }
+.facts strong { display: block; font-size: 18px; line-height: 24px; font-weight: 600; }
+.facts span { font-size: 13px; color: var(--muted); }
+
+/* mood card: the one raised surface in the hero */
+.mood { position: relative; padding: 26px 26px 22px; border-radius: 16px; background: linear-gradient(180deg, rgba(242, 169, 59, .09), rgba(242, 169, 59, 0) 140px), var(--surface); border: 1px solid var(--line-2); box-shadow: 0 20px 50px -30px rgba(0,0,0,.8); }
+.mood-top { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.mood-word { margin: 4px 0 0; font-size: 46px; line-height: 50px; font-weight: 700; letter-spacing: -.03em; color: var(--cautious); }
+.mood-says { margin: 6px 0 0; font-size: 16px; line-height: 23px; color: var(--text); }
+.dial { display: grid; justify-items: center; margin: 14px 0 4px; }
+.dial svg { width: 260px; height: 140px; overflow: visible; }
+.dial-labels { display: flex; justify-content: space-between; width: 280px; margin-top: -6px; font-size: 12px; color: var(--muted); }
+.dial-labels b { font-weight: 600; color: var(--cautious); }
+.mood h3 { margin: 18px 0 8px; font-size: 13px; font-weight: 650; letter-spacing: .02em; color: var(--text); }
+.money { display: grid; gap: 6px; }
+.money-bar { position: relative; height: 12px; border-radius: 6px; background: repeating-linear-gradient(90deg, var(--elev) 0 10%, var(--line) 10% calc(10% + 1px)); overflow: hidden; }
+.money-bar i { position: absolute; top: 0; bottom: 0; left: 20%; width: 30%; border-radius: 6px; background: var(--cautious); }
+.money-bar u { position: absolute; top: 0; bottom: 0; left: 0; width: 20%; background: rgba(242, 169, 59, .35); }
+.money-k { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.money p { margin: 4px 0 0; font-size: 14px; line-height: 21px; color: var(--text-2); }
+.money p b { color: var(--text); }
+.why { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.why li { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; font-size: 14px; line-height: 20px; color: var(--text-2); }
+.why li b { color: var(--text); font-weight: 600; }
+.dots { display: inline-flex; gap: 4px; }
+.dots i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--muted); }
+.pill { height: 24px; padding: 0 9px; border-radius: 999px; display: inline-flex; align-items: center; font-family: var(--mono); font-size: 12px; font-weight: 600; }
+.pill.down { background: rgba(248, 113, 113, .12); }
+.pill.n { background: var(--elev); color: var(--text-2); font-family: var(--sans); }
+.goal { display: grid; gap: 4px; margin-bottom: 10px; }
+.goal-t { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-2); }
+.goal-t b { color: var(--text); font-weight: 600; }
+.goal-bar { position: relative; height: 8px; border-radius: 4px; background: var(--elev); }
+.goal-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: linear-gradient(90deg, var(--cautious), var(--mixed)); }
+.goal-bar b { position: absolute; right: -1px; top: -4px; width: 3px; height: 16px; border-radius: 2px; background: var(--confident); }
+.sure { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--text-2); }
+.sure b { color: var(--text); }
+.sure .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--elev); position: relative; }
+.sure .bar i { position: absolute; inset: 0 auto 0 0; width: 59%; border-radius: 3px; background: var(--text-2); }
+.pro-line { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--bg-2); font-family: var(--mono); font-size: 12px; line-height: 18px; color: var(--text-2); }
+
+/* ---- news ---- */
+.news { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 40px; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.fbtn { height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-2); background: none; color: var(--text-2); cursor: pointer; font-size: 13px; }
+.fbtn[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 600; }
+.nmood { display: grid; gap: 6px; min-width: 300px; }
+.nmood-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; }
+.nmood-bar i { background: var(--down); } .nmood-bar u { background: var(--mixed); opacity: .55; } .nmood-bar s { background: var(--up); }
+.nmood-k { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.lead { display: grid; grid-template-columns: 1.25fr 1fr; gap: 28px; padding: 24px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line-2); }
+.lead h3 { margin: 10px 0 0; font-size: 26px; line-height: 32px; font-weight: 650; letter-spacing: -.015em; }
+.meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.tag { height: 22px; padding: 0 9px; border-radius: 999px; display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.t-bear { color: var(--down); background: rgba(248, 113, 113, .12); }
+.t-bull { color: var(--up); background: rgba(52, 211, 153, .12); }
+.t-neu { color: var(--text-2); background: var(--elev); }
+.t-hot { color: var(--warn); background: rgba(251, 191, 36, .13); }
+.wim { margin: 12px 0 0; padding-left: 12px; font-size: 15px; line-height: 23px; color: var(--text-2); box-shadow: inset 2px 0 0 var(--line-2); }
+.wim b { display: block; margin-bottom: 2px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.lead-viz { display: grid; align-content: center; gap: 10px; padding-left: 28px; border-left: 1px solid var(--line); }
+.lead-viz .kick { margin-bottom: 2px; }
+.lv-row { display: grid; grid-template-columns: 60px 1fr 64px; align-items: center; gap: 10px; font-size: 13px; }
+.lv-row b { font-family: var(--mono); font-weight: 600; }
+.lv-bar { height: 8px; border-radius: 4px; background: var(--down); opacity: .85; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 24px; }
+.story h4 { margin: 8px 0 0; font-size: 17px; line-height: 24px; font-weight: 600; }
+.story p { margin: 6px 0 0; font-size: 14px; line-height: 21px; color: var(--text-2); }
+.list { margin: 24px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.list li { display: grid; grid-template-columns: 72px 1fr auto; gap: 16px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.list time { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.list .t { font-size: 15px; line-height: 21px; color: var(--text); }
+.list .src { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+.rail { display: grid; gap: 30px; align-content: start; }
+.rail h3 { margin: 0 0 12px; font-size: 16px; font-weight: 650; }
+.topics { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.topics li { display: grid; grid-template-columns: 112px 1fr 26px; align-items: center; gap: 10px; font-size: 14px; }
+.topics .b { height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--accent), rgba(94, 162, 247, .45)); }
+.topics .num { text-align: right; color: var(--muted); font-size: 13px; }
+.stocks { display: flex; flex-wrap: wrap; gap: 8px; }
+.sc { display: grid; gap: 0; padding: 8px 12px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line); min-width: 88px; }
+.sc b { font-family: var(--mono); font-size: 14px; }
+.sc span { font-family: var(--mono); font-size: 12px; }
+.sc em { font-style: normal; font-size: 11px; color: var(--muted); }
+
+/* ---- money moved ---- */
+.moved { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 48px; }
+.donutrow { display: flex; gap: 28px; align-items: center; margin-bottom: 18px; }
+.donut { display: flex; align-items: center; gap: 14px; }
+.donut svg { width: 64px; height: 64px; transform: rotate(-90deg); }
+.donut b { display: block; font-size: 20px; line-height: 24px; }
+.donut span { font-size: 13px; color: var(--muted); }
+.sbars { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.sbars li { display: grid; grid-template-columns: 150px 1fr 64px; align-items: center; gap: 12px; height: 26px; }
+.sb-n { font-size: 14px; color: var(--text-2); display: flex; align-items: center; gap: 8px; }
+.up50 { width: 8px; height: 8px; border-radius: 50%; background: var(--up); display: inline-block; }
+.sb-t { position: relative; height: 14px; }
+.sb-t::before { content: ""; position: absolute; left: 50%; top: -5px; bottom: -5px; width: 1px; background: var(--line-2); }
+.sb-t i { position: absolute; top: 0; bottom: 0; width: calc(var(--w) * 50%); border-radius: 3px; }
+.sb-t i.up { left: 50%; background: var(--up); } .sb-t i.down { right: 50%; background: var(--down); }
+.sbars b { text-align: right; font-size: 13px; font-weight: 600; }
+.mv { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.mv h3 { margin: 0 0 10px; font-size: 15px; font-weight: 650; }
+.mv ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.mv li { display: grid; gap: 4px; }
+.mv .row { display: flex; justify-content: space-between; font-size: 13px; }
+.mv .row b { font-family: var(--mono); }
+.mv .row span { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+.mv .bar { height: 6px; border-radius: 3px; }
+
+/* ---- other markets ---- */
+.minis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+.mini h3 { margin: 0; font-size: 15px; font-weight: 650; }
+.mini .v { margin-top: 4px; font-size: 26px; line-height: 30px; font-weight: 600; }
+.mini p { margin: 4px 0 10px; font-size: 13px; color: var(--muted); }
+.mc { width: 100%; height: auto; display: block; }
+.mc path { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.mc .z { opacity: .55; } .mc .z1 { fill: rgba(154, 166, 184, .06); } .mc .z2 { fill: rgba(154, 166, 184, .1); } .mc .z3 { fill: rgba(242, 169, 59, .12); } .mc .z4 { fill: rgba(242, 169, 59, .22); }
+.mc .zt { font: 500 10px var(--sans); fill: var(--muted); }
+
+/* ---- week ahead ---- */
+.ahead { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 48px; }
+.bub { width: 100%; height: auto; display: block; }
+.bub .bb circle { fill: rgba(94, 162, 247, .16); stroke: rgba(94, 162, 247, .55); }
+.bub .bb--big circle { fill: rgba(94, 162, 247, .38); stroke: var(--accent); stroke-width: 1.5; }
+.bub text { font: 600 11px var(--mono); fill: var(--text); }
+.bub .bd { font: 600 13px var(--sans); fill: var(--text-2); }
+.bub .bc { font: 400 12px var(--sans); fill: var(--muted); }
+.bub .dsep { stroke: var(--line); }
+.bkey { display: flex; gap: 22px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.outlook h3 { margin: 0 0 6px; font-size: 16px; font-weight: 650; }
+.range { position: relative; height: 70px; margin: 12px 0 6px; }
+.range .ax { position: absolute; left: 0; right: 0; top: 34px; height: 1px; background: var(--line-2); }
+.range .bd { position: absolute; top: 24px; height: 20px; border-radius: 6px; background: rgba(94, 162, 247, .22); border: 1px solid rgba(94, 162, 247, .6); }
+.range .mk { position: absolute; top: 18px; width: 2px; height: 32px; background: var(--text); }
+.range .l { position: absolute; top: 52px; transform: translateX(-50%); font: 500 12px var(--mono); color: var(--muted); }
+.range .t { position: absolute; top: 0; transform: translateX(-50%); font-size: 12px; color: var(--text); white-space: nowrap; }
+.outlook p { margin: 10px 0 0; font-size: 14px; line-height: 21px; color: var(--text-2); }
+.odds { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 8px; }
+.odds i { background: var(--up); } .odds u { background: var(--down); }
+
+/* ---- ideas ---- */
+.ideas-empty { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; padding: 28px; border-radius: 16px; border: 1px dashed var(--line-2); background: linear-gradient(135deg, rgba(94, 162, 247, .06), transparent 60%); }
+.ideas-empty h3 { margin: 0; font-size: 20px; line-height: 26px; }
+.ideas-empty p { margin: 8px 0 0; color: var(--text-2); font-size: 15px; line-height: 23px; max-width: 60ch; }
+.steps { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; counter-reset: s; }
+.steps li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; font-size: 14px; color: var(--text-2); counter-increment: s; }
+.steps li::before { content: counter(s); width: 24px; height: 24px; border-radius: 50%; background: var(--elev); color: var(--text); font: 600 12px var(--mono); display: grid; place-items: center; }
+.btn { height: 42px; padding: 0 20px; border-radius: 10px; border: 0; background: var(--accent); color: #06101F; font-weight: 650; cursor: pointer; }
+.btn-g { height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-2); background: none; color: var(--text); cursor: pointer; font-size: 13px; }
+.idea-cards { display: none; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.show-sample .idea-cards { display: grid; } .show-sample .ideas-empty { display: none; }
+.icard { padding: 20px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line-2); display: grid; gap: 12px; }
+.icard-h { display: flex; align-items: baseline; gap: 10px; }
+.icard-h b { font: 600 20px var(--mono); }
+.icard-h span { color: var(--muted); font-size: 13px; }
+.dec { margin-left: auto; height: 22px; padding: 0 9px; border-radius: 999px; display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: rgba(94, 162, 247, .14); }
+.icard p { margin: 0; font-size: 14px; line-height: 21px; color: var(--text-2); }
+.plan { position: relative; height: 34px; }
+.plan .ln { position: absolute; left: 0; right: 0; top: 12px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, rgba(248,113,113,.6) 0 30%, var(--elev) 30% 36%, rgba(52,211,153,.6) 36%); }
+.plan span { position: absolute; top: 22px; font: 500 11px var(--mono); color: var(--muted); transform: translateX(-50%); }
+.kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.kv span { display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.kv b { font: 600 14px var(--mono); }
+.sample-note { display: none; margin: 0 0 14px; color: var(--warn); font-size: 13px; }
+.show-sample .sample-note { display: block; }
+
+/* ---- pro detail ---- */
+.prodet details { border-top: 1px solid var(--line); }
+.prodet details:last-child { border-bottom: 1px solid var(--line); }
+.prodet summary { display: flex; align-items: center; gap: 12px; height: 54px; cursor: pointer; list-style: none; font-size: 15px; font-weight: 600; }
+.prodet summary::-webkit-details-marker { display: none; }
+.prodet summary::before { content: ""; width: 7px; height: 7px; border-right: 1.5px solid var(--text-2); border-bottom: 1.5px solid var(--text-2); transform: rotate(-45deg); }
+.prodet details[open] summary::before { transform: rotate(45deg); }
+.prodet summary span { font-weight: 400; font-size: 13px; color: var(--muted); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+th, td { text-align: left; padding: 8px 12px 8px 0; border-top: 1px solid var(--line); vertical-align: top; }
+td { color: var(--text-2); }
+.fz-for { color: var(--confident); font-weight: 600; } .fz-against { color: var(--warn); font-weight: 600; } .fz-flat { color: var(--muted); }
+@media (max-width: 1100px) {
+  .hero, .news, .moved, .ahead { grid-template-columns: minmax(0, 1fr); }
+  .minis { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .pulse { display: flex; overflow-x: auto; scroll-snap-type: x proximity; }
+  .pu { flex: 0 0 150px; scroll-snap-align: start; }
+}
+@media (max-width: 720px) {
+  .wrap { padding: 0 16px; }
+  .nav, .search { display: none; }
+  .top .wrap { gap: 12px; }
+  .tr { gap: 8px; }
+  .hero h1 { font-size: 30px; line-height: 36px; }
+  .callout { display: none; }
+  .facts, .two, .mv, .lead, .ideas-empty { grid-template-columns: minmax(0, 1fr); }
+  .facts div + div { padding-left: 0; border-left: 0; }
+  .lead-viz { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); padding-top: 16px; }
+  .lead h3 { font-size: 21px; line-height: 27px; }
+  .shead { flex-direction: column; align-items: stretch; }
+  .nmood { min-width: 0; }
+  .sbars li { grid-template-columns: 112px 1fr 56px; }
+  .list li { grid-template-columns: 1fr auto; }
+  .list time { grid-column: 1 / -1; }
+  .idea-cards { grid-template-columns: minmax(0, 1fr); }
+  .status .r { margin-left: 0; }
+  .donutrow { flex-wrap: wrap; }
+}
+footer { margin-top: 48px; padding: 24px 0 40px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 24px; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <span class="brand">QUANTA <b>Elite</b></span>
+    <nav class="nav" aria-label="Main"><span class="on">Overview</span><span>Discover</span><span>Research</span><span>Picks</span><span>My Portfolio</span></nav>
+    <div class="tr">
+      <span class="search">Search a stock, e.g. AAPL</span>
+      <div class="seg" role="group" aria-label="Explanations"><button type="button" aria-pressed="true" data-mode="plain">Plain English</button><button type="button" aria-pressed="false" data-mode="pro">Pro</button></div>
+      <div class="seg" role="group" aria-label="Market"><button type="button" aria-pressed="true">US</button><button type="button" aria-pressed="false">India</button></div>
+    </div>
+  </div>
+</header>
+
+<div class="bul" aria-label="News bulletin">
+  <div class="wrap">
+    <span class="bul-k"><i aria-hidden="true"></i>News bulletin</span>
+    <div class="bul-view"><ul class="bul-track"><li><time>5:27 PM</time><span>Dow Jones Futures: More AI Pain After Nasdaq Sell-Off? Meta, SpaceX, Tesla Earnings Key</span><em>Yahoo Finance</em></li><li><time>3:37 PM</time><span>Bessent warns Zelenskyy to 'be very careful' about claims U.S. is throttling Starlink</span><em>CNBC</em></li><li><time>1:51 PM</time><span>Black Monday Fears Grip Wall Street as Traders Lose $52 Million on AI Stock Bets</span><em>Yahoo Finance</em></li><li><time>1:07 PM</time><span>Wall Street veteran cuts S&amp;P 500 target but keeps huge bet</span><em>Yahoo Finance</em></li><li><time>12:50 PM</time><span>Should You Invest in the S&amp;P 500 Right Now or Wait? There's 1 Clear Answer</span><em>Yahoo Finance</em></li><li><time>12:06 PM</time><span>These surprising stocks could be the biggest drivers of S&amp;P 500 earnings growth</span><em>MarketWatch</em></li><li><time>11:59 AM</time><span>'Just another scare': Wall Street sees the AI trade strong despite tech's latest rout</span><em>Yahoo Finance</em></li><li><time>11:07 AM</time><span>The 10-Year Treasury Is Above 5% for the First Time in Almost 20 Years. History Says This Is How the S&amp;P 500 Index Will Perform Over the Next 12 Months.</span><em>Yahoo Finance</em></li><li><time>11:01 AM</time><span>Stocks head for a high-stakes showdown: Strong earnings vs. high borrowing costs</span><em>MarketWatch</em></li><li><time>10:00 AM</time><span>These surprising stocks could be some of the biggest drivers of S&amp;P 500 earnings growth</span><em>MarketWatch</em></li><li><time>9:52 AM</time><span>Iran says it has a 'new operational plan' if the U.S. resumes attacks, as shipping vessels report strikes</span><em>CNBC</em></li><li><time>9:33 AM</time><span>Jeffrey Gundlach sees a hidden danger beneath the S&amp;P 500</span><em>Yahoo Finance</em></li><li><time>5:27 PM</time><span>Dow Jones Futures: More AI Pain After Nasdaq Sell-Off? Meta, SpaceX, Tesla Earnings Key</span><em>Yahoo Finance</em></li><li><time>3:37 PM</time><span>Bessent warns Zelenskyy to 'be very careful' about claims U.S. is throttling Starlink</span><em>CNBC</em></li><li><time>1:51 PM</time><span>Black Monday Fears Grip Wall Street as Traders Lose $52 Million on AI Stock Bets</span><em>Yahoo Finance</em></li><li><time>1:07 PM</time><span>Wall Street veteran cuts S&amp;P 500 target but keeps huge bet</span><em>Yahoo Finance</em></li><li><time>12:50 PM</time><span>Should You Invest in the S&amp;P 500 Right Now or Wait? There's 1 Clear Answer</span><em>Yahoo Finance</em></li><li><time>12:06 PM</time><span>These surprising stocks could be the biggest drivers of S&amp;P 500 earnings growth</span><em>MarketWatch</em></li><li><time>11:59 AM</time><span>'Just another scare': Wall Street sees the AI trade strong despite tech's latest rout</span><em>Yahoo Finance</em></li><li><time>11:07 AM</time><span>The 10-Year Treasury Is Above 5% for the First Time in Almost 20 Years. History Says This Is How the S&amp;P 500 Index Will Perform Over the Next 12 Months.</span><em>Yahoo Finance</em></li><li><time>11:01 AM</time><span>Stocks head for a high-stakes showdown: Strong earnings vs. high borrowing costs</span><em>MarketWatch</em></li><li><time>10:00 AM</time><span>These surprising stocks could be some of the biggest drivers of S&amp;P 500 earnings growth</span><em>MarketWatch</em></li><li><time>9:52 AM</time><span>Iran says it has a 'new operational plan' if the U.S. resumes attacks, as shipping vessels report strikes</span><em>CNBC</em></li><li><time>9:33 AM</time><span>Jeffrey Gundlach sees a hidden danger beneath the S&amp;P 500</span><em>Yahoo Finance</em></li></ul></div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <div class="status" role="status">
+    <span class="closed"><i aria-hidden="true"></i>Markets closed for the weekend</span>
+    <span>Prices are Friday's close (Oct 16). Next session: Monday Oct 19, 9:30 AM ET.</span>
+    <span class="r">Data: 9 of 9 prices, 10 of 10 news feeds. Updated 5:49 PM ET</span>
+  </div>
+
+  <!-- 1 MARKET PULSE -->
+  <section class="blk" style="padding-top:22px" aria-labelledby="pulse-h">
+    <div class="shead"><div><h2 class="sh" id="pulse-h">Market pulse</h2><p class="ssub">Friday's close, with the last month as a line. Hover a name for what it measures.</p></div></div>
+    <ul class="pulse">
+      <li class="pu">
+        <span class="pu-name tip" tabindex="0" data-tip="The 500 biggest US companies">S&amp;P 500</span>
+        <span class="pu-px num">763.25</span>
+        <span class="pu-chg"><b class="num down">-1.11%</b> <span class="pu-k">Fri</span></span>
+        <svg class="pu-sp down" viewBox="0 0 120 36" aria-hidden="true"><path d="M2.0,32.1 L7.5,34.0 L13.0,12.3 L18.6,12.4 L24.1,22.8 L29.6,23.7 L35.1,16.2 L40.7,26.9 L46.2,29.1 L51.7,32.5 L57.2,29.6 L62.8,19.3 L68.3,9.7 L73.8,2.0 L79.3,5.7 L84.9,11.6 L90.4,3.1 L95.9,4.0 L101.4,4.0 L107.0,19.4 L112.5,15.6 L118.0,30.9"/><circle cx="118.0" cy="30.9" r="2.4"/></svg>
+        <span class="pu-wk"><b class="num down">-2.0%</b> this week</span>
+      </li>
+      <li class="pu">
+        <span class="pu-name tip" tabindex="0" data-tip="Big tech and growth">Nasdaq 100</span>
+        <span class="pu-px num">709.80</span>
+        <span class="pu-chg"><b class="num down">-2.50%</b> <span class="pu-k">Fri</span></span>
+        <svg class="pu-sp down" viewBox="0 0 120 36" aria-hidden="true"><path d="M2.0,29.5 L7.5,26.6 L13.0,13.7 L18.6,9.8 L24.1,13.9 L29.6,13.9 L35.1,11.8 L40.7,16.9 L46.2,15.9 L51.7,14.8 L57.2,13.3 L62.8,8.5 L68.3,4.3 L73.8,2.0 L79.3,3.2 L84.9,9.8 L90.4,7.4 L95.9,10.8 L101.4,12.3 L107.0,21.8 L112.5,22.3 L118.0,34.0"/><circle cx="118.0" cy="34.0" r="2.4"/></svg>
+        <span class="pu-wk"><b class="num down">-5.5%</b> this week</span>
+      </li>
+      <li class="pu">
+        <span class="pu-name tip" tabindex="0" data-tip="30 blue-chip companies">Dow</span>
+        <span class="pu-px num">519.10</span>
+        <span class="pu-chg"><b class="num down">-0.38%</b> <span class="pu-k">Fri</span></span>
+        <svg class="pu-sp up" viewBox="0 0 120 36" aria-hidden="true"><path d="M2.0,9.1 L7.5,15.4 L13.0,5.4 L18.6,10.1 L24.1,19.3 L29.6,23.5 L35.1,11.3 L40.7,19.8 L46.2,22.9 L51.7,34.0 L57.2,33.8 L62.8,27.5 L68.3,24.9 L73.8,18.7 L79.3,27.8 L84.9,26.2 L90.4,14.9 L95.9,10.3 L101.4,14.6 L107.0,16.0 L112.5,2.0 L118.0,7.2"/><circle cx="118.0" cy="7.2" r="2.4"/></svg>
+        <span class="pu-wk"><b class="num up">+0.6%</b> this week</span>
+      </li>
+      <li class="pu">
+        <span class="pu-name tip" tabindex="0" data-tip="Smaller US companies">Russell 2000</span>
+        <span class="pu-px num">270.44</span>
+        <span class="pu-chg"><b class="num down">-1.69%</b> <span class="pu-k">Fri</span></span>
+        <svg class="pu-sp down" viewBox="0 0 120 36" aria-hidden="true"><path d="M2.0,5.3 L7.5,8.0 L13.0,5.1 L18.6,2.0 L24.1,12.0 L29.6,12.5 L35.1,12.0 L40.7,15.6 L46.2,17.5 L51.7,19.7 L57.2,17.6 L62.8,12.9 L68.3,9.2 L73.8,13.2 L79.3,20.1 L84.9,20.4 L90.4,17.8 L95.9,19.8 L101.4,22.0 L107.0,32.2 L112.5,25.2 L118.0,34.0"/><circle cx="118.0" cy="34.0" r="2.4"/></svg>
+        <span class="pu-wk"><b class="num down">-3.0%</b> this week</span>
+      </li>
+      <li class="pu">
+        <span class="pu-name tip" tabindex="0" data-tip="VIX: expected volatility; higher means more fear">Fear index</span>
+        <span class="pu-px num">19.99</span>
+        <span class="pu-chg"><b class="num up">+21.45%</b> <span class="pu-k">Fri</span></span>
+        <svg class="pu-sp up" viewBox="0 0 120 36" aria-hidden="true"><path d="M2.0,27.2 L7.5,30.7 L13.0,30.4 L18.6,34.0 L24.1,28.7 L29.6,25.9 L35.1,30.3 L40.7,23.7 L46.2,23.9 L51.7,22.3 L57.2,22.0 L62.8,27.9 L68.3,26.7 L73.8,29.6 L79.3,29.2 L84.9,27.3 L90.4,30.5 L95.9,28.5 L101.4,28.1 L107.0,19.4 L112.5,21.5 L118.0,2.0"/><circle cx="118.0" cy="2.0" r="2.4"/></svg>
+        <span class="pu-wk"><b class="num up">+34.7%</b> this week</span>
+      </li>
+      <li class="pu">
+        <span class="pu-name tip" tabindex="0" data-tip="US 10-year Treasury rate; drives mortgage and loan costs">10-year yield</span>
+        <span class="pu-px num">5.10%</span>
+        <span class="pu-chg"><b class="num up">+0.9 bp</b> <span class="pu-k">Fri</span></span>
+        <svg class="pu-sp down" viewBox="0 0 120 36" aria-hidden="true"><path d="M2.0,34.0 L7.5,29.5 L13.0,32.6 L18.6,32.2 L24.1,19.3 L29.6,15.1 L35.1,13.2 L40.7,8.2 L46.2,6.9 L51.7,3.6 L57.2,8.5 L62.8,5.0 L68.3,2.0 L73.8,5.7 L79.3,5.0 L84.9,9.0 L90.4,7.9 L95.9,8.2 L101.4,10.3 L107.0,12.6 L112.5,21.5 L118.0,20.7"/><circle cx="118.0" cy="20.7" r="2.4"/></svg>
+        <span class="pu-wk"><b class="num down">-15 bp</b> this week</span>
+      </li>
+      <li class="pu">
+        <span class="pu-name tip" tabindex="0" data-tip="Gold fund (GLD)">Gold</span>
+        <span class="pu-px num">382.01</span>
+        <span class="pu-chg"><b class="num down">-0.18%</b> <span class="pu-k">Fri</span></span>
+        <svg class="pu-sp down" viewBox="0 0 120 36" aria-hidden="true"><path d="M2.0,5.7 L7.5,2.0 L13.0,5.6 L18.6,3.4 L24.1,12.7 L29.6,14.0 L35.1,11.9 L40.7,31.4 L46.2,25.0 L51.7,27.6 L57.2,25.3 L62.8,28.5 L68.3,29.3 L73.8,25.9 L79.3,34.0 L84.9,30.5 L90.4,23.0 L95.9,26.0 L101.4,26.7 L107.0,33.8 L112.5,25.4 L118.0,26.2"/><circle cx="118.0" cy="26.2" r="2.4"/></svg>
+        <span class="pu-wk"><b class="num down">-0.7%</b> this week</span>
+      </li>
+      <li class="pu">
+        <span class="pu-name tip" tabindex="0" data-tip="Oil fund (USO)">Oil</span>
+        <span class="pu-px num">161.76</span>
+        <span class="pu-chg"><b class="num up">+2.83%</b> <span class="pu-k">Fri</span></span>
+        <svg class="pu-sp up" viewBox="0 0 120 36" aria-hidden="true"><path d="M2.0,13.2 L7.5,15.8 L13.0,25.6 L18.6,32.8 L24.1,24.4 L29.6,17.2 L35.1,25.3 L40.7,22.4 L46.2,34.0 L51.7,30.1 L57.2,22.4 L62.8,26.9 L68.3,32.9 L73.8,31.3 L79.3,33.0 L84.9,26.6 L90.4,25.5 L95.9,20.6 L101.4,17.1 L107.0,16.2 L112.5,9.8 L118.0,2.0"/><circle cx="118.0" cy="2.0" r="2.4"/></svg>
+        <span class="pu-wk"><b class="num up">+9.1%</b> this week</span>
+      </li>
+      <li class="pu">
+        <span class="pu-name tip" tabindex="0" data-tip="Trades 24/7; change is the last 24 hours">Bitcoin</span>
+        <span class="pu-px num">81,024</span>
+        <span class="pu-chg"><b class="num down">-0.44%</b> <span class="pu-k">24h</span></span>
+        <svg class="pu-sp down" viewBox="0 0 120 36" aria-hidden="true"><path d="M2.0,14.8 L7.5,21.1 L13.0,19.9 L18.6,20.4 L24.1,12.4 L29.6,14.5 L35.1,13.0 L40.7,2.0 L46.2,6.8 L51.7,8.0 L57.2,22.2 L62.8,32.1 L68.3,26.7 L73.8,24.5 L79.3,19.7 L84.9,31.7 L90.4,23.3 L95.9,32.8 L101.4,29.4 L107.0,33.3 L112.5,34.0 L118.0,33.1"/><circle cx="118.0" cy="33.1" r="2.4"/></svg>
+        <span class="pu-wk"><b class="num down">-2.6%</b> this week</span>
+      </li>
+    </ul>
+  </section>
+
+  <!-- 2 THE WEEK + MARKET MOOD -->
+  <section class="blk hero" aria-labelledby="week-h">
+    <div>
+      <span class="kick">This week on Wall Street</span>
+      <h1 id="week-h">The S&amp;P 500 fell <span class="down">2.0%</span> this week</h1>
+      <p class="lede">A Friday sell-off in technology and chip stocks did most of the damage, and the Nasdaq 100 lost 5.5% on the week. Energy, utilities and consumer staples held up.</p>
+      <div class="chartbox">
+        <svg viewBox="0 0 760 250" class="hc" role="img" aria-label="S&P 500 over the week of Oct 12 to 16, 30-minute bars: from 778.53 to 763.25, down 2.0 percent">
+      <defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--down)" stop-opacity=".28"/><stop offset="1" stop-color="var(--down)" stop-opacity="0"/></linearGradient></defs>
+      <line x1="158.0" y1="12" x2="158.0" y2="250" class="sep"/><line x1="306.0" y1="12" x2="306.0" y2="250" class="sep"/><line x1="454.0" y1="12" x2="454.0" y2="250" class="sep"/><line x1="602.0" y1="12" x2="602.0" y2="250" class="sep"/>
+      <line x1="0" x2="760" y1="46.6" y2="46.6" class="ref"/><text x="4" y="40.6" class="reft">Last week's close 778.53</text>
+      <line x1="0" x2="760" y1="138.2" y2="138.2" class="ref ref--50"/><text x="4" y="132.2" class="reft">50-day average 767.40</text>
+      <path d="M10.0,46.5 L21.4,51.5 L32.8,49.5 L44.2,50.6 L55.5,44.6 L66.9,50.0 L78.3,54.7 L89.7,53.5 L101.1,53.2 L112.5,56.0 L123.8,56.8 L135.2,56.4 L146.6,50.3 L158.0,50.2 L169.4,54.8 L180.8,60.1 L192.2,66.0 L203.5,61.9 L214.9,56.4 L226.3,57.2 L237.7,59.2 L249.1,59.2 L260.5,51.8 L271.8,52.9 L283.2,48.4 L294.6,50.6 L306.0,89.5 L317.4,92.8 L328.8,95.9 L340.2,104.2 L351.5,110.0 L362.9,121.1 L374.3,114.3 L385.7,131.3 L397.1,137.1 L408.5,132.0 L419.8,135.6 L431.2,125.7 L442.6,120.0 L454.0,154.2 L465.4,138.4 L476.8,119.9 L488.2,114.3 L499.5,113.4 L510.9,122.2 L522.3,117.6 L533.7,113.7 L545.1,105.8 L556.5,120.4 L567.8,111.6 L579.2,99.6 L590.6,102.7 L602.0,105.2 L613.4,109.3 L624.8,105.0 L636.2,127.1 L647.5,137.3 L658.9,137.3 L670.3,147.3 L681.7,165.2 L693.1,171.3 L704.5,181.3 L715.8,183.9 L727.2,172.8 L738.6,171.8 L750.0,172.3 L750.0,250 L10.0,250 Z" fill="url(#ga)"/><path d="M10.0,46.5 L21.4,51.5 L32.8,49.5 L44.2,50.6 L55.5,44.6 L66.9,50.0 L78.3,54.7 L89.7,53.5 L101.1,53.2 L112.5,56.0 L123.8,56.8 L135.2,56.4 L146.6,50.3 L158.0,50.2 L169.4,54.8 L180.8,60.1 L192.2,66.0 L203.5,61.9 L214.9,56.4 L226.3,57.2 L237.7,59.2 L249.1,59.2 L260.5,51.8 L271.8,52.9 L283.2,48.4 L294.6,50.6 L306.0,89.5 L317.4,92.8 L328.8,95.9 L340.2,104.2 L351.5,110.0 L362.9,121.1 L374.3,114.3 L385.7,131.3 L397.1,137.1 L408.5,132.0 L419.8,135.6 L431.2,125.7 L442.6,120.0 L454.0,154.2 L465.4,138.4 L476.8,119.9 L488.2,114.3 L499.5,113.4 L510.9,122.2 L522.3,117.6 L533.7,113.7 L545.1,105.8 L556.5,120.4 L567.8,111.6 L579.2,99.6 L590.6,102.7 L602.0,105.2 L613.4,109.3 L624.8,105.0 L636.2,127.1 L647.5,137.3 L658.9,137.3 L670.3,147.3 L681.7,165.2 L693.1,171.3 L704.5,181.3 L715.8,183.9 L727.2,172.8 L738.6,171.8 L750.0,172.3" class="hl"/>
+      <circle cx="750.0" cy="172.3" r="4" class="hdot"/>
+    </svg>
+        <div class="callout" style="left:89.7%"><b>Friday -1.1%</b>: AI and chip stocks sold off; tech fell 3%.</div>
+        <div class="dl"><span style="left:10.30%"><b>Mon</b><i class="down">-0.06%</i></span><span style="left:29.78%"><b>Tue</b><i class="down">-0.00%</i></span><span style="left:49.25%"><b>Wed</b><i class="down">-1.08%</i></span><span style="left:68.72%"><b>Thu</b><i class="up">+0.27%</i></span><span style="left:88.95%"><b>Fri</b><i class="down">-1.10%</i></span></div>
+      </div>
+      <div class="facts">
+        <div><strong><span class="tip" tabindex="0" data-tip="The VIX measures how much traders expect prices to swing. Above 20 usually means nervous markets.">Fear index</span> <span class="down">up 35%</span></strong><span>to 20.0, its highest in a month</span></div>
+        <div><strong>Oil <span class="up">up 9.1%</span></strong><span>energy stocks led Friday</span></div>
+        <div><strong>10-year yield 5.10%</strong><span>still near its highest in almost 20 years</span></div>
+      </div>
+    </div>
+
+    <aside class="mood" aria-labelledby="mood-h">
+      <div class="mood-top">
+        <span class="kick tip" id="mood-h" tabindex="0" data-tip="QUANTA reads 10 market measures each session and turns them into one stance.">Market mood</span>
+        <span class="kick">Fri Oct 16</span>
+      </div>
+      <p class="mood-word">Cautious</p>
+      <p class="mood-says plain">Our model says: <b>play it safe for now.</b> More signals point down than up.</p>
+      <p class="mood-says pro">Defensive regime. Capital preservation over new risk.</p>
+      <div class="dial" role="img" aria-label="Mood score 33 out of 100: cautious zone. 0 to 35 cautious, 35 to 65 mixed, 65 to 100 confident.">
+        <svg viewBox="0 0 260 140">
+          <path d="M 20 130 A 110 110 0 0 1 75.7 34.4" fill="none" stroke="var(--cautious)" stroke-width="18" stroke-linecap="round"/>
+          <path d="M 82.4 30.6 A 110 110 0 0 1 177.6 30.6" fill="none" stroke="var(--mixed)" stroke-width="18" opacity=".35"/>
+          <path d="M 184.3 34.4 A 110 110 0 0 1 240 130" fill="none" stroke="var(--confident)" stroke-width="18" stroke-linecap="round" opacity=".35"/>
+          <line x1="130" y1="130" x2="72" y2="42" stroke="var(--text)" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="130" cy="130" r="8" fill="var(--text)"/>
+          <text x="130" y="106" text-anchor="middle" style="font:700 30px var(--mono);fill:var(--text)">33</text>
+        </svg>
+        <div class="dial-labels"><b>Cautious</b><span>Mixed</span><span>Confident</span></div>
+      </div>
+
+      <h3>What this means for you</h3>
+      <div class="money">
+        <div class="money-bar" role="img" aria-label="Invest 20 to 50 percent of your money; keep the rest in cash"><u></u><i></i></div>
+        <div class="money-k"><span>0%</span><span>Invest 20 to 50%</span><span>100%</span></div>
+        <p class="plain">Put <b>no more than half</b> of your money into stocks right now and keep the rest in cash. Prefer steady companies. Do not buy more of a falling stock.</p>
+        <p class="pro">Gross exposure 20-50%. Light sizing, higher cash buffer. Prefer support-reclaim reversals in A-quality names; avoid averaging down.</p>
+      </div>
+
+      <h3>Why we are cautious</h3>
+      <ul class="why">
+        <li><span><b>No major index is in an uptrend.</b> <span class="plain">All 4 trade below their 2-month average.</span><span class="pro">0 of 4 index funds above the 50-DMA.</span></span><span class="dots" aria-label="0 of 4"><i></i><i></i><i></i><i></i></span></li>
+        <li><span><b>Tech led Friday's drop</b> while only defensive sectors rose.</span><span class="pill down">-3.0%</span></li>
+        <li><span><b>Bad news outweighs good.</b> 3 of the top stories are negative, none positive.</span><span class="pill n">3 vs 0</span></li>
+      </ul>
+
+      <h3>What would make us more positive</h3>
+      <div class="goal"><div class="goal-t"><span>Fear index falls below 16</span><b class="num">20.0 now</b></div><div class="goal-bar" role="img" aria-label="VIX 20, target below 16"><i style="width:56%"></i><b></b></div></div>
+      <div class="goal"><div class="goal-t"><span>S&amp;P 500 climbs back above 767</span><b class="num">763 now</b></div><div class="goal-bar" role="img" aria-label="S&P 500 763, target 767"><i style="width:86%"></i><b></b></div></div>
+
+      <div class="sure"><span>How sure we are: <b>Moderate</b></span><span class="bar" role="img" aria-label="Confidence 59 of 100"><i></i></span><span class="num">59/100</span></div>
+      <p class="pro-line pro">Direction 33/100 (bearish at 35 or less). Factors: 1 support, 4 neutral, 5 against. Weaker read if VIX 25+ or SPY below the 200-DMA (721.88).</p>
+    </aside>
+  </section>
+
+  <!-- 3 MARKET NEWS -->
+  <section class="blk" aria-labelledby="news-h">
+    <div class="shead">
+      <div><h2 class="sh" id="news-h">Market news</h2><p class="ssub">The stories moving markets, with what each one means for you.</p></div>
+      <div class="nmood" role="img" aria-label="News mood across 36 stories: 12 negative, 21 neutral, 3 positive">
+        <span class="kick">News mood, 36 stories today</span>
+        <div class="nmood-bar"><i style="width:33.3%"></i><u style="width:58.3%"></u><s style="width:8.3%"></s></div>
+        <div class="nmood-k"><span class="down">12 negative</span><span>21 neutral</span><span class="up">3 positive</span></div>
+      </div>
+    </div>
+    <div class="filters" role="group" aria-label="Filter news" style="margin-bottom:18px">
+      <button class="fbtn" type="button" aria-pressed="true" data-f="all">All</button><button class="fbtn" type="button" aria-pressed="false" data-f="markets">Markets</button><button class="fbtn" type="button" aria-pressed="false" data-f="economy">Economy</button><button class="fbtn" type="button" aria-pressed="false" data-f="earnings">Earnings</button><button class="fbtn" type="button" aria-pressed="false" data-f="politics">Politics</button>
+    </div>
+    <div class="news">
+      <div>
+        <article class="lead" data-cat="markets">
+          <div>
+            <div class="meta"><span class="tag t-hot">Top story</span><span class="tag t-bear">Negative</span><span>Yahoo Finance, 22 min ago</span></div>
+            <h3>Dow Jones Futures: More AI Pain After Nasdaq Sell-Off? Meta, SpaceX, Tesla Earnings Key</h3>
+            <p class="wim"><b>Why it matters</b>Tech led Friday's drop. This week's big tech reports, Meta and Tesla on Wednesday and SpaceX on Tuesday, will decide whether the slide continues.</p>
+          </div>
+          <div class="lead-viz" role="img" aria-label="Friday moves of the stocks in this story">
+            <span class="kick">The stocks in this story, Friday</span>
+            <div class="lv-row"><b>META</b><span class="lv-bar" style="width:100%"></span><span class="num down">-3.72%</span></div>
+            <div class="lv-row"><b>TSLA</b><span class="lv-bar" style="width:57%"></span><span class="num down">-2.13%</span></div>
+            <div class="lv-row"><b>NVDA</b><span class="lv-bar" style="width:38%"></span><span class="num down">-1.43%</span></div>
+            <div class="lv-row"><b>QQQ</b><span class="lv-bar" style="width:67%"></span><span class="num down">-2.50%</span></div>
+          </div>
+        </article>
+        <div class="two">
+          <article class="story" data-cat="politics"><div class="meta"><span class="tag t-bear">Negative</span><span>CNBC, 8 h ago</span></div>
+            <h4>Trump waives broad new Russia sanctions, Zelenskyy condemns it as 'wrong'</h4>
+            <p>Sanctions policy moves oil prices, and oil already jumped 9% this week.</p></article>
+          <article class="story" data-cat="economy"><div class="meta"><span class="tag t-neu">Neutral</span><span>Yahoo Finance, 6 h ago</span></div>
+            <h4>The 10-Year Treasury Is Above 5% for the First Time in Almost 20 Years</h4>
+            <p>Higher rates make borrowing cost more and weigh on stock prices, tech most of all.</p></article>
+        </div>
+        <ol class="list">
+          <li data-cat="markets"><time>1:51 PM</time><span><span class="t">Black Monday Fears Grip Wall Street as Traders Lose $52 Million on AI Stock Bets</span><span class="src">Yahoo Finance</span></span><span class="tag t-bear">Negative</span></li>
+          <li data-cat="markets"><time>11:59 AM</time><span><span class="t">'Just another scare': Wall Street sees the AI trade strong despite tech's latest rout</span><span class="src">Yahoo Finance</span></span><span class="tag t-bull">Positive</span></li>
+          <li data-cat="earnings"><time>11:01 AM</time><span><span class="t">Stocks head for a high-stakes showdown: Strong earnings vs. high borrowing costs</span><span class="src">MarketWatch</span></span><span class="tag t-neu">Neutral</span></li>
+          <li data-cat="politics"><time>9:52 AM</time><span><span class="t">Iran says it has a 'new operational plan' if the U.S. resumes attacks, as shipping vessels report strikes</span><span class="src">CNBC</span></span><span class="tag t-neu">Neutral</span></li>
+          <li data-cat="markets"><time>9:33 AM</time><span><span class="t">Jeffrey Gundlach sees a hidden danger beneath the S&amp;P 500</span><span class="src">Yahoo Finance</span></span><span class="tag t-bear">Negative</span></li>
+          <li data-cat="economy"><time>2:13 AM</time><span><span class="t">Why hedge funds could be making a bond market shock more likely</span><span class="src">CNBC</span></span><span class="tag t-bear">Negative</span></li>
+        </ol>
+      </div>
+
+      <aside class="rail" aria-label="Trending">
+        <div>
+          <h3>Trending topics</h3>
+          <ul class="topics">
+            <li><span>Earnings</span><span class="b" style="width:100%"></span><span class="num">8</span></li>
+            <li><span>AI</span><span class="b" style="width:88%"></span><span class="num">7</span></li>
+            <li><span>Treasury yields</span><span class="b" style="width:63%"></span><span class="num">5</span></li>
+            <li><span>The Fed</span><span class="b" style="width:38%"></span><span class="num">3</span></li>
+            <li><span>Inflation</span><span class="b" style="width:13%"></span><span class="num">1</span></li>
+            <li><span>Oil</span><span class="b" style="width:13%"></span><span class="num">1</span></li>
+            <li><span>China</span><span class="b" style="width:13%"></span><span class="num">1</span></li>
+          </ul>
+          <p class="ssub" style="font-size:12px;margin-top:10px">Number of stories mentioning each topic today.</p>
+        </div>
+        <div>
+          <h3>Stocks in the news</h3>
+          <div class="stocks">
+            <span class="sc"><b>META</b><span class="down">-3.72%</span><em>Meta</em></span>
+            <span class="sc"><b>TSLA</b><span class="down">-2.13%</span><em>Tesla</em></span>
+            <span class="sc"><b>MSFT</b><span class="down">-1.93%</span><em>Microsoft</em></span>
+            <span class="sc"><b>NVDA</b><span class="down">-1.43%</span><em>Nvidia</em></span>
+            <span class="sc"><b>MA</b><span class="up">+0.18%</span><em>Mastercard</em></span>
+            <span class="sc"><b>C</b><span class="up">+0.85%</span><em>Citigroup</em></span>
+          </div>
+        </div>
+        <div>
+          <h3>Most-covered story</h3>
+          <p style="margin:0;color:var(--text-2);font-size:14px;line-height:21px">Strong earnings against high borrowing costs: 3 outlets ran it today. The question for the week is whether profits can outrun 5% Treasury yields.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 4 WHERE MONEY MOVED -->
+  <section class="blk" aria-labelledby="moved-h">
+    <div class="shead"><div><h2 class="sh" id="moved-h">Where the money moved on Friday</h2><p class="ssub">Sectors from best to worst, and the biggest single-stock moves.</p></div></div>
+    <div class="moved">
+      <div>
+        <div class="donutrow">
+          <div class="donut" role="img" aria-label="4 of 11 sectors in an uptrend">
+            <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--elev)" stroke-width="5"/><circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--up)" stroke-width="5" stroke-dasharray="36.4 100" /></svg>
+            <div><b class="num">4 of 11</b><span>sectors in an uptrend</span></div>
+          </div>
+          <div class="donut" role="img" aria-label="0 of 4 major indexes in an uptrend">
+            <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--elev)" stroke-width="5"/></svg>
+            <div><b class="num">0 of 4</b><span>major indexes in an uptrend</span></div>
+          </div>
+          <span class="ssub" style="font-size:12px;max-width:220px"><i class="up50"></i> marks a sector trading above its 50-day (about 2-month) average.</span>
+        </div>
+        <ul class="sbars"><li><span class="sb-n">Energy <i class="up50" title="In an uptrend: above its 50-day average"></i></span>
+        <span class="sb-t"><i class="up" style="--w:0.834"></i></span><b class="num up">+2.52%</b></li><li><span class="sb-n">Utilities <i class="up50" title="In an uptrend: above its 50-day average"></i></span>
+        <span class="sb-t"><i class="up" style="--w:0.444"></i></span><b class="num up">+1.34%</b></li><li><span class="sb-n">Staples <i class="up50" title="In an uptrend: above its 50-day average"></i></span>
+        <span class="sb-t"><i class="up" style="--w:0.358"></i></span><b class="num up">+1.08%</b></li><li><span class="sb-n">Materials</span>
+        <span class="sb-t"><i class="up" style="--w:0.235"></i></span><b class="num up">+0.71%</b></li><li><span class="sb-n">Financials</span>
+        <span class="sb-t"><i class="up" style="--w:0.149"></i></span><b class="num up">+0.45%</b></li><li><span class="sb-n">Real estate</span>
+        <span class="sb-t"><i class="up" style="--w:0.132"></i></span><b class="num up">+0.40%</b></li><li><span class="sb-n">Industrials</span>
+        <span class="sb-t"><i class="down" style="--w:0.026"></i></span><b class="num down">-0.08%</b></li><li><span class="sb-n">Health care <i class="up50" title="In an uptrend: above its 50-day average"></i></span>
+        <span class="sb-t"><i class="down" style="--w:0.089"></i></span><b class="num down">-0.27%</b></li><li><span class="sb-n">Consumer disc.</span>
+        <span class="sb-t"><i class="down" style="--w:0.278"></i></span><b class="num down">-0.84%</b></li><li><span class="sb-n">Communication</span>
+        <span class="sb-t"><i class="down" style="--w:0.626"></i></span><b class="num down">-1.89%</b></li><li><span class="sb-n">Technology</span>
+        <span class="sb-t"><i class="down" style="--w:1.000"></i></span><b class="num down">-3.02%</b></li></ul>
+      </div>
+      <div class="mv">
+        <div><h3>Biggest gainers</h3><ol>
+          <li><div class="row"><b>CRGY</b><span>Crescent Energy</span><b class="up">+10.1%</b></div><span class="bar" style="width:100%;background:var(--up)"></span></li>
+          <li><div class="row"><b>PAYP</b><span>PayPay</span><b class="up">+7.0%</b></div><span class="bar" style="width:69%;background:var(--up)"></span></li>
+          <li><div class="row"><b>MTDR</b><span>Matador Resources</span><b class="up">+7.0%</b></div><span class="bar" style="width:69%;background:var(--up)"></span></li>
+          <li><div class="row"><b>AR</b><span>Antero Resources</span><b class="up">+6.1%</b></div><span class="bar" style="width:60%;background:var(--up)"></span></li>
+          <li><div class="row"><b>NOG</b><span>Northern Oil and Gas</span><b class="up">+5.5%</b></div><span class="bar" style="width:54%;background:var(--up)"></span></li>
+        </ol></div>
+        <div><h3>Biggest losers</h3><ol>
+          <li><div class="row"><b>BSP</b><span>Bending Spoons</span><b class="down">-15.6%</b></div><span class="bar" style="width:100%;background:var(--down)"></span></li>
+          <li><div class="row"><b>TLK</b><span>Telkom Indonesia</span><b class="down">-13.7%</b></div><span class="bar" style="width:88%;background:var(--down)"></span></li>
+          <li><div class="row"><b>GRAL</b><span>GRAIL</span><b class="down">-13.0%</b></div><span class="bar" style="width:84%;background:var(--down)"></span></li>
+          <li><div class="row"><b>VICR</b><span>Vicor</span><b class="down">-12.9%</b></div><span class="bar" style="width:83%;background:var(--down)"></span></li>
+          <li><div class="row"><b>NBIS</b><span>Nebius Group</span><b class="down">-12.2%</b></div><span class="bar" style="width:78%;background:var(--down)"></span></li>
+        </ol></div>
+        <p class="ssub" style="grid-column:1/-1;font-size:12px">4 of the 5 biggest gainers are oil and gas companies, in line with oil's 9% weekly gain.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 FEAR, RATES, OIL -->
+  <section class="blk" aria-labelledby="other-h">
+    <div class="shead"><div><h2 class="sh" id="other-h">Fear, rates and oil</h2><p class="ssub">Three things outside stocks that move stocks. Last month shown.</p></div></div>
+    <div class="minis">
+      <div class="mini"><h3><span class="tip" tabindex="0" data-tip="VIX: the market's expected volatility over the next 30 days. Under 16 is calm, over 25 is fearful.">Fear index (VIX)</span></h3><div class="v num">19.99</div><p>Up 35% this week, now at the edge of nervous.</p><svg viewBox="0 0 300 96" class="mc" aria-hidden="true"><rect x="0" y="72.4" width="300" height="19.6" class="z z1"/><text x="4" y="83.4" class="zt">Calm</text><rect x="0" y="52.9" width="300" height="19.6" class="z z2"/><text x="4" y="63.9" class="zt">Normal</text><rect x="0" y="28.4" width="300" height="24.4" class="z z3"/><text x="4" y="39.4" class="zt">Nervous</text><rect x="0" y="4.0" width="300" height="24.4" class="z z4"/><text x="4" y="15.0" class="zt">Fearful</text><path d="M4.0,75.2 L17.9,78.3 L31.8,78.0 L45.7,81.2 L59.6,76.5 L73.5,74.1 L87.4,78.0 L101.3,72.1 L115.2,72.3 L129.1,70.9 L143.0,70.6 L157.0,75.8 L170.9,74.8 L184.8,77.3 L198.7,76.9 L212.6,75.3 L226.5,78.1 L240.4,76.3 L254.3,76.0 L268.2,68.3 L282.1,70.2 L296.0,52.9" style="stroke:var(--warn)"/><circle cx="296.0" cy="52.9" r="3" style="fill:var(--warn)"/></svg></div>
+      <div class="mini"><h3><span class="tip" tabindex="0" data-tip="What the US government pays to borrow for 10 years. Higher yields raise loan costs and usually weigh on stock prices.">10-year Treasury yield</span></h3><div class="v num">5.10%</div><p>Eased from a 5.31% peak this month.</p><svg viewBox="0 0 300 96" class="mc" aria-hidden="true"><path d="M4.0,82.8 L17.9,72.8 L31.8,79.7 L45.7,78.7 L59.6,50.2 L73.5,40.8 L87.4,36.5 L101.3,25.5 L115.2,22.6 L129.1,15.1 L143.0,26.1 L157.0,18.3 L170.9,11.6 L184.8,19.8 L198.7,18.3 L212.6,27.3 L226.5,24.7 L240.4,25.5 L254.3,30.0 L268.2,35.3 L282.1,55.0 L296.0,53.3" style="stroke:var(--text-2)"/><circle cx="296.0" cy="53.3" r="3" style="fill:var(--text-2)"/></svg></div>
+      <div class="mini"><h3>Oil (USO fund)</h3><div class="v num">161.76</div><p>Up 9.1% this week; good for energy stocks, bad for fuel costs.</p><svg viewBox="0 0 300 96" class="mc" aria-hidden="true"><path d="M4.0,38.0 L17.9,43.2 L31.8,63.2 L45.7,77.7 L59.6,60.7 L73.5,46.1 L87.4,62.6 L101.3,56.8 L115.2,80.2 L129.1,72.2 L143.0,56.7 L157.0,65.9 L170.9,78.0 L184.8,74.8 L198.7,78.2 L212.6,65.3 L226.5,63.0 L240.4,53.1 L254.3,45.9 L268.2,44.1 L282.1,31.1 L296.0,15.3" style="stroke:var(--up)"/><circle cx="296.0" cy="15.3" r="3" style="fill:var(--up)"/></svg></div>
+    </div>
+  </section>
+
+  <!-- 6 THE WEEK AHEAD -->
+  <section class="blk" aria-labelledby="ahead-h">
+    <div class="shead"><div><h2 class="sh" id="ahead-h">The week ahead</h2><p class="ssub">65 companies report earnings. Bigger circle, bigger company. Morning reports sit left of each day, evening reports right.</p></div></div>
+    <div class="ahead">
+      <div>
+        <svg class="bub" viewBox="0 0 1000 246" role="img" aria-label="Earnings this week by day and company size; largest: SpaceX Tuesday, Meta and Tesla Wednesday">
+          <line x1="200" x2="200" y1="0" y2="210" class="dsep"/><line x1="400" x2="400" y1="0" y2="210" class="dsep"/><line x1="600" x2="600" y1="0" y2="210" class="dsep"/><line x1="800" x2="800" y1="0" y2="210" class="dsep"/>
+          <g class="bb bb--big"><title>Space Exploration Technologies Corp.: reports after the close, about $1,925B</title><circle cx="350" cy="161" r="39.5"/><text x="350" y="165" text-anchor="middle">SPCX</text></g><g class="bb bb--big"><title>Meta Platforms, Inc.: reports after the close, about $1,807B</title><circle cx="550" cy="162" r="38.3"/><text x="550" y="166" text-anchor="middle">META</text></g><g class="bb bb--big"><title>Tesla, Inc.: reports after the close, about $1,401B</title><circle cx="514" cy="94" r="33.7"/><text x="514" y="98" text-anchor="middle">TSLA</text></g><g class="bb"><title>The Procter &amp; Gamble Company: reports before the open, about $370B</title><circle cx="650" cy="183" r="17.3"/><text x="650" y="187" text-anchor="middle">PG</text></g><g class="bb"><title>Lam Research Corporation: reports after the close, about $330B</title><circle cx="576" cy="104" r="16.4"/><text x="576" y="108" text-anchor="middle">LRCX</text></g><g class="bb"><title>GE Aerospace: reports before the open, about $326B</title><circle cx="250" cy="184" r="16.2"/><text x="250" y="188" text-anchor="middle">GE</text></g><g class="bb"><title>Philip Morris International Inc.: reports before the open, about $320B</title><circle cx="450" cy="184" r="16.1"/><text x="450" y="188" text-anchor="middle">PM</text></g><g class="bb"><title>Netflix, Inc.: reports after the close, about $294B</title><circle cx="314" cy="113" r="15.4"/><text x="314" y="117" text-anchor="middle">NFLX</text></g><g class="bb"><title>RTX Corporation: reports before the open, about $261B</title><circle cx="286" cy="177" r="14.5"/><text x="286" y="181" text-anchor="middle">RTX</text></g><g class="bb"><title>SAP SE: reports after the close, about $259B</title><circle cx="578" cy="66" r="14.5"/><text x="578" y="70" text-anchor="middle">SAP</text></g><g class="bb"><title>Thermo Fisher Scientific Inc.: reports before the open, about $255B</title><circle cx="486" cy="178" r="14.4"/><text x="486" y="182" text-anchor="middle">TMO</text></g><g class="bb"><title>Texas Instruments Incorporated: reports after the close, about $252B</title><circle cx="514" cy="42" r="14.3"/><text x="514" y="46" text-anchor="middle">TXN</text></g><g class="bb"><title>International Business Machines: reports after the close, about $219B</title><circle cx="550" cy="51" r="13.3"/></g><g class="bb"><title>American Express Company: reports before the open, about $212B</title><circle cx="850" cy="187" r="13.1"/></g><g class="bb"><title>Abbott Laboratories: reports before the open, about $181B</title><circle cx="420" cy="172" r="12.1"/></g><g class="bb"><title>Union Pacific Corporation: reports before the open, about $172B</title><circle cx="686" cy="180" r="11.8"/></g><g class="bb"><title>Southern Copper Corporation: reports time not set, about $169B</title><circle cx="718" cy="188" r="11.7"/></g><g class="bb"><title>NextEra Energy, Inc.: reports before the open, about $166B</title><circle cx="486" cy="148" r="11.6"/></g><g class="bb"><title>Danaher Corporation: reports before the open, about $161B</title><circle cx="450" cy="149" r="11.4"/></g><g class="bb"><title>AT&amp;T Inc.: reports before the open, about $161B</title><circle cx="419" cy="141" r="11.4"/></g><g class="bb"><title>Intuitive Surgical, Inc.: reports after the close, about $151B</title><circle cx="381" cy="109" r="11.0"/></g><g class="bb"><title>Chubb Limited: reports after the close, about $139B</title><circle cx="350" cy="101" r="10.6"/></g>
+          <g><text x="100" y="222" text-anchor="middle" class="bd">Mon 19</text><text x="100" y="240" text-anchor="middle" class="bc">2 reports</text></g><g><text x="300" y="222" text-anchor="middle" class="bd">Tue 20</text><text x="300" y="240" text-anchor="middle" class="bc">13 reports</text></g><g><text x="500" y="222" text-anchor="middle" class="bd">Wed 21</text><text x="500" y="240" text-anchor="middle" class="bc">23 reports</text></g><g><text x="700" y="222" text-anchor="middle" class="bd">Thu 22</text><text x="700" y="240" text-anchor="middle" class="bc">23 reports</text></g><g><text x="900" y="222" text-anchor="middle" class="bd">Fri 23</text><text x="900" y="240" text-anchor="middle" class="bc">4 reports</text></g>
+        </svg>
+        <div class="bkey"><span>Highlighted: the 3 largest, SpaceX (Tue evening), Meta and Tesla (Wed evening).</span><span>No Fed meeting or major jobs or inflation report found this week.</span></div>
+      </div>
+      <div class="outlook">
+        <h3>What to expect Monday</h3>
+        <span class="ssub" style="font-size:13px">S&amp;P 500 (SPY), based on the fear index</span>
+        <div class="range" role="img" aria-label="Likely Monday range 753.70 to 772.92; last 763.25">
+          <div class="ax"></div>
+          <div class="bd" style="left:12%;width:76%"></div>
+          <div class="mk" style="left:47.6%"></div>
+          <span class="t" style="left:47.6%">Friday 763.25</span>
+          <span class="l" style="left:12%">753.70</span><span class="l" style="left:88%">772.92</span>
+        </div>
+        <p>On about 2 of every 3 days like this, the S&amp;P 500 ends inside this band: a typical move of about 1.3% either way.</p>
+        <p style="margin-top:14px"><b style="color:var(--text)">History:</b> after a 1% down day, the S&amp;P 500 rose the next day 54% of the time (273 days since 2016).</p>
+        <div class="odds" role="img" aria-label="54 percent up, 46 percent down"><i style="width:53.8%"></i><u style="width:46.2%"></u></div>
+        <p class="ssub" style="font-size:12px;margin-top:6px">History, not a prediction.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 IDEAS -->
+  <section class="blk" id="ideas" aria-labelledby="ideas-h">
+    <div class="shead"><div><h2 class="sh" id="ideas-h">Ideas for you</h2><p class="ssub">Stocks QUANTA would buy now, sized to your money and the market mood.</p></div><button class="btn-g" type="button" id="preview" aria-pressed="false">Preview with results</button></div>
+    <p class="sample-note">Sample layout with placeholder figures. Not a recommendation.</p>
+    <div class="ideas-empty">
+      <div>
+        <h3>Find ideas that fit a cautious market</h3>
+        <p>Run a Picks scan and QUANTA checks hundreds of stocks, keeps only the ones with a clear plan (where to buy, where to sell, where to stop out), and sizes each one for your account.</p>
+        <div style="display:flex;gap:16px;align-items:center;margin-top:20px"><button class="btn" type="button">Run a Picks scan</button><span class="ssub" style="font-size:13px">US market, $2,500, Balanced. Takes 1 to 3 minutes.</span></div>
+      </div>
+      <ol class="steps">
+        <li>Favors sectors in an uptrend: Energy, Utilities, Staples, Health care.</li>
+        <li>Keeps only trades whose potential gain is at least 1.8 times the potential loss.</li>
+        <li>Sizes small while the mood is Cautious, so one bad trade cannot hurt much.</li>
+      </ol>
+    </div>
+    <div class="idea-cards">
+      <article class="icard"><div class="icard-h"><b>XOM</b><span>Exxon Mobil</span><span class="dec">Accumulate</span></div>
+        <p>Leader in the strongest sector; back above its 50-day average after Friday's oil jump.</p>
+        <div class="plan" aria-hidden="true"><div class="ln"></div><span style="left:0">Stop 107.10</span><span style="left:33%">Buy 112.40</span><span style="left:100%;transform:translateX(-100%)">Target 124.00</span></div>
+        <div class="kv"><div><span>Invest</span><b>$540</b></div><div><span>Gain vs loss</span><b>2.2x</b></div><div><span>Fits you</span><b>Yes</b></div></div></article>
+      <article class="icard"><div class="icard-h"><b>DUK</b><span>Duke Energy</span><span class="dec">Accumulate</span></div>
+        <p>Steady utility in an uptrend; moves less than the market, which suits a cautious mood.</p>
+        <div class="plan" aria-hidden="true"><div class="ln"></div><span style="left:0">Stop 117.40</span><span style="left:33%">Buy 121.80</span><span style="left:100%;transform:translateX(-100%)">Target 131.50</span></div>
+        <div class="kv"><div><span>Invest</span><b>$480</b></div><div><span>Gain vs loss</span><b>2.0x</b></div><div><span>Fits you</span><b>Yes</b></div></div></article>
+      <article class="icard"><div class="icard-h"><b>PG</b><span>Procter &amp; Gamble</span><span class="dec">Buy</span></div>
+        <p>Household staples leader; reports Thursday morning, so wait until the results are out.</p>
+        <div class="plan" aria-hidden="true"><div class="ln"></div><span style="left:0">Stop 151.60</span><span style="left:33%">Buy 158.20</span><span style="left:100%;transform:translateX(-100%)">Target 171.00</span></div>
+        <div class="kv"><div><span>Invest</span><b>$410</b></div><div><span>Gain vs loss</span><b>1.9x</b></div><div><span>Fits you</span><b>Yes</b></div></div></article>
+    </div>
+  </section>
+
+  <!-- 8 FOR PROS -->
+  <section class="blk prodet" aria-labelledby="pro-h">
+    <div class="shead"><div><h2 class="sh" id="pro-h">For pros</h2><p class="ssub">The model's inputs, levels and cross-asset reads.</p></div></div>
+    <details><summary>All 10 factors <span>1 support, 4 neutral, 5 against; direction 33/100</span></summary>
+      <table><thead><tr><th scope="col">Factor</th><th scope="col">Score</th><th scope="col">Reading</th></tr></thead><tbody><tr><th scope="row">Trend</th><td class="num fz-for">+1</td><td>S&amp;P 500 above 200-DMA with 50&gt;200 trend alignment</td></tr><tr><th scope="row">Volatility</th><td class="num fz-flat">0</td><td>Volatility is in a normal range (20.0), up 21% in one session</td></tr><tr><th scope="row">Participation</th><td class="num fz-against">-2</td><td>Participation weak (0% indices above 50-DMA)</td></tr><tr><th scope="row">Rates / Credit</th><td class="num fz-flat">0</td><td>10Y Yield stable (+0.9 bp)</td></tr><tr><th scope="row">Session Move</th><td class="num fz-against">-1</td><td>S&amp;P 500 -1.11% on Fri Oct 16 (one session; Trend is the structural read)</td></tr><tr><th scope="row">Sector Leadership</th><td class="num fz-against">-2</td><td>No major index group rose: Nasdaq 100, Russell 2000 and Dow</td></tr><tr><th scope="row">Momentum</th><td class="num fz-flat">0</td><td>21-day momentum +0.33% (total return)</td></tr><tr><th scope="row">Macro / Catalyst Risk</th><td class="num fz-flat">0</td><td>One macro stress flag active (oil spike +2.8%)</td></tr><tr><th scope="row">News Impact</th><td class="num fz-against">-2</td><td>3 high-impact bearish headline(s) lead the tape</td></tr><tr><th scope="row">Catalyst Risk</th><td class="num fz-against">-1</td><td>Heavy earnings week (65 reports in the next 7 days)</td></tr></tbody></table></details>
+    <details><summary>Key levels <span>SPY 50-day 767.40, 200-day 721.88, ATR 6.89</span></summary>
+      <table><tbody><tr><th scope="row">Next-session range (1 sigma)</th><td class="num">753.70 to 772.92</td><td>From VIX 19.99</td></tr><tr><th scope="row">Friday</th><td class="num">760.64 to 773.25</td><td>Last 763.31</td></tr><tr><th scope="row">Thursday</th><td class="num">764.43 to 772.87</td><td>Close 771.79</td></tr><tr><th scope="row">50-day / 200-day</th><td class="num">767.40 / 721.88</td><td>-0.5% / +5.7%</td></tr></tbody></table></details>
+    <details><summary>Cross-asset <span>One-session change, Fri Oct 16</span></summary>
+      <table><tbody><tr><th scope="row">10Y less 3-month</th><td class="num">+103 bp, +2.7 bp</td><td>Not inverted</td></tr><tr><th scope="row">High-yield vs investment-grade</th><td class="num">-0.25%</td><td>Risk aversion</td></tr><tr><th scope="row">Copper vs gold</th><td class="num">+0.69%</td><td>Risk appetite</td></tr><tr><th scope="row">Dollar index</th><td class="num">101.84, -0.16%</td><td>Softer dollar</td></tr></tbody></table></details>
+  </section>
+
+  <footer><span>QUANTA is research software, not investment advice. No strategy shown has a validated out-of-sample record.</span><span>Model evidence and track record</span></footer>
+</main>
+
+<script>
+  // Mockup behaviour only: Plain English or Pro wording, news filters, and the Ideas preview.
+  document.querySelectorAll('[data-mode]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.body.classList.toggle('mode-pro', b.dataset.mode === 'pro');
+      document.querySelectorAll('[data-mode]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    });
+  });
+  document.querySelectorAll('.fbtn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var f = b.dataset.f;
+      document.querySelectorAll('.fbtn').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      document.querySelectorAll('[data-cat]').forEach(function (el) { el.style.display = (f === 'all' || el.dataset.cat === f) ? '' : 'none'; });
+    });
+  });
+  document.getElementById('preview').addEventListener('click', function () {
+    var on = this.getAttribute('aria-pressed') !== 'true';
+    this.setAttribute('aria-pressed', String(on));
+    this.textContent = on ? 'Show the empty state' : 'Preview with results';
+    document.getElementById('ideas').classList.toggle('show-sample', on);
+  });
+</script>
+</body>
+</html>

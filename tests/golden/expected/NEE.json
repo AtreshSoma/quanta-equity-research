@@ -23,8 +23,8 @@
       "data_quality": "WARN",
       "entry_quality": "Weak",
       "existing_holder": "Hold",
-      "existing_holder_stop": 80.6684,
-      "long_term_holder_stop": 80.6684,
+      "existing_holder_stop": 79.6159,
+      "long_term_holder_stop": 79.6159,
       "long_tf": "Review before adding",
       "main_reason": "Mixed signals; wait for a clearer setup.",
       "mid_tf": "Hold existing / wait",
@@ -43,7 +43,7 @@
       "tactical_stop_basis": "~1x ATR",
       "volume_requirement": ">= 1.5x avg on entry day",
       "warnings": [
-        "Valuation target 83.34 is at or below the entry reference 83.47 \u2014 no long reward, so R:R is 0 by definition."
+        "Valuation target 83.34 is at or below the entry reference 83.47: no long reward, so R:R is 0 by definition."
       ]
     },
     "business_summary": "NextEra Energy, Inc., through its subsidiaries, generates, stores, transmits, distributes, and sells electric power to retail and wholesale customers in North America. It operates through Florida Power & Light Company (FPL) and NEER segments. The company generates electricity from wind, solar, nuclear, natural gas, and other clean energy assets. It also invests in generation, storage, transmission, and distribution facilities; owns, develops, constructs, manages, and operates generation facilities, including renewables, nuclear and natural gas, and battery storage facilities in the wholesale energy market in the United States and Canada, as well as electric and gas transmission assets, and natural gas pipelines; provides full energy and capacity requirement services; markets and trades in energy-related commodities; and participates in the production of natural gas, natural gas liquids, and oil. As of December 31, 2025, the company had approximately 35,963 megawatts of net generating capacity; approximately 93,000 circuit miles of transmission and distribution lines; and 932 substations. It serves approximately 12 million people through approximately 6 million customer accounts on the east and lower west coasts of Florida. The company was formerly known as FPL Group, Inc. and changed its name to NextEra Energy, Inc. in 2010. NextEra Energy, Inc. was founded in 1925 and is headquartered in Juno Beach, Florida.",
@@ -110,6 +110,7 @@
       "evidence": {
         "caveats": [
           "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+          "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls.",
           "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
           "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
         ],
@@ -126,9 +127,9 @@
           {
             "change": "original composite",
             "status": "NO_EDGE",
-            "status_text": "Tested out of sample \u2014 no demonstrated edge",
+            "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
-            "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+            "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
           }
         ],
@@ -149,9 +150,9 @@
         "permits_recommendation": false,
         "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
         "status": "NO_EDGE",
-        "status_text": "Tested out of sample \u2014 no demonstrated edge",
+        "status_text": "Tested out of sample: no demonstrated edge",
         "strategy": "elite.research.v2",
-        "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
+        "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
         "tested_through": "2026-09-30"
       },
       "factor_scores": {
@@ -182,7 +183,7 @@
         "entry": 83.475,
         "reference_price": 83.475,
         "reward_risk": 0.0,
-        "stop": 80.6684,
+        "stop": 79.6159,
         "target": 83.3374,
         "target_basis": "63-session target, pro-rated from the 12-month valuation target",
         "target_horizon_days": 63,
@@ -235,11 +236,11 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 500,
+      "risk_grade_lookback_days": 499,
       "risk_metrics": {
-        "beta": 0.148287,
+        "beta": 0.152013,
         "risk_score": 50,
-        "volatility": 0.252887
+        "volatility": 0.253056
       },
       "risks": [],
       "scenarios": [
@@ -303,6 +304,7 @@
     "evidence": {
       "caveats": [
         "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+        "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls.",
         "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
         "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
       ],
@@ -319,9 +321,9 @@
         {
           "change": "original composite",
           "status": "NO_EDGE",
-          "status_text": "Tested out of sample \u2014 no demonstrated edge",
+          "status_text": "Tested out of sample: no demonstrated edge",
           "strategy": "elite.composite",
-          "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+          "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
           "tested_through": "2026-08-25"
         }
       ],
@@ -342,9 +344,9 @@
       "permits_recommendation": false,
       "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
       "status": "NO_EDGE",
-      "status_text": "Tested out of sample \u2014 no demonstrated edge",
+      "status_text": "Tested out of sample: no demonstrated edge",
       "strategy": "elite.research.v2",
-      "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
+      "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
       "tested_through": "2026-09-30"
     },
     "exchange": "NYQ",
@@ -432,20 +434,20 @@
     "model_action": "WATCHLIST",
     "monte_carlo": {
       "days_simulated": 30,
-      "expected_return": 0.5055,
+      "expected_return": 0.5004,
       "expected_return_basis": "mean",
-      "mean_price": 83.8969,
-      "median_price": 83.6453,
-      "percentile_25": 78.9404,
-      "percentile_5": 72.961,
-      "percentile_75": 88.5005,
-      "percentile_95": 96.1496,
-      "probability_10pct_gain": 0.13,
-      "probability_10pct_loss": 0.104,
-      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only \u2014 not the chance of touching a target, and not target-vs-stop.",
-      "probability_profit": 0.5087,
+      "mean_price": 83.8927,
+      "median_price": 83.664,
+      "percentile_25": 78.9203,
+      "percentile_5": 73.1088,
+      "percentile_75": 88.5766,
+      "percentile_95": 96.1413,
+      "probability_10pct_gain": 0.1297,
+      "probability_10pct_loss": 0.1043,
+      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only: not the chance of touching a target, and not target-vs-stop.",
+      "probability_profit": 0.5077,
       "simulations_run": 3000,
-      "var_95": -12.5954
+      "var_95": -12.4184
     },
     "net_assets": 0.0,
     "peer_comparison": {
@@ -472,6 +474,7 @@
       "adjustments": {},
       "approved": true,
       "correlation_risk": 0.0,
+      "correlation_unmeasured": 0,
       "holdings_known": false,
       "sector_exposure": {
         "Utilities": 0.0
@@ -531,10 +534,10 @@
     "requested_symbol": "NEE",
     "retrieval_timestamp": "<volatile>",
     "risk": {
-      "annualized_volatility": 0.2529,
-      "beta": 0.1483,
+      "annualized_volatility": 0.2531,
+      "beta": 0.152,
       "beta_benchmark": "SPY",
-      "beta_observations": 250,
+      "beta_observations": 249,
       "beta_status": "measured",
       "cvar_95": -0.0381,
       "grade_drivers": [
@@ -574,8 +577,8 @@
       "overall_risk_score": 5,
       "risk_grade": "B",
       "risk_points": 5,
-      "sharpe_ratio": 0.1636,
-      "sortino_ratio": 0.2271,
+      "sharpe_ratio": 0.1818,
+      "sortino_ratio": 0.2524,
       "var_95_daily": -0.0242
     },
     "risk_warnings": [],
@@ -659,7 +662,7 @@
       "risk_factors": [
         "Technical score 32 (bearish)",
         "3 bearish confirmations",
-        "Monte Carlo tail shape is unfavorable (6.0% 75th-percentile upside vs 12.6% 5th-percentile downside); diagnostic only"
+        "Monte Carlo tail shape is unfavorable (6.1% 75th-percentile upside vs 12.4% 5th-percentile downside); diagnostic only"
       ],
       "supporting_factors": [
         "Fundamental score 68 (strong)",
@@ -784,8 +787,10 @@
       "trend_direction": "SIDEWAYS",
       "trend_score": 33.3333,
       "trend_strength": "WEAK",
+      "unmeasured": [],
       "volatility_score": 50,
-      "volume_ratio": 0.6636,
+      "volume_ratio": 0.5367,
+      "volume_ratio_basis": "last completed session (today's is still trading)",
       "week_52_basis": "provider-reported traded range",
       "week_52_high": 98.75,
       "week_52_low": 69.24
@@ -814,8 +819,8 @@
       "is_actionable_entry": false,
       "levels_available": true,
       "risk_reward_ratio": 0.0,
-      "setup_basis": "spot (reference only, not an order); stop 2xATR below entry; 12-month valuation target $82.92 (-1%) is at or below spot \u2014 no long reward; stop shown for holders only",
-      "stop_loss": 80.6684,
+      "setup_basis": "spot (reference only, not an order); stop 2.75xATR below entry; 12-month valuation target $82.92 (-1%) is at or below spot: no long reward; stop shown for holders only",
+      "stop_loss": 79.6159,
       "target_aggressive": 0.0,
       "target_base": 82.9244,
       "target_conservative": 0.0,

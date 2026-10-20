@@ -106,7 +106,8 @@ test('status chips in the rail are sentence case, without tracking', () => {
 });
 
 test('in-tile labels and gate chips are not tracked caps, and a data failure is not painted in the price-down red', () => {
-  for (const sel of ['.why-not-buy .gate-chip', '.qpro-conflict-verdict .label']) {
+  // (.qpro-conflict-verdict was removed with the unused CSS: no markup renders it.)
+  for (const sel of ['.why-not-buy .gate-chip']) {
     const rule = (css.match(new RegExp(`${sel.replace(/\./g, '\\.')} \\{[^}]*\\}`)) || [''])[0];
     assert.ok(rule, `${sel} rule present`);
     assert.doesNotMatch(rule, /text-transform: uppercase/, sel);

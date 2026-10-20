@@ -137,7 +137,18 @@
       const chipRow = active.length ? `<div class="mpa-active" role="group" aria-label="Active filters">${active.map(([t, x]) => `<button type="button" class="mpa-chip" data-hp-x="${esc(x)}" aria-label="${esc(`Remove filter ${t}`)}">${esc(t)}<span aria-hidden="true">×</span></button>`).join('')}<button type="button" class="q-btn q-btn--link mpa-clearall" data-hp-x="act-clear:all">Clear all</button></div>` : '';
       const status = R.s === 'loading' ? '<p class="hp-fine" role="status">Refreshing activity… Showing the last loaded records.</p>'
         : R.s === 'error' ? '<p class="hp-fine" role="status">Activity refresh failed. Showing the last loaded records. <button type="button" class="q-btn q-btn--link" data-hp-x="retry:records">Try again</button></p>' : '';
-      return `<div class="mpa-ctl-row">${chips}${assets}${ms}<span class="mpa-gap"></span>${views}</div>${chipRow}${status}`;
+      // Limits that change what "All" means sit beside the filters, not only in the footer.
+      const d0 = recs();
+      const cov0 = (d0 && d0.coverage) || {};
+      const limits = [];
+      const fl = cov0.fills;
+      if (fl && !fl.complete && fl.capped_by === 'rows') {
+        limits.push(`Purchases: only the newest ${fl.cap} of ${fl.read} fills are loaded${fl.first ? `, from ${M.dateLong(M.wallOf(new Date(fl.first), cfg.timezone).slice(0, 10))}` : ''}, so earlier purchases and the capital deployed leave them out.`);
+      }
+      const unres = (d0 && d0.classification && d0.classification.unresolved) || 0;
+      if (unres) limits.push(`Unclassified: ${unres} ${unres === 1 ? 'record has' : 'records have'} no verified asset type, so ${unres === 1 ? 'it appears' : 'they appear'} only under All.`);
+      const limitRow = limits.length ? `<p class="hp-fine mpa-limits" role="note" data-activity-limits>${limits.map(esc).join(' ')}</p>` : '';
+      return `<div class="mpa-ctl-row">${chips}${assets}${ms}<span class="mpa-gap"></span>${views}</div>${limitRow}${chipRow}${status}`;
     }
     X.slotRenderers['act-tools'] = tools;
 
@@ -166,7 +177,7 @@
         tiles = [
           tile('Capital deployed', none ? NA : $(k.deployed, cfg)),
           tile('Purchases', String(k.count)),
-          tile('Stocks bought', String(k.stocks)),
+          tile(A.asset === 'equity' ? 'Stocks bought' : A.asset === 'crypto' ? 'Coins bought' : 'Assets bought', String(k.stocks)),
           tile('Average purchase', k.avg === null ? NA : $(k.avg, cfg)),
           tile('Largest purchase', k.largest ? $(k.largest.amount, cfg) : NA, k.largest ? [tradeRef(k.largest)] : []),
         ];

@@ -78,7 +78,7 @@ test('one report head: the scan on one line, the verdict once, then the figures,
   assert.deepEqual(meta.slice(2), ['US', 'Balanced mandate', 'Up to 5 positions']);
   // Three figures with one job each; the call counts live in the header only.
   const cards = [...box.querySelectorAll('[data-pk-summary] .pk-sc')];
-  assert.deepEqual(cards.map((c) => T(c.querySelector('dt'))), ['Scan to calls', 'Suggested deployment', 'Regime']);
+  assert.deepEqual(cards.map((c) => T(c.querySelector('dt'))), ['Scan to calls', 'Model sizing total', 'Regime']);
   assert.equal(cards[0].querySelector('.pk-fun').getAttribute('aria-label'), '100 scanned, 4 ranked, 1 sized');
   assert.equal(T(cards[0].querySelector('dd > span')), '95 screened out, 1 excluded for safety');
   assert.equal(T(cards[1].querySelector('dd b')), '$253');
@@ -239,7 +239,7 @@ test('case: a cost-limited name keeps its call and says what one share needs', (
   assert.equal(T(row.querySelector('.pk-signal')), 'Accumulate');
   assert.equal(T(row.querySelector('.pk-c-pos')), 'Needs about $2,900 for one share within the position cap');
   assert.equal(box.querySelector('[data-pk-empty]'), null, 'an Accumulate call is a pick even when the capital does not fit');
-  assert.match(T(box.querySelector('[data-pk-summary]')), /Suggested deployment ?\$0/);
+  assert.match(T(box.querySelector('[data-pk-summary]')), /Model sizing total ?\$0/);
 });
 
 test('case: two share classes of one company are one row; the other class is named in its analysis', () => {
@@ -283,7 +283,7 @@ test('case: an empty scan says so, with the reasons, and has nothing to analyse'
   assert.equal(box.querySelector('.pk-chips'), null);
   assert.equal(box.querySelector('[data-pk-copy]'), null);
   assert.equal(box.querySelector('[data-pk-csv]'), null);
-  assert.match(T(box.querySelector('[data-pk-summary]')), /Suggested deployment ?\$0/);
+  assert.match(T(box.querySelector('[data-pk-summary]')), /Model sizing total ?\$0/);
   assert.doesNotMatch(T(box.querySelector('[data-pk-summary]')), /Watchlist/, 'the counts live in the header');
   assert.match(T(box.querySelector('[data-pk-empty]')), /Hold signal, no buy setup \(50\), reward-to-risk below the hurdle \(44\)/);
   assert.match(T(panel(box, 'analysis')), /No Buy, Accumulate or Watchlist call in this scan, so there is nothing to analyse\./);
@@ -726,4 +726,11 @@ test('the broker-holdings note sits under Risk and execution, not above the tabl
   const off = render(payload({ holdings_check: { state: 'off', text: 'Holdings not checked: load your broker account in My Portfolio to size picks around what you already own.' } }));
   assert.ok(panel(off, 'risk').querySelector('[data-pk-holdings]'));
   assert.equal(panel(off, 'overview').querySelector('[data-pk-holdings]'), null);
+});
+
+test('deployment names the Overview band when it caps the scan, the scanner regime otherwise', () => {
+  const capped = INDIA();
+  capped.regime = { ...capped.regime, exposure: 55, exposure_basis: { source: 'overview', band: '30-55% gross', posture: 'Neutral' } };
+  assert.match(T(render(capped).querySelector('[data-pk-summary]')), /the market mood allows up to 55%/);
+  assert.match(T(render(INDIA()).querySelector('[data-pk-summary]')), /the scanner regime allows 75%/);
 });

@@ -137,7 +137,7 @@ def test_binding_levels_are_published(monkeypatch):
     assert out.scanner_levels["risk_reward"] == 2.25 and out.scanner_levels["source"] == "scanner"
     assert bind["triggers"]["entry_needed"] < 22.56 < bind["triggers"]["target_needed"]
     # The remedy is keyed to the gate that fired, with prices from the binding set.
-    assert bind["remedy"].startswith("Research R:R 1.23 needs 1.50")
+    assert bind["remedy"].startswith("Research R:R 1.23 needs 1.80")
     assert out.allocation == 0
 
 

@@ -47,9 +47,16 @@ SHORTTERM_PRICE_CORE = "shortterm.price_core"
 #   elite.composite      -- tested out of sample: NO_EDGE (2026-08-27)
 #   elite.alpha_only.v1  -- risk leg removed from the ranking (never tested)
 #   elite.research.v2    -- 2026-09-27 audit: two-sided valuation, independent
-#                           quality leg, one-horizon reward/risk (never tested)
+#                           quality leg, one-horizon reward/risk; tested out of
+#                           sample: NO_EDGE (through 2026-09-30)
 ELITE = "elite.research.v2"
 ELITE_PRO = "elite_pro.composite"
+
+# A scanner call is funded only after the model named here confirms it (Picks
+# deep-confirm runs the Research engine and publishes its levels). While the
+# scanner's own composite has no test of its own, its calls carry the governing
+# model's result, so a Picks Buy shows "no edge found" when Research has none.
+GOVERNED_BY: Dict[str, str] = {ELITE_PRO: ELITE}
 
 # Earlier versions of each live model, newest first. Their results are shown
 # as LINEAGE -- what was learned about the predecessor -- never as evidence
@@ -78,8 +85,8 @@ class EvidenceStatus(str, Enum):
 
 _STATUS_TEXT = {
     EvidenceStatus.VALIDATED: "Validated out of sample",
-    EvidenceStatus.PARTIAL: "Partially tested — not validated as a whole",
-    EvidenceStatus.NO_EDGE: "Tested out of sample — no demonstrated edge",
+    EvidenceStatus.PARTIAL: "Partially tested, not validated as a whole",
+    EvidenceStatus.NO_EDGE: "Tested out of sample: no demonstrated edge",
     EvidenceStatus.UNTESTED: "Never validated",
     EvidenceStatus.STALE: "Validation is out of date",
 }
@@ -161,6 +168,16 @@ def get_evidence(strategy: str, registry: Optional[Dict[str, Any]] = None,
     reg = registry if registry is not None else load_registry()
     entry = (reg.get("strategies") or {}).get(strategy)
     lineage = _lineage(strategy, reg)
+    governor = GOVERNED_BY.get(strategy)
+    if not entry and governor:
+        gov = get_evidence(governor, reg, now)
+        if gov.status is not EvidenceStatus.UNTESTED:
+            gov.strategy = strategy
+            gov.summary = (
+                f"This scanner's own score has not been tested on its own. Every Buy or Accumulate call "
+                f"must pass the Research model ({governor}), whose result applies: {gov.summary}"
+            )
+            return gov
     if not entry:
         ev = Evidence(
             strategy=strategy,

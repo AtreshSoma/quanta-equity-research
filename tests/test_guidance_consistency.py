@@ -127,7 +127,7 @@ def test_allocating_final_actions_still_allow_a_confirmed_buy(final_action):
 
 def test_buy_now_yes_implies_the_new_buyer_row_is_not_a_refusal():
     """The forbidden combination, asserted directly over every final action."""
-    forbidden = {"Avoid", "Avoid new buy — watchlist only"}
+    forbidden = {"Avoid", "Avoid new buy; watchlist only", f"Avoid new buy {chr(0x2014)} watchlist only"}
     for final_action in ("STRONG_BUY", "BUY", "ACCUMULATE", "HOLD_EXISTING",
                          "WATCHLIST", "AVOID", "INVALID"):
         for signal in (ta.Signal.STRONG_BUY, ta.Signal.BUY, ta.Signal.HOLD,

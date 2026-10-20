@@ -125,8 +125,8 @@ test('the tab is wired to the panel it names', () => {
 
 test('switching country blanks every country-specific panel', () => {
   // Seed each panel with content that belongs to the market being left.
-  const ids = ['top-movers-body', 'open-extremes-body', 'event-risk-body', 'news-body',
-    'top-headlines', 'signal-check-body', 'market-drivers-body', 'breadth-body',
+  const ids = ['top-movers-body', 'open-extremes-body', 'news-body', 'movers-body',
+    'market-pulse', 'triggers-body', 'ov-session', 'decision-brief',
     'portfolio-scan-body', 'setup-status-body'];
   ids.forEach((id) => {
     const el = document.getElementById(id);
@@ -141,6 +141,7 @@ test('switching country blanks every country-specific panel', () => {
     assert.doesNotMatch(text, /Fed holds rates|S&P 500/, `${id} still shows the previous market`);
     assert.match(text, /Loading India data/, `${id} says which market is loading`);
   });
+  assert.ok(document.querySelector('#ov-week h1'), 'the view keeps its heading while loading');
 });
 
 test('the loading notice names the market being switched to', () => {

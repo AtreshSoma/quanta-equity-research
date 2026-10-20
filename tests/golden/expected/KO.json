@@ -23,10 +23,10 @@
       "data_quality": "PASS",
       "entry_quality": "Moderate",
       "existing_holder": "Hold with trailing stop",
-      "existing_holder_stop": 84.8034,
-      "long_term_holder_stop": 84.8034,
+      "existing_holder_stop": 84.9684,
+      "long_term_holder_stop": 84.9684,
       "long_tf": "Review before adding",
-      "main_reason": "Risk/reward of 0.28:1 is below the 1.50:1 minimum.",
+      "main_reason": "Risk/reward of 0.29:1 is below the 1.50:1 minimum.",
       "mid_tf": "Hold existing / wait",
       "new_buyer": "Wait; no new position",
       "pullback_basis": "20-day MA",
@@ -36,7 +36,7 @@
       "recommendation_label": "WATCHLIST",
       "risk_conflict_warning": "",
       "risk_grade": "A",
-      "rr_label": "Unfavorable, 0.28:1",
+      "rr_label": "Unfavorable, 0.29:1",
       "short_tf": "Wait",
       "signal": "HOLD",
       "tactical_stop": 87.9306,
@@ -79,7 +79,7 @@
         }
       ],
       "blocking": [
-        "R/R 0.28 below min 1.50 \u2192 WATCHLIST"
+        "R/R 0.29 below min 1.50 \u2192 WATCHLIST"
       ],
       "blocking_codes": [
         "LOW_REWARD_RISK"
@@ -108,6 +108,7 @@
       "evidence": {
         "caveats": [
           "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+          "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls.",
           "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
           "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
         ],
@@ -124,9 +125,9 @@
           {
             "change": "original composite",
             "status": "NO_EDGE",
-            "status_text": "Tested out of sample \u2014 no demonstrated edge",
+            "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
-            "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+            "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
           }
         ],
@@ -147,9 +148,9 @@
         "permits_recommendation": false,
         "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
         "status": "NO_EDGE",
-        "status_text": "Tested out of sample \u2014 no demonstrated edge",
+        "status_text": "Tested out of sample: no demonstrated edge",
         "strategy": "elite.research.v2",
-        "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
+        "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
         "tested_through": "2026-09-30"
       },
       "factor_scores": {
@@ -179,8 +180,8 @@
       "levels": {
         "entry": 89.2381,
         "reference_price": 89.06,
-        "reward_risk": 0.279342,
-        "stop": 84.8034,
+        "reward_risk": 0.289891,
+        "stop": 84.9684,
         "target": 90.6025,
         "target_basis": "63-session target, pro-rated from the 12-month valuation target",
         "target_horizon_days": 63,
@@ -198,7 +199,7 @@
       "qualifier": "",
       "reasons": [
         "Composite score 70.7 \u2192 candidate BUY",
-        "R/R 0.28 below min 1.50 \u2192 WATCHLIST"
+        "R/R 0.29 below min 1.50 \u2192 WATCHLIST"
       ],
       "risk_grade": "A",
       "risk_grade_drivers": [
@@ -233,11 +234,11 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 500,
+      "risk_grade_lookback_days": 499,
       "risk_metrics": {
-        "beta": -0.282849,
+        "beta": -0.278954,
         "risk_score": 70,
-        "volatility": 0.179762
+        "volatility": 0.179742
       },
       "risks": [],
       "scenarios": [
@@ -288,6 +289,7 @@
     "evidence": {
       "caveats": [
         "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
+        "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls.",
         "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
         "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
       ],
@@ -304,9 +306,9 @@
         {
           "change": "original composite",
           "status": "NO_EDGE",
-          "status_text": "Tested out of sample \u2014 no demonstrated edge",
+          "status_text": "Tested out of sample: no demonstrated edge",
           "strategy": "elite.composite",
-          "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
+          "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
           "tested_through": "2026-08-25"
         }
       ],
@@ -327,9 +329,9 @@
       "permits_recommendation": false,
       "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
       "status": "NO_EDGE",
-      "status_text": "Tested out of sample \u2014 no demonstrated edge",
+      "status_text": "Tested out of sample: no demonstrated edge",
       "strategy": "elite.research.v2",
-      "summary": "Composite score does not predict forward returns out of sample \u2014 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
+      "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
       "tested_through": "2026-09-30"
     },
     "exchange": "NYQ",
@@ -399,7 +401,7 @@
       "\u23f8\ufe0f HOLD signal with 84% confidence",
       "\ud83d\udcaa Strong ROE of 42.1% - excellent profitability",
       "\u2b50 High Piotroski F-Score (7/9) - strong fundamentals",
-      "\ud83d\udcca Monte Carlo: 64% chance of profit in 30 days"
+      "\ud83d\udcca Monte Carlo: 62% chance of profit in 30 days"
     ],
     "last_bar_date": "2026-08-27",
     "market_cap": 383185000000.0,
@@ -423,20 +425,20 @@
     "model_action": "WATCHLIST",
     "monte_carlo": {
       "days_simulated": 30,
-      "expected_return": 2.1861,
+      "expected_return": 2.1899,
       "expected_return_basis": "mean",
-      "mean_price": 91.0069,
-      "median_price": 90.8804,
-      "percentile_25": 87.1901,
-      "percentile_5": 81.9709,
-      "percentile_75": 94.713,
-      "percentile_95": 100.279,
-      "probability_10pct_gain": 0.1087,
-      "probability_10pct_loss": 0.0223,
-      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only \u2014 not the chance of touching a target, and not target-vs-stop.",
-      "probability_profit": 0.6363,
+      "mean_price": 91.0103,
+      "median_price": 90.8813,
+      "percentile_25": 87.0745,
+      "percentile_5": 82.0809,
+      "percentile_75": 94.7062,
+      "percentile_95": 100.44,
+      "probability_10pct_gain": 0.1077,
+      "probability_10pct_loss": 0.0213,
+      "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only: not the chance of touching a target, and not target-vs-stop.",
+      "probability_profit": 0.625,
       "simulations_run": 3000,
-      "var_95": -7.9599
+      "var_95": -7.8364
     },
     "net_assets": 0.0,
     "peer_comparison": {
@@ -456,13 +458,14 @@
     },
     "portfolio_outlook": {
       "bottom_line": "Existing holders can hold with a strict stop. New buyers should wait for pullback or breakout confirmation.",
-      "reason": "Risk/reward of 0.28:1 is below the 1.50:1 minimum.",
+      "reason": "Risk/reward of 0.29:1 is below the 1.50:1 minimum.",
       "recommendation": "WATCHLIST"
     },
     "portfolio_risk_check": {
       "adjustments": {},
       "approved": true,
       "correlation_risk": 0.0,
+      "correlation_unmeasured": 0,
       "holdings_known": false,
       "sector_exposure": {
         "Consumer Defensive": 0.0999
@@ -522,10 +525,10 @@
     "requested_symbol": "KO",
     "retrieval_timestamp": "<volatile>",
     "risk": {
-      "annualized_volatility": 0.1798,
-      "beta": -0.2828,
+      "annualized_volatility": 0.1797,
+      "beta": -0.279,
       "beta_benchmark": "SPY",
-      "beta_observations": 250,
+      "beta_observations": 249,
       "beta_status": "measured",
       "cvar_95": -0.0215,
       "grade_drivers": [
@@ -565,8 +568,8 @@
       "overall_risk_score": 3,
       "risk_grade": "A",
       "risk_points": 3,
-      "sharpe_ratio": 0.6043,
-      "sortino_ratio": 0.9394,
+      "sharpe_ratio": 0.6379,
+      "sortino_ratio": 0.993,
       "var_95_daily": -0.0157
     },
     "risk_warnings": [],
@@ -763,8 +766,10 @@
       "trend_direction": "UP",
       "trend_score": 74.708,
       "trend_strength": "MODERATE",
+      "unmeasured": [],
       "volatility_score": 60,
-      "volume_ratio": 0.6189,
+      "volume_ratio": 1.1819,
+      "volume_ratio_basis": "last completed session (today's is still trading)",
       "week_52_basis": "provider-reported traded range",
       "week_52_high": 92.49,
       "week_52_low": 65.35
@@ -789,9 +794,9 @@
       "has_long_reward": true,
       "is_actionable_entry": false,
       "levels_available": true,
-      "risk_reward_ratio": 0.2793,
-      "setup_basis": "limit at a slight premium to spot; stop below support; 63-session target pro-rated from the 12-month valuation target $94.70; Target 1 is a tactical partial exit",
-      "stop_loss": 84.8034,
+      "risk_reward_ratio": 0.2899,
+      "setup_basis": "limit at a slight premium to spot; stop 2.75xATR below entry; 63-session target pro-rated from the 12-month valuation target $94.70; Target 1 is a tactical partial exit",
+      "stop_loss": 84.9684,
       "target_aggressive": 94.6957,
       "target_base": 94.6957,
       "target_conservative": 90.6025,

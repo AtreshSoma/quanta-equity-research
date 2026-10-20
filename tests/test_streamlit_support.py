@@ -74,7 +74,7 @@ def fake_deep_payload():
         "beginner_guidance": {
             "recommendation_label": "HOLD EXISTING / AVOID NEW BUY",
             "buy_now": "NO",
-            "new_buyer": "Avoid new buy — watchlist only",
+            "new_buyer": "Avoid new buy; watchlist only",
             "existing_holder": "Hold existing with strict risk controls",
             "main_reason": "Strong fundamentals, but weak technical confirmation and high risk.",
             "data_quality": "PASS",

@@ -113,7 +113,10 @@ class UNIVERSE(_Group):
     SCAN_FLOORS = {"small_cap": {"MIN_PRICE": 5.0, "MIN_AVG_VOLUME": 250_000,
                                  "MIN_DAILY_DOLLAR_VOLUME": 5_000_000.0}}
     MIN_HISTORY_DAYS = 200
-    MAX_LIVE_DATA_AGE_DAYS = 10
+    # The latest daily bar may be at most this many completed sessions behind the
+    # last completed session (US: the NYSE calendar; India: weekdays on the India
+    # clock, as engine.market_calendar has no NSE holiday list). Was 10 calendar days.
+    MAX_LIVE_DATA_AGE_SESSIONS = 3
     PREFILTER_TIMEOUT_SECONDS = _env_float("QUANTA_PREFILTER_TIMEOUT", 90.0)
     PREFILTER_MAX_TICKERS = 1000
     # India listings (.NS / .BO), in INR (audit A08; were inline in analyze_stock).
@@ -165,6 +168,12 @@ class SCORE(_Group):
     GOOD = 6.5                      # BUY tier, mirrors 65
     EXCELLENT = 7.5                 # STRONG_BUY tier, mirrors 75
     ADJUSTMENT_CAP = 1.0
+    # Names that move with bitcoin must clear MIN_SCORE plus this premium.
+    CRYPTO_SCORE_PREMIUM = 2.0
+    CRYPTO_CORRELATED_TICKERS = (
+        'MARA', 'RIOT', 'COIN', 'MSTR', 'HIVE', 'BITF', 'HUT', 'CLSK',
+        'GBTC', 'BITO', 'CORZ', 'CIFR', 'BTBT', 'SOS', 'CAN', 'WULF',
+    )
     # The scanner scores 0-10; the decision ladder and every page read it out of
     # 100. The mapping is linear (LADDER.SCORE_BANDS = these tiers x this factor).
     TO_100 = 10.0
@@ -176,8 +185,6 @@ class RR(_Group):
     SCANNER_MIN = 1.8               # scanner gate on its own net levels
     RESEARCH_MIN = 1.5              # Research engine / decision core hurdle
     OPTIMAL = 3.0
-    COMMITTEE_FLOOR = 1.6           # lowest the committee may relax to
-    COMMITTEE_INSIDER_RELAX = 0.4   # relaxation on bullish insider buying
 
 
 # ── Investment committee (scanner, before publication) ───────────────────────
@@ -270,15 +277,61 @@ class REGIME(_Group):
 # number of its own.
 
 class MARKET(_Group):
+    # Discover's analyst list: a consensus target counts only with enough analysts
+    # behind it and an upside inside a believable band. Wider upside is usually a
+    # stale or extreme target, which ranking by upside alone would put first.
+    ANALYST_PICK_MIN_ANALYSTS = 10
+    ANALYST_PICK_MIN_UPSIDE_PCT = 2.0
+    ANALYST_PICK_MAX_UPSIDE_PCT = 50.0
+    # Gross exposure bands (% of capital) for each Overview posture, and the caps
+    # applied while confidence is low or data is stale. A Picks scan deploys no
+    # more than the upper end of the band in force (owner decision 2026-10-19).
+    # An untested heuristic, not a backtested allocation.
+    EXPOSURE_BANDS = {
+        "offensive": (65, 95),
+        "lean_long": (50, 70),
+        "neutral": (45, 65),
+        "defensive": (20, 50),
+        "cap_low_confidence": (30, 55),
+        "cap_stale": (20, 45),
+    }
     VIX_CONTAINED_MAX = 16.0        # below, with an aligned bullish model: risk Contained
     VIX_CALM_MAX = alias(REGIME, "VIX_NORMAL_MAX")   # at or above: elevated (warn)
     VIX_STRESS = alias(REGIME, "VIX_VOLATILE")       # at or above: stressed (bear), sizing reduced
     VIX_EXTREME = alias(REGIME, "VIX_HIGH_MAX")      # at or above: posture capped at Lean Defensive
+    # India VIX runs on its own scale: the Volatility factor's calm / elevated /
+    # stressed bands and the Macro factor's elevated-volatility flag.
+    INDIA_VIX_CALM_MAX = 13.0       # below: calm (+1)
+    INDIA_VIX_ELEVATED = 20.0       # at or above: elevated (-1)
+    INDIA_VIX_STRESS = 24.0         # at or above: a Macro / Catalyst stress flag
+    INDIA_VIX_EXTREME = 28.0        # at or above: stressed (-2)
+    # Participation is four index proxies, so it only reads 0/25/50/75/100%.
     PARTICIPATION_BROAD_PCT = 70.0  # share of index proxies above their 50-DMA: broad
     PARTICIPATION_WEAK_PCT = 35.0   # at or below: weak
     PARTICIPATION_NARROW_PCT = 45.0 # below: narrow (Opportunity brief market type)
+    PARTICIPATION_NEUTRAL_PCT = 50.0  # below (and above weak): below neutral (-1)
+    SESSION_GREEN_UP_PCT = 65.0     # legacy tone fallback: share of quotes up today at or above: +1
+    SESSION_GREEN_DOWN_PCT = 35.0   # at or below: -1
     CONFIDENCE_HIGH = 70            # regime confidence at or above: High
     CONFIDENCE_MODERATE = 50        # at or above: Moderate; below: Low
+    # Regime confidence (0-100) = signal strength + input coverage - conflicts,
+    # clamped, then lowered by the penalties below (never under the floor).
+    CONFIDENCE_SIGNAL_POINTS = 60   # points for |factor sum| / factor count
+    CONFIDENCE_SIGNAL_MIN_FACTORS = 8  # that ratio's denominator is at least this
+    CONFIDENCE_COVERAGE_POINTS = 30  # points for full measured-input coverage
+    CONFIDENCE_CONFLICT_POINTS = 5  # points off per supportive/negative factor pair
+    CONFIDENCE_MIN = 15             # clamp of the computed score
+    CONFIDENCE_MAX = 95
+    CONFIDENCE_FLOOR = 12           # penalties never take confidence below this
+    CONFIDENCE_NEWS_BEARISH_PENALTY = 8   # one or more high-impact bearish headlines
+    CONFIDENCE_NEWS_CONFLICT_PENALTY = 12  # price tape and news direction disagree
+    CONFIDENCE_MISSING_PENALTY = 15  # this many market inputs missing (below) or more
+    DEGRADED_MISSING_INPUTS = 3     # missing market inputs at or above: penalty and degraded data
+    CONFIDENCE_STALE_CAP = 35       # stale quotes: confidence at most this
+    # News Impact factor score is clipped to +/- this. The tape is read by a
+    # keyword lexicon, so it never carries a measured factor's -2, and it never
+    # caps the posture on its own.
+    NEWS_FACTOR_MAX_ABS = 1
     SIGNAL_SCORE_BULL = 6.5         # factor score (0-10) at or above: bullish tone
     SIGNAL_SCORE_NEUTRAL = 5.5      # at or above: neutral; below: warn
     SIGNAL_SCORE_BEAR = 3.5         # at or below: bearish tone
@@ -286,14 +339,19 @@ class MARKET(_Group):
     NEWS_IMPACT_MARKET_MOVING = 6   # at or above: market-moving (shown on the tape)
     NEWS_IMPACT_MEDIUM = 3          # at or above: Medium relevance
     HIGH_IMPACT_NEWS_WARN = 3       # this many live high-impact headlines or more: warn
-    # Ribbon notes and the Rates / Credit factor: day moves in percent.
-    YIELD_SHARP_PCT = 0.8           # 10Y yield move at or above: rising sharply
-    YIELD_RISING_PCT = 0.3          # at or above: rising, rate pressure
-    YIELD_EASING_PCT = -0.4         # at or below: easing, relief
-    OIL_MOVE_PCT = 2.0              # oil fund move beyond +/- this: spiking / falling
-    GOLD_MOVE_PCT = 1.0             # gold fund move beyond +/- this: haven bid / risk appetite
+    VIX_SESSION_JUMP_PCT = 10.0     # a one-session VIX move this large is named beside its level (wording only)
+    # Rates / Credit factor and the Macro "rate shock" flag: a yield's day move in
+    # basis points (yield points x 100), never a percent of the yield's level
+    # (4.10 -> 4.13 is +0.7% of the level but only 3 bp).
+    YIELD_SHARP_BP = 10.0           # 10Y yield up this much or more: tightening sharply; either way: rate shock
+    YIELD_RISING_BP = 5.0           # up this much or more: tightening, rate pressure
+    YIELD_EASING_BP = -5.0          # at or below: easing, relief
+    OIL_MOVE_PCT = 2.0              # oil fund move beyond +/- this: spiking / falling (also a Macro stress flag)
+    GOLD_MOVE_PCT = 1.0             # gold fund move beyond +/- this: haven bid / risk appetite (gain: a Macro stress flag)
     CRYPTO_MOVE_PCT = 2.0           # bitcoin move beyond +/- this: risk appetite / risk-off
-    FX_MOVE_PCT = 0.3               # USD/INR move beyond +/- this: rupee weaker / firmer
+    # USD/INR (India's rates proxy) is a currency: its day move stays in percent.
+    FX_MOVE_PCT = 0.3               # USD/INR move beyond +/- this: rupee weaker / firmer (factor -1 / +1)
+    FX_SHARP_PCT = 0.6              # up this much or more: rupee weakening sharply (-2); either way: FX shock
     INDEX_LEADING_PCT = 1.0         # index move beyond +/- this: leading / under pressure
     INDEX_FLAT_PCT = 0.1            # index move within +/- this: flat
     INDEX_TONE_PCT = 0.4            # legacy v1 tone: benchmark move beyond +/- this: risk-on / risk-off
@@ -333,6 +391,17 @@ class MARKET(_Group):
                ("^CNXENERGY", "Energy"), ("^CNXREALTY", "Realty"), ("^CNXMEDIA", "Media"),
                ("^CNXPSUBANK", "PSU bank"), ("^CNXINFRA", "Infra")),
     }
+    # Heatmap tile size only (never a calculation input): approximate share of
+    # the S&P 500 held by each sector fund's sector, reviewed quarterly. A
+    # market without weights draws equal tiles.
+    SECTOR_WEIGHTS = {
+        "US": {"XLK": 33.0, "XLF": 13.0, "XLY": 10.5, "XLC": 9.5, "XLV": 9.0, "XLI": 8.5,
+               "XLP": 5.0, "XLE": 3.0, "XLU": 2.5, "XLRE": 2.0, "XLB": 2.0},
+        "IN": {},
+    }
+    PULSE_SERIES_SESSIONS = 22      # daily closes behind each pulse sparkline (about one month)
+    BASE_RATE_YEARS = 10            # history behind the next-session base rate
+    BASE_RATE_MOVE_PCT = 1.0        # a session this far up or down is a "1% day" in the base rate
     CROSS_ASSET = {
         "US": (("DX-Y.NYB", "Dollar index"), ("^IRX", "3-month T-bill"), ("^TNX", "10Y yield"),
                ("HYG", "High-yield bonds"), ("LQD", "Investment-grade bonds"),
@@ -346,6 +415,7 @@ class MARKET(_Group):
     VOL_INDEX = {"US": "^VIX", "IN": "^INDIAVIX"}
     CONTEXT_BUDGET_SECONDS = 20.0   # wall-clock wait for the market-context quotes
     CONTEXT_CACHE_SECONDS = 300.0   # reuse a market's context this long
+    CONTEXT_DISK_MAX_SECONDS = 259200.0  # a saved last good read (kept on disk) serves this long, so a weekend restart still has sparklines
     TRADING_DAYS_PER_YEAR = 252     # annualised implied volatility -> one session
     ATR_SESSIONS = 14               # average true range window for key levels
     CALENDAR_DAYS_AHEAD = 7         # dated events shown on the Overview calendar
@@ -357,6 +427,33 @@ class MARKET(_Group):
     EARNINGS_CALENDAR_LIMIT = 100
     EARNINGS_CALENDAR_CACHE_SECONDS = 1800.0
     EARNINGS_PER_DAY_SHOWN = 3      # reports listed per calendar day before "+N more"
+    # Overview regime engine (app.py _build_market_regime_engine): each factor
+    # scores +1 / 0 / -1 / -2 against these bands on its own input.
+    # Trend factor fallback when the benchmark history is unavailable (one session's move, %).
+    TREND_FALLBACK_UP_PCT = 0.75        # at or above: +1
+    TREND_FALLBACK_DOWN_PCT = -1.0      # at or below: -2
+    TREND_FALLBACK_WEAK_PCT = -0.25     # below (and above DOWN): -1
+    # Session Move factor: the benchmark's one-session move (%).
+    SESSION_MOVE_UP_PCT = 0.7           # at or above: +1
+    SESSION_MOVE_DOWN_PCT = -1.2        # at or below: -2
+    SESSION_MOVE_WEAK_PCT = -0.35       # at or below: -1
+    # Momentum factor: the benchmark's 21-session total return (%).
+    MOMENTUM_UP_PCT = 3.0               # at or above: +1
+    MOMENTUM_DOWN_PCT = -6.0            # at or below: -2
+    MOMENTUM_WEAK_PCT = -2.0            # at or below: -1
+    CATALYST_HEAVY_REPORTS = 4          # Catalyst Risk: earnings reports in the next 7 days at or above: heavy week (-1)
+    # Posture from the factor-score sum, symmetric (at or above +N / at or below -N).
+    POSTURE_OFFENSIVE_SUM = 7           # Offensive / Defensive
+    POSTURE_SELECTIVE_SUM = 4           # Selective Offensive / Selective Defensive; also a bullish / bearish price tape for the news-conflict check
+    POSTURE_LEAN_SUM = 2                # Lean Long / Lean Defensive
+    RULE2_QQQ_DROP_PCT = -1.0           # Rule 2: QQQ below this with VIX rising caps the posture at Neutral
+    OFFENSIVE_MIN_CONFIRMED = 5         # Rule 4: full Offensive needs at least this many +1 factors
+    CONFLICT_REASON_MIN = 2             # supportive/negative factor pairs at or above: named as a confidence reason
+    CONFLICT_HIGH = 3                   # at or above: a "conflicted" read (guidance capped) and a risk warning
+    LEGACY_TONE_TREND_PCT = 0.5         # 4-factor tone, trend fallback: benchmark move at or beyond +/- this: +1 / -1
+    LEGACY_TONE_NET_SUM = 2             # 4-factor tone: factor sum at or beyond +/- this: Risk-on / Risk-off
+    NEWS_HALF_LIFE_DAYS = 4.0           # a headline's impact halves every this many days in the regime read
+    NEWS_DRIVER_MEDIUM = 4              # regime drivers / catalysts: impact at or above reads Medium (High is NEWS_IMPACT_MARKET_MOVING)
 
 
 # ── Book construction (get_top_recommendations) ──────────────────────────────
@@ -375,6 +472,8 @@ class BOOK(_Group):
     SECTOR_CAP_PROFILE_PCT = {"strict": 0.25, "balanced": 0.35, "aggressive": 0.40}
     MAX_WATCH_ROWS = 10             # watch / withdrawn rows published beside funded ones
     CLOSEST_ROWS = 5                # "closest to qualifying" names shown after a scan (A12)
+    MAX_PAIRWISE_CORRELATION = 0.70  # a candidate this correlated with one book name is blocked
+    MAX_AVERAGE_CORRELATION = 0.60  # ... or this correlated with the book on average
 
 
 # ── Sizing ───────────────────────────────────────────────────────────────────
@@ -384,6 +483,7 @@ class SIZING(_Group):
     TARGET_RISK_STRONG_BUY = 0.0075
     MAX_RISK_PER_TRADE = 0.02
     MAX_RISK_STRONG_BUY = 0.025
+    ONE_SHARE_MAX_RISK = 0.01       # one whole share may risk at most this share of capital (owner, 2026-10-19)
     MAX_PORTFOLIO_RISK = 0.10
     MIN_POSITION_SIZE = 100.0       # account currency (USD); INR via ACCOUNT_TO_USD
     MIN_POSITION_PCT = 0.02         # capital-relative floor (audit 5.5)
@@ -416,6 +516,14 @@ class SIZING(_Group):
     EARNINGS_IMMINENT_DAYS = 3
     EARNINGS_NEAR_DAYS = 14
     EARNINGS_ELEVATED_DAYS = 30
+    # FOMC event risk (scanner _get_event_risk_factor): new positions shrink
+    # ahead of a Fed decision. Days to the decision day (New York date), both
+    # ends inclusive: 0 to FOMC_NEAR_DAYS takes the NEAR multiplier, the days
+    # after that up to FOMC_WEEK_DAYS take the WEEK one; further out, full size.
+    FOMC_NEAR_DAYS = 3
+    FOMC_NEAR_SIZE_MULT = 0.70
+    FOMC_WEEK_DAYS = 7
+    FOMC_WEEK_SIZE_MULT = 0.85
     # Client mandate: a multiplier on funded allocations only. The engine's
     # risk budget is the ceiling, so no mandate scales above 1.0. Audit F14:
     # "aggressive" (x1.00, identical to balanced) is no longer offered; a
@@ -439,6 +547,10 @@ class COSTS(_Group):
     SLIPPAGE_MID_CAP = 0.001
     COMMISSION_SMALL_CAP = 0.003
     SLIPPAGE_SMALL_CAP = 0.002
+    # NSE/BSE delivery equity levies, per side (about 24bps round trip):
+    # STT 0.1% on buy and on sell; stamp duty 0.015% on buy; exchange
+    # transaction charge about 0.003% and SEBI fee 0.0001% each side; 18% GST
+    # on brokerage and exchange charges; a flat DP charge on the sell.
     INDIA_STATUTORY_COST_PER_SIDE = 0.0012
 
 
@@ -454,11 +566,17 @@ class LEVELS(_Group):
     TARGET_STRUCT_MAX_AGE_SESSIONS = 63  # a 52-week high older than this is not a target
     STRUCT_MIN_ABOVE_PCT = 0.02     # a structural level counts only this far above spot
     ANALYST_TARGET_SANE_RANGE = (0.5, 3.0)   # consensus outside price x this range is ignored
+    # A consensus target nearer price x the ratio of a split made within this many
+    # days than price itself was set before the split: it is stale, not upside.
+    ANALYST_TARGET_SPLIT_LOOKBACK_DAYS = 365
     TARGET_SAFETY_CAP = {"BULL": 2.50, "VOLATILE": 2.20, "OTHER": 2.00}   # x price, circuit breaker
     RESEARCH_HORIZON_DAYS = 63      # the Research engine's Decision horizon
     VALUATION_HORIZON_DAYS = 252    # its 12-month valuation target
     RESEARCH_SPREAD_BPS = 5         # Research engine cost model (per side)
     RESEARCH_SLIPPAGE_BPS = 3
+    # US round trip = spread + 2 x slippage (11bps). An .NS / .BO listing adds the
+    # statutory levies on each side (COSTS.INDIA_STATUTORY_COST_PER_SIDE, about 35bps in all).
+    RESEARCH_INDIA_STATUTORY_PER_SIDE = alias(COSTS, "INDIA_STATUTORY_COST_PER_SIDE")
 
 
 # ── Risk grade ───────────────────────────────────────────────────────────────
@@ -525,6 +643,13 @@ class RESEARCH(_Group):
     SCORE_TONE_BULL = 60.0              # score at or above reads "suggests upside"
     SCORE_TONE_BEAR = 40.0              # at or below reads "suggests caution"
     PEER_VALUATION_GAP_PCT = 5.0        # premium beyond +/- this vs sector average: rich / cheap
+    # Trade setup entry: RSI above this is stretched. Reward/risk and size are
+    # still measured from spot; a limit this % below spot is offered as a better fill.
+    ENTRY_RSI_EXTENDED = 60.0
+    PULLBACK_ENTRY_PCT = 1.0
+    # NSE/BSE regular session close (hour, minute IST): before it, today's daily
+    # bar is still forming. The US close is engine.market_calendar.SESSION_CLOSE.
+    INDIA_SESSION_CLOSE_IST = (15, 30)
 
 
 # ── My Portfolio policy (portfolio.analytics.PortfolioPolicy defaults) ──────
@@ -591,8 +716,13 @@ class EVENTS(_Group):
     FILING_PAGE_CACHE_PAGES = 512
     # Target-side forms only: SC TO-T is left out because it also appears in the
     # bidder's own filings; the target always answers a tender with SC 14D9.
-    STRONG_FORMS = ("DEFM14A", "PREM14A", "SC 14D9")
+    # SC 14D9F is the same answer from a Canadian (MJDS) target.
+    STRONG_FORMS = ("DEFM14A", "PREM14A", "SC 14D9", "SC 14D9F")
     DELISTING_FORMS = ("25-NSE", "15-12B")
+    # A foreign private issuer files no 8-K or merger proxy: it announces a deal in
+    # a free-form 6-K, which the check does not classify. A 6-K in the window makes
+    # the check "unavailable", never "clear". (F-4 and SC TO-T are the buyer's.)
+    FOREIGN_CURRENT_FORMS = ("6-K",)
     # A successor issuer (holding-company reorganization) files these; the 25-NSE
     # that follows removes the predecessor's shares, not the listing.
     SUCCESSION_FORMS = ("8-K12B", "8-K12G3")

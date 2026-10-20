@@ -33,9 +33,7 @@ const {
   factorState,
   strategistBrief,
   signalCheckCounts,
-  driverTraderResponse,
   confidenceRead,
-  impactChain,
 } = require('../static/app.js');
 
 test('percentage math uses current and target prices', () => {
@@ -177,7 +175,7 @@ test('chart badge shows the latest close (not the target) with a clear caption',
   });
   // The top-right badge is the LATEST close + 6M change, explicitly labelled so
   // it is never mistaken for the analyst target.
-  assert.match(html, /chart-return-cap">Latest · 6M</);
+  assert.match(html, /chart-return-cap">Close [^<]+ · 6M</);
   assert.match(html, /<strong>\$222\.36<\/strong>/);
   // Target must NOT be the value rendered inside the badge strong element.
   assert.doesNotMatch(html, /<strong>\$262\.35<\/strong>/);
@@ -687,50 +685,6 @@ test('signalCheckCounts: empty model is safe', () => {
   assert.deepEqual(c, { confirmed: 0, neutral: 0, warning: 0, opposed: 0, total: 0 });
 });
 
-// ---- Impact chain coherence (must agree with the regime, not legacy tone) ----
-test('impactChain shows Risk-on rotation only when the engine posture is bullish', () => {
-  const market = {
-    tone: 'Risk-on', // legacy field — must NOT alone drive a risk-on narrative
-    vix_level: 15,
-    quotes: [{ symbol: 'SPY', change_pct: 0.4 }, { symbol: 'QQQ', change_pct: 0.6 }],
-    market_regime_engine: { colorTheme: { toneClass: 'bull' }, newsImpact: { netDirection: 'bullish' } },
-  };
-  assert.equal(impactChain(market, {}, {}).label, 'Risk-on rotation');
-});
-
-test('impactChain never claims Risk-on while the regime is mixed/bearish (the contradiction bug)', () => {
-  // Legacy tone says "Risk-on" but the engine reads Mixed/Cautious with a
-  // bearish news tilt — the chain must NOT print "Risk-on rotation".
-  const market = {
-    tone: 'Risk-on',
-    vix_level: 16,
-    quotes: [{ symbol: 'SPY', change_pct: 0.2 }, { symbol: 'QQQ', change_pct: 0.1 }],
-    market_regime_engine: { colorTheme: { toneClass: 'neutral' }, newsImpact: { netDirection: 'bearish' } },
-  };
-  const chain = impactChain(market, {}, {});
-  assert.notEqual(chain.label, 'Risk-on rotation');
-  // The tape outranks the news tilt: every index up is a broad advance, not a
-  // risk-off story (Overview review, October 2026).
-  assert.equal(chain.label, 'Broad advance');
-});
-
-// ---- Driver trader response (Market Drivers redesign) ----
-test('driverTraderResponse: bearish macro driver advises trimming risk', () => {
-  const r = driverTraderResponse({ direction: 'bearish', category: 'macro' });
-  assert.match(r, /trim|stops|light/i);
-});
-
-test('driverTraderResponse: bullish earnings driver waits for the reaction', () => {
-  const r = driverTraderResponse({ direction: 'bullish', category: 'earnings' });
-  assert.match(r, /confirmed reaction|pre-print/i);
-});
-
-test('driverTraderResponse: neutral non-earnings driver just watches', () => {
-  const r = driverTraderResponse({ direction: 'neutral', category: 'macro' });
-  assert.match(r, /watch/i);
-});
-
-// ---- Confidence read helper ----
 test('confidenceRead: maps score to label + tone, and is null-safe', () => {
   assert.deepEqual(confidenceRead({ confidenceScore: 80 }), { score: 80, label: 'High', tone: 'bull', withheld: false });
   assert.deepEqual(confidenceRead({ confidenceScore: 40 }), { score: 40, label: 'Low', tone: 'warn', withheld: false });

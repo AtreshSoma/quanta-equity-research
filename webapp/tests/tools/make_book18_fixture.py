@@ -1,9 +1,9 @@
 """Build tests/fixtures/my_portfolio_view_18.json: an 18-holding book from the REAL build_view.
 
-Synthetic holdings shaped like a real 2026-09-29 screenshot of the page (a 22% position,
-five risk-grade F trims, seven holdings on hold for new money, two funds, one holding
-with no analysis), so visual checks see grouped guidance, a crowded allocation and a
-long holdings list. Test data only; never shown as a real account.
+A fictional book: the tickers, weights and amounts are made up and mirror no real
+account. Its shape (a 22% position, five risk-grade F trims, seven holdings on hold
+for new money, two funds, one holding with no analysis) lets visual checks see grouped
+guidance, a crowded allocation and a long holdings list.
 
     python webapp/tests/tools/make_book18_fixture.py
     BOOK=18 python webapp/tests/tools/make_insights_fixture.py
@@ -27,8 +27,8 @@ from portfolio.models import AccountSummary, Portfolio, Position, TaxLot  # noqa
 from portfolio.service import build_view  # noqa: E402
 from test_my_portfolio import decision  # noqa: E402
 
-TOTAL = 37_686.45
-CASH = 371.64
+TOTAL = 52_310.00
+CASH = 523.10
 blk = lambda code, text, remedy: {"code": code, "text": text, "remedy": remedy}  # noqa: E731
 RR = blk("LOW_REWARD_RISK", "Reward/risk to the horizon target is below the 1.5:1 minimum",
          "Reward/risk of at least 1.5:1 (a better entry or a higher target)")
@@ -40,24 +40,24 @@ F = blk("RISK_GRADE_F", "Risk grade F (very high volatility/drawdown) allows no 
 
 # symbol, name, weight, return on cost, session %, sector, beta, vol, decision kwargs
 BOOK = [
-    ("AAPL", "Apple", 0.2200, 1.557, 0.32, "Technology", 1.2, 0.27, dict(action="BUY", score=66)),
-    ("MSFT", "Microsoft", 0.1090, 0.847, 0.23, "Technology", 0.9, 0.24, dict(action="BUY", score=58, new_money="WATCH", blockers=[RR])),
-    ("VOO", "Vanguard S&P 500 ETF", 0.1010, 0.261, 0.22, "", 1.0, 0.16, dict(action="BUY", score=55, new_money="WATCH", blockers=[NO_TARGET])),
-    ("GOOGL", "Alphabet", 0.0910, 0.724, 0.06, "Communication Services", 1.05, 0.29, dict(action="BUY", score=64)),
-    ("JNJ", "Johnson & Johnson", 0.0720, 0.470, -0.02, "Healthcare", 0.5, 0.17, dict(action="BUY", score=57, new_money="WATCH", blockers=[RR])),
-    ("AMZN", "Amazon", 0.0550, 0.235, 0.14, "Consumer Cyclical", 1.25, 0.33, dict(action="BUY", score=63)),
-    ("META", "Meta Platforms", 0.0390, 0.633, 0.69, "Communication Services", 1.3, 0.38, dict(action="ACCUMULATE", score=60, blockers=[D_CAP], risk="D")),
-    ("TSM", "Taiwan Semiconductor", 0.0360, 0.071, 0.07, "Technology", 1.35, 0.46, dict(action="WATCHLIST", score=62, blockers=[F], risk="F")),
-    ("NVDA", "NVIDIA", 0.0358, 0.912, 1.05, "Technology", 1.8, 0.55, dict(action="WATCHLIST", score=68, blockers=[F], risk="F")),
-    ("LRCX", "Lam Research", 0.0350, 0.388, -0.41, "Technology", 1.6, 0.52, dict(action="WATCHLIST", score=59, blockers=[F], risk="F")),
-    ("LLY", "Eli Lilly", 0.0300, 0.214, 0.35, "Healthcare", 0.45, 0.31, dict(action="ACCUMULATE", score=61, blockers=[D_CAP], risk="D")),
-    ("COST", "Costco", 0.0300, 0.402, 0.11, "Consumer Defensive", 0.75, 0.22, dict(action="BUY", score=56, new_money="WATCH", blockers=[RR])),
-    ("ORCL", "Oracle", 0.0300, 0.518, -0.27, "Technology", 1.1, 0.35, dict(action="WATCHLIST", score=52)),
-    ("MU", "Micron Technology", 0.0280, -0.064, -0.88, "Technology", 1.7, 0.58, dict(action="WATCHLIST", score=55, blockers=[F], risk="F")),
-    ("AVGO", "Broadcom", 0.0280, 1.204, 0.52, "Technology", 1.45, 0.44, dict(action="WATCHLIST", score=63, blockers=[F], risk="F")),
-    ("NBIX", "Neurocrine Biosciences", 0.0240, 0.118, -0.35, "Healthcare", 0.6, 0.34, dict(action="ACCUMULATE", score=60, blockers=[D_HOLD], risk="D")),
-    ("QQQM", "Invesco Nasdaq 100 ETF", 0.0230, 0.196, 0.28, "", 1.1, 0.21, dict(action="WATCHLIST", score=53)),
-    ("RVII", "Rise Vision II", 0.0030, -0.215, 1.9, "Miscellaneous", 1.0, 0.8, None),
+    ("HD", "Home Depot", 0.2200, 1.557, 0.32, "Consumer Cyclical", 1.05, 0.25, dict(action="BUY", score=66)),
+    ("PG", "Procter & Gamble", 0.1090, 0.847, 0.23, "Consumer Defensive", 0.45, 0.17, dict(action="BUY", score=58, new_money="WATCH", blockers=[RR])),
+    ("SCHB", "Schwab US Broad Market ETF", 0.1010, 0.261, 0.22, "", 1.0, 0.16, dict(action="BUY", score=55, new_money="WATCH", blockers=[NO_TARGET])),
+    ("CRM", "Salesforce", 0.0910, 0.724, 0.06, "Technology", 1.15, 0.30, dict(action="BUY", score=64)),
+    ("PFE", "Pfizer", 0.0720, 0.470, -0.02, "Healthcare", 0.6, 0.20, dict(action="BUY", score=57, new_money="WATCH", blockers=[RR])),
+    ("NKE", "Nike", 0.0550, 0.235, 0.14, "Consumer Cyclical", 1.1, 0.31, dict(action="BUY", score=63)),
+    ("NFLX", "Netflix", 0.0390, 0.633, 0.69, "Communication Services", 1.3, 0.38, dict(action="ACCUMULATE", score=60, blockers=[D_CAP], risk="D")),
+    ("AMD", "Advanced Micro Devices", 0.0360, 0.071, 0.07, "Technology", 1.7, 0.50, dict(action="WATCHLIST", score=62, blockers=[F], risk="F")),
+    ("SMCI", "Super Micro Computer", 0.0358, 0.912, 1.05, "Technology", 1.9, 0.70, dict(action="WATCHLIST", score=68, blockers=[F], risk="F")),
+    ("KLAC", "KLA Corporation", 0.0350, 0.388, -0.41, "Technology", 1.5, 0.45, dict(action="WATCHLIST", score=59, blockers=[F], risk="F")),
+    ("ABBV", "AbbVie", 0.0300, 0.214, 0.35, "Healthcare", 0.5, 0.29, dict(action="ACCUMULATE", score=61, blockers=[D_CAP], risk="D")),
+    ("WMT", "Walmart", 0.0300, 0.402, 0.11, "Consumer Defensive", 0.55, 0.19, dict(action="BUY", score=56, new_money="WATCH", blockers=[RR])),
+    ("ADBE", "Adobe", 0.0300, 0.518, -0.27, "Technology", 1.2, 0.34, dict(action="WATCHLIST", score=52)),
+    ("MRVL", "Marvell Technology", 0.0280, -0.064, -0.88, "Technology", 1.8, 0.60, dict(action="WATCHLIST", score=55, blockers=[F], risk="F")),
+    ("ON", "ON Semiconductor", 0.0280, 1.204, 0.52, "Technology", 1.6, 0.48, dict(action="WATCHLIST", score=63, blockers=[F], risk="F")),
+    ("VRTX", "Vertex Pharmaceuticals", 0.0240, 0.118, -0.35, "Healthcare", 0.55, 0.30, dict(action="ACCUMULATE", score=60, blockers=[D_HOLD], risk="D")),
+    ("SCHG", "Schwab US Large-Cap Growth ETF", 0.0230, 0.196, 0.28, "", 1.1, 0.21, dict(action="WATCHLIST", score=53)),
+    ("ZZTX", "Example Holding", 0.0030, -0.215, 1.9, "Miscellaneous", 1.0, 0.8, None),
 ]
 assert abs(sum(b[2] for b in BOOK) + CASH / TOTAL - 1) < 0.002, sum(b[2] for b in BOOK)
 
@@ -77,7 +77,7 @@ for i, (sym, name, w, ret, day, sector, beta, vol, dk) in enumerate(BOOK):
     positions.append(Position(sym, qty, name=name, average_cost=avg, last_price=px, previous_close=prev,
                               quote_as_of=q, quote_source="broker", sector=sector,
                               tax_lots=[TaxLot(qty, avg, lot_day)],
-                              earnings_date="2026-10-02" if sym in ("GOOGL", "AMZN") else None))
+                              earnings_date="2026-10-02" if sym in ("CRM", "NKE") else None))
     if dk is None:
         analysis[sym] = {"state": "error", "error": {"status": "insufficient_data", "title": "Too little price history for a Decision",
                                                      "retryable": False}}

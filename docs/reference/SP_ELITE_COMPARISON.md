@@ -282,7 +282,7 @@ Other material differences:
 
 ## What changed during the read-only comparison
 
-Nothing in code was changed. The only workspace file written was `docs/SP_ELITE_COMPARISON.md`. No files were staged or committed; no branches, merges, pushes, app deployments or trades were performed. PRO and Main hashes were unchanged and the existing untracked artifacts were preserved.
+Nothing in code was changed. The only workspace file written was `docs/reference/SP_ELITE_COMPARISON.md`. No files were staged or committed; no branches, merges, pushes, app deployments or trades were performed. PRO and Main hashes were unchanged and the existing untracked artifacts were preserved.
 
 Created and then deleted the entire temporary tree `<temp>\quanta-scanner-compare-d8518d82a01943d7931c2527816acc05\`, including:
 

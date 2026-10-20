@@ -143,7 +143,7 @@ test('Discover tabs are described as they behave, not as their names suggest', (
   assert.match(text, /Extended.*Not extended-hours trading/);
   assert.match(text, /Watchlist Early-momentum names from the last scan/);
   assert.doesNotMatch(text, /your watchlist|extended hours/i);
-  assert.match(text, /Street research candidates, marked Research only/);
+  assert.match(text, /Street research candidates, each placed on its 52-week range/);
 });
 
 test('the guide never claims QUANTA has no brokerage link, or that it can trade', () => {

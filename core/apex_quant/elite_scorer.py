@@ -2,7 +2,7 @@
 
 Purpose
 -------
-`docs/RECALIBRATION_PLAN.md` blocker H-09: the live scoring model has never been
+`docs/logs/RECALIBRATION_PLAN.md` blocker H-09: the live scoring model has never been
 validated out of sample. This module makes that possible by recomputing the
 composite as it *would have been seen* on each historical bar, using the real
 `TradingAnalysis_ELITE` analyzers rather than a reimplementation. Testing a

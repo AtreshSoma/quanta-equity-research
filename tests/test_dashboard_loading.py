@@ -141,3 +141,54 @@ def test_empty_dashboard_cache_does_not_hide_recovered_tape(monkeypatch):
     monkeypatch.setattr(webapp, '_market_snapshot', lambda *a, **k: {'quotes': [{'price': 100}]})
     with webapp.app.test_request_context('/'):
         assert webapp._dashboard_payload()['market']['quotes'][0]['price'] == 100
+
+
+def test_concurrent_dashboard_misses_build_the_payload_once(monkeypatch):
+    entered, release = threading.Event(), threading.Event()
+    builds = []
+
+    def snapshot(*a, **k):
+        builds.append(1)
+        entered.set()
+        release.wait(3)
+        return {'quotes': [{'price': 100}]}
+
+    monkeypatch.setattr(webapp, '_market_intel', lambda *a, **k: {})
+    monkeypatch.setattr(webapp, '_build_news_digest', lambda _: {})
+    monkeypatch.setattr(webapp, '_engine_payload', lambda: [])
+    monkeypatch.setattr(webapp, '_market_snapshot', snapshot)
+    results = []
+
+    def visit():
+        with webapp.app.test_request_context('/'):
+            results.append(webapp._dashboard_payload())
+
+    threads = [threading.Thread(target=visit) for _ in range(4)]
+    try:
+        threads[0].start()
+        assert entered.wait(2)
+        for t in threads[1:]:
+            t.start()
+        time.sleep(0.1)
+        release.set()
+        for t in threads:
+            t.join(3)
+    finally:
+        release.set()
+    assert len(builds) == 1
+    assert [r['market']['quotes'][0]['price'] for r in results] == [100] * 4
+
+
+def test_forced_refresh_still_rebuilds(monkeypatch):
+    builds = []
+    monkeypatch.setattr(webapp, '_market_intel', lambda *a, **k: {})
+    monkeypatch.setattr(webapp, '_build_news_digest', lambda _: {})
+    monkeypatch.setattr(webapp, '_engine_payload', lambda: [])
+    monkeypatch.setattr(webapp, '_market_snapshot',
+                        lambda *a, **k: builds.append(1) or {'quotes': [{'price': 100}]})
+    with webapp.app.test_request_context('/'):
+        webapp._dashboard_payload()
+        webapp._dashboard_payload()
+        assert len(builds) == 1
+        webapp._dashboard_payload(force_refresh=True)
+    assert len(builds) == 2

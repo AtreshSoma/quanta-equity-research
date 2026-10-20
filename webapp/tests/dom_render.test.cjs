@@ -417,35 +417,54 @@ test('The maker is credited once, in the footer colophon', () => {
   assert.ok(footerSig.compareDocumentPosition(disc) & 4, 'disclaimer closes the page');
 });
 
-test('Top Gainers & Losers renders the session board; rows open Research, the chart is a secondary link (D4)', () => {
+test('Top Gainers & Losers: the ticker opens its TradingView chart; Research and the row open the tear sheet', () => {
   app.renderTopMovers(intelFixture);
   const body = document.querySelector('#top-movers-body');
   const cols = Array.from(body.querySelectorAll('.q-board-col')).length;
   assert.equal(cols, 2, 'gainers and losers boards');
   const head = Array.from(body.querySelectorAll('.q-board-col:first-child .q-board-table thead th'))
     .map((n) => n.textContent.replace(/[⇅▲▼]/g, '').trim());
-  assert.deepEqual(head, ['Symbol', 'Open', 'High', 'Low', 'Prev. Close', 'Last / Change']);
+  assert.deepEqual(head, ['Symbol', 'Day range', 'Prev. Close', 'Last / Change']);
   assert.match(body.textContent, /NVDA/);
   // Session OHLC is shown as reported, uncompacted.
   assert.match(body.textContent, /\$141\.90/, 'session high');
   assert.match(body.textContent, /\$134\.55/, 'previous close');
-  // The row's own control opens the in-app Research tear sheet.
   const row = body.querySelector('.q-board-row');
-  const open = row.querySelector('button.q-board-open[data-ticker-open]');
-  assert.ok(open, 'a native button opens Research');
-  assert.equal(open.dataset.tickerOpen, row.dataset.boardTicker);
-  assert.equal(row.getAttribute('role'), null, 'the row keeps its table semantics');
-  assert.equal(row.querySelector('[data-tv]'), null);
-  // TradingView is a secondary link, exchange-qualified when the feed says where.
-  const chart = row.querySelector('a.q-board-chart');
-  assert.equal(chart.textContent, 'Open chart');
+  // The ticker is a link to its TradingView chart, in a new tab, exchange-qualified when known.
+  const chart = row.querySelector('a.q-board-tv[data-tv-link]');
+  assert.ok(chart, 'the ticker is a TradingView link');
+  assert.match(chart.textContent, new RegExp(row.dataset.boardTicker));
   assert.equal(chart.getAttribute('target'), '_blank');
   assert.match(chart.getAttribute('rel'), /noopener/);
+  assert.match(chart.getAttribute('aria-label'), /opens in a new tab/);
   assert.match(chart.href, /^https:\/\/www\.tradingview\.com\/chart\/\?symbol=/);
   assert.ok(!/\/chart\/[A-Za-z0-9]+\//.test(chart.href),
     'no private saved-layout id in the chart URL (those 403 for every other visitor)');
-  assert.match(body.textContent, /Select a row to open its Research tear sheet/);
+  // A native Research button still opens the in-app tear sheet (keyboard and screen readers).
+  const open = row.querySelector('button.q-board-research[data-ticker-open]');
+  assert.ok(open, 'a native button opens Research');
+  assert.equal(open.dataset.tickerOpen, row.dataset.boardTicker);
+  assert.equal(row.getAttribute('role'), null, 'the row keeps its table semantics');
+  assert.equal(row.querySelector('a.q-board-chart'), null, 'no separate Open chart link');
+  assert.match(body.textContent, /Select a ticker for its TradingView chart/);
   assert.ok(!/undefined|NaN/.test(body.textContent), 'no leaked bad values');
+});
+
+test('Discover tables: the ticker is a TradingView link and clicking it does not open the tear sheet', () => {
+  const html = app.qTickerCell('AAPL', 'Apple Inc.', app.tradingViewUrl('AAPL', 'NMS'));
+  const box = document.createElement('div');
+  box.innerHTML = html;
+  const a = box.querySelector('a.q-tick-tv');
+  assert.ok(a && a.textContent === 'AAPL');
+  assert.match(a.href, /symbol=NASDAQ%3AAAPL$/);
+  assert.equal(a.target, '_blank');
+  // Without a chart URL it stays plain text.
+  box.innerHTML = app.qTickerCell('^XYZ', '', null);
+  assert.equal(box.querySelector('a'), null);
+  // A link inside a row that opens the tear sheet keeps its own job.
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'static', 'app.js'), 'utf8');
+  assert.match(src, /const link = ev\.target\.closest && ev\.target\.closest\('a\[href\]'\);\s*if \(link && link !== btn\) return;/);
+  assert.match(src, /if \(ev\.target !== tr\) return;/, 'Enter on the ticker link follows the link');
 });
 
 test('TradingView symbols are exchange-qualified only when the venue is known', () => {

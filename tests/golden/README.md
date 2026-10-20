@@ -4,7 +4,7 @@ Regression harness for `QuantaEliteAnalyzer.analyze()`. It replays recorded I/O
 with the clock frozen and all network blocked, then diffs the normalised result
 against a committed snapshot.
 
-This is the safety net every phase of `docs/RECALIBRATION_PLAN.md` leans on.
+This is the safety net every phase of `docs/logs/RECALIBRATION_PLAN.md` leans on.
 Without it, changing a 13,091-line engine is guesswork: a weight adjustment in
 one place moves a win probability three modules away, and nothing reports it.
 

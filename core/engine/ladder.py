@@ -39,6 +39,9 @@ class LadderInputs:
     codes: List[str] = field(default_factory=list)
     evidence_status: str = "UNTESTED"        # engine.evidence status of the model behind the call
     event: Optional[Dict[str, Any]] = None   # EventCheck.to_dict()
+    # Holder red flags measured at any score (risk_overrides.measured_red_flags):
+    # they corroborate an exit review, never change the new-money action.
+    red_flags: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -56,6 +59,7 @@ class LadderDecision:
     size_multiplier: float
     reasons: List[str] = field(default_factory=list)
     holder_codes: List[str] = field(default_factory=list)
+    holder_flags: List[str] = field(default_factory=list)   # every measured red flag found
 
 
 def size_multiplier(grade: str) -> float:
@@ -104,7 +108,7 @@ def decide(inputs: LadderInputs, holding: Optional[Holding] = None) -> LadderDec
         mult = 0.0
 
     # 5. holder
-    rule = holder_rule(action, inputs.composite_score, codes, event=ev or None)
+    rule = holder_rule(action, inputs.composite_score, codes, event=ev or None, red_flags=inputs.red_flags)
     holder, basis, holder_codes = str(rule["action"]), str(rule["basis"]), list(rule.get("codes") or [])
     if (holding is not None and holder == "HOLD" and holding.weight is not None
             and holding.weight >= PORTFOLIO.TRIM_REVIEW_POSITION):
@@ -112,4 +116,5 @@ def decide(inputs: LadderInputs, holding: Optional[Holding] = None) -> LadderDec
 
     return LadderDecision(action=action, new_money=new_money(action), holder_action=holder,
                           holder_basis=basis, codes=codes, size_multiplier=mult,
-                          reasons=reasons, holder_codes=holder_codes)
+                          reasons=reasons, holder_codes=holder_codes,
+                          holder_flags=list(rule.get("flags") or []))

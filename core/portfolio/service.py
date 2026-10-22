@@ -18,13 +18,15 @@ from __future__ import annotations
 import threading
 import time
 import uuid
-from datetime import datetime, time as _time, timezone
+from datetime import date, datetime, time as _time, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from engine.market_calendar import is_trading_day, last_completed_session, now_new_york
+from engine.thresholds import PORTFOLIO as _PF
 
 from . import analytics as an
 from . import guidance as gd
+from .fund_events import FUND_INSTRUMENT_TYPES
 from .models import ConnectionState, DataIssue, Portfolio, finite
 from .provider import AuthExpired, PortfolioProvider, ProviderError
 
@@ -52,8 +54,27 @@ def _parse_iso(value: Optional[str]) -> Optional[datetime]:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
+def session_open(now: Optional[datetime] = None) -> bool:
+    """Is the US regular session open at ``now``?"""
+    ny_now = now_new_york(now or datetime.now(timezone.utc))
+    return is_trading_day(ny_now.date()) and _OPEN <= ny_now.time() < _CLOSE
+
+
+def prices_moving(now: Optional[datetime] = None) -> bool:
+    """Can US quotes still move at ``now`` (regular or extended hours on a trading day)?"""
+    ny_now = now_new_york(now or datetime.now(timezone.utc))
+    start, end = _PF.PRICES_MOVE_HOURS
+    return is_trading_day(ny_now.date()) and _time(start) <= ny_now.time() < _time(end)
+
+
 def quote_freshness(as_of: Optional[str], now: Optional[datetime] = None) -> Dict[str, Any]:
-    """Is a broker quote current for the session we are in?"""
+    """Is a broker quote current for the session we are in?
+
+    "delayed" means the quote is from today's session but was read more than
+    ``PORTFOLIO.QUOTE_LIVE_MINUTES`` ago (the page has not refreshed since). It
+    still values the book; only a quote from an earlier session, or one with no
+    time, is too old to act on (audit 2026-10-21, F3).
+    """
     now = now or datetime.now(timezone.utc)
     ts = _parse_iso(as_of)
     if ts is None:
@@ -61,12 +82,13 @@ def quote_freshness(as_of: Optional[str], now: Optional[datetime] = None) -> Dic
     age = max(0.0, (now - ts).total_seconds() / 60.0)
     ny_now = now_new_york(now)
     ny_q = now_new_york(ts)
-    session_open = is_trading_day(ny_now.date()) and _OPEN <= ny_now.time() < _CLOSE
-    if session_open:
-        if age <= 20:
+    if session_open(now):
+        if age <= _PF.QUOTE_LIVE_MINUTES:
             return {"status": "live", "age_minutes": age, "text": "Live"}
         if ny_q.date() == ny_now.date():
-            return {"status": "delayed", "age_minutes": age, "text": f"{age:.0f} min old"}
+            clock = ny_q.strftime("%I:%M %p").lstrip("0")
+            return {"status": "delayed", "age_minutes": age,
+                    "text": f"Price from {clock} ET, {age:.0f} min ago"}
         return {"status": "stale", "age_minutes": age, "text": f"From {ny_q.date().isoformat()}"}
     if ny_q.date() >= last_completed_session(now):
         return {"status": "last_close", "age_minutes": age, "text": "Latest session"}
@@ -214,6 +236,7 @@ class PortfolioService:
         else:
             with self._lock:
                 job["finished_at"] = time.time()
+            self._record_journal()
         return self.view()
 
     def _account_size(self, pf: Portfolio) -> Optional[float]:
@@ -263,6 +286,7 @@ class PortfolioService:
                 job["done"] += 1
         with self._lock:
             job["finished_at"] = time.time()
+        self._record_journal()
 
     # -- view ---------------------------------------------------------------
 
@@ -318,11 +342,27 @@ class PortfolioService:
             returns, returns_note = self._returns, self._returns_note
         if pf is None:
             return {"status": status, "portfolio": None, "source_tags": SOURCE_TAGS}
-        view = build_view(pf, analysis, returns, returns_note, self.policy, status, self._clock())
+        last_calls = self.insights.last_calls() if self.insights is not None else {}
+        view = build_view(pf, analysis, returns, returns_note, self.policy, status, self._clock(),
+                          last_calls=last_calls)
         if self.insights is not None:
-            self.insights.record_journal(view["portfolio"])
             view["portfolio"]["journal"] = self.insights.journal_info()
         return view
+
+    def _record_journal(self) -> None:
+        """Journal the calls once an analysis job has finished, not on every read.
+
+        A GET of the view must not write (audit 2026-10-21, F10); the end of a job
+        is the one moment the calls are complete and current.
+        """
+        if self.insights is None:
+            return
+        try:
+            v = self.view()
+            if v.get("portfolio"):
+                self.insights.record_journal(v["portfolio"])
+        except Exception:  # noqa: BLE001 - the journal is a record, never a reason to fail a job
+            pass
 
     def whatif(self, changes: Any) -> Dict[str, Any]:
         """Portfolio metrics after selling part or all of some holdings to cash.
@@ -340,7 +380,7 @@ class PortfolioService:
             returns = self._returns
         if pf is None:
             return {"available": False, "reason": "Not connected."}
-        holdings, _ = _join_holdings(pf, analysis)
+        holdings, _ = _join_holdings(pf, analysis, now_new_york(self._clock()).date())
         wanted: Dict[str, float] = {}
         for ch in (changes if isinstance(changes, list) else [])[:100]:
             if not isinstance(ch, dict):
@@ -384,7 +424,28 @@ def _decision_of(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return res.get("decision")
 
 
-def _join_holdings(pf: Portfolio, analysis: Dict[str, Dict[str, Any]]
+def is_fund_result(res: Optional[Dict[str, Any]]) -> bool:
+    """A typed fund (ETF, mutual fund, closed-end fund) in the research result."""
+    res = res or {}
+    kind = str(res.get("quote_type") or res.get("asset_type") or "").strip().upper()
+    return kind in FUND_INSTRUMENT_TYPES or kind == "ETN" or bool(res.get("is_etf") and kind != "INDEX")
+
+
+def _future_date(value: Any, today: Optional[date]) -> Optional[str]:
+    """An ISO date that is today or later; a past "next earnings" date is stale, not upcoming."""
+    if not value:
+        return None
+    iso = str(value)[:10]
+    if today is not None:
+        try:
+            if date.fromisoformat(iso) < today:
+                return None
+        except ValueError:
+            return None
+    return iso
+
+
+def _join_holdings(pf: Portfolio, analysis: Dict[str, Dict[str, Any]], today: Optional[date] = None
                    ) -> Tuple[List[an.Holding], Dict[str, Dict[str, Any]]]:
     """Each position joined with its market facts and QUANTA levels (the metrics' inputs)."""
     holdings: List[an.Holding] = []
@@ -394,11 +455,11 @@ def _join_holdings(pf: Portfolio, analysis: Dict[str, Dict[str, Any]]
         res = entry.get("result") or {}
         dec = res.get("decision") or {}
         sector, sector_src = (res.get("sector"), "quanta") if res.get("sector") else (p.sector, "broker")
-        earnings = p.earnings_date
+        earnings = _future_date(p.earnings_date, today)
         earnings_src = "broker" if earnings else ""
         if not earnings:
-            earnings = (res.get("catalysts") or {}).get("earnings_date") or \
-                       (res.get("market_intel") or {}).get("next_earnings_date")
+            earnings = (_future_date((res.get("catalysts") or {}).get("earnings_date"), today)
+                        or _future_date((res.get("market_intel") or {}).get("next_earnings_date"), today))
             earnings_src = "market" if earnings else ""
         beta = (res.get("risk") or {}).get("beta")
         stop = (dec.get("levels") or {}).get("stop") if dec.get("action") not in (None, "INVALID") else None
@@ -406,37 +467,45 @@ def _join_holdings(pf: Portfolio, analysis: Dict[str, Dict[str, Any]]
                            "industry": res.get("industry") or p.industry or "",
                            "earnings_date": str(earnings)[:10] if earnings else None,
                            "earnings_source": earnings_src, "beta": beta,
-                           "beta_status": (res.get("risk") or {}).get("beta_status"), "stop": stop}
+                           "beta_status": (res.get("risk") or {}).get("beta_status"), "stop": stop,
+                           "is_fund": is_fund_result(res),
+                           "risk_grade": str(dec.get("risk_grade") or "")}
         holdings.append(an.Holding(
             symbol=p.symbol, quantity=p.quantity, value=p.market_value, price=p.last_price,
             sector=facts[p.symbol]["sector"], industry=facts[p.symbol]["industry"], beta=beta,
-            earnings_date=facts[p.symbol]["earnings_date"], stop=stop, unrealized_pnl=p.unrealized_pnl))
+            earnings_date=facts[p.symbol]["earnings_date"], stop=stop, unrealized_pnl=p.unrealized_pnl,
+            is_fund=facts[p.symbol]["is_fund"]))
     return holdings, facts
 
 
 def build_view(pf: Portfolio, analysis: Dict[str, Dict[str, Any]], returns: Any, returns_note: str,
-               policy: an.PortfolioPolicy, status: Dict[str, Any], now: datetime) -> Dict[str, Any]:
+               policy: an.PortfolioPolicy, status: Dict[str, Any], now: datetime,
+               last_calls: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
     today = now_new_york(now).date()
     issues: List[DataIssue] = list(pf.issues)
-    holdings, facts = _join_holdings(pf, analysis)
+    holdings, facts = _join_holdings(pf, analysis, today)
 
     day_changes = [p.day_change for p in pf.positions]
     day_change = sum(day_changes) if day_changes and all(d is not None for d in day_changes) else None
     metrics = an.compute_metrics(holdings, pf.account.cash, pf.account.portfolio_value, returns,
                                  policy, today, day_change)
     total = metrics.total_value or 0.0
-    recon = pf.reconciliation()
+    recon = pf.reconciliation(session_open=prices_moving(now))
     if recon["status"] == "mismatch":
         issues.append(DataIssue("TOTALS_MISMATCH",
-                                f"Positions plus cash ({recon['computed']:,.2f}) differ from Robinhood's total "
-                                f"({recon['reported']:,.2f}) by {recon['difference_pct']:.2f}%.", "portfolio", "error"))
+                                f"Positions plus cash (${recon['computed']:,.2f}) differ from Robinhood's total "
+                                f"(${recon['reported']:,.2f}) by ${abs(recon['difference']):,.2f} "
+                                f"({recon['difference_pct']:.3g}%).", "portfolio", "error"))
     if returns_note:
         issues.append(DataIssue("RETURNS_UNAVAILABLE", returns_note, "portfolio", "info"))
 
     sector_w = {s["sector"]: s.get("weight") for s in metrics.sectors}
     pairs = metrics.volatility.get("correlated_pairs") or []
     ctx = gd.PortfolioContext(total_value=metrics.total_value, buying_power=pf.account.buying_power,
-                              stop_risk_pct=metrics.stops.get("loss_pct"), policy=policy, today=today)
+                              stop_risk_pct=metrics.stops.get("loss_pct"), policy=policy, today=today,
+                              last_calls=dict(last_calls or {}))
+    risk_share = metrics.volatility.get("risk_share") or {}
+    delayed: List[float] = []
     if status.get("analysis", {}).get("state") == "running":
         ctx.incomplete_reasons.append("Portfolio analysis is still running")
     if recon["status"] != "ok" or any(i.severity == "error" for i in issues):
@@ -463,6 +532,8 @@ def build_view(pf: Portfolio, analysis: Dict[str, Dict[str, Any]], returns: Any,
             stale_quotes += 1
             issues.append(DataIssue("QUOTE_STALE", f"{p.symbol}: Robinhood quote is {qf['text'].lower()}.",
                                     p.symbol))
+        elif qf["status"] == "delayed" and qf.get("age_minutes") is not None:
+            delayed.append(qf["age_minutes"])
         if p.quote_as_of and (oldest_quote is None or p.quote_as_of < oldest_quote):
             oldest_quote = p.quote_as_of
         pctx = gd.PositionContext(
@@ -471,18 +542,21 @@ def build_view(pf: Portfolio, analysis: Dict[str, Dict[str, Any]], returns: Any,
             unrealized_pnl_pct=p.unrealized_pnl_pct, sector=f["sector"],
             sector_weight=sector_w.get(f["sector"] or "Unclassified"),
             correlated_with=corr, cluster_weight=cluster, earnings_date=f["earnings_date"],
-            tax_lots=None if p.tax_lots is None else [lot.to_dict() for lot in p.tax_lots])
+            tax_lots=None if p.tax_lots is None else [lot.to_dict() for lot in p.tax_lots],
+            is_fund=f["is_fund"], risk_share=risk_share.get(p.symbol), risk_grade=f["risk_grade"])
 
         analysis_error = entry.get("error") if entry.get("state") == "error" else None
         if entry.get("state") in ("pending", "running") and not res:
             analysis_error = {"title": "analysis in progress"}
         if p.last_price is None:
             analysis_error = {"title": "no Robinhood quote, so the position cannot be valued"}
-        elif qf["status"] in ("stale", "unknown", "delayed"):
-            analysis_error = {"title": "Robinhood quote is stale or its freshness cannot be verified"}
+        elif qf["status"] == "stale":
+            analysis_error = {"title": "the Robinhood quote is from an earlier session"}
+        elif qf["status"] == "unknown":
+            analysis_error = {"title": "Robinhood did not say when its quote was taken"}
 
-        no_call = _no_call_cause(p, qf, entry, res, dec)
-        impacts = _impacts(holdings, total, pf.account.cash, p, dec, weight, policy, pf.account.buying_power)
+        no_call = _no_call_cause(p, qf, entry, res, dec, f["is_fund"])
+        impacts = _impacts(holdings, total, pf.account.cash, p, dec, weight, policy, pf.account.buying_power, today)
         thesis = (res or {}).get("thesis") or {}
         g = gd.guide_position(pctx, ctx, dec, analysis_error, impacts,
                               case_for=[str(x) for x in (thesis.get("bull_case") or []) if x],
@@ -505,9 +579,16 @@ def build_view(pf: Portfolio, analysis: Dict[str, Dict[str, Any]], returns: Any,
             "interpretation": (dec or {}).get("interpretation"),
             "guidance": g.to_dict(),
             "no_call": no_call if g.status != "ok" else None,
+            "is_fund": f["is_fund"],
+            # Share of the portfolio's variance this holding carries (None: not measured).
+            "risk_share": risk_share.get(p.symbol),
         })
 
     rows.sort(key=lambda r: (r["guidance"]["priority"], -(r["broker"]["weight"] or 0)))
+    if delayed:
+        issues.append(DataIssue("QUOTES_DELAYED",
+                                f"Prices were last refreshed {max(delayed):.0f} min ago; weights and today's "
+                                "change are as of then. Refresh for current prices.", "portfolio", "info"))
     failed = sum(1 for e in analysis.values() if e.get("state") == "error")
     if failed:
         issues.append(DataIssue("ANALYSIS_FAILED", f"QUANTA could not analyse {failed} holding(s); "
@@ -551,6 +632,7 @@ def build_view(pf: Portfolio, analysis: Dict[str, Dict[str, Any]], returns: Any,
             "overview": overview,
             "metrics": metrics.to_dict(),
             "groups": gd.summarize_groups(guidance_list),
+            "attention": gd.attention_items(rows, metrics.to_dict(), policy, today),
             "positions": rows,
             "issues": [i.to_dict() for i in issues],
             "policy": policy.to_dict(),
@@ -559,7 +641,7 @@ def build_view(pf: Portfolio, analysis: Dict[str, Dict[str, Any]], returns: Any,
 
 
 def _no_call_cause(p, qf: Dict[str, Any], entry: Dict[str, Any], res: Optional[Dict[str, Any]],
-                   dec: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+                   dec: Optional[Dict[str, Any]], is_fund: bool = False) -> Dict[str, Any]:
     """Why a holding has no call, as a stable code with what would fix it.
 
     A missing recommendation has a cause, and the cause decides the remedy: waiting,
@@ -569,12 +651,10 @@ def _no_call_cause(p, qf: Dict[str, Any], entry: Dict[str, Any], res: Optional[D
     if p.last_price is None:
         return {"code": "NO_QUOTE", "text": "Robinhood returned no price for this holding.", "remedy": "refresh"}
     st = qf.get("status")
-    if st in ("stale", "unknown", "delayed"):
-        text = {"stale": "The latest trade is from an earlier session.",
-                "unknown": "Robinhood did not say when the last trade happened.",
-                "delayed": f"The last trade was {qf.get('text', 'a while ago').lower()}, "
-                           "so the price cannot be confirmed as current."}[st]
-        return {"code": f"QUOTE_{st.upper()}", "text": text, "remedy": "wait" if st == "delayed" else "refresh"}
+    if st in ("stale", "unknown"):
+        text = {"stale": "The Robinhood quote is from an earlier session.",
+                "unknown": "Robinhood did not say when its quote was taken."}[st]
+        return {"code": f"QUOTE_{st.upper()}", "text": text, "remedy": "refresh"}
     state = entry.get("state")
     if state in ("pending", "running") and not res:
         return {"code": "ANALYSIS_PENDING", "text": "QUANTA is still analysing this holding.", "remedy": "wait"}
@@ -588,11 +668,20 @@ def _no_call_cause(p, qf: Dict[str, Any], entry: Dict[str, Any], res: Optional[D
                                                      "(usually too little price history or fundamentals).", "remedy": "none"}
     if (dec.get("freshness") or {}).get("status") == "stale":
         return {"code": "ANALYSIS_STALE", "text": "The analysis is older than QUANTA allows for a call.", "remedy": "refresh"}
+    codes = set(dec.get("blocking_codes") or [])
+    if "PRICE_HISTORY_TRUNCATED" in codes or str(dec.get("history_range") or "").startswith("6mo"):
+        return {"code": "HISTORY_TRUNCATED", "text": "The price provider returned only six months of history, too "
+                                                      "short to measure risk.", "remedy": "refresh"}
+    if (not is_fund and "levels" in dec and (dec.get("levels") or {}).get("valuation_target") is None
+            and (dec.get("event_check") or {}).get("status") != "flagged"):
+        return {"code": "VALUATION_MISSING", "text": "The analyst consensus and DCF inputs were missing this run.",
+                "remedy": "refresh"}
     return {"code": "UNSPECIFIED", "text": "No call was produced; see the data details.", "remedy": "refresh"}
 
 
 def _impacts(holdings: List[an.Holding], total: float, cash: Optional[float], p, dec: Optional[Dict[str, Any]],
-             weight: Optional[float], policy: an.PortfolioPolicy, buying_power: Optional[float]) -> Dict[str, Any]:
+             weight: Optional[float], policy: an.PortfolioPolicy, buying_power: Optional[float],
+             today: Optional[date] = None) -> Dict[str, Any]:
     """Portfolio impact previews. Every size is labelled with how it was chosen."""
     if not total or p.market_value is None:
         return {}
@@ -607,8 +696,56 @@ def _impacts(holdings: List[an.Holding], total: float, cash: Optional[float], p,
             out["add"] = dict(an.change_impact(holdings, total, cash, p.symbol, add),
                               basis="QUANTA's risk-budget size for this account, capped by the single-name "
                                     "limit and buying power")
+    if weight is not None and weight > policy.trim_review_position:
+        cut = p.market_value - policy.trim_review_position * total
+        out["trim_to_review"] = dict(an.change_impact(holdings, total, cash, p.symbol, -cut),
+                                     **_sale_detail(p, cut, today),
+                                     basis=f"Selling down to the {policy.trim_review_position:.0%} review level")
     if weight is not None and weight > policy.max_single_position:
         cut = p.market_value - policy.max_single_position * total
-        out["trim_to_cap"] = dict(an.change_impact(holdings, total, cash, p.symbol, -cut),
+        out["trim_to_cap"] = dict(an.change_impact(holdings, total, cash, p.symbol, -cut), **_sale_detail(p, cut, today),
                                   basis=f"Selling down to the {policy.max_single_position:.0%} single-name limit")
+    return out
+
+
+def _sale_detail(p, sell_value: float, today: Optional[date] = None) -> Dict[str, Any]:
+    """Shares and gain realised by selling ``sell_value`` of a position at today's price.
+
+    Gain uses the broker's average cost; the long/short split assumes the oldest
+    lots go first (FIFO, Robinhood's default). Arithmetic, not tax advice.
+    """
+    price = p.last_price
+    if not price or price <= 0 or sell_value <= 0:
+        return {}
+    shares = sell_value / price
+    out: Dict[str, Any] = {"shares": shares}
+    if p.average_cost is not None:
+        out["gain"] = shares * (price - p.average_cost)
+    lots = [lot for lot in (p.tax_lots or []) if lot.cost_per_share is not None and lot.quantity]
+    today = today or date.today()
+
+    def term(lot) -> Optional[str]:
+        if lot.term in ("short", "long"):
+            return lot.term
+        try:
+            return "long" if (today - date.fromisoformat(str(lot.acquired_on)[:10])).days > 365 else "short"
+        except (TypeError, ValueError):
+            return None
+
+    if lots and all(term(lot) for lot in lots):
+        left, short, long_ = shares, 0.0, 0.0
+        for lot in sorted(lots, key=lambda x: x.acquired_on or ""):
+            take = min(left, float(lot.quantity))
+            gain = take * (price - float(lot.cost_per_share))
+            if term(lot) == "long":
+                long_ += gain
+            else:
+                short += gain
+            left -= take
+            if left <= 1e-9:
+                break
+        if left <= 1e-6:
+            # The lots are what a sale actually realises, so they set the total too.
+            out.update(gain=short + long_, gain_short=short, gain_long=long_,
+                       lot_order="oldest lots first (FIFO)")
     return out

@@ -50,6 +50,7 @@ class Holding:
     earnings_date: Optional[str] = None    # ISO, next scheduled report
     stop: Optional[float] = None           # QUANTA model stop (not a placed order)
     unrealized_pnl: Optional[float] = None
+    is_fund: bool = False                  # ETF / mutual fund: its "sector" is a style label
 
 
 def _weights(holdings: Sequence[Holding], total: float) -> Dict[str, float]:
@@ -75,12 +76,14 @@ def sector_allocation(holdings: Sequence[Holding], total: float,
         if h.value is None:
             continue
         key = h.sector or "Unclassified"
-        b = buckets.setdefault(key, {"sector": key, "value": 0.0, "symbols": []})
+        b = buckets.setdefault(key, {"sector": key, "value": 0.0, "symbols": [], "fund": True})
         b["value"] += h.value
         b["symbols"].append(h.symbol)
+        # A bucket is a fund style ("Large Blend") only when every holding in it is a fund.
+        b["fund"] = b["fund"] and bool(h.is_fund)
     rows = sorted(buckets.values(), key=lambda r: -r["value"])
     if cash is not None and cash > 0:
-        rows.append({"sector": "Cash", "value": cash, "symbols": []})
+        rows.append({"sector": "Cash", "value": cash, "symbols": [], "fund": False})
     for r in rows:
         r["weight"] = r["value"] / total if total else None
     return rows
@@ -141,7 +144,7 @@ def volatility_and_correlation(holdings: Sequence[Holding], returns: Any,
     used; coverage says how much of the invested value that is.
     """
     out: Dict[str, Any] = {"volatility": None, "coverage": 0.0, "days": 0,
-                           "correlated_pairs": [], "avg_correlation": None}
+                           "correlated_pairs": [], "avg_correlation": None, "risk_share": {}}
     if returns is None or getattr(returns, "empty", True):
         return out
     priced = {h.symbol: h.value for h in holdings if h.value is not None and h.value > 0}
@@ -158,6 +161,13 @@ def volatility_and_correlation(holdings: Sequence[Holding], returns: Any,
     vol = float(port.std(ddof=1) * math.sqrt(TRADING_DAYS))
     out.update(volatility=vol if math.isfinite(vol) else None,
                coverage=cov_value / invested if invested else 0.0, days=int(len(frame)))
+    # Each holding's share of the covered book's variance (Euler contribution
+    # w_i * (Cov w)_i / w'Cov w). Shares sum to 1; a diversifier can be negative.
+    cov = frame.cov()
+    var = float(sum(w[i] * w[j] * cov.iloc[i, j] for i in range(len(cols)) for j in range(len(cols))))
+    if var > 0 and math.isfinite(var):
+        out["risk_share"] = {c: float(w[i] * sum(cov.iloc[i, j] * w[j] for j in range(len(cols))) / var)
+                             for i, c in enumerate(cols)}
     if len(cols) >= 2:
         corr = frame.corr()
         pairs, vals = [], []
@@ -209,7 +219,8 @@ def stop_exposure(holdings: Sequence[Holding], total: float) -> Dict[str, Any]:
 
 
 def earnings_exposure(holdings: Sequence[Holding], total: float, today: date,
-                      window_days: int = 14) -> Dict[str, Any]:
+                      window_days: Optional[int] = None) -> Dict[str, Any]:
+    window_days = _PF.EARNINGS_HORIZON_DAYS if window_days is None else window_days
     upcoming = []
     for h in holdings:
         if not h.earnings_date or h.value is None:
@@ -245,7 +256,7 @@ def risk_level(conc: Dict[str, Any], sectors: List[Dict[str, Any]], beta: Dict[s
         elif top >= 0.10:
             points += 1
             drivers.append(f"Largest position is {top:.0%} of the portfolio")
-    equity_sectors = [s for s in sectors if s["sector"] not in ("Cash", "Unclassified")]
+    equity_sectors = [s for s in sectors if s["sector"] not in ("Cash", "Unclassified") and not s.get("fund")]
     if equity_sectors and equity_sectors[0].get("weight") is not None:
         sw = equity_sectors[0]["weight"]
         if sw >= 0.40:

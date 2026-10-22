@@ -683,7 +683,7 @@ DIRECTIONAL = {"Accumulate": 1, "Trim": -1, "Exit Review": -1}
 # A trim made for position size or portfolio risk is a policy action, not a forecast that the
 # stock will fall, so it is not scored against the benchmark: it can be right while the stock
 # rises (it still cut the concentration).
-POLICY_BASIS = {"CONCENTRATION", "RISK_GRADE_F"}
+POLICY_BASIS = {"CONCENTRATION", "RISK_GRADE_F", "RISK_REVIEW_HELD"}
 
 
 def _is_directional(e: Dict[str, Any]) -> bool:

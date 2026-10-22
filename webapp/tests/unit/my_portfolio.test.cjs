@@ -77,18 +77,48 @@ test('each failure state is distinct and shows no portfolio', () => {
   assert.equal(frag(hp.headActionsHtml({ state: 'disconnected', state_label: 'Not connected' })).querySelector('[data-hp="connect"]'), null);
 });
 
-test('a bullish stock the portfolio is overweight in reads "Hold / No New Money", not Accumulate', () => {
+test('a bullish stock the portfolio is overweight in reads "Hold" with the limit as its reason, not Accumulate', () => {
   const d = frag(hp.portfolioHtml(fixture));
   const row = d.querySelector('[data-hp-row="AAPL"]');
-  assert.match(row.textContent, /Bullish/);
-  assert.match(row.textContent, /Hold, no new money/);
-  assert.match(row.textContent, /single-name limit/);
-  // A bullish name under its limits still gets no new money while the book's
-  // stop-risk coverage is incomplete (BRK.B failed): the gap is stated, not hidden.
-  const jnj = d.querySelector('[data-hp-row="JNJ"]').textContent;
-  assert.match(jnj, /Hold, no new money/);
-  assert.match(jnj, /stop-risk coverage is incomplete/);
-  assert.doesNotMatch(jnj, /Accumulate/);
+  assert.match(words(row.querySelector('[data-label="Portfolio action"]')), /^Hold$/);
+  assert.match(row.textContent, /over the 10% single-name limit/);
+  assert.ok(row.querySelector('.hp-over'), 'the weight itself is marked over the limit');
+  // A name under its limits still gets no new money while the book's stop-risk
+  // coverage is incomplete (BRK.B failed): the gap is stated, tagged, not hidden.
+  const jnj = d.querySelector('[data-hp-row="JNJ"]');
+  assert.match(words(jnj.querySelector('[data-label="Portfolio action"]')), /^Hold$/);
+  assert.match(words(jnj.querySelector('.hp-adding')), /^Adding blocked: data gap, portfolio stop-risk coverage is incomplete$/);
+  assert.doesNotMatch(jnj.textContent, /Accumulate/);
+});
+
+test('the table shows risk share and a muted score, with the evidence status stated once', () => {
+  hp._state.filter = null; hp._state.sort = 'action'; hp._state.dir = null;
+  const d = frag(hp.tableHtml(fixture.portfolio));
+  assert.match(words(d.querySelector('[data-hp-row="AAPL"] .hp-col-risk')), /^B 17\.2% of risk$/);
+  // A holding that offsets the rest (negative risk share) says so in words.
+  const pf2 = clone(fixture.portfolio);
+  pf2.positions.find((p) => p.symbol === 'KO').risk_share = -0.003;
+  assert.match(words(frag(hp.tableHtml(pf2)).querySelector('[data-hp-row="KO"] .hp-col-risk')), /lowers risk$/);
+  assert.equal(d.querySelectorAll('.hp-col-ev .model-flag').length, 0, 'no per-row evidence badge');
+  assert.match(words(d.querySelector('.hp-ev-note')), /^Score: QUANTA’s research score out of 100, not a probability of profit · Model not yet validated$/);
+  // Portfolio-level items sit above the rows and filter the table to their holdings.
+  assert.deepEqual([...d.querySelectorAll('.hp-attn-b')].map(words), fixture.portfolio.attention.map((a) => a.text));
+});
+
+test('earnings inside the horizon are badged on the row, and a data gap is tagged as one', () => {
+  const pf = clone(fixture.portfolio);
+  const aapl = pf.positions.find((p) => p.symbol === 'AAPL');
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date(aapl.broker.quote_as_of));
+  aapl.market.earnings_date = day;
+  Object.assign(aapl.guidance, { basis: { code: 'PORTFOLIO_DATA_INCOMPLETE', kind: 'missing_evidence', text: 'Portfolio stop-risk coverage is incomplete' },
+    key_reason: 'Portfolio stop-risk coverage is incomplete' });
+  const d = frag(hp.tableHtml(pf));
+  const row = d.querySelector('[data-hp-row="AAPL"]');
+  assert.equal(words(row.querySelector('.hp-earn')), 'Earnings today');
+  assert.match(words(row.querySelector('.hp-col-reason')), /^Data gap Portfolio stop-risk coverage is incomplete/);
+  // Past or distant dates carry no badge.
+  aapl.market.earnings_date = '2000-01-01';
+  assert.equal(frag(hp.tableHtml(pf)).querySelector('[data-hp-row="AAPL"] .hp-earn'), null);
 });
 
 test('a holding whose analysis failed shows "No call", never an action', () => {
@@ -256,22 +286,22 @@ test('each holding opens its detail panel from a native button; the table keeps 
   assert.match(words(row.querySelector('.hp-col-weight')), /^3\.9% \$3,540$/);
   assert.match(words(row.querySelector('.hp-col-today')), /^-\$90 -2\.48%$/);
   assert.match(row.querySelector('.hp-col-basis').textContent, /^\$4,950.*\$16\.50 \/ share/);
-  assert.match(row.querySelector('.hp-col-ev').textContent, /29\/100 score.*Model not yet validated/);
+  assert.match(words(row.querySelector('.hp-col-ev')), /^29 \/100$/);
   const heads = [...d.querySelectorAll('thead th')].map((e) => (e.querySelector('.q-sortable') || e).textContent.replace(/[▲▼]/g, '').trim());
-  assert.deepEqual(heads, ['Ticker', 'Weight', 'Last session', 'Cost basis', 'P&L', 'QUANTA stance', 'Portfolio action', 'Evidence', 'Key reason']);
+  assert.deepEqual(heads, ['Ticker', 'Weight', 'Last session', 'Cost basis', 'P&L', 'Risk', 'Portfolio action', 'Score', 'Key reason']);
   // Filters live with the table they filter.
   assert.deepEqual([...d.querySelectorAll('.hp-toolbar [data-hp-filter]')].map((b) => b.dataset.hpFilter), ['', ...fixture.portfolio.groups.filter((g) => g.count).map((g) => g.key)]);
 });
 
 test('the detail panel walks the table order and names its place in it', () => {
-  hp._state.filter = 'do_not_add'; hp._state.sort = 'weight'; hp._state.dir = null;
+  hp._state.filter = 'hold'; hp._state.sort = 'weight'; hp._state.dir = null;
   try {
     const pf = fixture.portfolio;
     const msft = pf.positions.find((p) => p.symbol === 'MSFT');
     const d = frag(hp.drawerHtml(msft, pf));
-    assert.match(words(d.querySelector('.hp-drawer-s')), /Hold, no new money Model not yet validated 9\.5% of the account · 2 of 3 in Holdings/);
+    assert.match(words(d.querySelector('.hp-drawer-s')), /Hold Model not yet validated 9\.5% of the account · 2 of 4 in Holdings/);
     assert.equal(d.querySelector('[data-hp-drawer="prev"]').getAttribute('aria-label'), 'Previous: AAPL');
-    assert.equal(d.querySelector('[data-hp-drawer="next"]').getAttribute('aria-label'), 'Next: JNJ');
+    assert.equal(d.querySelector('[data-hp-drawer="next"]').getAttribute('aria-label'), 'Next: KO');
     assert.equal(d.querySelector('[data-hp-drawer="close"]').getAttribute('aria-label'), 'Close details');
     assert.equal(d.querySelector('#hp-drawer-title').getAttribute('tabindex'), '-1');
     const first = frag(hp.drawerHtml(pf.positions.find((p) => p.symbol === 'AAPL'), pf));
@@ -331,7 +361,7 @@ test('without the insight modules, every tab still renders its core sections wit
   assert.doesNotMatch(d.body.textContent, /\bQuotes\b/, 'no standalone Quotes field');
   assert.match(d.querySelector('.hp-issue-list').textContent, /Positions plus cash match Robinhood/);
   const heads = [...d.querySelectorAll('.hp-table thead th')].map((e) => (e.querySelector('.q-sortable') || e).textContent.replace(/[▲▼]/g, '').trim());
-  assert.deepEqual(heads.slice(0, 9), ['Ticker', 'Weight', 'Last session', 'Cost basis', 'P&L', 'QUANTA stance', 'Portfolio action', 'Evidence', 'Key reason']);
+  assert.deepEqual(heads.slice(0, 9), ['Ticker', 'Weight', 'Last session', 'Cost basis', 'P&L', 'Risk', 'Portfolio action', 'Score', 'Key reason']);
 });
 test('the KPI row: value with the session move under it, return on cost, realized, cash and QUANTA risk', () => {
   const d = frag(hp.overviewHtml(fixture.portfolio));
@@ -433,20 +463,22 @@ test('guidance shows only decisions: the largest as the hero, the rest by severi
   assert.deepEqual(items, ['gi-NVDA', 'gi-RIVN', 'gi-XOM']);
   assert.match(d.querySelector('.q-head-sub').textContent, /^3 need a decision · Not yet tested, all 7 calls · Analysis /);
   const hero = d.querySelector('.hp-hero');
-  assert.match(words(hero.querySelector('.hp-hero-h')), /^NVDA Trim Model not yet validated Position is 35\.0% of the portfolio, past the 20% review level$/);
+  assert.match(words(hero.querySelector('.hp-hero-h')), /^NVDA Trim Model not yet validated 35\.0% of the account, past the 20% review level$/);
   assert.match(words(hero.querySelector('.hp-hero-bars')), /Now 35\.0% After trim 10\.0% 10% limit 20% review/);
   assert.match(words(hero.querySelector('.hp-hero-cash')), /^Cash freed \$22,676 at today’s prices, not an order$/);
   assert.match(words(hero.querySelector('.hp-hero-fx')), /Largest position NVDA 35\.0% → to AAPL 15\.1% Technology 59\.7% → to 34\.7% Cash 10\.7% → to 35\.7%/);
-  assert.match(hero.querySelector('.hp-hero-next').textContent, /^Position size · Consider trimming/);
+  // The trim is a range with shares and the gain it would realise, from the lots.
+  assert.match(hero.querySelector('.hp-hero-next').textContent, /^Position size · Trim range: to the 20% review level \(sell about \$13,619, 77\.25 shares\) or to the 10% single-name limit/);
+  assert.match(hero.querySelector('.hp-hero-next').textContent, /realises about \$14,805 of gain \(\$14,805 long-term, \$0 short-term if the oldest lots go first\)/);
   // The other decisions: a card per reason, the reason as its title and not repeated in the row.
   const cards = [...d.querySelectorAll('.hp-gc')];
   assert.deepEqual(cards.map((c) => c.querySelector('.hp-gc-t').textContent), [
-    'QUANTA score 29 is below 35, with a measured red flag: 12-month valuation target is at or below the entry',
+    "QUANTA score 29 is below 35, with a measured red flag: QUANTA's 12-month valuation target is below the price",
     'QUANTA score 41 is in the reduce band (35 to 45)']);
   for (const c of cards) assert.doesNotMatch(c.querySelector('.hp-gi-row').textContent, /QUANTA score/);
   for (const hold of ['AAPL', 'MSFT', 'JNJ', 'KO', 'BRK.B']) assert.ok(!items.includes(`gi-${hold}`), `${hold} is not a decision row`);
   // Every group is a filter chip, most severe first.
-  assert.deepEqual([...d.querySelectorAll('[data-hp-gfilter]')].map((b) => b.dataset.hpGfilter), ['', 'exit_review', 'trim_review', 'do_not_add', 'hold', 'unavailable']);
+  assert.deepEqual([...d.querySelectorAll('[data-hp-gfilter]')].map((b) => b.dataset.hpGfilter), ['', 'exit_review', 'trim_review', 'hold', 'unavailable']);
   assert.deepEqual(fixture, before, 'presentation does not mutate portfolio outputs');
 });
 
@@ -470,19 +502,21 @@ test('new money on hold is grouped by reason; a shared data limitation is counte
   const d = frag(hp.guidanceHtml(fixture.portfolio));
   const t = d.querySelector('.hp-holdt');
   assert.match(words(t.querySelector('.hp-gc-h')), /^New money on hold 3 holdings$/);
-  assert.deepEqual([...t.querySelectorAll('tr')].map(words), ['At the 10% single-name limit AAPL', 'Sector at the 30% limit MSFT']);
+  assert.deepEqual([...t.querySelectorAll('tr')].map(words), ['Over the 10% single-name limit AAPL', 'Sector over the 30% limit MSFT']);
   // The full reason travels with the ticker (tooltip and name), from the server's text.
-  assert.equal(t.querySelector('[data-hp-inspect="AAPL"]').getAttribute('title'), 'Already 15.1% of the portfolio, at or over the 10% single-name limit');
+  assert.equal(t.querySelector('[data-hp-inspect="AAPL"]').getAttribute('title'), '15.1% of the account, over the 10% single-name limit');
   // JNJ waits on a shared data limitation, which is stated once in the data status.
   assert.doesNotMatch(t.textContent, /JNJ|stop-risk coverage/);
   assert.match(words(t.querySelector('.hp-fine')), /^1 more waits on the account data noted in the data status\.$/);
   // Only the scenarios QUANTA sized carry a size: XOM's trim has none.
   assert.doesNotMatch(d.querySelector('.hp-hero').textContent, /XOM/);
-  hp._state.gFilter = 'do_not_add';
+  hp._state.gFilter = 'hold';
   try {
     const full = frag(hp.guidanceHtml(fixture.portfolio));
     assert.equal(full.querySelector('.hp-hero'), null);
-    assert.match(words(full.querySelector('.hp-hold-full')), /AAPL Already 15\.1% of the portfolio/);
+    assert.match(words(full.querySelector('.hp-hold-full')), /AAPL 15\.1% of the account, over the 10% single-name limit/);
+    // The Holds that may still take money are listed after the blocked ones.
+    assert.match(words(full.querySelector('.hp-plain')), /^KO 8\.4% No measured red flag; within portfolio limits$/);
   } finally { hp._state.gFilter = null; }
 });
 
@@ -550,7 +584,7 @@ test('six tabs, Guidance with its decision count, one selected, each controlling
 });
 test('with nothing to decide, guidance collapses to one status row', () => {
   const pf = clone(fixture.portfolio);
-  pf.positions.forEach((p) => { if (p.guidance.status === 'ok') Object.assign(p.guidance, { action: 'Hold', group: 'hold', priority: 4 }); });
+  pf.positions.forEach((p) => { if (p.guidance.status === 'ok') Object.assign(p.guidance, { action: 'Hold', group: 'hold', priority: 4, adding: { status: 'not_supported', code: 'SCORE_BELOW_BUY_BAND', kind: 'investment', text: 'QUANTA score is below the buy band' } }); });
   pf.groups = [{ key: 'hold', title: 'Hold', count: 7, symbols: [] }, { key: 'unavailable', title: 'Analysis Unavailable', count: 1, symbols: [] }];
   let d = frag(hp.guidanceHtml(pf));
   assert.ok(d.querySelector('.hp-guidance.is-quiet .hp-gd-bar'));
@@ -559,7 +593,7 @@ test('with nothing to decide, guidance collapses to one status row', () => {
   const qb = d.querySelector('.q-body');
   assert.ok(!qb || [...qb.children].every((c) => c.classList.contains('hp-rate')), 'no empty panel body');
   assert.match(d.querySelector('.hp-gd-msg').textContent, /^No position changes indicated\. No portfolio changes require attention among the current calls\./);
-  assert.deepEqual([...d.querySelectorAll('[data-hp-gfilter]')].map(words), ['All 8', 'No change 7', 'No call 1']);
+  assert.deepEqual([...d.querySelectorAll('[data-hp-gfilter]')].map(words), ['All 8', 'Hold 7', 'No call 1']);
   // Every call paused: say so once, name no tickers, offer no one-option filter.
   pf.positions.forEach((p) => { p.guidance.status = 'unavailable'; p.guidance.action = 'Unavailable'; p.guidance.group = 'unavailable'; });
   pf.groups = [{ key: 'unavailable', title: 'Analysis Unavailable', count: 8, symbols: [] }];

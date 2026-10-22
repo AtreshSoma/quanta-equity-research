@@ -594,11 +594,12 @@ test('My Portfolio limits, read-only tools and the ledger match the thresholds a
   assert.doesNotMatch(tools, /(place|review|preview|cancel|replace)_\w*order/);
   assert.match(src('portfolio/execution.py'), /^EXECUTION_ENABLED = False$/m);
   assert.match(src('brokers/oauth.py'), /Tokens live only in this object's memory/);
-  // Ledger: 30 calls on 10+ dates, SPY or ^NSEI for .NS only.
+  // Ledger: 30 calls on 10+ dates, ^NSEI for Indian listings (.NS and .BO), SPY otherwise.
   const ledger = src('tracking/ledger.py');
   assert.match(ledger, /MIN_SAMPLE = _EVIDENCE\.MIN_SAMPLE/);
   assert.match(text, new RegExp(`Only after ${T.EVIDENCE.MIN_SAMPLE} measured calls on at least ${T.EVIDENCE.MIN_DATES} separate dates`));
-  assert.match(ledger, /"\^NSEI" if decision\.ticker\.upper\(\)\.endswith\("\.NS"\)/);
+  assert.match(ledger, /"\^NSEI" if str\(ticker or ""\)\.upper\(\)\.endswith\(\("\.NS", "\.BO"\)\)/);
+  assert.match(ledger, /benchmark=benchmark_for\(decision\.ticker\)/);
   // Scan universes and the custom-list limit.
   // The engine takes its US preset sizes from UNIVERSE config, the one source the menu reads.
   const pro = src('SP_ELITE_PRO.py');

@@ -5767,7 +5767,7 @@ function renderTopOpportunitiesBody(intel = {}) {
       ${tipTh('Price', "Today's price, with its last three months as a line and the change over them.", 'num q-price-h')}
       ${sortTh('upside', 'Upside', "How far the average 12-month Street target sits above today's price. The longest bar is the largest upside listed.", 'q-upbar-h')}
       ${sortTh('odds', 'Target odds', 'The chance the price is at or above the average target in 12 months, as the option market prices it (or, without a usable option chain, at the stock\'s own 1-year volatility). Risk-neutral pricing, not a forecast.', 'num q-odds-h q-col-reads')}
-      ${sortTh('revisions', 'Revisions', `Analyst target raises and cuts over the last ${thr('MARKET.REVISION_WINDOW_DAYS')} days. Cuts outrunning raises often means the average target is still catching up with a falling price.`, 'q-rev-h q-col-reads')}
+      ${sortTh('revisions', 'Revisions', `Analyst target raises and cuts over the last ${fmtThreshold(thr('MARKET.REVISION_WINDOW_DAYS'), 'int')} days. Cuts outrunning raises often means the average target is still catching up with a falling price.`, 'q-rev-h q-col-reads')}
       ${sortTh('analysts', 'Street rating', "The analysts' consensus rating and how many analysts it covers. Sorts by the number of analysts. The Street's view, not a QUANTA verdict.", 'q-street-h')}
       <th class="q-x-h"><span class="sr-only">Details</span></th>
     </tr>`;
@@ -5796,8 +5796,8 @@ function renderTopOpportunitiesBody(intel = {}) {
         </tr>
         <tr class="q-detail" id="q-detail-cons-${i}" data-detail="cons-${i}" hidden><td colspan="8">${ideaDetailHtml(r, read, sym)}</td></tr>`;
     }).join('');
-    const rules = ['buy-rated', `${thr('MARKET.ANALYST_PICK_MIN_ANALYSTS')}+ analysts`,
-      `upside ${thr('MARKET.ANALYST_PICK_MIN_UPSIDE_PCT')} to ${thr('MARKET.ANALYST_PICK_MAX_UPSIDE_PCT')}%`, 'one per company',
+    const rules = ['buy-rated', `${fmtThreshold(thr('MARKET.ANALYST_PICK_MIN_ANALYSTS'), 'int')}+ analysts`,
+      `upside ${fmtThreshold(thr('MARKET.ANALYST_PICK_MIN_UPSIDE_PCT'), 'num')} to ${fmtThreshold(thr('MARKET.ANALYST_PICK_MAX_UPSIDE_PCT'), 'num')}%`, 'one per company',
       intel.coverage?.tracked ? `from ${intel.coverage.tracked} tracked large caps` : ''].filter(Boolean);
     // Hidden with display:none (not dropped), so every column keeps its position for the layout rules.
     const noReads = enrichFailed() && !consensus.some((r) => ideaRead(r.symbol));

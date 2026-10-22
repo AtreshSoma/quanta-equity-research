@@ -89,6 +89,8 @@ def cmd_elite_oos(args: argparse.Namespace) -> int:
         as_of=args.end,
         eval_every=args.eval_every,
         panel_path=panel_path,
+        pit_fundamentals=args.pit_fundamentals,
+        regime=args.regime,
     )
     print(format_report(report))
     path = save_report(report, name=args.name)
@@ -239,6 +241,12 @@ def build_parser() -> argparse.ArgumentParser:
     e.add_argument("--max-tickers", type=int, default=0, help="0 = full universe")
     e.add_argument("--name", default="elite_oos",
                    help="report name; anything else also writes <name>_panel.parquet")
+    e.add_argument("--pit-fundamentals", action="store_true",
+                   help="score fundamental, valuation and quality legs from SEC filings known "
+                        "on each date (needs QUANTA_SEC_CONTACT)")
+    e.add_argument("--regime", default=None,
+                   help="weight table: SIDEWAYS (default), BULL, BEAR, HIGH_VOL, or auto "
+                        "(the live regime-adaptive weights)")
     e.set_defaults(func=cmd_elite_oos)
 
     w = sub.add_parser(

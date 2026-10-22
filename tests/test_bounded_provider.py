@@ -77,3 +77,12 @@ def test_a_successful_prefilter_is_liquidity_ranked(system, monkeypatch):
     sel = obj._universe_selection
     assert sel["method"] == "liquidity_ranked" and sel["cause"] is None
     assert sel["candidates"] == 300
+
+
+def test_only_test_targets_may_replace_the_bulk_download(monkeypatch):
+    monkeypatch.setenv("QUANTA_BULK_TARGET", "os:system")
+    assert bounded.bulk_target() == bounded.DEFAULT_BULK_TARGET
+    monkeypatch.setenv("QUANTA_BULK_TARGET", "_bounded_targets:frame")
+    assert bounded.bulk_target() == "_bounded_targets:frame"
+    monkeypatch.delenv("QUANTA_BULK_TARGET")
+    assert bounded.bulk_target() == bounded.DEFAULT_BULK_TARGET

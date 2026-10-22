@@ -95,3 +95,44 @@ def test_touches_after_the_horizon_exit_are_ignored(ledger):
     ledger.record(engine="t", ticker="ABC", as_of=date(2026, 1, 5), horizon_days=3,
                   stance="BULLISH", action="BUY", target_price=110)
     assert check_levels(ledger, _loader(bars), today=date(2026, 1, 12)) == []
+
+
+def test_windows_notification_passes_text_in_the_environment_not_the_script(monkeypatch):
+    import subprocess
+    import sys
+
+    from tracking import alerts as al
+
+    calls = []
+
+    class Done:
+        returncode = 0
+        stderr = b""
+
+    def fake_run(args, **kwargs):
+        calls.append((args, kwargs))
+        return Done()
+
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    alert = al.LevelAlert("k1", "shortterm", "AAA", "BULLISH", "TARGET", 12.5,
+                          "2026-10-20", "2026-10-16")
+    assert al.notify_desktop([alert]) is True
+    (args, kwargs), = calls
+    assert args[0] == "powershell.exe"
+    script = args[-1]
+    assert "AAA" not in script and "$env:QUANTA_TOAST_BODY" in script
+    assert kwargs["env"]["QUANTA_TOAST_TITLE"] == "QUANTA: 1 level alert"
+    assert "AAA" in kwargs["env"]["QUANTA_TOAST_BODY"]
+
+
+def test_desktop_notification_is_a_no_op_on_other_platforms(monkeypatch):
+    import sys
+
+    from tracking import alerts as al
+
+    monkeypatch.setattr(sys, "platform", "linux")
+    alert = al.LevelAlert("k1", "shortterm", "AAA", "BULLISH", "TARGET", 12.5,
+                          "2026-10-20", "2026-10-16")
+    assert al.notify_desktop([alert]) is False
+    assert al.notify_desktop([]) is False

@@ -376,12 +376,19 @@ def implied_move(calls: List[Dict[str, Any]], puts: List[Dict[str, Any]], spot: 
     return round((mc + mp) / spot * 100, 2) if mc and mp else None
 
 
+def _quoted(row: Dict[str, Any]) -> bool:
+    bid, ask = _num(row.get("bid")), _num(row.get("ask"))
+    return bool(bid and ask and ask >= bid > 0)
+
+
 def strike_iv(calls: List[Dict[str, Any]], puts: List[Dict[str, Any]], strike: float, spot: float) -> Optional[float]:
     """Implied volatility at the strike nearest `strike` (the out-of-the-money
     side, which trades more), falling back to the money; None when the quote is
-    outside the sane band."""
+    outside the sane band. Only strikes with a live bid and ask count: one with
+    no market carries a placeholder IV (0.0625, 1e-05) that can sit inside the
+    band, and read as near-zero odds of reaching the target."""
     lo, hi = float(M.IMPLIED_VOL_MIN), float(M.IMPLIED_VOL_MAX)
-    side = calls if strike >= spot else puts
+    side = [r for r in (calls if strike >= spot else puts) if _quoted(r)]
     for k in (strike, spot):
         row = _nearest(side, k)
         iv = _num(row.get("impliedVolatility")) if row else None

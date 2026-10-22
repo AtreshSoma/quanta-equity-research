@@ -8419,13 +8419,15 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 2px; cur
   #tape-main[data-reveal="in"] .mv-mag { animation: dc-bar-in 640ms var(--dc-ease) both; animation-delay: calc(140ms + min(var(--i, 0), 12) * 32ms); }
 }
 /* Street ideas rise as they enter the viewport. The scroll position drives it, so a card at rest
-   in view is always fully shown (also in full-page captures and print); without view timelines
-   there is no motion at all. */
+   in view is always fully shown; without view timelines there is no motion at all. No fill mode:
+   a card that has not entered yet keeps its real state, not the first keyframe. With `both` every
+   card below the fold sat at opacity 0 (its odds arc at 0deg, its chart clipped), which is what a
+   full-page capture or a timeline that never advances showed: an empty Street ideas grid. */
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
-    #view-discover .idea-grid > div { animation: dc-card-in linear both; animation-timeline: view(); animation-range: entry 0% entry 70%; }
-    #view-discover .idea-grid .ic-ring:not(.is-wait) { animation: dc-ring linear both; animation-timeline: view(); animation-range: entry 30% entry 100%; }
-    #view-discover .idea-grid .ic-area { animation: dc-draw linear both; animation-timeline: view(); animation-range: entry 10% entry 100%; }
+    #view-discover .idea-grid > div { animation: dc-card-in linear; animation-timeline: view(); animation-range: entry 0% entry 70%; }
+    #view-discover .idea-grid .ic-ring:not(.is-wait) { animation: dc-ring linear; animation-timeline: view(); animation-range: entry 30% entry 100%; }
+    #view-discover .idea-grid .ic-area { animation: dc-draw linear; animation-timeline: view(); animation-range: entry 10% entry 100%; }
   }
 }
 @media print { #view-discover .idea-grid :is(> div, .ic-ring, .ic-area) { animation: none !important; } }

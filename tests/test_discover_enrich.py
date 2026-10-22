@@ -131,8 +131,14 @@ def test_implied_move_and_strike_iv():
     puts = [{"strike": 100, "bid": 3.8, "ask": 4.0, "impliedVolatility": 0.39}]
     assert D.implied_move(calls, puts, 100) == 8.0
     assert D.strike_iv(calls, puts, 128, 100) == 0.45
-    bad = [{"strike": 130, "bid": 0, "ask": 0, "impliedVolatility": 0.00001}, {"strike": 100, "impliedVolatility": 0.36}]
+    bad = [{"strike": 130, "bid": 0, "ask": 0, "impliedVolatility": 0.00001}, {"strike": 100, "bid": 4, "ask": 4.2, "impliedVolatility": 0.36}]
     assert D.strike_iv(bad, puts, 130, 100) == 0.36, "a junk quote falls back to the money"
+    # CDNS, Oct 2026: the strike nearest the target had no market and a placeholder
+    # IV inside the sane band (0.0625), which priced the odds at 0%.
+    dead = [{"strike": 400, "bid": 27, "ask": 31.5, "impliedVolatility": 0.4989}, {"strike": 410, "bid": 0, "ask": 0, "impliedVolatility": 0.0625},
+            {"strike": 420, "bid": 22.5, "ask": 27, "impliedVolatility": 0.4958}]
+    assert D.strike_iv(dead, puts, 406.24, 312.37) == 0.4989, "a strike with no bid and ask is skipped, not read"
+    assert D.strike_iv([{"strike": 130, "lastPrice": 2, "impliedVolatility": 0.4}], [], 130, 100) is None
 
 
 def test_pick_expiry():

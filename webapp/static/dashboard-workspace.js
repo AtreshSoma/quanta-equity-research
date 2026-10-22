@@ -44,7 +44,8 @@
     if (!table || table.dataset.summarized) return;
     table.dataset.summarized = 'true';
     const rows = [...table.querySelectorAll('tbody > .q-tr')];
-    if (rows.length <= 5) return;
+    // Up to ten rows read at a glance; folding three behind a button costs a click for nothing.
+    if (rows.length <= 10) return;
     const more = document.createElement('button');
     more.type = 'button';
     more.className = 'q-more';

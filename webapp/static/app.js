@@ -1279,6 +1279,8 @@ const switchView = (rawId, opts = {}) => {
     b.tabIndex = active ? 0 : -1;
   });
   syncNavIndicator();
+  // The freshness chip reads the open view's own data.
+  setFreshness();
   // Secondary links reflect the open view without claiming a tab.
   $$('[data-view-link]').forEach((a) => {
     if (a.dataset.viewLink === id) a.setAttribute('aria-current', 'page');
@@ -2990,6 +2992,18 @@ function startClock() {
   _clockTimer = setInterval(tick, 1000);
 }
 
+// [PURE] What the header's freshness chip reports: on Discover, the age of Discover's own
+// quotes (so it never says "just now" beside a stale board); elsewhere, the dashboard read.
+function freshnessSource() {
+  const intel = state.dashboard?.market_intel || {};
+  if (document.querySelector('#view-discover.active') && intel.as_of) {
+    return { iso: intel.as_of, stale: !!(intel.stale || intel.feed_timeout), what: "Discover's quotes",
+      staleText: 'quotes delayed', staleTitle: (rel) => `Discover is showing the last quotes that arrived (${rel}); the refresh is delayed` };
+  }
+  return { iso: state.lastUpdated, stale: !!state.dashboard?.market?.market_regime_engine?.dataFreshness?.stale, what: 'the current dashboard read',
+    staleText: 'data incomplete', staleTitle: (rel) => `Market inputs are missing or stale (read ${rel}), so the Overview withholds guidance` };
+}
+
 /** Update the topbar freshness chip + brief/source status badges from the dashboard payload. */
 let _freshnessTimer = null;
 function setFreshness(iso) {
@@ -2998,18 +3012,17 @@ function setFreshness(iso) {
   const timeEl = $('#freshness-time');
   if (!chip || !timeEl) return;
   const render = () => {
-    if (!state.lastUpdated) {
+    const src = freshnessSource();
+    if (!src.iso) {
       timeEl.textContent = '\u2014';
       chip.dataset.staleness = 'unknown';
       return;
     }
-    const rel = formatRelativeTime(state.lastUpdated) || 'just now';
-    const degraded = !!state.dashboard?.market?.market_regime_engine?.dataFreshness?.stale;
-    timeEl.textContent = degraded ? 'data incomplete' : rel;
-    chip.title = degraded
-      ? `Market inputs are missing or stale (read ${rel}), so the Overview withholds guidance`
-      : `Age of the current dashboard read: ${rel}`;
-    const ageMs = Date.now() - new Date(state.lastUpdated).getTime();
+    const rel = formatRelativeTime(src.iso) || 'just now';
+    const degraded = src.stale;
+    timeEl.textContent = degraded ? src.staleText : rel;
+    chip.title = degraded ? src.staleTitle(rel) : `Age of ${src.what}: ${rel}`;
+    const ageMs = Date.now() - new Date(src.iso).getTime();
     const ageMin = ageMs / 60000;
     const staleMin = thr('UI.HEADER_STALE_MINUTES');
     const agingMin = thr('UI.HEADER_AGING_MINUTES');
@@ -3018,6 +3031,8 @@ function setFreshness(iso) {
   render();
   if (_freshnessTimer) clearInterval(_freshnessTimer);
   _freshnessTimer = setInterval(render, 30000);
+  // A clock tick must never keep a process alive on its own (the test harnesses).
+  if (_freshnessTimer && typeof _freshnessTimer.unref === 'function') _freshnessTimer.unref();
   // Mirror freshness onto the in-card status badges so they stop lying about "Live"
   ['#brief-status', '#source-status'].forEach((sel) => {
     const node = $(sel);
@@ -3129,10 +3144,10 @@ function renderIntelPanels(intel) {
   // The book and the week read the movers and the earnings list too.
   renderBookPanel();
   renderWeekCalendar();
-  const body = $('#top-movers-body');
-  if (body && (intel.stale || intel.feed_timeout)) {
-    body.insertAdjacentHTML('afterbegin', `<div class="q-note" role="status">${intel.stale ? 'Showing the last available quotes; refresh is delayed.' : 'Quote refresh did not finish. Try again.'} <button type="button" class="q-btn" data-retry="market-intel">Retry</button></div>`);
-  }
+  // Freshness and the retry now live in Discover's status line; the odds and
+  // causes load after this paint.
+  setFreshness();
+  loadDiscoverEnrich();
 }
 
 async function loadMarketIntel({ pollUntilReady = true, resetAttempts = false } = {}) {
@@ -3238,6 +3253,7 @@ async function loadDashboard(force = false) {
       renderTopMovers(intel);
       renderOpenExtremes(intel);
       renderSetupStatusCard(intel);
+      loadDiscoverEnrich();
       renderNews(news.groups || {});
       renderSourceLedger(news);
       renderRegimeDebugPanel(market, news, intel);
@@ -3738,28 +3754,38 @@ function dayRangeHtml(q, last, sym) {
     </div>`;
 }
 
-/* A consensus candidate on one scale: its 52-week low to high, the price as a dot and the
-   Street target as a gold mark, with the distance between them shaded. A target above the
-   52-week high extends the scale so it is never clipped. */
+/* A Street candidate on one scale: the 52-week range as a grey track, the analysts' lowest
+   to highest target as a faint gold band, the mean target as a gold diamond and the price
+   as a dot. The scale stretches to hold every mark, so nothing is clipped, and the two end
+   figures name the scale's real ends: gold when the end is a target, grey when it is the
+   52-week low or high. */
 function rangeTargetHtml(r, sym) {
   const lo = numOrNull(r.week52_low); const hi = numOrNull(r.week52_high);
   const px = numOrNull(r.price); const tg = numOrNull(r.target_mean);
+  const tLo = numOrNull(r.target_low); const tHi = numOrNull(r.target_high);
   if (lo == null || hi == null || px == null || !(hi > lo)) return '<span class="q-na">N/A</span>';
-  const bot = Math.min(lo, px); const top = Math.max(hi, px, tg == null ? hi : tg);
-  const at = (v) => pctAlong(v, bot, top);
+  const marks = [['52-week low', lo], ['52-week high', hi], ['Price', px], ['Mean target', tg], ['Lowest target', tLo], ['Highest target', tHi]]
+    .filter(([, v]) => v != null);
+  const bot = marks.reduce((a, b) => (b[1] < a[1] ? b : a)); const top = marks.reduce((a, b) => (b[1] > a[1] ? b : a));
+  const at = (v) => pctAlong(v, bot[1], top[1]);
+  const isTarget = (name) => /target/i.test(name);
+  const band = tLo != null && tHi != null && tHi > tLo
+    ? `<i class="q-rt-band" style="left:${at(tLo).toFixed(1)}%;width:${(at(tHi) - at(tLo)).toFixed(1)}%"></i>` : '';
   const label = `52-week range ${fmtPrice(lo, sym)} to ${fmtPrice(hi, sym)}; price ${fmtPrice(px, sym)}`
-    + (tg != null ? `; Street target ${fmtPrice(tg, sym)}${tg > hi ? ', above the 52-week high' : ''}` : '');
-  const gap = tg != null ? `<i class="q-rt-gap" style="left:${Math.min(at(px), at(tg)).toFixed(1)}%;width:${Math.abs(at(tg) - at(px)).toFixed(1)}%"></i>` : '';
-  const tip = `Price ${fmtPrice(px, sym)}` + (tg != null ? ` · Street target ${fmtPrice(tg, sym)}${tg > hi ? ' (above the 52-week high)' : ''}` : '')
-    + ` · 52-week low ${fmtPrice(lo, sym)}, high ${fmtPrice(hi, sym)}` + (px > lo ? ` · ${fmtNumber(((px - lo) / lo) * 100, 1)}% above the low` : '');
+    + (tg != null ? `; mean Street target ${fmtPrice(tg, sym)}${tg > hi ? ', above the 52-week high' : ''}` : '')
+    + (band ? `; targets range ${fmtPrice(tLo, sym)} to ${fmtPrice(tHi, sym)}` : '');
+  const tip = `Price ${fmtPrice(px, sym)}` + (tg != null ? ` · mean target ${fmtPrice(tg, sym)}` : '')
+    + (band ? ` · analysts' targets ${fmtPrice(tLo, sym)} to ${fmtPrice(tHi, sym)}` : '')
+    + ` · 52-week ${fmtPrice(lo, sym)} to ${fmtPrice(hi, sym)}`;
+  const end = (m, cls) => `<span class="${cls}${isTarget(m[0]) ? ' gold' : ''}" title="${escapeHtml(m[0])}">${escapeHtml(fmtPrice(m[1], sym))}</span>`;
   return `<div class="q-rt tip" data-tip="${escapeHtml(tip)}" role="img" aria-label="${escapeHtml(label)}">
       <span class="q-rt-bar" aria-hidden="true">
+        ${band}
         <i class="q-rt-span" style="left:${at(lo).toFixed(1)}%;width:${(at(hi) - at(lo)).toFixed(1)}%"></i>
-        ${gap}
         <b class="q-rt-px" style="left:${at(px).toFixed(1)}%"></b>
         ${tg != null ? `<b class="q-rt-tg" style="left:${at(tg).toFixed(1)}%"></b>` : ''}
       </span>
-      <span class="q-rt-lo">${escapeHtml(fmtPrice(lo, sym))}</span><span class="q-rt-hi">${escapeHtml(fmtPrice(hi, sym))}</span>
+      ${end(bot, 'q-rt-lo')}${end(top, 'q-rt-hi')}
     </div>`;
 }
 
@@ -3771,24 +3797,48 @@ function upsideBarHtml(up, max) {
   return `<span class="q-upbar"><span class="q-chg">${fmtPct(up, 1, false)}</span><i aria-hidden="true"><b style="width:${w.toFixed(1)}%"></b></i></span>`;
 }
 
-// [PURE] Days until a report when it falls inside WHY.EARNINGS_NEAR_DAYS, else null.
-function earningsNearDays(isoDate, now = Date.now()) {
-  const t = Date.parse(`${String(isoDate || '').slice(0, 10)}T12:00:00`);
-  if (!Number.isFinite(t)) return null;
-  const days = Math.round((t - now) / 864e5);
-  const near = Number(thr('WHY.EARNINGS_NEAR_DAYS'));
-  return days >= 0 && near > 0 && days <= near ? days : null;
+// [PURE] Today's date on the selected exchange's own calendar (YYYY-MM-DD), so a
+// report date is counted in the market's days, not the reader's time zone.
+function marketTodayIso(now = Date.now()) {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: currentMarketTz().tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now));
+  } catch (_) { return new Date(now).toISOString().slice(0, 10); }
 }
 
-// [PURE] An "Earnings in N days" caution chip when a report falls inside WHY.EARNINGS_NEAR_DAYS.
-function earningsChipHtml(isoDate, now = Date.now()) {
-  const t = Date.parse(`${String(isoDate || '').slice(0, 10)}T12:00:00`);
-  if (!Number.isFinite(t)) return '';
-  const days = Math.round((t - now) / 864e5);
+// [PURE] Whole exchange days from today to an ISO date (negative when past), or null.
+function exchangeDaysUntil(isoDate, now = Date.now()) {
+  const b = Date.parse(`${String(isoDate || '').slice(0, 10)}T00:00:00Z`);
+  const a = Date.parse(`${marketTodayIso(now)}T00:00:00Z`);
+  return Number.isFinite(a) && Number.isFinite(b) ? Math.round((b - a) / 864e5) : null;
+}
+
+// [PURE] Days until a report when it falls inside WHY.EARNINGS_NEAR_DAYS, else null.
+function earningsNearDays(isoDate, now = Date.now()) {
+  const days = exchangeDaysUntil(isoDate, now);
   const near = Number(thr('WHY.EARNINGS_NEAR_DAYS'));
-  if (!(days >= 0) || !(near > 0) || days > near) return '';
-  const text = days === 0 ? 'Earnings today' : `Earnings in ${days} ${days === 1 ? 'day' : 'days'}`;
-  return `<span class="q-earn" title="A report inside the next ${near} days can move the price sharply">${text}</span>`;
+  return days != null && days >= 0 && near > 0 && days <= near ? days : null;
+}
+
+// [PURE] An "Earnings in N days" caution chip when a report falls inside
+// WHY.EARNINGS_NEAR_DAYS, with its timing when known: a report today before the
+// open is already in the price, one after the close is still ahead.
+// The row's earnings flag: a calendar mark and the days to the report, the full sentence in its title.
+function earningsFlagHtml(isoDate, timing = null, now = Date.now()) {
+  const days = earningsNearDays(isoDate, now);
+  if (days == null) return '';
+  const when = earningsTimingWords(timing);
+  const label = days === 0 ? 'today' : `${days}d`;
+  const title = `${days === 0 ? 'Reports today' : `Reports in ${days} ${days === 1 ? 'day' : 'days'}`}${when ? `, ${when}` : ''}${earnDateLabel(isoDate) ? ` (${earnDateLabel(isoDate)})` : ''}`;
+  return `<span class="q-earn q-earn--flag" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}"><svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><rect x="1.5" y="2.5" width="9" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 5h9M4 1.5v2M8 1.5v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>${escapeHtml(label)}</span>`;
+}
+
+function earningsChipHtml(isoDate, now = Date.now(), timing = null) {
+  const days = earningsNearDays(isoDate, now);
+  if (days == null) return '';
+  const near = Number(thr('WHY.EARNINGS_NEAR_DAYS'));
+  const when = earningsTimingWords(timing);
+  const text = (days === 0 ? 'Earnings today' : `Earnings in ${days} ${days === 1 ? 'day' : 'days'}`) + (when ? ` · ${when}` : '');
+  return `<span class="q-earn" title="A report inside the next ${near} days can move the price sharply">${escapeHtml(text)}</span>`;
 }
 
 /** Signed percentage with a direction glyph — never colour alone (§7). */
@@ -3823,7 +3873,7 @@ function wireExpandableRows(root) {
     };
     tr.addEventListener('click', (ev) => {
       if (ev.target.closest('[data-expand-btn]')) { toggle(); return; }
-      if (ev.target.closest('a, button')) return;
+      if (ev.target.closest('a, button, input, label')) return;
       toggle();
     });
     tr.addEventListener('keydown', (ev) => {
@@ -5581,7 +5631,15 @@ function scanRanClause() {
 // One scan button at a time: when the card body offers its own (the empty
 // state), the header's button steps aside.
 function renderTopOpportunities(intel = {}) {
+  const sub = $('#opps-sub');
+  if (sub) {
+    sub.textContent = livePicks() && (livePicks().recommendations || []).some(isFundedPick)
+      ? "Setups that cleared every rule in this session's Picks scan. Expand a row for its thesis, levels and size."
+      : 'Buy-rated names with a believable Street target, and how likely each target is.';
+  }
   renderTopOpportunitiesBody(intel);
+  const desk = document.querySelector('#view-discover .dsc-desk');
+  if (desk) desk.classList.toggle('is-wide', !!(livePicks() && (livePicks().recommendations || []).some(isFundedPick)));
   renderDiscoverPulse(intel);
   const body = $('#portfolio-scan-body');
   const headBtn = $('#opps-scan-btn');
@@ -5688,61 +5746,67 @@ function renderTopOpportunitiesBody(intel = {}) {
     return;
   }
 
-  // -- No scan yet: analyst-consensus candidates, with QUANTA levels marked N/A.
-  const consensusAll = (intel.analyst_picks || []).slice(0, 8).map((r, k) => ({ ...r, _rank: k + 1 }));
-  const at52 = (r) => { const lo = numOrNull(r.week52_low); const hi = numOrNull(r.week52_high); const px = numOrNull(r.price);
-    return lo != null && hi > lo && px != null ? pctAlong(px, lo, hi) : Infinity; };
-  const sorters = { upside: (a, b) => a._rank - b._rank, analysts: (a, b) => (Number(b.analyst_count) || 0) - (Number(a.analyst_count) || 0) || a._rank - b._rank, low: (a, b) => at52(a) - at52(b) || a._rank - b._rank };
-  const consensus = consensusAll.filter((r) => oppPasses(r.sector, r.earnings_date)).sort(sorters[_oppFilter.sort] || sorters.upside);
+  // -- No scan yet: Street consensus candidates. QUANTA levels are left out, never estimated.
+  const consensusAll = streetIdeas(intel);
+  const consensus = consensusAll.filter((r) => oppPasses(r.sector, r.earnings_date));
   if (consensusAll.length && !consensus.length) { renderOppNoMatch(body, meta, consensusAll.length, 'consensus candidates'); return; }
   if (consensus.length) {
-    if (meta) { meta.textContent = `${oppFiltered() ? `${consensus.length} of ${consensusAll.length}` : consensus.length} consensus candidates${intel.stale ? ' · Stale research' : intel.partial ? ' · Partial coverage' : ''}`; meta.title = coverageTitle(intel); }
+    const sortKey = activeOppSort(consensusAll);
+    consensus.sort(OPP_SORTERS[sortKey] || OPP_SORTERS.upside);
+    const sym = _currencySymbol();
+    if (meta) { meta.textContent = `${oppFiltered() ? `${consensus.length} of ${consensusAll.length}` : consensus.length} candidates${intel.stale ? ' · Stale research' : intel.partial ? ' · Partial coverage' : ''}`; meta.title = coverageTitle(intel); }
+    // A header that sorts: the column's own label is the control, and aria-sort carries the state.
+    const sortTh = (key, label, tip, cls = '') => {
+      const on = sortKey === key;
+      return `<th class="${cls}" aria-sort="${on ? 'descending' : 'none'}"><button type="button" class="q-th-sort tip${on ? ' is-on' : ''}" data-opp-sort="${key}" data-fk="sort:${key}" aria-pressed="${on}" data-tip="${escapeHtml(tip)}">${escapeHtml(label)}<span class="q-sort" aria-hidden="true">${on ? '▼' : '⇅'}</span></button></th>`;
+    };
+    const tipTh = (label, tip, cls = '') => `<th class="${cls}"><span class="tip" tabindex="0" data-tip="${escapeHtml(tip)}">${escapeHtml(label)}</span></th>`;
     const head = `<tr>
-      <th class="mid" style="width:34px">#</th>
+      <th class="mid q-cmp-h"><span class="sr-only">Compare</span><span class="tip" tabindex="0" data-tip="Tick up to ${COMPARE_MAX} names to set them side by side below the list." aria-hidden="true">Cmp</span></th>
       <th>Ticker</th>
-      <th class="num">Price</th>
-      <th class="num"><span class="tip" tabindex="0" data-tip="The average 12-month price target of the analysts who cover the stock.">Street target</span></th><th class="q-upbar-h"><span class="tip" tabindex="0" data-tip="How far the Street target sits above today's price. The longest bar is the largest upside in this list.">Upside</span></th>
-      <th><span class="tip" tabindex="0" data-tip="The analysts' consensus rating, with how many analysts it covers. It is the Street's view, not a QUANTA verdict.">Street rating</span></th><th class="q-rt-h"><span class="tip" tabindex="0" data-tip="The grey line runs from the 52-week low to the 52-week high. The white dot is today's price; the gold diamond is the Street target; the gold stretch is the distance between them.">52 weeks and target</span></th><th style="width:28px"><span class="sr-only">Details</span></th>
+      ${tipTh('Price', "Today's price, with its last three months as a line and the change over them.", 'num q-price-h')}
+      ${sortTh('upside', 'Upside', "How far the average 12-month Street target sits above today's price. The longest bar is the largest upside listed.", 'q-upbar-h')}
+      ${sortTh('odds', 'Target odds', 'The chance the price is at or above the average target in 12 months, as the option market prices it (or, without a usable option chain, at the stock\'s own 1-year volatility). Risk-neutral pricing, not a forecast.', 'num q-odds-h q-col-reads')}
+      ${sortTh('revisions', 'Revisions', `Analyst target raises and cuts over the last ${thr('MARKET.REVISION_WINDOW_DAYS')} days. Cuts outrunning raises often means the average target is still catching up with a falling price.`, 'q-rev-h q-col-reads')}
+      ${sortTh('analysts', 'Street rating', "The analysts' consensus rating and how many analysts it covers. Sorts by the number of analysts. The Street's view, not a QUANTA verdict.", 'q-street-h')}
+      <th class="q-x-h"><span class="sr-only">Details</span></th>
     </tr>`;
-    const normalizeRating = streetRating;
     const upMax = Math.max(0, ...consensus.map((r) => numOrNull(r.upside_pct) || 0));
     const rows = consensus.map((r, i) => {
       const ticker = normalizeTicker(r.symbol || '');
       if (ticker) state.shownSymbols.add(ticker);
+      const read = ideaRead(r.symbol);
       const up = numOrNull(r.upside_pct);
-      const hasTarget = numOrNull(r.target_mean) != null;
-      const detail = `<div class="q-detail-in">
-        <div class="q-detail-sec">
-          <h3>What is known</h3>
-          <p>${normalizeRating(r.recommendation) === 'Rating unavailable' ? 'Street rating unavailable' : `Street consensus is <b>${escapeHtml(normalizeRating(r.recommendation))}</b>`} across ${r.analyst_count || 'an unreported number of'} analysts; ${hasTarget ? `mean target ${escapeHtml(fmtPrice(r.target_mean, _currencySymbol()))}${up != null ? ` (${fmtPct(up, 1, false)} vs spot)` : ''}` : 'mean target unavailable'}.</p>
-        </div>
-        <div class="q-detail-sec">
-          <h3>What is missing</h3>
-          <p>QUANTA entry, stop, target, reward-to-risk and position size are produced by the Picks scanner. They read N/A here because ${scanRanClause()}; they are not estimated.</p>
-        </div>
-        <div class="q-detail-sec">
-          <h3>Next step</h3>
-          <p>${livePicks() ? 'Rerun the Picks scan under a different mandate, or' : 'Run a Picks scan to rank and size this universe, or'} open the tear sheet for a single-name trade plan.</p>
-          <div class="q-detail-actions">
-            <button type="button" class="q-btn" data-ticker-open="${escapeHtml(ticker)}">Open tear sheet</button>
-            <button type="button" class="q-btn q-btn--primary" data-jump-view="picks">Run scan</button>
-          </div>
-        </div>
-      </div>`;
-      return `<tr class="q-tr" data-expand="cons-${i}" data-sym="${escapeHtml(String(r.symbol || '').replace(/\.NS$/, ''))}" tabindex="-1">
-          <td class="mid q-rank">${r._rank}</td>
-          <td>${qTickerCell(String(r.symbol || '').replace(/\.NS$/, ''), r.name || '', tradingViewUrl(r.symbol, r.exchange), r.sector || '')}${earningsChipHtml(r.earnings_date)}</td>
-          <td class="num q-price">${fmtPrice(r.price, _currencySymbol())}</td>
-          <td class="num gold">${fmtPrice(r.target_mean, _currencySymbol())}</td>
-          <td class="q-upbar-cell">${upsideBarHtml(up, upMax)}</td>
-          <td class="q-street"><b>${escapeHtml(normalizeRating(r.recommendation))}</b><small>${r.analyst_count ? `${escapeHtml(String(r.analyst_count))} analysts` : 'Analyst count N/A'}</small></td>
-          <td class="q-rt-cell">${rangeTargetHtml(r, _currencySymbol())}</td>
+      const flags = [earningsFlagHtml(r.earnings_date, r.earnings_timing), targetLagChip(r, read), ownedChip(r.symbol)].join('');
+      const shown = String(r.symbol || '').replace(/\.NS$/, '');
+      const on = _compare.has(shown);
+      const name = companyName(r.name || '');
+      return `<tr class="q-tr${on ? ' is-compared' : ''}" data-expand="cons-${i}" data-sym="${escapeHtml(shown)}" tabindex="-1">
+          <td class="mid q-cmp-cell"><input type="checkbox" class="q-cmp" data-compare="${escapeHtml(shown)}" data-fk="cmp:${escapeHtml(shown)}" aria-label="Compare ${escapeHtml(shown)}"${on ? ' checked' : ''}${!on && _compare.size >= COMPARE_MAX ? ' disabled title="Comparing the most names at once; untick one first"' : ''}></td>
+          <td class="q-idea">
+            <div class="q-idea-l1"><span class="q-rank">${i + 1}</span>${tvTickerLink(shown, tradingViewUrl(r.symbol, r.exchange), 'q-tick-s q-tick-tv')}</div>
+            <div class="q-idea-l2" title="${escapeHtml(`${name}${r.sector ? ` · ${r.sector}` : ''}`)}">${flags ? `<span class="q-flags">${flags}</span>` : ''}<span class="q-idea-name">${escapeHtml(name)}${r.sector ? `<span class="q-tick-sec"> · ${escapeHtml(r.sector)}</span>` : ''}</span></div>
+          </td>
+          <td class="num q-price">${priceCellHtml(r, read, sym)}</td>
+          <td class="q-upbar-cell">${upsideBarHtml(up, upMax)}${numOrNull(r.target_mean) != null ? `<small class="q-sub">to <span class="gold">${escapeHtml(fmtPrice(r.target_mean, sym))}</span></small>` : ''}</td>
+          <td class="num q-odds-cell q-col-reads">${oddsCellHtml(r, read, sym)}</td>
+          <td class="q-rev-cell q-col-reads">${revisionsCellHtml(read)}</td>
+          <td class="q-street"><b>${escapeHtml(streetRating(r.recommendation))}</b><small>${r.analyst_count ? `${escapeHtml(String(r.analyst_count))} analysts` : 'Analyst count N/A'}</small></td>
           <td class="mid"><button type="button" class="q-expand" data-expand-btn="cons-${i}" aria-expanded="false" aria-controls="q-detail-cons-${i}" aria-label="Show details for ${escapeHtml(ticker)}"><span class="q-caret" aria-hidden="true"></span></button></td>
         </tr>
-        <tr class="q-detail" id="q-detail-cons-${i}" data-detail="cons-${i}" hidden><td colspan="8">${detail}</td></tr>`;
+        <tr class="q-detail" id="q-detail-cons-${i}" data-detail="cons-${i}" hidden><td colspan="8">${ideaDetailHtml(r, read, sym)}</td></tr>`;
     }).join('');
-    body.innerHTML = qTable(head, rows, 'q-table--analyst') +
-      `<p class="q-note"><strong>Analyst consensus, not a QUANTA setup.</strong> Entry, stop, reward-to-risk and position size are absent because ${scanRanClause()}; QUANTA does not estimate levels it has not computed. ${Number(thr('MARKET.ANALYST_PICK_MIN_ANALYSTS')) > 0 && Number(thr('MARKET.ANALYST_PICK_MAX_UPSIDE_PCT')) > 0 ? `Listed: buy-rated names with at least ${escapeHtml(String(thr('MARKET.ANALYST_PICK_MIN_ANALYSTS')))} analysts and an upside up to ${escapeHtml(String(thr('MARKET.ANALYST_PICK_MAX_UPSIDE_PCT')))}%; a wider upside is usually a stale target. ` : ''}${livePicks() ? 'Adjust the mandate or rerun the scan to look again.' : 'Run a scan to add them.'}</p>`;
+    const rules = ['buy-rated', `${thr('MARKET.ANALYST_PICK_MIN_ANALYSTS')}+ analysts`,
+      `upside ${thr('MARKET.ANALYST_PICK_MIN_UPSIDE_PCT')} to ${thr('MARKET.ANALYST_PICK_MAX_UPSIDE_PCT')}%`, 'one per company',
+      intel.coverage?.tracked ? `from ${intel.coverage.tracked} tracked large caps` : ''].filter(Boolean);
+    // Hidden with display:none (not dropped), so every column keeps its position for the layout rules.
+    const noReads = enrichFailed() && !consensus.some((r) => ideaRead(r.symbol));
+    const listOrCards = _ideasView === 'cards'
+      ? `<div class="idea-grid" role="list" aria-label="Street ideas">${consensus.map((r, i) => `<div role="listitem">${ideaCardHtml(r, ideaRead(r.symbol), sym, i, noReads)}</div>`).join('')}</div>`
+      : qTable(head, rows, `q-table--analyst q-table--ideas${noReads ? ' q-table--noreads' : ''}`);
+    body.innerHTML = listOrCards + compareTrayHtml(consensusAll, sym) +
+      `<p class="q-note q-note--rules"><strong>Street consensus, not a QUANTA setup.</strong> Entry, stop and size come from a Picks scan; ${scanRanClause()}. <span class="q-rules">${rules.map((x) => `<span>${escapeHtml(x)}</span>`).join('')}</span></p>`;
+    body.dataset.view = _ideasView;
     wireExpandableRows(body);
     attachDashboardActionHandlers(body);
     return;
@@ -5783,16 +5847,20 @@ function renderOppNoMatch(body, meta, total, noun) {
 const renderPortfolioScanPanel = renderTopOpportunities;
 
 /* =========================================================================
-   DISCOVER AT A GLANCE + CANDIDATE FILTERS. Four plain readings over the
-   panels (upside, sectors, earnings soon, today's biggest moves), each with
-   one labelled chart, and one filter bar on Top opportunities. Every reading
-   is computed from what the panels list; nothing new is claimed. Sector and
-   earnings filters are shared: a legend button in the band and a chip in the
-   bar set the same state.
+   DISCOVER AT A GLANCE + CANDIDATE FILTERS. One plain read of the page in a
+   sentence, then four readings (upside, sectors, earnings soon, why names are
+   moving), each with one labelled chart, and one filter bar on Top
+   opportunities. Every reading is computed from what the panels list and the
+   enrichment read; nothing new is claimed. Sector and earnings filters are
+   shared: a legend button in the band and a chip in the bar set one state.
    ========================================================================= */
 let _pulseIntel = {};
-const _oppFilter = { sector: '', hideEarn: false, sort: 'upside' };
-const OPP_SORTS = [['upside', 'Upside'], ['analysts', 'Most analysts'], ['low', 'Nearest 52-week low']];
+let _pulseHtml = '';
+// sort 'auto' ranks by target odds once every listed name has them, else by upside.
+const _oppFilter = { sector: '', hideEarn: false, sort: 'auto' };
+let _moveFilter = '';
+let _moveSize = '';
+const OPP_SORTS = [['odds', 'Likeliest target'], ['upside', 'Upside'], ['revisions', 'Revisions'], ['analysts', 'Most analysts']];
 
 function medianOf(xs) {
   const v = xs.filter(Number.isFinite).sort((a, b) => a - b);
@@ -5808,6 +5876,305 @@ function oppPasses(sector, earn) {
 }
 const oppFiltered = () => !!(_oppFilter.sector || _oppFilter.hideEarn);
 
+/* ---- The enrichment read (/api/discover/enrich) --------------------------
+   Odds, revisions and earnings moves for the Street list; sector and analyst
+   reasons for the movers. It arrives after the intel payload has rendered, so
+   the page never waits on an option chain; cells show a quiet placeholder
+   until it lands and N/A when it cannot. */
+const _enrich = {};
+let _enrichTimer = null;
+let _enrichInflight = null;
+const enrichState = () => _enrich[state.market] || null;
+const enrichPending = () => { const e = enrichState(); return !e || (e.pending > 0 && !e.failed); };
+// The read did not load (an older server without the endpoint, or a provider failure).
+const enrichFailed = () => !!enrichState()?.failed;
+const ideaRead = (sym) => (enrichState()?.ideas || {})[String(sym || '')] || null;
+const moverRead = (sym) => (enrichState()?.movers || {})[String(sym || '')] || null;
+
+async function loadDiscoverEnrich(attempt = 0) {
+  if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+  const market = state.market;
+  const intel = state.dashboard?.market_intel || {};
+  if (intel.loading || !((intel.analyst_picks || []).length || (intel.movers_up || []).length || (intel.movers_down || []).length)) return;
+  const key = `${market}|${intel.as_of || ''}`;
+  if (_enrichInflight === key && attempt === 0) return;
+  _enrichInflight = key;
+  clearTimeout(_enrichTimer);
+  try {
+    const data = await fetchJSON(`/api/discover/enrich?market=${encodeURIComponent(market)}&wait=${attempt ? 6 : 2}`, { retries: 0, timeoutMs: 15000 });
+    if (market !== state.market) return;
+    _enrich[market] = data;
+    renderDiscoverFromState();
+    if (data.pending > 0 && attempt < 12) {
+      _enrichTimer = setTimeout(() => loadDiscoverEnrich(attempt + 1), 1500);
+      if (_enrichTimer && typeof _enrichTimer.unref === 'function') _enrichTimer.unref();
+    } else _enrichInflight = null;
+  } catch (_) {
+    _enrichInflight = null;
+    // Keep any reads already in hand; mark the rest as not loaded so nothing missing is
+    // presented as a finding ("no clear cause") or as a pending placeholder forever.
+    _enrich[market] = { ideas: {}, movers: {}, ...(_enrich[market] || {}), pending: 0, failed: true };
+    renderDiscoverFromState();
+  }
+}
+
+// Redraw the Discover panels from what is in hand (enrichment or the book arrived).
+function renderDiscoverFromState() {
+  const intel = state.dashboard?.market_intel;
+  if (!intel) return;
+  renderTopOpportunities(intel);
+  renderTopMovers(intel);
+  renderSecurityQueues(intel);
+  refreshIdeaDrawer();
+}
+
+/* ---- Your portfolio, read through Discover -------------------------------- */
+// [PURE] Holdings by symbol and sector weights from the My Portfolio view, or null.
+function bookIndex(book = state.book) {
+  if (!book || book.s !== 'ok' || !book.pf) return null;
+  const total = numOrNull(book.pf.overview?.total_value);
+  const bySym = new Map();
+  const sectors = {};
+  (book.pf.positions || []).forEach((p) => {
+    const br = p.broker || {};
+    const sym = String(p.symbol || br.symbol || '').toUpperCase();
+    if (!sym) return;
+    const sector = br.sector || p.market?.sector || p.analysis?.sector || '';
+    const w = numOrNull(br.weight) ?? (total && numOrNull(br.market_value) != null ? numOrNull(br.market_value) / total : null);
+    bySym.set(sym, { qty: numOrNull(br.quantity), weight: w, sector, dayChange: numOrNull(br.day_change) });
+    if (sector && w != null) sectors[sector] = (sectors[sector] || 0) + w;
+  });
+  return bySym.size ? { bySym, sectors } : null;
+}
+// Whole shares print whole; fractional lots keep two places.
+const fmtShares = (q) => fmtNumber(q, Number.isInteger(Number(q)) ? 0 : 2);
+const heldOf = (sym, bi = bookIndex()) => (bi ? bi.bySym.get(String(sym || '').replace(/\.NS$/, '').toUpperCase()) || bi.bySym.get(String(sym || '').toUpperCase()) : null);
+
+function ownedChip(sym) {
+  const h = heldOf(sym);
+  if (!h) return '';
+  const w = h.weight != null && !hideAmounts() ? `, ${fmtNumber(h.weight * 100, 1)}% of your account` : '';
+  return `<span class="q-own" title="${escapeHtml(`You hold ${h.qty != null && !hideAmounts() ? fmtShares(h.qty) + ' shares' : 'this name'}${w}`)}">You own</span>`;
+}
+
+/* ---- Street candidates: the shape every Discover reading uses ------------- */
+// [PURE] The listed Street candidates in their Street (upside) order, rank kept.
+function streetIdeas(intel = {}) {
+  const n = Number(thr('MARKET.ANALYST_PICK_COUNT')) || 8;
+  return (intel.analyst_picks || []).slice(0, n).map((r, k) => ({ ...r, _rank: k + 1 }));
+}
+const oddsOf = (r) => { const p = ideaRead(r.symbol)?.odds?.p; return Number.isFinite(p) ? p : null; };
+const netRevisions = (r) => { const v = ideaRead(r.symbol)?.revisions; return v ? (v.raises || 0) - (v.cuts || 0) : -Infinity; };
+const OPP_SORTERS = {
+  odds: (a, b) => (oddsOf(b) ?? -1) - (oddsOf(a) ?? -1) || a._rank - b._rank,
+  upside: (a, b) => a._rank - b._rank,
+  revisions: (a, b) => netRevisions(b) - netRevisions(a) || (ideaRead(b.symbol)?.eps_revision_pct ?? -99) - (ideaRead(a.symbol)?.eps_revision_pct ?? -99) || a._rank - b._rank,
+  analysts: (a, b) => (Number(b.analyst_count) || 0) - (Number(a.analyst_count) || 0) || a._rank - b._rank,
+};
+// [PURE] The sort in force: the reader's choice, else odds once every name has them.
+function activeOppSort(items) {
+  if (_oppFilter.sort !== 'auto') return _oppFilter.sort;
+  return items.length && items.every((r) => oddsOf(r) != null) ? 'odds' : 'upside';
+}
+
+// [PURE] A target that may trail a falling price: low in its 52-week range while cuts outrun raises.
+function targetLagged(r, read = ideaRead(r.symbol)) {
+  const pos = numOrNull(r.range_pos);
+  const rv = read?.revisions;
+  return !!(rv && pos != null && pos <= mkt('TARGET_LAG_RANGE_SHARE') && (rv.cuts || 0) > (rv.raises || 0));
+}
+function targetLagChip(r, read) {
+  if (!targetLagged(r, read)) return '';
+  const rv = read.revisions;
+  return `<span class="q-lag" title="${escapeHtml(`The price sits in the bottom ${Math.round(mkt('TARGET_LAG_RANGE_SHARE') * 100)}% of its 52-week range and analysts cut ${rv.cuts} targets while raising ${rv.raises} in ${rv.days} days. The average target may not have caught up with the fall, so the upside may be overstated.`)}">Target may lag</span>`;
+}
+
+// An option expiry with its year: the one-year chain is never this year's date.
+const expiryLabel = (iso) => {
+  const t = Date.parse(`${String(iso || '').slice(0, 10)}T12:00:00`);
+  return Number.isFinite(t) ? new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : String(iso || '');
+};
+
+// [PURE] One sentence on what the odds mean, naming the volatility behind them.
+function oddsSentence(r, read, sym) {
+  const o = read?.odds;
+  if (!o || o.p == null) return '';
+  const pct = Math.round(o.p * 100);
+  const vol = `${fmtNumber(o.sigma * 100, 0)}%`;
+  const basis = o.source === 'options'
+    ? `implied volatility of ${vol} in the options expiring ${expiryLabel(o.expiry)}`
+    : `its own 1-year price volatility of ${vol} (no usable option chain)`;
+  return `A ${pct}% chance ${String(r.symbol || '').replace(/\.NS$/, '')} trades at or above ${fmtPrice(r.target_mean, sym)} in 12 months, at ${basis} and a ${fmtNumber(o.rate * 100, 1)}% ${o.rate_source === '3-month T-bill' ? 'T-bill rate' : 'set rate'}. The option market's risk-neutral pricing, not a forecast.`;
+}
+
+const placeholderFig = () => '<span class="q-wait" aria-label="Loading"></span>';
+function oddsCellHtml(r, read, sym) {
+  if (!read) return enrichPending() ? placeholderFig() : '<span class="q-na">N/A</span>';
+  const o = read.odds;
+  if (!o || o.p == null) return '<span class="q-na" title="No volatility read for this name">N/A</span>';
+  const pct = Math.round(o.p * 100);
+  return `<span class="q-odds tip" data-tip="${escapeHtml(oddsSentence(r, read, sym))}" aria-label="${escapeHtml(oddsSentence(r, read, sym))}">
+      <b>${pct}%</b><i aria-hidden="true"><em style="width:${Math.min(100, pct)}%"></em></i>${o.source === 'options' ? '' : '<small>price history</small>'}</span>`;
+}
+
+function revisionsCellHtml(read) {
+  if (!read) return enrichPending() ? placeholderFig() : '<span class="q-na">N/A</span>';
+  const rv = read.revisions;
+  if (!rv) return '<span class="q-na">N/A</span>';
+  const eps = numOrNull(read.eps_revision_pct);
+  const epsLine = eps == null ? '' : `<small>EPS ${eps > 0 ? '+' : ''}${fmtNumber(eps, 1)}% in 30 days</small>`;
+  const total = (rv.raises || 0) + (rv.cuts || 0);
+  if (!total) return `<span class="q-rev is-flat"><span class="q-rev-n">No target changes</span>${epsLine}</span>`;
+  const share = (rv.raises || 0) / total * 100;
+  const tip = `${rv.raises} raised and ${rv.cuts} cut their targets over ${rv.days} days (${rv.firms} firms acted)`
+    + (rv.upgrades || rv.downgrades ? `; ${rv.upgrades} upgrade${rv.upgrades === 1 ? '' : 's'}, ${rv.downgrades} downgrade${rv.downgrades === 1 ? '' : 's'}` : '') + '.';
+  return `<span class="q-rev tip" data-tip="${escapeHtml(tip)}" aria-label="${escapeHtml(tip)}">
+      <span class="q-rev-n"><b>${rv.raises}</b> up <b class="warn">${rv.cuts}</b> down</span>
+      <i class="q-rev-bar" aria-hidden="true"><em class="up" style="width:${share.toFixed(1)}%"></em><em class="dn" style="width:${(100 - share).toFixed(1)}%"></em></i>${epsLine}</span>`;
+}
+
+// Past earnings reactions as diverging bars, newest last, beside the option market's move.
+function earningsHistoryHtml(er, sym) {
+  const moves = (er?.history || []).slice().reverse();
+  if (!moves.length) return '';
+  const m = Math.max(...moves.map((x) => Math.abs(x.move_pct))) || 1;
+  const im = numOrNull(er.implied_move_pct);
+  const scale = Math.max(m, im || 0);
+  return `<div class="q-ehist" role="img" aria-label="${escapeHtml(`Last ${moves.length} report reactions: ${moves.map((x) => `${x.move_pct > 0 ? '+' : ''}${fmtNumber(x.move_pct, 1)}%`).join(', ')}`)}">
+      ${im != null ? `<i class="q-ehist-band" style="height:${(im / scale * 50).toFixed(1)}%" aria-hidden="true"></i><i class="q-ehist-band dn" style="height:${(im / scale * 50).toFixed(1)}%" aria-hidden="true"></i>` : ''}
+      ${moves.map((x) => `<span class="q-ehist-b ${x.move_pct >= 0 ? 'up' : 'dn'}" title="${escapeHtml(`${earnDateLabel(x.date)}: ${x.move_pct > 0 ? '+' : ''}${fmtNumber(x.move_pct, 1)}%`)}"><i style="height:${(Math.abs(x.move_pct) / scale * 50).toFixed(1)}%"></i></span>`).join('')}
+    </div>`;
+}
+
+// The price with about three months behind it: a line coloured by the direction it moved
+// (a price move, so green or red) and the change over the window under the figure.
+function priceCellHtml(r, read, sym) {
+  const v = (read?.spark || []).map(Number).filter(Number.isFinite);
+  const carried = r.quote_carried ? '<small class="q-sub" title="This cycle\'s quote did not arrive in time; the last one is shown.">prior quote</small>' : '';
+  if (v.length < 2) return `${fmtPrice(r.price, sym)}${carried}`;
+  const w = 52; const h = 20; const lo = Math.min(...v); const hi = Math.max(...v);
+  const y = (c) => (h - 2 - ((c - lo) / ((hi - lo) || 1)) * (h - 4)).toFixed(1);
+  const pts = v.map((c, i) => `${((i / (v.length - 1)) * w).toFixed(1)},${y(c)}`).join(' ');
+  const chg = (v[v.length - 1] / v[0] - 1) * 100;
+  const dir = chg > 0 ? 'up' : chg < 0 ? 'dn' : '';
+  return `<span class="q-price-in">
+      <svg class="q-spark ${dir}" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${escapeHtml(`Price over about three months: ${chg >= 0 ? 'up' : 'down'} ${fmtNumber(Math.abs(chg), 1)}%`)}"><polyline points="${pts}"/><circle cx="${w}" cy="${y(v[v.length - 1])}" r="2"/></svg>
+      <span class="q-price-v">${fmtPrice(r.price, sym)}<small class="q-sub ${dir === 'up' ? 'bull' : dir === 'dn' ? 'bear' : ''}">${chg > 0 ? '+' : ''}${fmtNumber(chg, 1)}% 3 mo</small>${carried}</span>
+    </span>`;
+}
+
+// A key for the targets bar, drawn with the bar's own marks.
+function targetsKeyHtml() {
+  return `<div class="q-key">
+      <span><i class="k-px" aria-hidden="true"></i>Price</span><span><i class="k-tg" aria-hidden="true"></i>Average target</span>
+      <span><i class="k-band" aria-hidden="true"></i>Lowest to highest target</span><span><i class="k-yr" aria-hidden="true"></i>52-week range</span></div>`;
+}
+
+/* Compare: up to COMPARE_MAX Street candidates side by side, one row per measure, with the
+   better figure in each row set in bold (no colour: better is a reading, not a price move). */
+const COMPARE_MAX = 3;
+const _compare = new Set();
+function compareTrayHtml(all, sym) {
+  const picked = all.filter((r) => _compare.has(String(r.symbol || '').replace(/\.NS$/, '')));
+  if (!picked.length) return '';
+  const cols = picked.map((r) => ({ r, read: ideaRead(r.symbol), sym: String(r.symbol || '').replace(/\.NS$/, '') }));
+  const bi = bookIndex();
+  const rowsDef = [
+    ['Upside', (c) => numOrNull(c.r.upside_pct), (v) => fmtPct(v, 1, false), 'high'],
+    ['Target odds', (c) => (c.read?.odds?.p != null ? c.read.odds.p * 100 : null), (v) => `${Math.round(v)}%`, 'high'],
+    ['Target raises less cuts', (c) => (c.read?.revisions ? (c.read.revisions.raises || 0) - (c.read.revisions.cuts || 0) : null), (v) => `${v > 0 ? '+' : ''}${v}`, 'high'],
+    ['Target spread', (c) => numOrNull(c.r.target_dispersion_pct), (v) => `${fmtNumber(v, 0)}% of mean`, 'low'],
+    ['Analysts', (c) => numOrNull(c.r.analyst_count), (v) => `${v}`, 'high'],
+    ['Street rating', (c) => c.r.recommendation ?? null, (v) => escapeHtml(streetRating(v)), 'none'],
+    ['1-year volatility', (c) => (c.read?.vol_1y != null ? c.read.vol_1y * 100 : null), (v) => `${fmtNumber(v, 0)}%`, 'low'],
+    ['3-month change', (c) => numOrNull(c.read?.return_3m), (v) => fmtPct(v, 1, false), 'high'],
+    ['Short interest', (c) => (c.r.short_pct_float != null ? c.r.short_pct_float * 100 : null), (v) => `${fmtNumber(v, 1)}% of float`, 'low'],
+  ];
+  const cell = (txt, best) => `<td class="${best ? 'is-best' : ''}">${txt}</td>`;
+  const leads = cols.map(() => []);
+  const body = rowsDef.map(([label, get, fmt, better]) => {
+    const vals = cols.map(get);
+    const known = vals.filter((v) => v != null);
+    const best = known.length > 1 && better !== 'none' ? (better === 'high' ? Math.max(...known) : Math.min(...known)) : null;
+    // A tie leads for no one: only a strictly stronger figure counts.
+    if (best != null && vals.filter((v) => v === best).length === 1) leads[vals.indexOf(best)].push(label.toLowerCase());
+    return `<tr><th scope="row">${escapeHtml(label)}</th>${vals.map((v) => cell(v == null ? '<span class="q-na">N/A</span>' : fmt(v), best != null && v === best)).join('')}</tr>`;
+  }).join('');
+  const lead = cols.length > 1 ? `<aside class="q-compare-lead" aria-label="Where each name leads"><h4>Where each leads</h4><ul>${cols.map((c, i) => `<li><b>${escapeHtml(c.sym)}</b>
+      <i class="q-compare-meter" aria-hidden="true"><em style="width:${((leads[i].length / Math.max(1, ...leads.map((l) => l.length))) * 100).toFixed(0)}%"></em></i>
+      <span>${leads[i].length ? escapeHtml(leads[i].join(', ')) : 'No measure on its own'}</span></li>`).join('')}</ul>
+      <p>Bold is the stronger reading, not a recommendation: a lower volatility or a tighter target spread counts as stronger.</p></aside>` : '';
+  const earn = `<tr><th scope="row">Next report</th>${cols.map((c) => {
+    const d = earningsNearDays(c.r.earnings_date);
+    const im = numOrNull(c.read?.earnings?.implied_move_pct);
+    return `<td>${d == null ? '<span class="q-na">Not within the window</span>' : `${escapeHtml(inDays(d))}${im != null ? ` · options ±${fmtNumber(im, 1)}%` : ''}`}</td>`;
+  }).join('')}</tr>`;
+  const book = bi ? `<tr><th scope="row">Your book</th>${cols.map((c) => {
+    const h = heldOf(c.r.symbol, bi); const w = c.r.sector ? bi.sectors[c.r.sector] : null;
+    return `<td>${h ? 'Held' : 'Not held'}${c.r.sector && !hideAmounts() ? ` · ${escapeHtml(c.r.sector)} ${fmtNumber((w || 0) * 100, 0)}%` : ''}</td>`;
+  }).join('')}</tr>` : '';
+  return `<section class="q-compare" aria-label="Comparison">
+      <div class="q-compare-h"><b>Comparing ${cols.length}</b><span>${cols.length < COMPARE_MAX ? `Tick up to ${COMPARE_MAX - cols.length} more to add ${COMPARE_MAX - cols.length === 1 ? 'it' : 'them'}` : 'The most at once'}.</span><button type="button" class="dsc-clear" data-compare-clear>Clear</button></div>
+      <div class="q-compare-body"><div class="q-tablewrap"><table class="q-compare-t"><thead><tr><th scope="col"><span class="sr-only">Measure</span></th>${cols.map((c) => `<th scope="col"><b>${escapeHtml(c.sym)}</b><small>${escapeHtml(companyName(c.r.name || ''))}</small></th>`).join('')}</tr></thead>
+      <tbody>${body}${earn}${book}</tbody></table></div>${lead}</div>
+    </section>`;
+}
+
+function ideaDetailHtml(r, read, sym) {
+  const ticker = String(r.symbol || '').replace(/\.NS$/, '');
+  const rating = streetRating(r.recommendation);
+  const tLo = numOrNull(r.target_low); const tHi = numOrNull(r.target_high);
+  const disp = numOrNull(r.target_dispersion_pct);
+  const rv = read?.revisions;
+  const street = `${rating === 'Rating unavailable' ? 'Street rating unavailable' : `Street consensus is <b>${escapeHtml(rating)}</b>`} across ${r.analyst_count || 'an unreported number of'} analysts, average target ${escapeHtml(fmtPrice(r.target_mean, sym))}`
+    + (tLo != null && tHi != null ? ` (lowest ${escapeHtml(fmtPrice(tLo, sym))}, highest ${escapeHtml(fmtPrice(tHi, sym))}${disp != null ? `, a spread of ${fmtNumber(disp, 0)}% of the average` : ''})` : '') + '.'
+    + (rv ? ` Over ${rv.days} days ${rv.raises} raised and ${rv.cuts} cut their targets.` : '')
+    + (numOrNull(read?.eps_revision_pct) != null ? ` This year's EPS estimate moved ${fmtPct(read.eps_revision_pct, 1, false)} in 30 days.` : '');
+  const stats = numOrNull(state.dashboard?.market_intel?.consensus_stats?.median_upside_pct);
+  const vsTypical = stats != null && numOrNull(r.upside_pct) != null
+    ? ` Its ${fmtPct(r.upside_pct, 1, false)} upside is ${fmtNumber(Math.abs(r.upside_pct - stats), 0)} points ${r.upside_pct >= stats ? 'above' : 'below'} the typical tracked name (${fmtPct(stats, 1, false)}).` : '';
+  const odds = read ? oddsSentence(r, read, sym) : '';
+  const vol = numOrNull(read?.vol_1y); const mom = numOrNull(read?.momentum_12_1);
+  const si = numOrNull(r.short_pct_float);
+  const risk = [vol != null ? `1-year volatility ${fmtNumber(vol * 100, 0)}%` : '', mom != null ? `12-month momentum (skipping the last month) ${fmtPct(mom, 1, false)}` : '',
+    si != null ? `short interest ${fmtNumber(si * 100, 1)}% of float` : ''].filter(Boolean).join(' · ');
+  const er = read?.earnings;
+  const nearD = earningsNearDays(r.earnings_date);
+  let earn = '';
+  if (nearD != null) {
+    const when = earningsTimingWords(r.earnings_timing);
+    const im = numOrNull(er?.implied_move_pct); const avg = numOrNull(er?.avg_abs_move_pct);
+    earn = `<div class="q-detail-sec"><h3>Earnings</h3>
+      <p>Reports ${escapeHtml(inDays(nearD))}${earnDateLabel(r.earnings_date) ? ` (${escapeHtml(earnDateLabel(r.earnings_date))})` : ''}${when ? `, ${escapeHtml(when)}` : ''}.
+      ${im != null ? `Options price a move of about <b>±${fmtNumber(im, 1)}%</b> through ${escapeHtml(earnDateLabel(er.expiry) || er.expiry)}.` : ''}
+      ${avg != null ? `The last ${er.history.length} reports moved the stock <b>±${fmtNumber(avg, 1)}%</b> on average.` : ''}
+      ${numOrNull(r.eps_estimate) != null ? `Analysts expect EPS of ${escapeHtml(fmtPrice(r.eps_estimate, sym))}.` : ''}</p>
+      ${earningsHistoryHtml(er, sym)}</div>`;
+  }
+  const bi = bookIndex();
+  let book = '';
+  if (bi) {
+    const h = heldOf(r.symbol, bi);
+    const secW = r.sector ? bi.sectors[r.sector] : null;
+    book = `<div class="q-detail-sec"><h3>Your portfolio</h3><p>${h ? `You hold ${hideAmounts() || h.qty == null ? 'this name' : `${escapeHtml(fmtShares(h.qty))} shares`}${h.weight != null && !hideAmounts() ? ` (${fmtNumber(h.weight * 100, 1)}% of the account)` : ''}.` : 'You do not hold it.'}
+      ${r.sector ? (secW ? ` ${escapeHtml(r.sector)} is already ${hideAmounts() ? 'in your book' : `${fmtNumber(secW * 100, 0)}% of your book`}; adding here concentrates it.` : ` You hold nothing in ${escapeHtml(r.sector)}; it would diversify the book.`) : ''}</p></div>`;
+  }
+  return `<div class="q-detail-in">
+      <div class="q-detail-sec"><h3>The Street's view</h3>
+        <div class="q-detail-rt">${rangeTargetHtml(r, sym)}${targetsKeyHtml()}</div>
+        <p>${street}${escapeHtml(vsTypical)}</p>
+        ${targetLagged(r, read) ? `<p class="q-detail-warn">${escapeHtml('The price is near its 52-week low while target cuts outrun raises: the average target may still be catching up, so treat the upside as an upper bound.')}</p>` : ''}</div>
+      <div class="q-detail-sec"><h3>The odds</h3><p>${escapeHtml(odds || (read ? 'No volatility read for this name, so no odds.' : 'Reading options and price history…'))}</p>${risk ? `<p class="q-sub">${escapeHtml(risk)}</p>` : ''}</div>
+      ${earn}${book}
+      <div class="q-detail-sec"><h3>Next step</h3>
+        <p>QUANTA entry, stop, target and size come from a Picks scan; they are missing because ${escapeHtml(scanRanClause())}.</p>
+        <div class="q-detail-actions">
+          <button type="button" class="q-btn" data-ticker-open="${escapeHtml(ticker)}">Open tear sheet</button>
+          <button type="button" class="q-btn q-btn--primary" data-jump-view="picks">Run scan</button>
+        </div></div>
+    </div>`;
+}
+
 // [PURE] The ideas Discover lists, in one shape: scan picks when a scan funded any, else Street candidates.
 function discoverIdeas(intel = {}) {
   const funded = (livePicks()?.recommendations || []).filter(isFundedPick).slice(0, 10);
@@ -5818,8 +6185,8 @@ function discoverIdeas(intel = {}) {
         target, up: upsidePct(target, firstUsable(rec.entry_price, rec.current_price)) };
     }) };
   }
-  return { kind: 'street', items: (intel.analyst_picks || []).slice(0, 8).map((r) => ({
-    sym: String(r.symbol || '').replace(/\.NS$/, ''), name: r.name || '', sector: r.sector, earn: r.earnings_date,
+  return { kind: 'street', items: streetIdeas(intel).map((r) => ({
+    sym: String(r.symbol || '').replace(/\.NS$/, ''), raw: r, name: r.name || '', sector: r.sector, earn: r.earnings_date, timing: r.earnings_timing,
     target: numOrNull(r.target_mean), up: numOrNull(r.upside_pct) })) };
 }
 
@@ -5837,6 +6204,258 @@ function earnDateLabel(iso) {
 }
 const inDays = (d) => (d === 0 ? 'today' : d === 1 ? 'tomorrow' : `in ${d} days`);
 
+/* ---- Why names are moving --------------------------------------------------- */
+const MOVE_REASONS = [
+  ['deal', 'Likely deal', '7'], ['earnings', 'Earnings', '2'], ['analyst', 'Analyst action', '3'],
+  ['sector', 'Sector move', '5'], ['none', 'No clear cause', 'other'], ['pending', 'Checking', 'pending'],
+  ['unknown', 'Not checked', 'pending'],
+];
+// [PURE] A mover's reason: the enrichment's when in hand, else the payload's own (deal, report), else pending.
+function moverReason(r) {
+  const read = moverRead(r.symbol);
+  if (read?.reason) return read.reason;
+  if (r.reason) return r.reason;
+  return enrichPending() ? { key: 'pending', label: 'Checking' } : null;
+}
+// No reason in hand is "unknown", never "no clear cause": that label is a finding.
+const reasonKeyOf = (reason) => (reason && reason.key) || 'unknown';
+
+const TAPE_WORDS = {
+  gap_extended: 'Gap extended', gap_held: 'Gap held', gap_partly_held: 'Gap partly held', gap_faded: 'Gap faded',
+  reversal: 'Reversal', trend_up: 'Trend up', trend_down: 'Trend down', two_way: 'Two-way',
+};
+const TAPE_TIPS = {
+  gap_extended: 'Opened with a gap and kept going: the move since the open is larger than the gap.',
+  gap_held: 'Opened with a gap and kept most of it.',
+  gap_partly_held: 'Opened with a gap and gave some of it back.',
+  gap_faded: 'Opened with a gap and gave most of it back.',
+  reversal: 'Opened with a gap one way and is now on the other side of the previous close.',
+  trend_up: 'No real gap; trading near the top of the day\'s range.',
+  trend_down: 'No real gap; trading near the bottom of the day\'s range.',
+  two_way: 'No real gap; trading inside the day\'s range rather than at an end.',
+};
+
+/* ---- Discover cards (2026-10-20, owner-approved mock) ----------------------
+   Street ideas as frosted cards, the tape as two rows of mover cards, and a side
+   panel for one idea's full read. Every figure comes from the same reads the
+   list view uses; a card only arranges them. */
+
+// Cards or the compact list; the reader's choice is remembered on this browser.
+let _ideasView = (() => {
+  try { return localStorage.getItem('quanta.discover.view') === 'list' ? 'list' : 'cards'; } catch (_) { return 'cards'; }
+})();
+function setIdeasView(view) {
+  _ideasView = view === 'list' ? 'list' : 'cards';
+  try { localStorage.setItem('quanta.discover.view', _ideasView); } catch (_) { /* private mode */ }
+}
+
+// [PURE] A price history as a filled area, coloured by the direction it moved (a price move).
+function areaChartHtml(closes, id, w = 300, h = 64) {
+  const v = (closes || []).map(Number).filter(Number.isFinite);
+  if (v.length < 2) return '';
+  let lo = Math.min(...v); let hi = Math.max(...v);
+  const pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
+  const x = (i) => ((i / (v.length - 1)) * w).toFixed(1);
+  const y = (c) => (h - ((c - lo) / (hi - lo)) * h).toFixed(1);
+  const line = v.map((c, i) => `${x(i)},${y(c)}`).join(' ');
+  const tone = v[v.length - 1] >= v[0] ? 'up' : 'dn';
+  const chg = (v[v.length - 1] / v[0] - 1) * 100;
+  return `<svg class="ic-area ${tone}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${escapeHtml(`Price over about three months: ${chg >= 0 ? 'up' : 'down'} ${fmtNumber(Math.abs(chg), 1)}%`)}">
+      <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="g0"/><stop offset="1" class="g1"/></linearGradient></defs>
+      <polygon points="0,${h} ${line} ${w},${h}" fill="url(#${id})"/><polyline points="${line}"/></svg>`;
+}
+
+// The odds of a target as a ring: Model Ink for a QUANTA-derived figure, the share as the arc.
+function oddsRingHtml(p) {
+  const pct = Math.round(p * 100);
+  return `<span class="ic-ring" style="--a:${Math.round(p * 360)}deg" aria-hidden="true"><b>${pct}%</b></span>`;
+}
+
+// [PURE] One line for a card's foot: the most decision-relevant of a near report, a lagging target or a far report.
+function ideaNote(r, read) {
+  const days = earningsNearDays(r.earnings_date);
+  const timing = { amc: 'after close', bmo: 'pre-open' }[String(r.earnings_timing || '').toLowerCase()] || '';
+  const im = numOrNull(read?.earnings?.implied_move_pct);
+  const priced = im != null ? `±${fmtNumber(im, 1)}% priced` : '';
+  if (days != null && days <= 3) {
+    const when = days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
+    return { tone: 'warn', text: [`Reports ${when}${timing ? ` ${timing}` : ''}`, priced].filter(Boolean).join(' · ') };
+  }
+  if (targetLagged(r, read)) return { tone: 'warn', text: `Target may lag · near 52-week low, ${read.revisions.cuts} cuts` };
+  if (days != null) return { tone: '', text: [`Reports in ${days} days`, priced].filter(Boolean).join(' · ') };
+  return { tone: 'calm', text: 'No report due, no target flag' };
+}
+
+function ideaCardHtml(r, read, sym, i, noReads) {
+  const shown = String(r.symbol || '').replace(/\.NS$/, '');
+  const name = shortName(companyName(r.name || '')) || shown;
+  const up = numOrNull(r.upside_pct);
+  const r3 = numOrNull(read?.return_3m);
+  const odds = read?.odds?.p;
+  const rv = read?.revisions;
+  const note = ideaNote(r, read);
+  const chart = read?.spark ? areaChartHtml(read.spark, `icg-${i}-${shown.replace(/[^A-Za-z0-9]/g, '')}`) : (enrichPending() ? '<span class="ic-wait" aria-hidden="true"></span>' : '');
+  const oddsCell = noReads ? '' : odds != null
+    ? `<div class="ic-st ic-st--ring tip" data-tip="${escapeHtml(oddsSentence(r, read, sym))}">${oddsRingHtml(odds)}<span class="k">Odds</span></div>`
+    : `<div class="ic-st ic-st--ring">${enrichPending() ? '<span class="ic-ring is-wait" aria-hidden="true"></span>' : '<span class="ic-ring is-na" aria-hidden="true"><b>N/A</b></span>'}<span class="k">Odds</span></div>`;
+  const revCell = noReads ? '' : rv
+    ? `<div class="ic-st"><span class="k">Revisions</span><span class="v">${rv.raises}<i>up</i> <span class="${(rv.cuts || 0) > (rv.raises || 0) ? 'warn' : ''}">${rv.cuts}</span><i>down</i></span><span class="s">${rv.days} days</span></div>`
+    : `<div class="ic-st"><span class="k">Revisions</span><span class="v ic-dim">${enrichPending() ? 'Reading' : 'N/A'}</span></div>`;
+  const compared = _compare.has(shown);
+  const label = `${shown}, ${name}: Street rating ${streetRating(r.recommendation)}, ${up != null ? `upside ${fmtPct(up, 1, false)}` : 'upside unavailable'}${odds != null ? `, odds ${Math.round(odds * 100)}%` : ''}. Open its details`;
+  return `<article class="idea-card${compared ? ' is-compared' : ''}" data-sym="${escapeHtml(shown)}" style="--i:${i}">
+      <button type="button" class="ic-open" data-idea-open="${escapeHtml(shown)}" data-fk="card:${escapeHtml(shown)}" aria-haspopup="dialog" aria-label="${escapeHtml(label)}"></button>
+      <header class="ic-top">
+        <div class="ic-id">${tvTickerLink(shown, tradingViewUrl(r.symbol, r.exchange), 'ic-tk q-tick-tv')}<span class="ic-co">${escapeHtml(name)}</span></div>
+        <div class="ic-rate"><b>${escapeHtml(streetRating(r.recommendation))}</b><span>${r.analyst_count ? `${escapeHtml(String(r.analyst_count))} analysts` : 'Analyst count N/A'}</span></div>
+      </header>
+      <div class="ic-px"><span class="ic-px-v">${fmtPrice(r.price, sym)}</span>${r3 != null ? `<span class="ic-px-c ${r3 >= 0 ? 'bull' : 'bear'}">${r3 > 0 ? '+' : ''}${fmtNumber(r3, 1)}%<i>3M</i></span>` : ''}${compared ? '<span class="ic-cmp-tag">Comparing</span>' : ownedChip(shown)}</div>
+      <div class="ic-chart">${chart}</div>
+      <div class="ic-stats${noReads ? ' is-solo' : ''}">
+        <div class="ic-st"><span class="k">Upside</span><span class="v">${up != null ? fmtPct(up, 1, false) : '<span class="ic-dim">Upside unavailable</span>'}</span>${numOrNull(r.target_mean) != null ? `<span class="s">to <em>${escapeHtml(fmtPrice(r.target_mean, sym))}</em></span>` : ''}</div>
+        ${oddsCell}${revCell}
+      </div>
+      <footer class="ic-note ${note.tone}">${escapeHtml(note.text)}${noReads ? '<span class="ic-dim"> · odds not loaded</span>' : ''}</footer>
+    </article>`;
+}
+
+/* ---- The side panel: one idea's full read ----------------------------------- */
+let _drawerOpener = null;
+let _drawerSym = null;
+// [IMPURE] Writes one idea's read into the panel; false when the idea is gone.
+function fillIdeaDrawer(drawer, sym) {
+  const r = streetIdeas(_pulseIntel).find((x) => String(x.symbol || '').replace(/\.NS$/, '') === sym);
+  if (!r) return false;
+  const read = ideaRead(r.symbol);
+  const s = _currencySymbol();
+  const name = companyName(r.name || '');
+  const r3 = numOrNull(read?.return_3m);
+  const compared = _compare.has(sym);
+  drawer.querySelector('.dd-in').innerHTML = `
+    <header class="dd-head">
+      <div><h2 class="dd-tk" id="dsc-drawer-title">${escapeHtml(sym)}</h2><p class="dd-co">${escapeHtml(name)}${r.sector ? ` · ${escapeHtml(r.sector)}` : ''}</p></div>
+      <button type="button" class="dd-close" data-drawer-close aria-label="Close details"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+    </header>
+    <div class="dd-px"><span class="dd-px-v">${fmtPrice(r.price, s)}</span>${r3 != null ? `<span class="${r3 >= 0 ? 'bull' : 'bear'}">${r3 > 0 ? '+' : ''}${fmtNumber(r3, 1)}% in 3 months</span>` : ''}
+      ${numOrNull(r.upside_pct) != null ? `<span class="dd-up">${fmtPct(r.upside_pct, 1, false)} to <em>${escapeHtml(fmtPrice(r.target_mean, s))}</em></span>` : ''}</div>
+    <div class="dd-chart">${read?.spark ? areaChartHtml(read.spark, `ddg-${sym.replace(/[^A-Za-z0-9]/g, '')}`, 520, 120) : `<span class="ic-wait${enrichPending() ? '' : ' is-na'}">${enrichPending() ? '' : 'Price history unavailable'}</span>`}</div>
+    <div class="dd-actions">
+      <button type="button" class="q-btn${compared ? ' is-on' : ''}" data-compare="${escapeHtml(sym)}" aria-pressed="${compared}"${!compared && _compare.size >= COMPARE_MAX ? ' disabled title="Comparing the most names at once; remove one first"' : ''}>${compared ? 'In comparison' : 'Add to compare'}</button>
+      <button type="button" class="q-btn" data-ticker-open="${escapeHtml(sym)}">Open tear sheet</button>
+    </div>
+    ${ideaDetailHtml(r, read, s)}`;
+  wireExpandableRows(drawer);
+  attachDashboardActionHandlers(drawer);
+  _drawerSym = sym;
+  return true;
+}
+
+// [IMPURE] Redraws an open panel in place when odds or the book land after it opened.
+function refreshIdeaDrawer() {
+  const drawer = typeof document !== 'undefined' ? document.getElementById('dsc-drawer') : null;
+  if (!drawer || drawer.hidden || !_drawerSym) return;
+  const top = drawer.scrollTop;
+  const hadFocus = drawer.contains(document.activeElement);
+  if (!fillIdeaDrawer(drawer, _drawerSym)) { closeIdeaDrawer(); return; }
+  drawer.scrollTop = top;
+  if (hadFocus) drawer.querySelector('[data-drawer-close]')?.focus({ preventScroll: true });
+}
+
+function openIdeaDrawer(sym, opener = null) {
+  const drawer = document.getElementById('dsc-drawer');
+  const scrim = document.getElementById('dsc-drawer-scrim');
+  if (!drawer || !fillIdeaDrawer(drawer, sym)) return;
+  drawer.scrollTop = 0;
+  _drawerOpener = opener || document.activeElement;
+  drawer.hidden = false;
+  if (scrim) scrim.hidden = false;
+  // The next frame lets the hidden-to-shown change land before the slide starts.
+  const show = () => { drawer.classList.add('is-open'); if (scrim) scrim.classList.add('is-open'); };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(show); else show();
+  drawer.querySelector('[data-drawer-close]')?.focus({ preventScroll: true });
+}
+
+function closeIdeaDrawer() {
+  const drawer = document.getElementById('dsc-drawer');
+  const scrim = document.getElementById('dsc-drawer-scrim');
+  if (!drawer || drawer.hidden) return;
+  drawer.classList.remove('is-open');
+  if (scrim) scrim.classList.remove('is-open');
+  const done = () => { drawer.hidden = true; if (scrim) scrim.hidden = true; };
+  const reduce = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (typeof setTimeout === 'function' && !reduce) setTimeout(done, 180); else done();
+  if (_drawerOpener && typeof _drawerOpener.focus === 'function') _drawerOpener.focus({ preventScroll: true });
+  _drawerOpener = null;
+  _drawerSym = null;
+}
+
+/* ---- Reveal once ---------------------------------------------------------------
+   A section's first paint with data enters as it scrolls into view; refreshes and
+   filter changes redraw in place. Content is visible by default: the pending state is
+   set only where IntersectionObserver exists and the reader allows motion. */
+const _revealArmed = new Set();
+function armReveal(el, key, ms = 1400) {
+  if (!el || _revealArmed.has(key)) return;
+  _revealArmed.add(key);
+  if (typeof window === 'undefined' || typeof IntersectionObserver !== 'function') return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  el.dataset.reveal = 'pending';
+  const io = new IntersectionObserver((entries) => {
+    if (!entries.some((e) => e.isIntersecting)) return;
+    io.disconnect();
+    el.dataset.reveal = 'in';
+    setTimeout(() => { if (el.dataset.reveal === 'in') delete el.dataset.reveal; }, ms);
+  }, { rootMargin: '0px 0px -6% 0px', threshold: 0.01 });
+  io.observe(el);
+  // Whatever happens to the observer, content shown on screen is never held back for long.
+  setTimeout(() => { if (el.dataset.reveal === 'pending' && el.offsetParent !== null) { io.disconnect(); delete el.dataset.reveal; } }, 2500);
+}
+
+/* ---- A quote that changed since the last read flashes once in its direction ----
+   The flash is timed from the change itself, so a redraw mid-flash resumes it
+   instead of restarting it. */
+const _lastQuote = new Map();
+const TICK_MS = 1200;
+function tickState(ticker, price) {
+  if (!ticker || price == null) return { cls: '', style: '' };
+  const now = Date.now();
+  const t = _lastQuote.get(ticker);
+  if (!t) { _lastQuote.set(ticker, { price, dir: '', at: 0 }); return { cls: '', style: '' }; }
+  if (t.price !== price) { t.dir = price > t.price ? 'up' : 'dn'; t.at = now; t.price = price; }
+  const age = now - t.at;
+  return t.at && age < TICK_MS ? { cls: ` is-tick-${t.dir}`, style: `;--tick-d:-${age}ms` } : { cls: '', style: '' };
+}
+
+/* ---- The tape as rows ------------------------------------------------------------
+   One hairline row per move: who, why, how the session traded, the price, and the
+   change over a fill drawn on one scale for gainers and losers alike. */
+function moverCardHtml(r, sym, i = 0, magMax = 0) {
+  const ticker = normalizeTicker(r.symbol || '');
+  const chg = Number(r.change_pct);
+  const tp = r.tape || {};
+  const why = moverReason(r);
+  const v = numOrNull(tp.rvol);
+  const heavy = v != null && v >= mkt('RVOL_HIGH');
+  const extended = setupQualityForMover(r) === SETUP_QUALITY.extended;
+  const name = companyName(r.name || '');
+  const cap = fmtCompactMoney(r.market_cap);
+  const price = numOrNull(firstUsable(r.price, r.ltp));
+  const tick = tickState(ticker, price);
+  const ltpTitle = [r.change_abs != null ? `${r.change_abs >= 0 ? '+' : '-'}${fmtPrice(Math.abs(r.change_abs), sym)} today` : '', sectorBaselineText(r)].filter(Boolean).join('. ');
+  const session = [tp.tag ? TAPE_WORDS[tp.tag] : '', v != null ? `${fmtNumber(v, 1)}x vol` : ''].filter(Boolean);
+  // Fills are linear on one scale for both sides: the tape's moves sit close together, so a
+  // straight scale keeps a 5% move visibly half a 10% one.
+  const fill = Number.isFinite(chg) && magMax > 0 ? Math.min(100, (Math.abs(chg) / magMax) * 100) : 0;
+  return `<article class="mv-card q-board-row${extended ? ' is-extended' : ''}${tick.cls}" data-board-ticker="${escapeHtml(ticker)}" tabindex="-1" style="--i:${i}${tick.style}" title="${escapeHtml([name, cap].filter(Boolean).join(' · '))}">
+      <div class="mv-id"><span class="mv-id-t">${tvTickerLink(ticker, tradingViewUrl(r.symbol, r.exchange), 'mv-tk q-board-tv')}${extended ? '<span class="q-board-flag" title="Move is too extended for a fresh entry">Extended</span>' : ''}${heldChipHtml(r)}</span>${name ? `<span class="mv-co">${escapeHtml(shortName(name) || name)}</span>` : ''}</div>
+      <div class="mv-why${why && why.key === 'pending' ? ' is-wait' : ''}"${why?.detail ? ` title="${escapeHtml(why.detail)}"` : ''}>${why ? escapeHtml(why.key === 'pending' ? 'Checking cause' : why.label) : 'Cause not loaded'}</div>
+      <div class="mv-ses">${session.length ? `<span class="${tp.tag === 'gap_faded' || tp.tag === 'reversal' ? 'warn' : ''}">${escapeHtml(session[0])}</span>${session[1] ? `<span class="mv-v"> · <span class="${heavy ? 'mv-heavy' : ''}">${escapeHtml(session[1])}</span></span>` : ''}` : ''}</div>
+      <div class="mv-p"><span class="mv-px">${fmtPrice(price, sym)}</span></div>
+      <div class="mv-chg ${chg > 0 ? 'bull' : chg < 0 ? 'bear' : ''}" title="${escapeHtml(ltpTitle)}">${fill > 0 ? `<i class="mv-mag" aria-hidden="true" style="width:${fill.toFixed(1)}%"></i>` : ''}<span>${chg > 0 ? '+' : ''}${fmtNumber(chg, 1)}%</span></div>
+      <button type="button" class="q-board-research" data-ticker-open="${escapeHtml(ticker)}" aria-label="Open the ${escapeHtml(ticker)} Research tear sheet" title="Research">${RESEARCH_ICON}</button>
+    </article>`;
+}
+
 /* The filter bar over the candidate table: sector chips, the earnings switch and the sort.
    Always visible while there are ideas; the controls are native buttons with pressed state. */
 function renderOppFilters(intel = _pulseIntel) {
@@ -5849,109 +6468,154 @@ function renderOppFilters(intel = _pulseIntel) {
   if (_oppFilter.sector && !slots.some((s) => s.name === _oppFilter.sector)) _oppFilter.sector = '';
   const near = Number(thr('WHY.EARNINGS_NEAR_DAYS'));
   const soon = items.filter((x) => earningsNearDays(x.earn) != null).length;
-  const chip = (label, n, value, slot) => {
+  const seg = (label, n, value) => {
     const on = _oppFilter.sector === value;
-    return `<button type="button" class="dsc-chip${on ? ' is-on' : ''}" data-opp-sector="${escapeHtml(value)}" data-fk="sec:${escapeHtml(value)}" aria-pressed="${on}">${slot ? `<i class="dsc-sw s-${slot}" aria-hidden="true"></i>` : ''}${escapeHtml(label)}<b>${n}</b></button>`;
+    return `<button type="button" class="dsc-seg${on ? ' is-on' : ''}" data-opp-sector="${escapeHtml(value)}" data-fk="sec:${escapeHtml(value)}" aria-pressed="${on}">${escapeHtml(label)}<b>${n}</b></button>`;
   };
+  const sortOn = kind === 'street' ? activeOppSort(streetIdeas(intel)) : '';
+  const sorts = OPP_SORTS.filter(([k]) => !(enrichFailed() && ['odds', 'revisions'].includes(k)));
   bar.innerHTML = `
-    <div class="dsc-fgroup" role="group" aria-label="Filter by sector"><span class="dsc-flabel" aria-hidden="true">Sector</span>
-      ${chip('All', items.length, '', '')}${slots.map((s) => chip(s.name, s.n, s.name, s.slot)).join('')}</div>
+    <div class="dsc-segs" role="group" aria-label="Filter by sector">${seg('All', items.length, '')}${slots.map((x) => seg(x.name, x.n, x.name)).join('')}</div>
     ${near > 0 ? `<button type="button" class="dsc-switch tip" role="switch" aria-checked="${_oppFilter.hideEarn}" data-opp-earn data-fk="earn" data-tip="Hides names that report results within ${escapeHtml(String(near))} days. A report can move a price sharply either way.">
-      <span class="dsc-switch-t" aria-hidden="true"><i></i></span>Hide earnings within ${escapeHtml(String(near))} days<b>${soon}</b></button>` : ''}
-    ${kind === 'street' ? `<div class="dsc-fgroup dsc-sort" role="group" aria-label="Sort candidates"><span class="dsc-flabel" aria-hidden="true">Sort</span>
-      ${OPP_SORTS.map(([k, label]) => `<button type="button" class="dsc-seg-b${_oppFilter.sort === k ? ' is-on' : ''}" data-opp-sort="${k}" data-fk="sort:${k}" aria-pressed="${_oppFilter.sort === k}">${label}</button>`).join('')}</div>` : ''}
-    ${oppFiltered() ? '<button type="button" class="dsc-clear" data-opp-clear>Clear filters</button>' : ''}`;
+      <span class="dsc-switch-t" aria-hidden="true"><i></i></span>Hide reporting within ${escapeHtml(String(near))} days<b>${soon}</b></button>` : ''}
+    ${oppFiltered() ? '<button type="button" class="dsc-clear" data-opp-clear>Clear filters</button>' : ''}
+    <span class="dsc-tools-r">
+      ${kind === 'street' ? `<span class="dsc-segs" role="group" aria-label="Sort ideas">${sorts.map(([k, label]) => `<button type="button" class="dsc-seg${sortOn === k ? ' is-on' : ''}" data-opp-sort="${k}" data-fk="sort-bar:${k}" aria-pressed="${sortOn === k}">${label === 'Likeliest target' ? 'Likeliest' : label}</button>`).join('')}</span>` : ''}
+      ${kind === 'street' ? `<span class="dsc-segs dsc-view" role="group" aria-label="View">${[['cards', 'Cards'], ['list', 'List']].map(([k, label]) => `<button type="button" class="dsc-seg${_ideasView === k ? ' is-on' : ''}" data-ideas-view="${k}" data-fk="view:${k}" aria-pressed="${_ideasView === k}">${label}</button>`).join('')}</span>` : ''}
+    </span>`;
+}
+
+/* ---- The read: the page in one or two sentences ---------------------------
+   Templated from the same figures the panels show, so it can never say more
+   than they do. Tickers are buttons that find their row. */
+function discoverReadHtml(kind, ideas, movers) {
+  const tape = [];
+  const tk = (sym, attr = 'data-pulse-jump') => `<button type="button" class="dsc-tk" ${attr}="${escapeHtml(sym)}">${escapeHtml(sym)}</button>`;
+  const list = (xs) => (xs.length < 3 ? xs.join(' and ') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+  const near = Number(thr('WHY.EARNINGS_NEAR_DAYS'));
+  // The brief: each reading is a label over its figure and one line of context, built only
+  // from figures the page already shows, so it can never say more than the panels do.
+  const cells = [];
+  const cell = (label, value, sub = '', opts = {}) => cells.push(`<div class="dsc-bc${opts.cls ? ` ${opts.cls}` : ''}"><dt>${opts.tip ? `<span class="tip" tabindex="0" data-tip="${escapeHtml(opts.tip)}">${label}</span>` : label}</dt><dd><span class="dsc-bv">${value}</span>${sub ? `<span class="dsc-bs${opts.subCls ? ` ${opts.subCls}` : ''}">${sub}</span>` : ''}</dd></div>`);
+  if (ideas.length) {
+    const cur = _currencySymbol();
+    const slots = sectorSlots(ideas);
+    const lead = slots[0];
+    const noun = kind === 'scan' ? 'setups' : 'Street ideas';
+    const sectorCell = () => (lead.n / ideas.length >= 0.5 && lead.name !== 'Not reported'
+      ? cell('Most ideas', escapeHtml(lead.name), `${lead.n} of the ${ideas.length} ${noun}`)
+      : cell(kind === 'scan' ? 'Setups' : 'Street ideas', `<b>${ideas.length}</b>`, `across ${slots.length} sector${slots.length === 1 ? '' : 's'}`));
+    // With every idea's odds in hand they lead; until then, the list's make-up does.
+    const withOdds = kind === 'street' ? ideas.filter((x) => oddsOf(x.raw) != null).sort((a, b) => oddsOf(b.raw) - oddsOf(a.raw)) : [];
+    const oddsLead = withOdds.length && withOdds.length === ideas.length;
+    if (oddsLead) {
+      const best = withOdds[0];
+      const fromOptions = ideaRead(best.raw.symbol)?.odds?.source === 'options';
+      cell('Best target odds', `${tk(best.sym)}<b class="quant">${Math.round(oddsOf(best.raw) * 100)}%</b>`,
+        `to ${escapeHtml(fmtPrice(best.target, cur))}, ${fromOptions ? 'from option prices' : 'from price history'}`,
+        { tip: "The chance of finishing at or above the average Street target in 12 months, priced from the option market's implied volatility, or from the stock's own 1-year volatility when no usable option chain exists. Risk-neutral pricing, not a forecast." });
+    } else sectorCell();
+    const med = medianOf(ideas.map((x) => x.up).filter((v) => v != null));
+    if (med != null) {
+      const all = kind === 'street' ? ((_pulseIntel.consensus_stats || {}).upsides || []).map(Number).filter(Number.isFinite) : [];
+      const beats = all.length >= 10 ? Math.round((all.filter((v) => v < med).length / all.length) * 100) : null;
+      cell('Median upside', `<b class="gold">${escapeHtml(fmtPct(med, 1, false))}</b>`,
+        beats != null ? `higher than ${beats}% of tracked names` : kind === 'scan' ? 'to QUANTA targets' : 'to the average Street target',
+        { tip: kind === 'scan' ? 'The middle upside of the funded setups, entry to target.' : 'The middle upside of the listed ideas to their average Street target, placed among the upside of every tracked name. Street targets tend to run optimistic.' });
+    }
+    const soon = near > 0 ? ideas.map((x) => ({ x, d: earningsNearDays(x.earn) })).filter((o) => o.d != null).sort((a, b) => a.d - b.d) : [];
+    if (soon.length) {
+      const first = soon[0].d;
+      const firsts = soon.filter((o) => o.d === first).map((o) => tk(o.x.sym));
+      const when = first <= 1 ? `${list(firsts)} ${inDays(first)}` : `soonest ${list(firsts)} ${inDays(first)}`;
+      cell(`Report within ${escapeHtml(String(near))} days`, `<b>${soon.length}</b><i>of ${ideas.length}</i>`, when, { subCls: first <= 1 ? 'warn' : '' });
+    }
+    const lagged = kind === 'street' ? ideas.filter((x) => targetLagged(x.raw)) : [];
+    if (lagged.length) {
+      const shown = lagged.slice(0, 3).map((x) => tk(x.sym));
+      cell('Target may lag', `${shown.join('')}${lagged.length > 3 ? `<i>+${lagged.length - 3}</i>` : ''}`,
+        `near 52-week low${lagged.length === 1 ? '' : 's'}, more cuts than raises`,
+        { subCls: 'warn', tip: `The price sits in the bottom ${Math.round(mkt('TARGET_LAG_RANGE_SHARE') * 100)}% of its 52-week range while analysts cut more targets than they raised, so the average target may overstate the upside.` });
+    } else if (oddsLead) sectorCell();
+  }
+  if (movers.length) {
+    const reasons = movers.map((r) => ({ r, key: reasonKeyOf(moverReason(r)) }));
+    const by = (k) => reasons.filter((x) => x.key === k);
+    const bits = [];
+    const earn = by('earnings').length;
+    if (earn >= 2) bits.push(`${earn} of ${movers.length} big moves follow earnings`);
+    const deals = by('deal').map((x) => tk(normalizeTicker(x.r.symbol), 'data-pulse-board'));
+    if (deals.length) bits.push(`${list(deals)} ${deals.length === 1 ? 'looks' : 'look'} like ${deals.length === 1 ? 'a deal' : 'deals'}`);
+    const fades = movers.filter((r) => r.tape?.tag === 'gap_faded' || r.tape?.tag === 'reversal')
+      .sort((a, b) => Math.abs(Number(b.change_pct)) - Math.abs(Number(a.change_pct))).slice(0, 2).map((r) => tk(normalizeTicker(r.symbol), 'data-pulse-board'));
+    if (fades.length) bits.push(`${list(fades)} ${fades.length === 1 ? 'is' : 'are'} giving back ${fades.length === 1 ? 'its' : 'their'} opening gap`);
+    if (!enrichPending() && !enrichFailed()) {
+      const none = by('none').length;
+      if (none / movers.length >= 0.5) bits.push(`${none} of ${movers.length} have no clear cause`);
+    }
+    if (bits.length) tape.push(`${bits.join('; ')}.`.replace(/^./, (c) => c.toUpperCase()));
+  }
+  return { ideas: cells.length ? `<dl class="dsc-brief-in">${cells.join('')}</dl>` : '', tape: tape.join(' ') };
+}
+
+// [IMPURE] The brief's box. A template served before the brief existed holds it in a
+// paragraph beside the title; it moves to its own row under the title as a block.
+function discoverBriefBox() {
+  const box = $('#discover-pulse');
+  if (!box || box.tagName !== 'P') return box;
+  const div = document.createElement('div');
+  for (const { name, value } of [...box.attributes]) div.setAttribute(name, value);
+  div.className = 'dsc-brief';
+  const head = box.closest('.page-head');
+  if (head) head.appendChild(div); else box.after(div);
+  box.remove();
+  return div;
 }
 
 function renderDiscoverPulse(intel = _pulseIntel) {
   _pulseIntel = intel || {};
   wireDiscoverControls();
   renderOppFilters(_pulseIntel);
-  const box = $('#discover-pulse');
+  renderDiscoverStatus(_pulseIntel);
+  const box = discoverBriefBox();
   if (!box) return;
   const { kind, items: ideas } = discoverIdeas(_pulseIntel);
-  const up = (_pulseIntel.movers_up || []).filter((r) => Number.isFinite(Number(r.change_pct)));
-  const dn = (_pulseIntel.movers_down || []).filter((r) => Number.isFinite(Number(r.change_pct)));
-  if (!ideas.length && !up.length && !dn.length) { box.hidden = true; box.innerHTML = ''; return; }
-  box.hidden = false;
-  const sym = kind === 'scan' ? (livePicks()?.currency || _currencySymbol()) : _currencySymbol();
-  const term = (label, tip) => `<span class="tip" tabindex="0" data-tip="${escapeHtml(tip)}">${escapeHtml(label)}</span>`;
-  const card = (title, body, cls = '') => `<div class="dsc-pc ${cls}"><dt>${title}</dt><dd>${body}</dd></div>`;
-  const ofN = `${ideas.length} ${kind === 'scan' ? 'qualified setup' : 'Street candidate'}${ideas.length === 1 ? '' : 's'}`;
-  const out = [];
+  const movers = [...(_pulseIntel.movers_up || []), ...(_pulseIntel.movers_down || [])].filter((r) => Number.isFinite(Number(r.change_pct)));
+  const read = discoverReadHtml(kind, ideas, movers);
+  // The brief: what the ideas say today, in a row of readings under the title.
+  const html = read.ideas || '';
+  if (html !== _pulseHtml || !box.firstChild) { _pulseHtml = html; box.innerHTML = html; }
+  box.hidden = !html;
+  const sub = $('#tape-sub');
+  if (sub) sub.innerHTML = read.tape || 'The biggest moves, why they moved and how they traded.';
+}
 
-  // 1 · Upside: the median, then every idea on one labelled line from lowest to highest.
-  if (ideas.length) {
-    const withUp = ideas.filter((x) => x.up != null && Number.isFinite(x.up)).sort((a, b) => a.up - b.up);
-    const med = medianOf(withUp.map((x) => x.up));
-    let chart = '';
-    if (withUp.length > 1 && withUp[withUp.length - 1].up > withUp[0].up) {
-      const lo = withUp[0]; const hi = withUp[withUp.length - 1];
-      const at = (v) => pctAlong(v, lo.up, hi.up).toFixed(1);
-      chart = `<div class="dsc-range">
-          <div class="dsc-range-track">
-            ${med != null ? `<span class="dsc-med" style="left:${at(med)}%" aria-hidden="true"><em>median</em></span>` : ''}
-            ${withUp.map((x) => `<button type="button" class="dsc-dot tip" style="left:${at(x.up)}%" data-pulse-jump="${escapeHtml(x.sym)}"
-              data-tip="${escapeHtml(`${x.sym}${x.name ? ` (${shortName(x.name)})` : ''}: ${fmtPct(x.up, 1, false)} to ${x.target != null ? `a ${fmtPrice(x.target, sym)} target` : 'its target'}. Select to find it in the list.`)}"
-              aria-label="${escapeHtml(`${x.sym}, upside ${fmtPct(x.up, 1, false)}. Show in the list`)}"></button>`).join('')}
-          </div>
-          <div class="dsc-range-ends"><span><b>${escapeHtml(fmtPct(lo.up, 1, false))}</b> ${escapeHtml(lo.sym)}</span><span>${escapeHtml(hi.sym)} <b>${escapeHtml(fmtPct(hi.up, 1, false))}</b></span></div>
-        </div>`;
-    }
-    out.push(card(term('Upside to target', kind === 'scan'
-      ? 'How far each scan target sits above its entry price. A model estimate, not a promise.'
-      : "How far the Street's average 12-month price target sits above today's price. An analyst estimate, not a QUANTA forecast."),
-    `<div class="dsc-headline"><span class="dsc-fig gold">${med != null ? escapeHtml(fmtPct(med, 1, false)) : 'N/A'}</span><span class="dsc-sub">median across ${escapeHtml(ofN)}</span></div>
-     ${chart}<p class="dsc-hint">Each dot is one name. Select one to find it in the list.</p>`));
-  }
-
-  // 2 · Sectors: one stacked bar in categorical colours; the legend filters the list.
-  if (ideas.length) {
-    const slots = sectorSlots(ideas);
-    const lead = slots[0];
-    const share = Math.round((lead.n / ideas.length) * 100);
-    out.push(card(term('Sector mix', 'Which sectors the listed names come from. A list crowded into one sector moves together, so it carries more of that sector\'s risk.'),
-      `<div class="dsc-headline"><span class="dsc-fig">${share}%</span><span class="dsc-sub">in ${escapeHtml(lead.name)} (${lead.n} of ${ideas.length})</span></div>
-       <div class="dsc-stack" aria-hidden="true">${slots.map((s) => `<i class="s-${s.slot}${_oppFilter.sector && _oppFilter.sector !== s.name ? ' is-dim' : ''}" style="flex:${s.n}"></i>`).join('')}</div>
-       <div class="dsc-legend" role="group" aria-label="Filter the list by sector">${slots.map((s) => {
-         const on = _oppFilter.sector === s.name;
-         return `<button type="button" class="dsc-leg tip${on ? ' is-on' : ''}" data-opp-sector="${escapeHtml(on ? '' : s.name)}" data-fk="leg:${escapeHtml(s.name)}" aria-pressed="${on}"
-           data-tip="${escapeHtml(`${s.name}: ${s.n} of ${ideas.length} (${Math.round((s.n / ideas.length) * 100)}%). Select to ${on ? 'show every sector' : 'list only this sector'}.`)}"><i class="dsc-sw s-${s.slot}" aria-hidden="true"></i>${escapeHtml(s.name)} <b>${s.n}</b></button>`;
-       }).join('')}</div>`));
-  }
-
-  // 3 · Earnings soon: who reports inside the window, nearest first.
-  if (ideas.length) {
-    const near = Number(thr('WHY.EARNINGS_NEAR_DAYS'));
-    const soon = ideas.map((x) => ({ ...x, d: earningsNearDays(x.earn) })).filter((x) => x.d != null).sort((a, b) => a.d - b.d);
-    out.push(card(term(near > 0 ? `Earnings within ${near} days` : 'Earnings soon', 'Companies due to report results soon. Results can move a price sharply in either direction, so a new position just before them carries extra risk.'),
-      `<div class="dsc-headline"><span class="dsc-fig${soon.length ? ' warn' : ''}">${soon.length}</span><span class="dsc-sub">of ${escapeHtml(ofN)} report${soon.length === 1 ? 's' : ''} soon</span></div>
-       ${soon.length ? `<ul class="dsc-earn">${soon.map((x) => `<li><button type="button" class="tip" data-pulse-jump="${escapeHtml(x.sym)}"
-           data-tip="${escapeHtml(`${x.name ? shortName(x.name) : x.sym} reports ${inDays(x.d)}${earnDateLabel(x.earn) ? ` (${earnDateLabel(x.earn)})` : ''}. Select to find it in the list.`)}"
-           aria-label="${escapeHtml(`${x.sym} reports ${inDays(x.d)}. Show in the list`)}">${escapeHtml(x.sym)} <span>${x.d === 0 ? 'today' : `${x.d}d`}</span></button></li>`).join('')}</ul>`
-         : `<p class="dsc-hint">No listed name reports inside the window.</p>`}`, soon.length ? 'is-warn' : ''));
-  }
-
-  // 4 · Today's biggest moves: the top three each way, as labelled bars that open Research.
-  if (up.length || dn.length) {
-    const all = [...up, ...dn];
-    const m = Math.max(...all.map((r) => Math.abs(Number(r.change_pct)))) || 1;
-    const row = (r, cls) => {
-      const s = normalizeTicker(r.symbol || ''); const c = Number(r.change_pct);
-      const px = firstUsable(r.price, r.ltp);
-      return `<li><button type="button" class="dsc-mv ${cls} tip" data-pulse-open="${escapeHtml(s)}"
-          data-tip="${escapeHtml(`${companyName(r.name || '') || s}: ${c >= 0 ? '+' : ''}${fmtNumber(c, 2)}% today${px != null ? `, last ${fmtPrice(px, _currencySymbol())}` : ''}. Select to open its Research tear sheet.`)}"
-          aria-label="${escapeHtml(`${s} ${c >= 0 ? 'up' : 'down'} ${fmtNumber(Math.abs(c), 2)} percent today. Open Research`)}">
-          <span class="dsc-mv-s">${escapeHtml(s)}</span><span class="dsc-mv-b" aria-hidden="true"><i style="width:${Math.max(4, (Math.abs(c) / m) * 100).toFixed(1)}%"></i></span><span class="dsc-mv-v">${c >= 0 ? '+' : '−'}${escapeHtml(fmtNumber(Math.abs(c), 1))}%</span></button></li>`;
-    };
-    const top = (rows, dir) => rows.slice().sort((a, b) => dir * (Number(b.change_pct) - Number(a.change_pct))).slice(0, 3);
-    out.push(card(term("Today's biggest moves", `The largest gains and losses among the ${all.length} names on the board below, from the quote feed. A sample of the tape, not the whole market. Select a name to open its tear sheet.`),
-      `<div class="dsc-moves">
-         <div><span class="dsc-mvh bull">Gains</span><ul>${top(up, 1).map((r) => row(r, 'up')).join('') || '<li class="dsc-hint">None listed</li>'}</ul></div>
-         <div><span class="dsc-mvh bear">Losses</span><ul>${top(dn, -1).map((r) => row(r, 'dn')).join('') || '<li class="dsc-hint">None listed</li>'}</ul></div>
-       </div>`, 'dsc-pc--moves'));
-  }
-  box.innerHTML = `<dl class="dsc-pulse-in" style="--n:${out.length}">${out.join('')}</dl>`;
+/* One quiet line beside the page title: how old the quotes are, how much of the
+   tracked universe answered, and a retry when the feed is behind. */
+function renderDiscoverStatus(intel = {}) {
+  const el = $('#discover-status');
+  if (!el) return;
+  if (!intel.as_of && !intel.loading) { el.hidden = true; return; }
+  el.hidden = false;
+  const tz = currentMarketTz();
+  let when = '';
+  let age = null;
+  try {
+    when = intel.as_of ? new Date(intel.as_of).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz.tz }) : '';
+    age = intel.as_of ? (Date.now() - Date.parse(intel.as_of)) / 60000 : null;
+  } catch (_) { when = ''; }
+  const stale = !!(intel.stale || intel.feed_timeout) || (age != null && age >= Number(thr('UI.HEADER_STALE_MINUTES')));
+  const aging = !stale && age != null && age >= Number(thr('UI.HEADER_AGING_MINUTES'));
+  const cov = intel.coverage || {};
+  const parts = [
+    intel.loading ? 'Reading the market' : when ? `Quotes ${when} ${tz.label}${age != null ? ` · ${age < 1 ? 'just now' : `${Math.round(age)} min ago`}` : ''}` : '',
+    cov.tracked ? `${cov.quoted + (cov.carried || 0)} of ${cov.tracked} tracked names read` : '',
+    enrichPending() && !intel.loading ? 'reading odds and causes' : '',
+    enrichFailed() ? 'odds and causes not loaded' : '',
+  ].filter(Boolean);
+  el.dataset.staleness = stale ? 'stale' : aging ? 'aging' : 'fresh';
+  el.innerHTML = `<span class="live-dot" aria-hidden="true"></span><span>${escapeHtml(parts.join(' · '))}${stale ? ' · delayed, showing the last available quotes' : ''}</span>${stale ? '<button type="button" class="dsc-clear" data-retry="market-intel">Retry</button>' : ''}`;
+  el.title = coverageTitle(intel) || (cov.carried ? `${cov.carried} names kept their last quote because this cycle's read did not arrive in time.` : '');
 }
 
 // Re-render after a filter change, keeping keyboard focus on the control that was used.
@@ -5960,19 +6624,50 @@ function applyOppFilter() {
   renderTopOpportunities(_pulseIntel);
   if (fk) [...document.querySelectorAll('#view-discover [data-fk]')].find((el) => el.dataset.fk === fk)?.focus();
 }
+function applyMoveFilter() {
+  const fk = document.activeElement?.dataset?.fk;
+  renderTopMovers(_pulseIntel);
+  if (fk) [...document.querySelectorAll('#view-discover [data-fk]')].find((el) => el.dataset.fk === fk)?.focus();
+}
 
-// Bring a listed name into view and mark it briefly; opens the full list when it sits past the top five.
-function jumpToOpp(symbol) {
-  const body = $('#portfolio-scan-body');
-  if (!body) return;
-  let row = body.querySelector(`tr.q-tr[data-sym="${CSS.escape(symbol)}"]`);
-  if (!row && oppFiltered()) { _oppFilter.sector = ''; _oppFilter.hideEarn = false; renderTopOpportunities(_pulseIntel); row = body.querySelector(`tr.q-tr[data-sym="${CSS.escape(symbol)}"]`); }
-  if (!row) return;
-  if (row.hidden) body.querySelector('.q-more')?.click();
+function flashRow(row) {
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   row.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
   row.classList.remove('is-flash'); void row.offsetWidth; row.classList.add('is-flash');
   row.focus({ preventScroll: true });
+}
+
+// Bring a listed name into view and mark it briefly; opens the full list when it sits past the fold.
+function jumpToOpp(symbol) {
+  const body = $('#portfolio-scan-body');
+  if (!body) return;
+  const find = () => body.querySelector(`tr.q-tr[data-sym="${CSS.escape(symbol)}"], .idea-card[data-sym="${CSS.escape(symbol)}"]`);
+  let row = find();
+  if (!row && oppFiltered()) { _oppFilter.sector = ''; _oppFilter.hideEarn = false; renderTopOpportunities(_pulseIntel); row = find(); }
+  if (!row) return;
+  if (row.hidden) body.querySelector('.q-more')?.click();
+  flashRow(row);
+}
+// The same for a mover on the board: shows Market moves and clears a cause filter that hides it.
+function jumpToBoard(symbol) {
+  document.getElementById('tab-top-movers')?.click();
+  const find = () => $('#top-movers-body')?.querySelector(`.q-board-row[data-board-ticker="${CSS.escape(symbol)}"]`);
+  let row = find();
+  if (!row && _moveFilter) { _moveFilter = ''; renderTopMovers(_pulseIntel); row = find(); }
+  if (row) flashRow(row);
+}
+
+// j / k step through the rows of the table in view; Enter acts on the row.
+function discoverRowKeys(e) {
+  if (e.altKey || e.ctrlKey || e.metaKey || !['j', 'k'].includes(e.key)) return;
+  if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+  const view = document.getElementById('view-discover');
+  const rows = [...view.querySelectorAll('tr.q-tr, .q-board-row, .idea-card .ic-open')].filter((r) => !r.hidden && r.offsetParent !== null);
+  if (!rows.length) return;
+  const cur = rows.indexOf(e.target.closest('tr.q-tr, .q-board-row, .ic-open'));
+  const next = rows[cur < 0 ? 0 : Math.max(0, Math.min(rows.length - 1, cur + (e.key === 'j' ? 1 : -1)))];
+  e.preventDefault();
+  next.focus();
 }
 
 function wireDiscoverControls() {
@@ -5980,15 +6675,34 @@ function wireDiscoverControls() {
   if (!view || view.dataset.dscWired) return;
   view.dataset.dscWired = '1';
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') wireOverviewTips(view);
+  view.addEventListener('keydown', discoverRowKeys);
+  // Escape closes the side panel; leaving for another view or the tear sheet closes it too.
+  view.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !document.getElementById('dsc-drawer')?.hidden) { e.preventDefault(); closeIdeaDrawer(); } });
+  view.addEventListener('click', (e) => { if (e.target.closest('#dsc-drawer [data-ticker-open], #dsc-drawer [data-jump-view]')) closeIdeaDrawer(); }, true);
   view.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-opp-sector], [data-opp-earn], [data-opp-sort], [data-opp-clear], [data-pulse-jump], [data-pulse-open]');
+    const t = e.target.closest('[data-opp-sector], [data-opp-earn], [data-opp-sort], [data-opp-clear], [data-pulse-jump], [data-pulse-open], [data-pulse-board], [data-move-filter], [data-compare], [data-compare-clear], [data-move-size], [data-ideas-view], [data-idea-open], [data-drawer-close], .dsc-drawer-scrim');
     if (!t || !view.contains(t)) return;
     const d = t.dataset;
     if ('oppSector' in d) { _oppFilter.sector = d.oppSector; applyOppFilter(); }
     else if ('oppEarn' in d) { _oppFilter.hideEarn = !_oppFilter.hideEarn; applyOppFilter(); }
     else if ('oppSort' in d) { _oppFilter.sort = d.oppSort; applyOppFilter(); }
     else if ('oppClear' in d) { _oppFilter.sector = ''; _oppFilter.hideEarn = false; renderTopOpportunities(_pulseIntel); $('#opps-filters [data-opp-sector=""]')?.focus(); }
+    else if ('moveFilter' in d) { _moveFilter = d.moveFilter; applyMoveFilter(); }
+    else if ('moveSize' in d) { _moveSize = d.moveSize; applyMoveFilter(); }
+    else if ('ideasView' in d) { setIdeasView(d.ideasView); applyOppFilter(); }
+    else if ('ideaOpen' in d) openIdeaDrawer(d.ideaOpen, t);
+    else if ('drawerClose' in d || t.classList.contains('dsc-drawer-scrim')) closeIdeaDrawer();
+    else if ('compare' in d) {
+      e.stopPropagation();
+      if (_compare.has(d.compare)) _compare.delete(d.compare); else if (_compare.size < COMPARE_MAX) _compare.add(d.compare);
+      const inDrawer = !!t.closest('#dsc-drawer');
+      applyOppFilter();
+      // From the side panel the panel stays open and shows the new state.
+      if (inDrawer) openIdeaDrawer(d.compare, _drawerOpener);
+      else $('#portfolio-scan-body .q-compare')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } else if ('compareClear' in d) { _compare.clear(); applyOppFilter(); }
     else if ('pulseJump' in d) jumpToOpp(d.pulseJump);
+    else if ('pulseBoard' in d) jumpToBoard(d.pulseBoard);
     else if ('pulseOpen' in d) openTickerTearSheet(d.pulseOpen);
   });
 }
@@ -6115,6 +6829,11 @@ function wireBoardRows(body) {
       if (ev.target.closest('a, button')) return;
       openTickerTearSheet(row.dataset.boardTicker);
     });
+    row.addEventListener('keydown', (ev) => {
+      if (ev.target !== row || ev.key !== 'Enter') return;
+      ev.preventDefault();
+      openTickerTearSheet(row.dataset.boardTicker);
+    });
   });
   $$('.q-board-research[data-ticker-open]', body).forEach((btn) => {
     btn.addEventListener('click', (ev) => { ev.stopPropagation(); openTickerTearSheet(btn.dataset.tickerOpen); });
@@ -6173,30 +6892,84 @@ function sortBoardRows(rows, sort) {
 const BOARD_TONE = { gainers: 'bull', losers: 'bear', openlow: 'bull', openhigh: 'bear' };
 const BOARD_CAPTION = { gainers: 'Top gainers', losers: 'Top losers' };
 
+// A drawn research mark (a page under a lens), one stroke weight with the app's other icons.
+const RESEARCH_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 1.75h6L11.75 4.5v2.25M3 1.75v12.5h4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="10.75" cy="10.75" r="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="m12.7 12.7 1.8 1.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+
+// The move its sector fund made today, so a stock's own share of the move can be read.
+function sectorBaselineText(r) {
+  const read = moverRead(r.symbol);
+  const f = numOrNull(read?.fund_change_pct);
+  if (f == null) return '';
+  const own = numOrNull(read.excess_pct);
+  return `Sector fund ${read.fund} ${fmtPct(f, 1, false)} today${own != null ? `, so ${own > 0 ? '+' : ''}${fmtNumber(own, 1)} points of this move are the stock's own` : ''}`;
+}
+
+function reasonChipHtml(reason) {
+  if (!reason || reason.key === 'pending') return '';
+  const slot = (MOVE_REASONS.find(([k]) => k === reason.key) || [])[2] || 'other';
+  return `<span class="q-why" title="${escapeHtml(reason.detail || reason.label)}"><i class="dsc-sw s-${slot}" aria-hidden="true"></i>${escapeHtml(reason.label)}</span>`;
+}
+
+// A holding on the board, with what today's move did to it (amounts hidden when the reader hides them).
+function heldChipHtml(r) {
+  const h = heldOf(r.symbol);
+  if (!h) return '';
+  const chg = numOrNull(r.change_abs);
+  const impact = !hideAmounts() && h.qty != null && chg != null ? `: ${chg * h.qty >= 0 ? '+' : '-'}$${fmtNumber(Math.abs(chg * h.qty), 2)} today on ${fmtShares(h.qty)} shares` : '';
+  return `<span class="q-own" title="${escapeHtml(`You hold this name${impact}`)}">Held</span>`;
+}
+
+function sessionCellHtml(tape, withVolume = false) {
+  const tag = tape?.tag;
+  const v = numOrNull(tape?.rvol);
+  const vol = withVolume && v != null
+    ? `<span class="q-vol${v >= mkt('RVOL_HIGH') ? ' is-heavy' : ''}" title="${escapeHtml(`Volume so far today is ${fmtNumber(v, 1)} times the 3-month daily average.`)}">${fmtNumber(v, 1)}x</span>` : '';
+  if (!tag) return vol || '<span class="q-na">N/A</span>';
+  const g = numOrNull(tape.gap_pct); const held = numOrNull(tape.held_share); const clv = numOrNull(tape.clv);
+  let sub = '';
+  if (/^gap_|reversal/.test(tag) && g != null) {
+    sub = `Gap ${g > 0 ? '+' : ''}${fmtNumber(g, 1)}%`
+      + (tag === 'reversal' ? ', reversed' : held == null ? '' : held > 1 ? `, now ${fmtNumber(held, 1)}x` : `, kept ${Math.round(held * 100)}%`);
+  } else if (clv != null) sub = `Last at ${Math.round(clv * 100)}% of range`;
+  const tip = `${TAPE_TIPS[tag] || ''}${sub ? ` ${sub}.` : ''}`;
+  return `<span class="q-sess q-sess--${tag}"><span class="q-sess-top"><b class="tip" data-tip="${escapeHtml(tip)}">${escapeHtml(TAPE_WORDS[tag] || tag)}</b>${vol}</span>${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</span>`;
+}
+
+function rvolCellHtml(tape, max) {
+  const v = numOrNull(tape?.rvol);
+  if (v == null) return '<span class="q-na">N/A</span>';
+  const heavy = v >= mkt('RVOL_HIGH');
+  const w = max > 0 ? Math.min(100, (v / max) * 100) : 0;
+  return `<span class="q-rvol${heavy ? ' is-heavy' : ''}" title="${escapeHtml(`Volume so far today is ${fmtNumber(v, 1)} times the 3-month daily average${heavy ? ': heavy' : ''}.`)}"><b>${fmtNumber(v, 1)}x</b><i aria-hidden="true"><em style="width:${w.toFixed(1)}%"></em></i></span>`;
+}
+
 // scaleMax: the largest absolute move the fills are drawn against. The movers board passes
-// one value for both sides so a 10% loser and a 10% gainer fill the same width.
-function boardTable(side, rows, sym, caption, scaleMax = null) {
+// one value for both sides so a 10% loser and a 10% gainer fill the same width. Fills grow
+// with the square root of the move, so one outlier does not flatten every other row.
+function boardTable(side, rows, sym, caption, scaleMax = null, total = null) {
   const sort = _boardSort[side];
   const sorted = sortBoardRows(rows, sort);
   const magMax = scaleMax > 0 ? scaleMax : Math.max(0, ...rows.map((r) => Math.abs(Number(r.change_pct)) || 0));
   // The open-extreme boards qualify a row by its open matching the low or high, so they keep
-  // those figures as columns; the movers board reads the session as one Day range bar.
+  // those figures as columns; the movers board reads the session as a range bar, a tape read
+  // and relative volume.
   const ohlc = side === 'openlow' || side === 'openhigh';
+  // aria-sort carries the state; the glyphs are for the eye only.
   const arrow = (key) => (sort.key === key
-    ? `<span class="q-sort is-on">${sort.dir === 'desc' ? '▼' : '▲'}</span>`
-    : '<span class="q-sort">⇅</span>');
+    ? `<span class="q-sort is-on" aria-hidden="true">${sort.dir === 'desc' ? '▼' : '▲'}</span>`
+    : '<span class="q-sort" aria-hidden="true">⇅</span>');
 
   const head = `<tr>
       <th aria-sort="${sort.key === 'symbol' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}"><button class="q-sortable" data-board-sort="symbol" data-board-side="${side}" type="button"
           aria-label="Sort by symbol">Symbol ${arrow('symbol')}</button></th>
-      ${ohlc ? '<th class="num">Open</th><th class="num">High</th><th class="num">Low</th>'
-    : '<th class="q-drng-h"><span class="tip" tabindex="0" data-tip="Today\'s low to high. The coloured stretch is the move since the open, the solid tick the open, the dashed tick the previous close and the dot the last price.">Day range</span></th>'}
-      <th class="num">Prev. Close</th>
+      ${ohlc ? '<th class="num">Open</th><th class="num">High</th><th class="num">Low</th><th class="num"><abbr title="Previous close">Prev.</abbr></th>'
+    : `<th class="q-drng-h"><span class="tip" tabindex="0" data-tip="Today's low to high. The coloured stretch is the move since the open, the solid tick the open, the dashed tick the previous close and the dot the last price.">Day range</span></th>
+      <th class="q-sess-h q-col-sess"><span class="tip" tabindex="0" data-tip="How the session traded: whether an opening gap held, faded or reversed, or, without a gap, where the last price sits in the day's range. The x figure is volume so far today against the 3-month daily average; heavy volume is inked.">Session</span></th>`}
       <th class="num" aria-sort="${sort.key === 'change' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}"><button class="q-sortable" data-board-sort="change" data-board-side="${side}" type="button"
-          aria-label="Sort by daily percentage change" title="Last traded price and the day's change">Last / Change ${arrow('change')}</button></th>
+          aria-label="Sort by daily percentage change" title="Last traded price and the day's change">${ohlc ? 'Last' : 'Last / Change'} ${arrow('change')}</button></th>
     </tr>`;
 
-  const body = sorted.map((r) => {
+  const body = sorted.map((r, i) => {
     const ticker = normalizeTicker(r.symbol || '');
     const q = normalizeQuote(r);
     const chg = r.change_pct == null || r.change_pct === '' ? NaN : Number(r.change_pct);
@@ -6205,24 +6978,32 @@ function boardTable(side, rows, sym, caption, scaleMax = null) {
     const abs = firstUsable(r.change_abs, q.changeAbs);
     const deltaBits = [
       // The change takes the price's precision: -$0.87 on a $12 stock, never -$0.8700.
-      abs != null ? `${abs >= 0 ? '+' : '−'}${fmtPrice(Math.abs(abs), sym, q.ltp != null && Math.abs(q.ltp) < 1 ? 4 : 2)}` : null,
+      null,
       Number.isFinite(chg) ? `${chg >= 0 ? '+' : ''}${fmtNumber(chg, 2)}%` : null,
     ].filter(Boolean).join('  ');
+    const absText = abs != null ? `${abs >= 0 ? '+' : '-'}${fmtPrice(Math.abs(abs), sym, q.ltp != null && Math.abs(q.ltp) < 1 ? 4 : 2)} today` : '';
+    const ltpTitle = [absText, sectorBaselineText(r)].filter(Boolean).join('. ');
     const cell = (v) => (v == null ? '<span class="q-na">N/A</span>' : escapeHtml(fmtPrice(v, sym)));
     const extended = setupQualityForMover(r) === SETUP_QUALITY.extended;
-    // The symbol opens its TradingView chart; the row and Research open the tear sheet.
     const flag = extended ? '<span class="q-board-flag" title="Move is too extended for a fresh entry">Extended</span>' : '';
-    const ident = `<b>${escapeHtml(ticker)}${flag}</b><small>${escapeHtml(companyName(r.name || ''))}</small>`;
-    return `<tr class="q-board-row" data-board-ticker="${escapeHtml(ticker)}">
+    const chips = `${flag}${heldChipHtml(r)}`;
+    // The cause sits on the row's second line, beside the company, so it is never clipped.
+    const why = ohlc ? '' : reasonChipHtml(moverReason(r));
+    const cap = fmtCompactMoney(r.market_cap);
+    const name = companyName(r.name || '');
+    const tick = `<b>${escapeHtml(ticker)}</b>`;
+    const fill = Number.isFinite(chg) && magMax > 0 ? Math.min(100, (Math.sqrt(Math.abs(chg)) / Math.sqrt(magMax)) * 100) : 0;
+    return `<tr class="q-board-row" data-board-ticker="${escapeHtml(ticker)}" tabindex="-1" style="--i:${i}">
       <td class="q-board-sym">
-        ${url ? tvTickerLink(ticker, url, 'q-board-open q-board-tv', ident) : `<span class="q-board-open">${ident}</span>`}
-        <button type="button" class="q-board-chart q-board-research" data-ticker-open="${escapeHtml(ticker)}" aria-label="Open the ${escapeHtml(ticker)} Research tear sheet">Research</button>
+        <div class="q-board-id" title="${escapeHtml([name, cap].filter(Boolean).join(' · '))}">${url ? tvTickerLink(ticker, url, 'q-board-open q-board-tv', tick) : `<span class="q-board-open">${tick}</span>`}${chips}</div>
+        ${name || cap || why ? `<small class="q-board-name">${why}${name ? `<span class="q-board-name-t">${escapeHtml(name)}</span>` : ''}${cap ? `<span class="q-board-cap-v">${escapeHtml(cap)}</span>` : ''}</small>` : ''}
+        <button type="button" class="q-board-chart q-board-research" data-ticker-open="${escapeHtml(ticker)}" aria-label="Open the ${escapeHtml(ticker)} Research tear sheet" title="Research">${RESEARCH_ICON}</button>
       </td>
-      ${ohlc ? `<td class="num">${cell(q.open)}</td><td class="num q-hi">${cell(q.high)}</td><td class="num q-lo">${cell(q.low)}</td>`
-    : `<td class="q-drng-cell">${dayRangeHtml(q, firstUsable(r.price, q.ltp), sym)}</td>`}
-      <td class="num">${cell(q.prevClose)}</td>
-      <td class="num q-board-ltp ${dir}">
-        ${Number.isFinite(chg) && magMax > 0 ? `<i class="q-board-mag" aria-hidden="true" style="width:${Math.min(100, (Math.abs(chg) / magMax) * 100).toFixed(1)}%"></i>` : ''}
+      ${ohlc ? `<td class="num">${cell(q.open)}</td><td class="num q-hi">${cell(q.high)}</td><td class="num q-lo">${cell(q.low)}</td><td class="num">${cell(q.prevClose)}</td>`
+    : `<td class="q-drng-cell">${dayRangeHtml(q, firstUsable(r.price, q.ltp), sym)}</td>
+      <td class="q-sess-cell q-col-sess">${sessionCellHtml(r.tape, true)}</td>`}
+      <td class="num q-board-ltp ${dir}"${ltpTitle ? ` title="${escapeHtml(ltpTitle)}"` : ''}>
+        ${fill > 0 ? `<i class="q-board-mag" aria-hidden="true" style="width:${fill.toFixed(1)}%"></i>` : ''}
         <b>${cell(firstUsable(r.price, q.ltp))}</b>
         ${deltaBits ? `<i class="q-board-delta">${escapeHtml(deltaBits)}</i>` : ''}
       </td>
@@ -6235,10 +7016,18 @@ function boardTable(side, rows, sym, caption, scaleMax = null) {
   return `<div class="q-board-col">
     <h3 class="q-board-cap ${tone}">
       ${escapeHtml(title)}
-      <span>${rows.length} name${rows.length === 1 ? '' : 's'}</span>
+      <span>${total != null && total > rows.length ? `${rows.length} of ${total}` : `${rows.length} name${rows.length === 1 ? '' : 's'}`}</span>
     </h3>
-    ${sorted.length ? `<div class="q-tablewrap" tabindex="0" role="region" aria-label="${escapeHtml(title)}: all ${rows.length} results"><table class="q-board-table${ohlc ? ' q-board-table--ohlc' : ''}"><thead>${head}</thead><tbody>${body}</tbody></table></div>` : '<p class="q-empty q-empty--inline">No matching quotes in this snapshot.</p>'}
+    ${sorted.length ? `<div class="q-tablewrap" tabindex="0" role="region" aria-label="${escapeHtml(title)}: all ${rows.length} results"><table class="q-board-table${ohlc ? ' q-board-table--ohlc' : ` q-board-table--tape${rows.some((r) => r.tape?.tag) ? '' : ' q-board-table--notape'}`}"><thead>${head}</thead><tbody>${body}</tbody></table></div>` : '<p class="q-empty q-empty--inline">No matching quotes in this snapshot.</p>'}
   </div>`;
+}
+
+const tapeSizeLine = () => Number(thr('MARKET.EARNINGS_MIN_MARKET_CAP')) || 10e9;
+// [PURE over the filter state] A row passes the size filter; a row with no market cap passes only "any size".
+function tapeSizeOk(r) {
+  if (!_moveSize) return true;
+  const cap = numOrNull(r.market_cap);
+  return cap != null && (_moveSize === 'large' ? cap >= tapeSizeLine() : cap < tapeSizeLine());
 }
 
 function renderTopMovers(intel = {}) {
@@ -6246,10 +7035,10 @@ function renderTopMovers(intel = {}) {
   if (!body) return;
   renderDiscoverPulse(intel);
   const meta = $('#top-movers-meta');
-  const up = (intel.movers_up || []).filter((r) => r.change_pct != null && Number.isFinite(Number(r.change_pct)));
-  const dn = (intel.movers_down || []).filter((r) => r.change_pct != null && Number.isFinite(Number(r.change_pct)));
+  const allUp = (intel.movers_up || []).filter((r) => r.change_pct != null && Number.isFinite(Number(r.change_pct)));
+  const allDn = (intel.movers_down || []).filter((r) => r.change_pct != null && Number.isFinite(Number(r.change_pct)));
 
-  if (!up.length && !dn.length) {
+  if (!allUp.length && !allDn.length) {
     const timedOut = !intel.loading && !!intel.feed_timeout;
     if (meta) meta.textContent = intel.loading ? 'Fetching' : timedOut ? 'Timed out' : 'No data';
     body.innerHTML = intel.loading
@@ -6265,25 +7054,41 @@ function renderTopMovers(intel = {}) {
     return;
   }
 
+  // A cause and a size, chosen over the movers, narrow both sides; every count follows the size.
+  const big = tapeSizeLine();
+  const sizeOk = tapeSizeOk;
+  const passes = (r) => (!_moveFilter || reasonKeyOf(moverReason(r)) === _moveFilter) && sizeOk(r);
+  const up = sortBoardRows(allUp.filter(passes), _boardSort.gainers);
+  const dn = sortBoardRows(allDn.filter(passes), _boardSort.losers);
   const sym = _currencySymbol();
-  if (meta) { meta.textContent = `${up.length} up · ${dn.length} down${intel.stale ? ' · Stale quotes' : intel.partial ? ' · Partial coverage' : ''}`; meta.title = coverageTitle(intel); }
-  const magMax = Math.max(0, ...[...up, ...dn].map((r) => Math.abs(Number(r.change_pct)) || 0));
-  body.innerHTML = `<div class="q-board">${boardTable('gainers', up, sym, undefined, magMax)}${boardTable('losers', dn, sym, undefined, magMax)}</div>
-    <p class="q-note">Session open, high, low and previous close as reported by the quote feed, which does not report exchange quote times: treat prices as delayed${intel.as_of ? ` (retrieved ${escapeHtml(new Date(intel.as_of).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: currentMarketTz().tz }))} ${escapeHtml(currentMarketTz().label)})` : ''}. Select a ticker for its TradingView chart (opens in a new tab); select anywhere else on the row, or Research, for its tear sheet.</p>`;
-
+  if (meta) { meta.textContent = `${allUp.length} up · ${allDn.length} down${intel.stale ? ' · Stale quotes' : intel.partial ? ' · Partial coverage' : ''}`; meta.title = coverageTitle(intel); }
+  const keyed = [...allUp, ...allDn].filter(sizeOk).map((r) => reasonKeyOf(moverReason(r)));
+  const causes = MOVE_REASONS.map(([k, label]) => ({ k, label, n: keyed.filter((x) => x === k).length })).filter((c) => c.n && !['pending', 'unknown'].includes(c.k));
+  const causeSegs = causes.length
+    ? `<span class="dsc-segs" role="group" aria-label="Filter the movers by cause"><button type="button" class="dsc-seg${!_moveFilter ? ' is-on' : ''}" data-move-filter="" data-fk="mv:all" aria-pressed="${!_moveFilter}">All<b>${keyed.length}</b></button>${causes.map((c) => `<button type="button" class="dsc-seg${_moveFilter === c.k ? ' is-on' : ''}" data-move-filter="${_moveFilter === c.k ? '' : c.k}" data-fk="mv:${c.k}" aria-pressed="${_moveFilter === c.k}">${escapeHtml(c.label)}<b>${c.n}</b></button>`).join('')}</span>`
+    : '';
+  const capWord = fmtCompactMoney(big);
+  const sizeSegs = `<span class="dsc-segs dsc-segs--size" role="group" aria-label="Filter by company size">${[['', 'Any size'], ['large', `${capWord}+`], ['mid', `Under ${capWord}`]].map(([k, label]) => `<button type="button" class="dsc-seg${_moveSize === k ? ' is-on' : ''}" data-move-size="${k}" data-fk="size:${k}" aria-pressed="${_moveSize === k}">${escapeHtml(label)}</button>`).join('')}</span>`;
+  const reasonLabel = (MOVE_REASONS.find(([k]) => k === _moveFilter) || [])[1];
+  const filterNote = _moveFilter ? `<p class="q-boardbar-note" role="status">Showing ${up.length + dn.length} ${escapeHtml(String(reasonLabel || '').toLowerCase())} move${up.length + dn.length === 1 ? '' : 's'}. <button type="button" class="dsc-clear" data-move-filter="">Show all</button></p>` : '';
+  const hidden = Number(intel.extreme_hidden) || 0;
+  const scope = intel.screener_used
+    ? "Yahoo's screen of US names over about $2B and $5 a share"
+    : intel.universe_size ? `Ranked from the ${intel.universe_size} tracked names that answered` : '';
+  let when = '';
+  try { when = intel.as_of ? `${new Date(intel.as_of).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: currentMarketTz().tz })} ${currentMarketTz().label}` : ''; } catch (_) { when = ''; }
+  // One scale for both sides, from every move in the snapshot, so filters never rescale a fill.
+  const magMax = Math.max(0, ...[...allUp, ...allDn].map((r) => Math.abs(Number(r.change_pct)) || 0));
+  const head = '<div class="mv-head" aria-hidden="true"><span>Symbol</span><span>Cause</span><span>Session</span><span class="num">Last</span><span class="num">Change</span></div>';
+  const row = (label, tone, rows, total) => `<div class="mv-group mv-group--${tone}">
+      <h3 class="mv-label ${tone}">${label} <span>${rows.length === total ? total : `${rows.length} of ${total}`}</span></h3>
+      ${rows.length ? `<div class="mv-row">${head}${rows.map((r, i) => moverCardHtml(r, sym, i, magMax)).join('')}</div>` : '<p class="q-empty q-empty--inline">No matching moves.</p>'}
+    </div>`;
+  body.innerHTML = `<div class="q-boardbar">${causeSegs}${sizeSegs}${filterNote}</div>
+    <div class="mv-cols">${row('Gainers', 'bull', up, allUp.length)}${row('Losers', 'bear', dn, allDn.length)}</div>
+    <p class="q-note" title="The ticker opens its TradingView chart in a new tab; the rest of the card opens Research.">${scope ? `${escapeHtml(scope)}. ` : ''}${hidden ? `${hidden} more move${hidden === 1 ? '' : 's'} of ${escapeHtml(fmtNumber(numOrNull(intel.extreme_move_pct) ?? mkt('EXTENDED_MOVE_PCT'), 0))}% or more ranked past these lists. ` : ''}Delayed${when ? `, ${escapeHtml(when)}` : ''}.</p>`;
   wireBoardRows(body);
-
-  // Column sorting: same key toggles direction, a new key starts descending.
-  $$('.q-sortable', body).forEach((button) => {
-    const apply = () => {
-      const side = button.dataset.boardSide;
-      const key = button.dataset.boardSort;
-      const cur = _boardSort[side];
-      _boardSort[side] = { key, dir: cur.key === key && cur.dir === 'desc' ? 'asc' : 'desc' };
-      renderTopMovers(intel);
-    };
-    button.addEventListener('click', apply);
-  });
+  armReveal(document.getElementById('tape-main'), 'tape');
 }
 
 /* =========================================================================
@@ -6306,11 +7111,14 @@ function renderOpenExtremes(intel = {}) {
   const scanned = Number(intel.open_extremes_scanned || 0);
   const coverage = intel.open_extremes_coverage || {};
   const matchCount = atLow.length + atHigh.length;
-  const coverageHtml = `<div class="q-coverage">
-    <p><strong>${matchCount} exact match${matchCount === 1 ? '' : 'es'} from ${scanned} fetched quotes.</strong> All returned matches are shown; scroll inside either table for longer lists.</p>
-    <p>Coverage is the tracked stock universe${intel.screener_used ? ' plus available screener quotes' : ''}, not the whole exchange. Only a session that opened at its low or its high qualifies, at the displayed price precision.</p>
+  const oxTab = typeof document !== 'undefined' ? document.getElementById('tab-open-extremes') : null;
+  if (oxTab && !intel.loading) setMonitorTab(oxTab, 'Opened at high/low', matchCount, false);
+  // One line of coverage; the breakdown opens on demand, so the boards lead.
+  const coverageHtml = `<details class="q-coverage">
+    <summary><strong>${matchCount} exact match${matchCount === 1 ? '' : 'es'} from ${scanned} fetched quotes.</strong> <span>Coverage</span></summary>
+    <p>All returned matches are shown. Coverage is the tracked stock universe${intel.screener_used ? ' plus available screener quotes' : ''}, not the whole exchange. Only a session that opened at its low or its high qualifies, at the displayed price precision.</p>
     ${coverage.comparable != null ? `<dl><div><dt>Comparable OHLC</dt><dd>${escapeHtml(String(coverage.comparable))}</dd></div><div><dt>Missing OHLC</dt><dd>${escapeHtml(String(coverage.missing_ohlc))}</dd></div><div><dt>Invalid OHLC</dt><dd>${escapeHtml(String(coverage.invalid_ohlc))}</dd></div><div><dt>Single-price quotes</dt><dd>${escapeHtml(String(coverage.flat))}</dd></div>${coverage.tracked_universe != null ? `<div><dt>Tracked symbols</dt><dd>${escapeHtml(String(coverage.tracked_universe))}</dd></div>` : ''}</dl>` : '<p>Detailed OHLC coverage is unavailable in this cached snapshot.</p>'}
-  </div>`;
+  </details>`;
 
   if (intel.loading) {
     if (meta) meta.textContent = 'Scanning';
@@ -6337,11 +7145,11 @@ function renderOpenExtremes(intel = {}) {
       (scanned ? ` · ${scanned} scanned` : '') + (intel.stale ? ' · Stale quotes' : intel.partial ? ' · Partial coverage' : '');
     meta.title = coverageTitle(intel);
   }
-  body.innerHTML = coverageHtml + `<div class="q-board">
+  body.innerHTML = `<div class="q-board">
       ${boardTable('openlow', atLow, sym, 'Opened at the low · no lower reported price')}
       ${boardTable('openhigh', atHigh, sym, 'Opened at the high · no higher reported price')}
     </div>
-    <p class="q-note">Session snapshot, not a buy or sell signal. Single-price and unusable OHLC quotes are excluded; their cause cannot be determined from prices alone. Select a ticker for its TradingView chart (opens in a new tab); select anywhere else on the row, or Research, for its tear sheet. Last / Change sorts by daily percentage change.</p>`;
+    <div class="ox-foot"><p class="q-note" title="Single-price and unusable OHLC quotes are excluded; their cause cannot be determined from prices alone. Select a ticker for its TradingView chart (opens in a new tab); select anywhere else on the row, or Research, for its tear sheet. Last / Change sorts by daily percentage change.">Session snapshot, not a buy or sell signal.</p>${coverageHtml}</div>`;
 
   wireBoardRows(body);
 
@@ -6361,35 +7169,56 @@ function renderOpenExtremes(intel = {}) {
    Scanner vetoes — the second half of the Avoid bucket. Kept separate from
    the mover table because the reason ("why not") is the point, not the price.
    ========================================================================= */
+// A monitor tab with its count, or, when its list only fills after a Picks scan, says so
+// instead of a bare zero.
+function setMonitorTab(tab, label, n, needsScan) {
+  tab.classList.toggle('is-idle', !!needsScan);
+  tab.innerHTML = needsScan ? `${escapeHtml(label)}<small>needs a scan</small>` : `${escapeHtml(label)} <span class="q-tab-n">${n}</span>`;
+  tab.title = needsScan ? `${label} fills after a Picks scan` : '';
+}
+
 function renderSecurityQueues(intel = {}) {
   const movers = [...(intel.movers_up || []), ...(intel.movers_down || [])];
-  const extended = livePicks()?.chase_alerts?.length
+  const fromScan = !!livePicks()?.chase_alerts?.length;
+  const extended = fromScan
     ? livePicks().chase_alerts
     : movers.filter(row => setupQualityForMover(row) === SETUP_QUALITY.extended);
   const watchlist = livePicks()?.early_momentum || [];
+  const sym = _currencySymbol();
+  const tickCell = (row, ticker) => `<div class="q-tick-row">${qTickerCell(ticker, row.company || row.name || row.sector, tradingViewUrl(row.ticker || row.symbol, row.exchange))}<button type="button" class="q-board-chart q-board-research" data-ticker-open="${escapeHtml(ticker)}" aria-label="Open the ${escapeHtml(ticker)} Research tear sheet" title="Research">${RESEARCH_ICON}</button></div>`;
   for (const [id, rows, label] of [
     ['monitor-watchlist', watchlist, 'Watchlist'], ['monitor-extended', extended, 'Extended'],
   ]) {
     const body = document.getElementById(`${id}-body`);
     if (!body) continue;
     const tab = document.getElementById(`tab-${id}`);
-    if (tab) tab.textContent = `${label} (${rows.length})`;
+    if (tab) setMonitorTab(tab, label, rows.length, label === 'Watchlist' && !livePicks());
     if (!rows.length) {
-      body.innerHTML = `<div class="q-empty"><strong>${label === 'Watchlist' ? 'No developing setups from a scan yet' : 'No extended names in the available feed'}</strong><p>${label === 'Watchlist' ? 'Run a Picks scan to build the early-momentum watchlist. These names require confirmation before entry.' : 'This is a feed-level screen, not a guarantee that every security has a safe entry.'}</p><button type="button" class="q-btn" data-jump-view="picks">Open Portfolio Builder</button></div>`;
+      body.innerHTML = `<div class="q-empty"><strong>${label === 'Watchlist' ? 'No developing setups from a scan yet' : 'No extended names in the available feed'}</strong><p>${label === 'Watchlist' ? 'Run a Picks scan to build the early-momentum watchlist. These names require confirmation before entry.' : 'This is a feed-level screen, not a guarantee that every security has a safe entry.'}</p><button type="button" class="q-btn" data-jump-view="picks">Open Picks</button></div>`;
       attachDashboardActionHandlers(body);
       continue;
     }
-    const head = '<tr><th>Ticker / Company</th><th class="num">Price</th><th class="num">Score</th><th class="num">RSI</th><th class="num">From 20-DMA</th><th>Signal / Entry criteria</th></tr>';
+    // Names flagged from the quote feed carry no score, RSI or moving average: show what
+    // the feed measured (the move, how the session traded, its volume and its cause).
+    const feedRows = label === 'Extended' && !fromScan;
+    const head = feedRows
+      ? '<tr><th>Ticker / Company</th><th class="num">Price</th><th class="num">Change</th><th>Session</th><th class="num">Rel. volume</th><th>Why it moved</th></tr>'
+      : '<tr><th>Ticker / Company</th><th class="num">Price</th><th class="num">Score</th><th class="num">RSI</th><th class="num">From 20-DMA</th><th>Signal / Entry criteria</th></tr>';
+    const rvolMax = Math.max(0, ...rows.map((r) => numOrNull(r.tape?.rvol) || 0));
     const content = rows.map(row => {
       const ticker = normalizeTicker(row.ticker || row.symbol || '');
       const price = firstUsable(row.current_price, row.price);
+      if (feedRows) {
+        const why = moverReason(row);
+        return `<tr><td>${tickCell(row, ticker)}</td><td class="num">${price == null ? qNA(null) : fmtPrice(price, sym)}</td><td class="num">${qChangeCell(row.change_pct)}</td><td>${sessionCellHtml(row.tape)}</td><td class="num">${rvolCellHtml(row.tape, rvolMax)}</td><td>${why && why.key !== 'pending' ? `${reasonChipHtml(why)}<small class="q-sub">${escapeHtml(why.detail || '')}</small>` : '<span class="q-na">Checking</span>'}</td></tr>`;
+      }
       const score = firstUsable(row.score, row.overall_score);
       const rsi = firstUsable(row.rsi);
       const distance = firstUsable(row.distance_from_20dma);
-      const reason = row.reason || (row.signals || []).join(' · ') || 'Extended move; wait for a defined entry from analysis.';
-      return `<tr><td><div class="q-tick-row">${qTickerCell(ticker, row.company || row.name || row.sector, tradingViewUrl(row.ticker || row.symbol, row.exchange))}<button type="button" class="q-board-chart q-board-research" data-ticker-open="${escapeHtml(ticker)}" aria-label="Open the ${escapeHtml(ticker)} Research tear sheet">Research</button></div></td><td class="num">${price == null ? qNA(null) : fmtPrice(price, _currencySymbol())}</td><td class="num q-quant">${score == null ? qNA(null) : fmtScore100(score)}</td><td class="num">${rsi == null ? qNA(null) : fmtNumber(rsi, 1)}</td><td class="num">${distance == null ? qNA(null) : fmtPct(distance, 1, false)}</td><td>${escapeHtml(reason)}</td></tr>`;
+      const reason = (typeof row.reason === 'string' && row.reason) || (row.signals || []).join(' · ') || 'Extended move; wait for a defined entry from analysis.';
+      return `<tr><td>${tickCell(row, ticker)}</td><td class="num">${price == null ? qNA(null) : fmtPrice(price, sym)}</td><td class="num q-quant">${score == null ? qNA(null) : fmtScore100(score)}</td><td class="num">${rsi == null ? qNA(null) : fmtNumber(rsi, 1)}</td><td class="num">${distance == null ? qNA(null) : fmtPct(distance, 1, false)}</td><td>${escapeHtml(reason)}</td></tr>`;
     }).join('');
-    body.innerHTML = qTable(head, content) + '<p class="q-note">Observed screen results, not entry instructions. Entry, stop and target levels require a completed analysis. The ticker opens its TradingView chart in a new tab; Research opens its tear sheet.</p>';
+    body.innerHTML = qTable(head, content) + `<p class="q-note">${feedRows ? `Gains of ${escapeHtml(fmtNumber(mkt('EXTENDED_MOVE_PCT'), 0))}% or more today, from the quote feed: a chase warning, not an entry signal. ` : 'Observed screen results, not entry instructions. '}Entry, stop and target levels require a completed analysis. The ticker opens its TradingView chart in a new tab; the icon opens Research.</p>`;
     wireExpandableRows(body);
   }
 }
@@ -6412,7 +7241,7 @@ function renderSetupStatusCard(intel = {}) {
 
   const meta = $('#vetoes-meta');
   const avoidTab = $('#tab-scanner-vetoes');
-  if (avoidTab) avoidTab.textContent = `Avoid (${rows.length})`;
+  if (avoidTab) setMonitorTab(avoidTab, 'Avoid', rows.length, !livePicks());
 
   if (!rows.length) {
     // Nothing vetoed is a clean read, not missing data — say so in one line.
@@ -6846,6 +7675,8 @@ async function loadBook() {
   state.book = view && view.portfolio ? { s: 'ok', pf: view.portfolio } : { s: 'off', status };
   renderBookPanel();
   renderWeekCalendar();
+  // Discover reads the book too: holdings badges and sector weights.
+  if (state.book.s === 'ok') renderDiscoverFromState();
 }
 
 function renderMarketContext() {
@@ -7414,7 +8245,9 @@ function setupQualityForMover(row) {
   const change = Number(row.change_pct || 0);
   const rsi = Number(row.rsi || row.rsi_14 || 0);
   const from20 = Number(row.distance_from_20dma || row.from_20dma || 0);
-  if (Math.abs(change) >= mkt('EXTENDED_MOVE_PCT') || rsi >= mkt('EXTENDED_RSI') || from20 >= mkt('EXTENDED_FROM_20DMA')) return SETUP_QUALITY.extended;
+  // Extended is a chase warning, so it reads gains only: a stock down 20% is
+  // not "too extended for a fresh entry", it is a different question.
+  if (change >= mkt('EXTENDED_MOVE_PCT') || rsi >= mkt('EXTENDED_RSI') || from20 >= mkt('EXTENDED_FROM_20DMA')) return SETUP_QUALITY.extended;
   if (change > 0) return SETUP_QUALITY.watch;
   if (change < 0) return SETUP_QUALITY.avoid;
   return SETUP_QUALITY.confirm;
@@ -13360,6 +14193,10 @@ if (typeof window !== 'undefined') {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    // Discover (2026-10-20): odds, revisions, causes, the read and the status line.
+    targetLagged, oddsCellHtml, revisionsCellHtml, sessionCellHtml, rvolCellHtml, discoverReadHtml, moverReason, bookIndex,
+    renderDiscoverStatus, freshnessSource, marketTodayIso, exchangeDaysUntil, renderSecurityQueues, setupQualityForMover,
+    ideaDetailHtml, renderDiscoverPulse, discoverEnrichStore: _enrich, setIdeasView, openIdeaDrawer, closeIdeaDrawer, refreshIdeaDrawer, ideaCardHtml, moverCardHtml,
     earningsAhead, earningsScopeShort, indexName, factorWord, shownSymbol, earningsCalendarNote, companyName, growOnView, postureAge, postureAgeText, sessionDay, priceSession, volatilityLine, sectorTrendMap, ideaSectorTrend, engineHighImpactKeys,
     researchIndexGroups,
     technicalSignalsHtml,

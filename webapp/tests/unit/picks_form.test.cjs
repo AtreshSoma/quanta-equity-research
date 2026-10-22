@@ -100,6 +100,11 @@ test('glass is confined to floating chrome, never to data surfaces', () => {
   // static ambient light only, never over moving data.
   const frosted = [...bare.matchAll(/([.#][\w-]+)\s*\{[^{}]*backdrop-filter\s*:\s*var\(--ovx-frost\)/g)].map((m) => m[1]);
   assert.deepEqual([...new Set(frosted)].sort(), ['.ovx-lead', '.ovx-mood', '.ovx-outlook', '.ovx-rtabs']);
+  // The Discover Glass Rule (DESIGN.md): only the Street idea cards, the ideas list, the
+  // comparison and the side panel frost; the tape and its boards sit on the page itself.
+  const discover = [...bare.matchAll(/([^{}]+)\{[^{}]*backdrop-filter\s*:\s*var\(--dc-frost\)/g)]
+    .flatMap((m) => m[1].split(',').map((x) => x.trim()));
+  assert.deepEqual(discover.sort(), ['#view-discover .idea-card', '#view-discover .q-compare', '#view-discover .q-opps .q-tablewrap', '.dsc-drawer']);
 
   // Every data surface stays opaque.
   for (const sel of ['.q-panel', '.q-table', '.pm-cell', '.card', '.q-board-table', '.qpro-card']) {

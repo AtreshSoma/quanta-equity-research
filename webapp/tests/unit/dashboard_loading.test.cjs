@@ -57,7 +57,10 @@ test('concurrent feed retries share one request and preserve prior quotes on fai
   reject(new Error('offline'));
   await Promise.all([first, second]);
   assert.match(app.document.querySelector('#top-movers-body').textContent, /AAPL/);
-  assert.match(app.document.querySelector('#top-movers-body').textContent, /last available quotes/);
+  // The delay is stated once, in Discover's status line beside the title, with its retry.
+  const status = app.document.querySelector('#discover-status');
+  assert.match(status.textContent, /last available quotes/);
+  assert.ok(status.querySelector('[data-retry="market-intel"]'), 'the status line offers the retry');
 });
 
 test('a failed dashboard refresh preserves displayed opportunities', async () => {

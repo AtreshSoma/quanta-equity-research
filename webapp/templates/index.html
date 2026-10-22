@@ -78,7 +78,7 @@
             </span>
             <span class="q-health-sep" aria-hidden="true"></span>
             <span class="q-health-dot" id="data-health-dot" aria-hidden="true"></span>
-            <span class="q-health-k">News</span>
+            <span class="q-health-k">News feeds</span>
             <span class="q-health-v" id="data-health-value">checking…</span>
             <svg class="q-health-caret" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
           </button>
@@ -261,38 +261,22 @@
       <header class="page-head">
         <div class="page-head-l">
           <h1 class="page-title" id="discover-title">Discover</h1>
-          <p class="page-sub">Ranked ideas and the names moving today, each labelled by the model&rsquo;s Decision or a plain price condition.</p>
         </div>
+        <div class="dsc-status" id="discover-status" role="status" hidden></div>
+        <!-- The brief: three or four readings of the ideas, label over figure, under the title. -->
+        <div class="dsc-brief" id="discover-pulse" aria-live="polite" hidden></div>
       </header>
-      <section class="dsc-pulse" id="discover-pulse" aria-label="Discover at a glance" hidden></section>
-      <section class="q-panel q-opps" aria-labelledby="opps-title">
-        <header class="q-head">
-          <div class="q-head-l">
-            <h2 class="q-head-title" id="opps-title">Top opportunities</h2>
-            <p class="q-head-sub">Scan-qualified setups after a Picks scan; until then, Street research candidates. A ticker opens its TradingView chart (new tab); expand a row for evidence, levels and its tear sheet.</p>
-          </div>
-          <div class="q-head-r">
-            <span class="q-head-meta" id="scan-meta">Waiting</span>
-            <button type="button" class="q-btn q-btn--primary" id="opps-scan-btn" data-jump-view="picks">Run a scan</button>
-          </div>
-        </header>
-        <div class="dsc-filters" id="opps-filters" hidden></div>
-        <div id="portfolio-scan-body" class="q-body q-body--flush portfolio-scan-body">
-          <div class="q-empty q-empty--inline">Checking scan status…</div>
-        </div>
-      </section>
-
+      <!-- Today's tape first (what is happening), then the Street ideas (what to research). -->
       <section class="q-panel q-workspace" id="security-monitor" data-dashboard-tabs aria-labelledby="monitor-title">
-        <header class="q-head"><div class="q-head-l"><h2 class="q-head-title" id="monitor-title">Security monitor</h2><p class="q-head-sub">Review the tape, developing setups and entry risks.</p></div></header>
+        <header class="q-head"><div class="q-head-l"><h2 class="q-head-title" id="monitor-title">Today&rsquo;s tape</h2><p class="q-head-sub" id="tape-sub">The biggest moves, why they moved and how they traded.</p></div></header>
         <div class="q-workspace-tabs" role="tablist" aria-label="Security monitor views">
-          <button type="button" class="q-tab is-active" id="tab-top-movers" role="tab" aria-selected="true" aria-controls="top-movers" tabindex="0">Market moves</button><button type="button" class="q-tab" id="tab-open-extremes" role="tab" aria-selected="false" aria-controls="open-extremes" tabindex="-1" title="Names that opened at the session high or low">Opened at high/low</button><button type="button" class="q-tab" id="tab-monitor-watchlist" role="tab" aria-selected="false" aria-controls="monitor-watchlist" tabindex="-1">Watchlist</button><button type="button" class="q-tab" id="tab-monitor-extended" role="tab" aria-selected="false" aria-controls="monitor-extended" tabindex="-1">Extended</button><button type="button" class="q-tab" id="tab-scanner-vetoes" role="tab" aria-selected="false" aria-controls="scanner-vetoes" tabindex="-1">Avoid</button>
+          <button type="button" class="q-tab is-active" id="tab-top-movers" role="tab" aria-selected="true" aria-controls="tape-main" tabindex="0">Movers</button><button type="button" class="q-tab" id="tab-open-extremes" role="tab" aria-selected="false" aria-controls="open-extremes" tabindex="-1">Opened at high/low</button><button type="button" class="q-tab" id="tab-monitor-watchlist" role="tab" aria-selected="false" aria-controls="monitor-watchlist" tabindex="-1">Watchlist</button><button type="button" class="q-tab" id="tab-monitor-extended" role="tab" aria-selected="false" aria-controls="monitor-extended" tabindex="-1">Extended</button><button type="button" class="q-tab" id="tab-scanner-vetoes" role="tab" aria-selected="false" aria-controls="scanner-vetoes" tabindex="-1">Avoid</button>
         </div>
-        <section class="q-panel q-boardpanel" id="top-movers" role="tabpanel" aria-labelledby="tab-top-movers">
-        <header class="q-head">
-          <div class="q-head-l">
-            <h2 class="q-head-title" id="board-title">Top gainers &amp; losers</h2>
-            <p class="q-head-sub">Ranked by today's move; the fill behind each change is drawn to the largest move on the board.</p>
-          </div>
+        <!-- Each tab is one view of the tape: the movers, the session extremes, then the scan lists. -->
+        <div class="tape-main" id="tape-main" role="tabpanel" aria-labelledby="tab-top-movers">
+        <section class="q-panel q-boardpanel" id="top-movers" aria-labelledby="board-title">
+        <header class="q-head q-head--sub">
+          <h3 class="sr-only" id="board-title">Top gainers and losers</h3>
           <span class="q-head-meta" id="top-movers-meta">Fetching</span>
         </header>
         <div id="top-movers-body" class="q-body q-body--flush">
@@ -301,11 +285,14 @@
           </div>
         </div>
       </section>
+
+        </div>
+        <!-- Opened at high/low: its own view of the tape, chosen from the tabs above. -->
         <section class="q-panel q-boardpanel" id="open-extremes" role="tabpanel" aria-labelledby="tab-open-extremes" hidden>
           <header class="q-head">
             <div class="q-head-l">
-              <h2 class="q-head-title" id="open-extremes-title">Open at session low / high</h2>
-              <p class="q-head-sub">Exact matches in the latest available session snapshot. These are price conditions, not trade recommendations.</p>
+              <h3 class="sr-only" id="open-extremes-title">Opened at high/low</h3>
+              <p class="q-head-sub">Names whose session opened at its low or its high. A price condition, not a recommendation.</p>
             </div>
             <span class="q-head-meta" id="open-extremes-meta">Scanning</span>
           </header>
@@ -331,6 +318,26 @@
       </section>
       </section>
 
+      <section class="q-panel q-opps" aria-labelledby="opps-title">
+        <header class="q-head">
+          <div class="q-head-l">
+            <h2 class="q-head-title" id="opps-title">Street ideas</h2>
+            <p class="q-head-sub" id="opps-sub">Buy-rated names with a believable Street target, and how likely each target is.</p>
+          </div>
+          <div class="q-head-r">
+            <span class="q-head-meta" id="scan-meta">Waiting</span>
+            <button type="button" class="q-btn q-btn--primary" id="opps-scan-btn" data-jump-view="picks">Run a scan</button>
+          </div>
+        </header>
+        <div class="dsc-filters" id="opps-filters" hidden></div>
+        <div id="portfolio-scan-body" class="q-body q-body--flush portfolio-scan-body">
+          <div class="q-empty q-empty--inline">Checking scan status…</div>
+        </div>
+      </section>
+
+      <!-- One idea's full read slides in from the right; Escape or the scrim closes it. -->
+      <div class="dsc-drawer-scrim" id="dsc-drawer-scrim" hidden></div>
+      <aside class="dsc-drawer" id="dsc-drawer" role="dialog" aria-modal="true" aria-labelledby="dsc-drawer-title" hidden><div class="dd-in"></div></aside>
     </section>
 
     <!-- ============== PICKS VIEW ============== -->

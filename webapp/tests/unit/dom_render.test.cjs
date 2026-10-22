@@ -232,8 +232,10 @@ test('The Security Monitor holds no second table of the same movers', () => {
   // renders into; empty shells were what made the old monitor unreadable.
   const monitor = document.querySelector('#security-monitor');
   const tabs = [...monitor.querySelectorAll('[role="tab"]')].map((t) => t.getAttribute('aria-controls'));
-  assert.deepEqual(tabs, ['top-movers', 'open-extremes', 'monitor-watchlist', 'monitor-extended', 'scanner-vetoes'],
+  assert.deepEqual(tabs, ['tape-main', 'open-extremes', 'monitor-watchlist', 'monitor-extended', 'scanner-vetoes'],
     'no tab without a renderer behind it');
+  // The Movers tab holds the movers alone; Opened at high/low is the next view.
+  assert.deepEqual([...document.querySelectorAll('#tape-main > section')].map((n) => n.id), ['top-movers']);
   app.renderSetupStatusCard(intelFixture);
   ['monitor-watchlist-body', 'monitor-extended-body'].forEach((id) => {
     assert.ok(document.getElementById(id).innerHTML.trim(), `${id} is filled, not an empty shell`);
@@ -280,6 +282,7 @@ test('An extended move is flagged on the board rather than in a repeated column'
 });
 
 test('Top Opportunities omits trade-plan columns it cannot fill, and says why', () => {
+  app.setIdeasView('list');
   app.renderTopOpportunities({
     universe_size: 100,
     analyst_picks: [{ symbol: 'NVDA', name: 'NVIDIA', price: 140.2, sector: 'Technology', recommendation: 'buy', target_mean: 170, analyst_count: 42, upside_pct: 21.3 }],
@@ -298,6 +301,7 @@ test('Top Opportunities omits trade-plan columns it cannot fill, and says why', 
   });
   const detail = body.querySelector('tbody tr.q-detail td');
   assert.equal(Number(detail.getAttribute('colspan')), headCount, 'detail row spans the full table');
+  app.setIdeasView('cards');
 });
 
 test('Top Opportunities empty state is compact and actionable', () => {
@@ -420,16 +424,9 @@ test('The maker is credited once, in the footer colophon', () => {
 test('Top Gainers & Losers: the ticker opens its TradingView chart; Research and the row open the tear sheet', () => {
   app.renderTopMovers(intelFixture);
   const body = document.querySelector('#top-movers-body');
-  const cols = Array.from(body.querySelectorAll('.q-board-col')).length;
-  assert.equal(cols, 2, 'gainers and losers boards');
-  const head = Array.from(body.querySelectorAll('.q-board-col:first-child .q-board-table thead th'))
-    .map((n) => n.textContent.replace(/[⇅▲▼]/g, '').trim());
-  assert.deepEqual(head, ['Symbol', 'Day range', 'Prev. Close', 'Last / Change']);
+  assert.deepEqual(Array.from(body.querySelectorAll('.mv-group .mv-label')).map((n) => n.textContent.replace(/\s*\d+$/, '')), ['Gainers', 'Losers'], 'gainers and losers rows');
   assert.match(body.textContent, /NVDA/);
-  // Session OHLC is shown as reported, uncompacted.
-  assert.match(body.textContent, /\$141\.90/, 'session high');
-  assert.match(body.textContent, /\$134\.55/, 'previous close');
-  const row = body.querySelector('.q-board-row');
+  const row = body.querySelector('.mv-card.q-board-row');
   // The ticker is a link to its TradingView chart, in a new tab, exchange-qualified when known.
   const chart = row.querySelector('a.q-board-tv[data-tv-link]');
   assert.ok(chart, 'the ticker is a TradingView link');
@@ -444,9 +441,9 @@ test('Top Gainers & Losers: the ticker opens its TradingView chart; Research and
   const open = row.querySelector('button.q-board-research[data-ticker-open]');
   assert.ok(open, 'a native button opens Research');
   assert.equal(open.dataset.tickerOpen, row.dataset.boardTicker);
-  assert.equal(row.getAttribute('role'), null, 'the row keeps its table semantics');
+  assert.equal(row.getAttribute('role'), null, 'the card adds no widget role over its links and button');
   assert.equal(row.querySelector('a.q-board-chart'), null, 'no separate Open chart link');
-  assert.match(body.textContent, /Select a ticker for its TradingView chart/);
+  assert.match(body.querySelector('.q-note').getAttribute('title'), /The ticker opens its TradingView chart in a new tab; the rest of the card opens Research/);
   assert.ok(!/undefined|NaN/.test(body.textContent), 'no leaked bad values');
 });
 
@@ -518,10 +515,15 @@ test('Market pulse names the symbol behind a plain label; crypto carries no tag'
 });
 
 test('Consensus candidates label the Street rating as the Street\'s, not QUANTA\'s', () => {
-  app.renderTopOpportunities({ universe_size: 100, analyst_picks: [{ symbol: 'NVDA', name: 'NVIDIA', price: 140, sector: 'Technology', recommendation: 'buy', target_mean: 170, analyst_count: 42, upside_pct: 21 }] });
-  const cols = Array.from(document.querySelectorAll('#portfolio-scan-body thead th')).map((n) => n.textContent.trim());
+  const picks = { universe_size: 100, analyst_picks: [{ symbol: 'NVDA', name: 'NVIDIA', price: 140, sector: 'Technology', recommendation: 'buy', target_mean: 170, analyst_count: 42, upside_pct: 21 }] };
+  app.setIdeasView('list');
+  app.renderTopOpportunities(picks);
+  const cols = Array.from(document.querySelectorAll('#portfolio-scan-body thead th')).map((n) => n.textContent.replace(/[⇅▲▼]/g, '').trim());
   assert.ok(cols.includes('Street rating'));
   assert.ok(!cols.includes('Rating'));
+  app.setIdeasView('cards');
+  app.renderTopOpportunities(picks);
+  assert.match(document.querySelector('#portfolio-scan-body .idea-card .ic-open').getAttribute('aria-label'), /^NVDA, Nvidia: Street rating Buy, /, 'the card names the rating as the Street\'s');
 });
 
 test('Track Record renders evidence per engine and never hides a thin sample', () => {

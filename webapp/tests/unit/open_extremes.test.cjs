@@ -115,11 +115,15 @@ test('the loading state is a skeleton, not an empty verdict', () => {
   assert.doesNotMatch(body.textContent, /No stock opened/, 'never a verdict before the data lands');
 });
 
-test('the tab is wired to the panel it names', () => {
+test('Opened at high/low is its own view of the tape, the tab after Movers', () => {
+  const tabs = [...document.querySelectorAll('#security-monitor [role="tab"]')].map((t) => t.id);
+  assert.deepEqual(tabs.slice(0, 2), ['tab-top-movers', 'tab-open-extremes'], 'Movers, then Opened at high/low');
   const tab = document.querySelector('#tab-open-extremes');
-  assert.ok(tab, 'the tab exists');
   assert.equal(tab.getAttribute('aria-controls'), 'open-extremes');
-  assert.ok(document.querySelector('#open-extremes'), 'the panel exists');
+  const panel = document.querySelector('#open-extremes');
+  assert.equal(panel.getAttribute('role'), 'tabpanel');
+  assert.equal(panel.getAttribute('aria-labelledby'), 'tab-open-extremes');
+  assert.equal(document.querySelector('#tape-main #open-extremes'), null, 'not a second band under the movers');
   assert.ok(document.querySelector('#open-extremes #open-extremes-body'), 'body lives inside it');
 });
 

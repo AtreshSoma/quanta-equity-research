@@ -84,37 +84,45 @@ logger = logging.getLogger(__name__)
 # ENHANCED CONFIGURATION
 # ============================================================================
 
+from engine.thresholds import SHORTTERM as _ST, alias as _alias  # noqa: E402
+
+
 class Config:
-    """Enhanced configuration with advanced parameters"""
+    """Enhanced configuration with advanced parameters.
+
+    Every decision threshold is read from ``engine.thresholds.SHORTTERM`` (the
+    one file that holds QUANTA's rules); the names here are aliases kept for the
+    code and tests that use them. Operational settings stay in this class.
+    """
     # Capital Management
-    DEFAULT_CAPITAL = 2500
-    MAX_RISK_PER_TRADE = 0.015  # 1.5% per trade
-    MAX_RISK_AGGRESSIVE = 0.025  # 2.5% for high-conviction
-    MAX_PORTFOLIO_RISK = 0.06  # 6% total portfolio risk
-    MIN_POSITION = 150
-    MAX_POSITION_PCT = 0.35  # Max 35% in single position
+    DEFAULT_CAPITAL = _alias(_ST, "DEFAULT_CAPITAL")
+    MAX_RISK_PER_TRADE = _alias(_ST, "MAX_RISK_PER_TRADE")
+    MAX_RISK_AGGRESSIVE = _alias(_ST, "MAX_RISK_AGGRESSIVE")
+    MAX_PORTFOLIO_RISK = _alias(_ST, "MAX_PORTFOLIO_RISK")
+    MIN_POSITION = _alias(_ST, "MIN_POSITION")
+    MAX_POSITION_PCT = _alias(_ST, "MAX_POSITION_PCT")
 
     # Quality Filters
-    MIN_MARKET_CAP = 1_000_000_000  # $1B minimum (relaxed from $2B)
-    MIN_PRICE = 5.0  # Avoid penny stocks (relaxed from $8)
-    MAX_PRICE = 3000.0
-    MIN_AVG_VOLUME = 500_000  # Liquidity requirement (relaxed from 750k)
-    MIN_DOLLAR_VOLUME = 10_000_000  # $10M daily dollar volume (relaxed from $15M)
+    MIN_MARKET_CAP = _alias(_ST, "MIN_MARKET_CAP")
+    MIN_PRICE = _alias(_ST, "MIN_PRICE")
+    MAX_PRICE = _alias(_ST, "MAX_PRICE")
+    MIN_AVG_VOLUME = _alias(_ST, "MIN_AVG_VOLUME")
+    MIN_DOLLAR_VOLUME = _alias(_ST, "MIN_DOLLAR_VOLUME")
 
     # Scoring Thresholds
-    MIN_SCORE = 60  # Out of 100
-    STRONG_BUY_THRESHOLD = 80
-    BUY_THRESHOLD = 70
-    ACCUMULATE_THRESHOLD = 60
+    MIN_SCORE = _alias(_ST, "MIN_SCORE")
+    STRONG_BUY_THRESHOLD = _alias(_ST, "STRONG_BUY")
+    BUY_THRESHOLD = _alias(_ST, "BUY")
+    ACCUMULATE_THRESHOLD = _alias(_ST, "ACCUMULATE")
 
     # Risk/Reward (enforced NET of friction — see COMMISSION_BPS / SLIPPAGE_BPS)
-    MIN_RISK_REWARD = 2.0  # Minimum 2:1 NET
+    MIN_RISK_REWARD = _alias(_ST, "MIN_RISK_REWARD")
     TARGET_WIN_RATE = 0.55  # 55% target
 
     # Execution friction (round-trip cost model used to debit the reward leg
     # before the R/R gate, per backtest-expert: "add friction everywhere").
-    COMMISSION_BPS = 5.0   # 5 bps per side -> 10 bps round-trip (e.g. Alpaca-style)
-    SLIPPAGE_BPS = 10.0    # 10 bps per side -> 20 bps round-trip (large-cap liquid)
+    COMMISSION_BPS = _ST.COMMISSION_BPS   # per side; read once for the constant below
+    SLIPPAGE_BPS = _ST.SLIPPAGE_BPS
     # Effective round-trip drag in % of entry price applied to the reward leg
     # when computing net R/R. Stop side is already executed at the stop, so we
     # apply the full round-trip to the upside leg as a conservative approximation.
@@ -180,11 +188,11 @@ class Config:
 
     # Low-conviction overlay: thresholds that downgrade a pick to
     # "confirmation only" and halve its suggested size.
-    LOW_CONVICTION_SCORE_BUFFER = 8.0   # within this many pts of MIN_SCORE
+    LOW_CONVICTION_SCORE_BUFFER = _alias(_ST, "LOW_CONVICTION_SCORE_BUFFER")
     LOW_CONVICTION_RS_FLOOR = 40.0      # RS rating below this is weak
     LOW_CONVICTION_RSI_OVERBOUGHT = 70.0
     LOW_CONVICTION_HIGH_VOL_PCT = 45.0  # 20D annualized vol % considered high
-    LOW_CONVICTION_SIZE_FACTOR = 0.5    # halve size when low-conviction
+    LOW_CONVICTION_SIZE_FACTOR = _alias(_ST, "LOW_CONVICTION_SIZE_FACTOR")
 
     # Share accounting mode (single source of truth for the allocation engine).
     #   False -> WHOLE-SHARE mode: shares = floor(allocation / entry). A pick
@@ -199,9 +207,9 @@ class Config:
 
     # Portfolio construction limits (previously hard-coded inside the
     # selection routine; surfaced here so they can be tuned in one place).
-    MAX_SECTOR_POSITIONS = 2      # max funded picks per GICS sector
-    CORRELATION_THRESHOLD = 0.78  # reject a pick this correlated to a holding
-    RS_PREFERRED_THRESHOLD = 50.0  # first-pass RS floor (top half of universe)
+    MAX_SECTOR_POSITIONS = _alias(_ST, "MAX_SECTOR_POSITIONS")
+    CORRELATION_THRESHOLD = _alias(_ST, "CORRELATION_THRESHOLD")
+    RS_PREFERRED_THRESHOLD = _alias(_ST, "RS_PREFERRED_THRESHOLD")
     SCALE_OUT_T1_FRACTION = 0.5   # fraction of the position taken off at T1
 
     # Trend strength thresholds. Trend_Strength is now a real Wilder ADX(14)
@@ -969,9 +977,9 @@ class TradingSignal(Enum):
     are unreachable from the scanner. They are retained because callers and
     tests refer to them by name.
     """
-    STRONG_BUY = ("STRONG_BUY", 80, "🔥")
-    BUY = ("BUY", 70, "✅")
-    ACCUMULATE = ("ACCUMULATE", 60, "📈")
+    STRONG_BUY = ("STRONG_BUY", _ST.STRONG_BUY, "🔥")
+    BUY = ("BUY", _ST.BUY, "✅")
+    ACCUMULATE = ("ACCUMULATE", _ST.ACCUMULATE, "📈")
     WATCH = ("WATCH", 50, "👁️")
     AVOID = ("AVOID", 0, "⛔")
 

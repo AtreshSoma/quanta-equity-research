@@ -154,7 +154,10 @@ extend-exclude = [
 # of the decomposition, with the golden master to prove nothing moved. Until
 # then, see the current list with:
 #     ruff check . --select F401
-select = ["E9", "F63", "F7", "F82"]
+# Also gated (no findings when added, 2026-10-22, so they only block regressions):
+# comparisons to None/True/False with ==, type() equality, repeated dict keys,
+# and pylint's error class.
+select = ["E9", "F63", "F7", "F82", "E711", "E712", "E721", "F601", "PLE"]
 
 [tool.ruff.lint.per-file-ignores]
 # Test modules must bootstrap sys.path before importing engine code, so their

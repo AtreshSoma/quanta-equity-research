@@ -239,3 +239,51 @@ def test_non_evaluated_bars_are_absent_not_stale(scored) -> None:
     gaps = out.index.to_series().diff().dropna()
     assert (gaps >= pd.Timedelta(days=1)).all()
     assert not out["composite"].duplicated().all(), "scores look forward-filled"
+
+
+class _SpyFundamentals:
+    """A PITFundamentals stand-in that records every day it is asked about."""
+
+    sector, industry = "Technology", "Software"
+
+    def __init__(self, known_from: str):
+        self.known_from = pd.Timestamp(known_from)
+        self.asked = []
+
+    def info_at(self, day, price):
+        self.asked.append(pd.Timestamp(day))
+        if pd.Timestamp(day) < self.known_from:
+            return {}
+        return {"quoteType": "EQUITY", "symbol": "AAA", "totalRevenue": 1e9,
+                "netIncomeToCommon": 2.5e8, "profitMargins": 0.25, "returnOnEquity": 0.30,
+                "revenueGrowth": 0.22, "debtToEquity": 30.0, "currentRatio": 2.5,
+                "sharesOutstanding": 1e8, "trailingEps": 2.5, "bookValue": 8.0,
+                "trailingPE": price / 2.5, "marketCap": price * 1e8}
+
+    def statements_at(self, day):
+        return pd.DataFrame(), pd.DataFrame()
+
+    def filing_state(self, day):
+        return "2023-02-01" if pd.Timestamp(day) >= self.known_from else None
+
+
+def test_point_in_time_fundamentals_are_only_read_as_of_each_bar() -> None:
+    frame = _frame()
+    spy = _SpyFundamentals("2023-03-01")
+    out = score_history(frame, "AAA", _benchmark(frame.index), ScorerConfig(eval_every=20),
+                        fundamentals=spy)
+    # Every lookup is for a bar that was being scored: never a later date.
+    assert spy.asked and set(spy.asked) <= set(out.index)
+    before, after = out[out.index < spy.known_from], out[out.index >= spy.known_from]
+    assert before["fund_filed"].isna().all() and after["fund_filed"].notna().all()
+    # Strong reported fundamentals lift the leg above the engine's empty-input value.
+    assert (after["score_fundamental"] > before["score_fundamental"].iloc[0]).all()
+
+
+def test_auto_regime_uses_the_live_regime_weights() -> None:
+    frame = _frame()
+    out = score_history(frame, "AAA", _benchmark(frame.index),
+                        ScorerConfig(eval_every=20, regime="auto"))
+    assert out["regime"].notna().all()
+    assert set(out["regime"]) <= {"SIDEWAYS", "BULL_TRENDING", "BULL_VOLATILE", "BEAR_TRENDING",
+                                  "BEAR_VOLATILE", "CRISIS", "HIGH_VOLATILITY"}

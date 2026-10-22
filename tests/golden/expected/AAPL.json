@@ -111,8 +111,11 @@
         "caveats": [
           "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
           "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls.",
+          "Fundamental, valuation and quality legs were scored from SEC filings known on each date (95% of panel rows had them; earlier rows and names without XBRL history keep neutral inputs). Sentiment and analyst targets stayed neutral.",
           "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
-          "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
+          "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.009 (CI -0.040 to +0.023); 63d +0.014 (CI -0.036 to +0.063). Versus the model's own price-only technical leg: 21d +0.024 (CI +0.002 to +0.045); 63d +0.035 (CI +0.001 to +0.069), so the fundamental and quality legs add ranking power, but the whole model is not yet better than momentum (apex_quant/_reports/factor_baselines_research_v2_pit_oos.txt).",
+          "Earlier test of this version with fundamentals held neutral (technical leg only, 33% of weight): 21d IC -0.003 (t -0.26), 63d IC +0.001 (apex_quant/_reports/research_v2_oos.txt).",
+          "No sign of decay: the IC was positive in 11 of 17 years at 21 days and the last three years (+0.051, t +1.71) beat the whole period, but much of that rests on 2024, and no window clears t >= 2."
         ],
         "generated_utc": "<volatile>",
         "lineage": [
@@ -135,25 +138,33 @@
         ],
         "metrics": {
           "21d": {
-            "decile_spread": -0.00240357,
-            "mean_ic": -0.00308896,
-            "n_independent_dates": 158,
-            "t_stat": -0.260782
+            "decile_spread": 0.00279758,
+            "mean_ic": 0.0202314,
+            "n_independent_dates": 159,
+            "positive_years": 11,
+            "recent_3y_mean_ic": 0.0505263,
+            "recent_3y_t_stat": 1.70957,
+            "t_stat": 0.869191,
+            "years": 17
           },
           "63d": {
-            "decile_spread": -0.00122297,
-            "mean_ic": 0.000707596,
+            "decile_spread": 0.0135732,
+            "mean_ic": 0.0408882,
             "n_independent_dates": 56,
-            "t_stat": -0.00238543
+            "positive_years": 12,
+            "recent_3y_mean_ic": 0.0636023,
+            "recent_3y_t_stat": 1.21077,
+            "t_stat": 1.41865,
+            "years": 17
           }
         },
         "permits_recommendation": false,
-        "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
+        "scope": "Technical, fundamental, valuation and quality legs (89% of SIDEWAYS composite weight), the last three from SEC filings known on each date (95% of panel rows had them). Sentiment and analyst inputs held neutral: no point-in-time source. Weights follow the live regime-adaptive tables.",
         "status": "NO_EDGE",
         "status_text": "Tested out of sample: no demonstrated edge",
         "strategy": "elite.research.v2",
-        "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
-        "tested_through": "2026-09-30"
+        "summary": "Composite score does not predict forward returns out of sample at a significant level: the IC is positive but below the t >= 2 bar. 21d: IC +0.020 (t +0.87); 63d: IC +0.041 (t +1.42)",
+        "tested_through": "2026-10-21"
       },
       "factor_scores": {
         "fundamental": 78,
@@ -311,8 +322,11 @@
       "caveats": [
         "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
         "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls.",
+        "Fundamental, valuation and quality legs were scored from SEC filings known on each date (95% of panel rows had them; earlier rows and names without XBRL history keep neutral inputs). Sentiment and analyst targets stayed neutral.",
         "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
-        "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
+        "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.009 (CI -0.040 to +0.023); 63d +0.014 (CI -0.036 to +0.063). Versus the model's own price-only technical leg: 21d +0.024 (CI +0.002 to +0.045); 63d +0.035 (CI +0.001 to +0.069), so the fundamental and quality legs add ranking power, but the whole model is not yet better than momentum (apex_quant/_reports/factor_baselines_research_v2_pit_oos.txt).",
+        "Earlier test of this version with fundamentals held neutral (technical leg only, 33% of weight): 21d IC -0.003 (t -0.26), 63d IC +0.001 (apex_quant/_reports/research_v2_oos.txt).",
+        "No sign of decay: the IC was positive in 11 of 17 years at 21 days and the last three years (+0.051, t +1.71) beat the whole period, but much of that rests on 2024, and no window clears t >= 2."
       ],
       "generated_utc": "<volatile>",
       "lineage": [
@@ -335,25 +349,33 @@
       ],
       "metrics": {
         "21d": {
-          "decile_spread": -0.00240357,
-          "mean_ic": -0.00308896,
-          "n_independent_dates": 158,
-          "t_stat": -0.260782
+          "decile_spread": 0.00279758,
+          "mean_ic": 0.0202314,
+          "n_independent_dates": 159,
+          "positive_years": 11,
+          "recent_3y_mean_ic": 0.0505263,
+          "recent_3y_t_stat": 1.70957,
+          "t_stat": 0.869191,
+          "years": 17
         },
         "63d": {
-          "decile_spread": -0.00122297,
-          "mean_ic": 0.000707596,
+          "decile_spread": 0.0135732,
+          "mean_ic": 0.0408882,
           "n_independent_dates": 56,
-          "t_stat": -0.00238543
+          "positive_years": 12,
+          "recent_3y_mean_ic": 0.0636023,
+          "recent_3y_t_stat": 1.21077,
+          "t_stat": 1.41865,
+          "years": 17
         }
       },
       "permits_recommendation": false,
-      "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
+      "scope": "Technical, fundamental, valuation and quality legs (89% of SIDEWAYS composite weight), the last three from SEC filings known on each date (95% of panel rows had them). Sentiment and analyst inputs held neutral: no point-in-time source. Weights follow the live regime-adaptive tables.",
       "status": "NO_EDGE",
       "status_text": "Tested out of sample: no demonstrated edge",
       "strategy": "elite.research.v2",
-      "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
-      "tested_through": "2026-09-30"
+      "summary": "Composite score does not predict forward returns out of sample at a significant level: the IC is positive but below the t >= 2 bar. 21d: IC +0.020 (t +0.87); 63d: IC +0.041 (t +1.42)",
+      "tested_through": "2026-10-21"
     },
     "exchange": "NMS",
     "expense_ratio": 0.0,

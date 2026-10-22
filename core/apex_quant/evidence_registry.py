@@ -5,6 +5,7 @@ latest out-of-sample verdict and the numbers behind it. Only the validation
 harness writes it; engines and surfaces only read it (fail-closed).
 
     python -m apex_quant.evidence_registry     # rebuild ELITE entry from elite_oos.json
+    python -m apex_quant.evidence_registry elite <report.json> [key]  # record a named ELITE run
     python -m apex_quant.evidence_registry shortterm <summary.json>   # record a scanner replay
 
 (run from ``core/``).
@@ -67,12 +68,14 @@ def update(section: str, key: str, entry: Dict[str, Any], path: Optional[Path] =
     return p
 
 
-def elite_entry_from_oos(report: Dict[str, Any]) -> Dict[str, Any]:
+def elite_entry_from_oos(report: Dict[str, Any],
+                         source: str = "apex_quant/_reports/elite_oos.json") -> Dict[str, Any]:
     """Translate an ``elite_oos`` report into a registry entry.
 
     VALIDATED would require every horizon's non-overlapping IC t-stat >= 2 AND a
-    full-scope test. The ELITE test covers only 40% of the composite weight, so
-    the best this can ever be is PARTIAL; a non-positive IC makes it NO_EDGE.
+    full-scope test. No ELITE test covers the sentiment leg (no point-in-time
+    source), so the best this can be is PARTIAL; an IC that is not positive and
+    significant at every horizon makes it NO_EDGE.
     """
     ic = report.get("ic", {})
     stats = {h: {"mean_ic": v.get("mean_ic"), "t_stat": v.get("t_stat"),
@@ -83,17 +86,33 @@ def elite_entry_from_oos(report: Dict[str, Any]) -> Dict[str, Any]:
     status = "PARTIAL" if positive else "NO_EDGE"
     parts = [f"{h}: IC {v['mean_ic']:+.3f} (t {v['t_stat']:+.2f})" for h, v in stats.items()
              if v.get("mean_ic") is not None and v.get("t_stat") is not None]
+    if status == "PARTIAL":
+        summary = ("Composite score ranks forward returns out of sample (positive and significant "
+                   "at every horizon). " + "; ".join(parts))
+    elif ic and all((v.get("mean_ic") or 0) > 0 for v in ic.values()):
+        summary = ("Composite score does not predict forward returns out of sample at a significant "
+                   "level: the IC is positive but below the t >= 2 bar. " + "; ".join(parts))
+    else:
+        summary = "Composite score does not predict forward returns out of sample. " + "; ".join(parts)
+    scope = report.get("scope") or (
+        f"Technical + risk components only ({report.get('composite_weight_covered', 0):.0%} "
+        "of composite weight); fundamentals have no point-in-time source.")
+    caveats = [SURVIVORSHIP_CAVEAT, RANKING_TEST_CAVEAT]
+    if report.get("pit_fundamentals"):
+        caveats.append(
+            "Fundamental, valuation and quality legs were scored from SEC filings known on each "
+            f"date ({report.get('fundamentals_row_share', 0):.0%} of panel rows had them; earlier "
+            "rows and names without XBRL history keep neutral inputs). Sentiment and analyst "
+            "targets stayed neutral.")
     return {
         "status": status,
-        "summary": ("Composite score does not predict forward returns out of sample. "
-                    + "; ".join(parts)) if status == "NO_EDGE" else "; ".join(parts),
+        "summary": summary,
         "tested_through": report.get("end"),
-        "scope": (f"Technical + risk components only ({report.get('composite_weight_covered', 0):.0%} "
-                  "of composite weight); fundamentals have no point-in-time source."),
+        "scope": scope,
         "metrics": stats,
         # The pre-F01 trade-simulator CAGR is invalidated (INVALIDATED.md): never cite it.
-        "caveats": [SURVIVORSHIP_CAVEAT, RANKING_TEST_CAVEAT],
-        "source": "apex_quant/_reports/elite_oos.json",
+        "caveats": caveats,
+        "source": source,
         "generated_utc": report.get("generated_at"),
     }
 
@@ -113,7 +132,9 @@ def shortterm_entry_from_backtest(summary: Dict[str, Any], source: str) -> Dict[
     positive = beats_spy and beats_random
     cfg = summary.get("config") or {}
     weights = cfg.get("composite_weights") or {}
-    covered = sum(weights.get(k, 0.0) for k in ("technical", "momentum", "pattern"))
+    pit = bool(cfg.get("pit_fundamentals"))
+    live_legs = ("technical", "momentum", "pattern") + (("fundamental", "quality") if pit else ())
+    covered = sum(weights.get(k, 0.0) for k in live_legs)
     def pct(x):
         return "n/a" if x is None else f"{x:+.2f}%"
     stated = (f"{summary.get('total_trades', 0)} trades {cfg.get('start')}..{cfg.get('end')}: "
@@ -131,9 +152,13 @@ def shortterm_entry_from_backtest(summary: Dict[str, Any], source: str) -> Dict[
                         else "beat random entries" if beats_spy else "beat SPY")
                     + " out of sample. " + stated),
         "tested_through": cfg.get("end"),
-        "scope": (f"Price-based legs only (technical, momentum, pattern: {covered:.0%} of composite "
-                  "weight); fundamental, quality and analyst legs held neutral. No regime "
-                  "multiplier, peer re-scoring or portfolio caps."),
+        "scope": ((f"Technical, momentum, pattern, fundamental and quality legs ({covered:.0%} of "
+                   "composite weight), the last two from SEC filings known on each bar; the analyst "
+                   "leg (rating, short interest) held neutral. No regime multiplier, sector-relative "
+                   "re-scoring or portfolio caps.") if pit else
+                  (f"Price-based legs only (technical, momentum, pattern: {covered:.0%} of composite "
+                   "weight); fundamental, quality and analyst legs held neutral. No regime "
+                   "multiplier, peer re-scoring or portfolio caps.")),
         "metrics": {"excess_vs_spy": ex, "signal_minus_random_excess": diff,
                     "win_rate_pct": summary.get("win_rate_pct"),
                     "probabilistic_sharpe": summary.get("probabilistic_sharpe"),
@@ -148,15 +173,31 @@ def shortterm_entry_from_backtest(summary: Dict[str, Any], source: str) -> Dict[
     }
 
 
+def _source(src: Path) -> str:
+    try:
+        return src.resolve().relative_to(REPORT_DIR.parent.parent).as_posix()
+    except ValueError:  # outside core/: record it as given
+        return str(src)
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["elite"] and len(argv) in (2, 3):
+        src = Path(argv[1])
+        key = argv[2] if len(argv) == 3 else "elite.research.v2"
+        report = json.loads(src.read_text())
+        entry = elite_entry_from_oos(report, source=_source(src))
+        try:
+            from tracking.fingerprint import code_fingerprint
+            entry["code_fingerprint"] = code_fingerprint("elite", with_data=False)
+        except Exception:  # noqa: BLE001 - the entry stands without it
+            pass
+        p = update("strategies", key, entry)
+        print(f"updated {p}: {key} -> {entry['status']}")
+        return 0
     if argv[:1] == ["shortterm"] and len(argv) == 2:
         src = Path(argv[1])
-        try:
-            source = src.resolve().relative_to(REPORT_DIR.parent.parent).as_posix()
-        except ValueError:  # outside core/: record it as given
-            source = str(src)
-        entry = shortterm_entry_from_backtest(json.loads(src.read_text()), source=source)
+        entry = shortterm_entry_from_backtest(json.loads(src.read_text()), source=_source(src))
         p = update("strategies", "shortterm.composite", entry)
         print(f"updated {p}: shortterm.composite -> {entry['status']}")
         return 0

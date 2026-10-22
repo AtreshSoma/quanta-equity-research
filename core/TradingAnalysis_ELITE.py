@@ -257,7 +257,9 @@ class Config:
     RSI_EXTREME_OVERSOLD = 20
     RSI_EXTREME_OVERBOUGHT = 80
     
-    # Scoring Weights (must sum to 1.0)
+    # Fallback weights, used only when no regime table is passed. They sum to
+    # 0.90 and _calculate_composite renormalises; the live path reads
+    # REGIME_WEIGHTS below.
     WEIGHT_TECHNICAL = 0.30
     WEIGHT_FUNDAMENTAL = 0.25
     WEIGHT_VALUATION = 0.15
@@ -1863,7 +1865,13 @@ class APIClient:
         
         try:
             self._check_rate_limit(source, rate_limit)
-            response = self.session.get(url, params=params, timeout=timeout)
+            # Finnhub takes its key in a header: a key in the query string ends
+            # up in proxy, server and exception logs with the URL.
+            headers = None
+            if params and "finnhub.io" in url and "token" in params:
+                params = {k: v for k, v in params.items() if k != "token"}
+                headers = {"X-Finnhub-Token": str(self.finnhub_key or "")}
+            response = self.session.get(url, params=params, headers=headers, timeout=timeout)
             
             if response.status_code == 200:
                 return response.json()
@@ -2952,7 +2960,23 @@ class FundamentalAnalyzer:
                 result.is_etf = True
                 logger.info(f"{ticker} identified as ETF")
                 return self._analyze_etf(info, result)
-            
+
+            result = self.analyze_info(info, stock, result)
+
+        except Exception as e:
+            logger.error(f"Fundamental analysis error for {ticker}: {e}")
+
+        return result
+
+    def analyze_info(self, info: Dict, stock, result: Optional[FundamentalData] = None) -> FundamentalData:
+        """Score a company from an ``info`` payload and statement frames.
+
+        Split from ``analyze`` so the out-of-sample harness can run this exact
+        code on point-in-time payloads rebuilt from SEC filings
+        (``apex_quant.pit_fundamentals``) instead of a copy of it.
+        """
+        result = result if result is not None else FundamentalData()
+        try:
             result.reported = {
                 'roe': _reported(info, 'returnOnEquity'),
                 'net_margin': _reported(info, 'profitMargins'),
@@ -2992,10 +3016,10 @@ class FundamentalAnalyzer:
             
             # Quality Scores
             result = self._calculate_quality_scores(info, stock, result)
-            
+
         except Exception as e:
-            logger.error(f"Fundamental analysis error for {ticker}: {e}")
-        
+            logger.error(f"Fundamental analysis error for {info.get('symbol', '?')}: {e}")
+
         return result
     
     def _calculate_valuation(self, info: Dict, result: FundamentalData) -> FundamentalData:
@@ -6858,41 +6882,18 @@ class MacroEnvironmentAnalyzer:
     
     @classmethod
     def _generate_fomc_calendar(cls) -> List[str]:
+        """FOMC decision days from last year to two years ahead.
+
+        Read from ``engine.fomc`` (the Federal Reserve's published calendar,
+        shared with the scanner). This list used to carry its own "official"
+        dates, five of them wrong, so it named Nov 4 2026 as the next meeting
+        when the Fed had scheduled Oct 28. Years past the published calendar
+        fall back to the Fed's usual cadence there.
         """
-        Generate FOMC calendar using official dates when available, algorithmic fallback otherwise.
-        
-        Official 2025 FOMC Dates from Federal Reserve:
-        Jan 28-29, Mar 18-19, May 6-7, Jun 17-18, Jul 29-30, Sep 16-17, Nov 4-5, Dec 16-17
-        """
-        today = date.today()
-        current_year = today.year
-        
-        # Official FOMC meeting end dates (announcement day)
-        FOMC_OFFICIAL = {
-            2025: ['2025-01-29', '2025-03-19', '2025-05-07', '2025-06-18',
-                   '2025-07-30', '2025-09-17', '2025-11-05', '2025-12-17'],
-            2026: ['2026-01-28', '2026-03-18', '2026-05-06', '2026-06-17',
-                   '2026-07-29', '2026-09-16', '2026-11-04', '2026-12-16'],
-        }
-        
-        all_dates = []
-        
-        for year in range(current_year - 1, current_year + 3):
-            if year in FOMC_OFFICIAL:
-                # Use official dates when available
-                all_dates.extend(FOMC_OFFICIAL[year])
-            else:
-                # Algorithmic fallback for years without official dates
-                for month, week_num in cls.FOMC_MEETING_PATTERN:
-                    # FOMC meetings end on Wednesday (weekday=2)
-                    fomc_date = cls._get_nth_weekday(year, month, weekday=2, n=week_num)
-                    all_dates.append(fomc_date.strftime('%Y-%m-%d'))
-        
-        # Sort chronologically
-        all_dates.sort()
-        
-        return all_dates
-    
+        from engine.fomc import all_dates as _fomc_dates
+        year = date.today().year
+        return [d.isoformat() for d in _fomc_dates(year - 1, year + 2)]
+
     def __init__(self, api_client: Optional['APIClient'] = None):
         self.api = api_client
         self.cache = {}

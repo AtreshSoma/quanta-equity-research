@@ -197,9 +197,12 @@
   "VALUATION_HORIZON_DAYS": 252
  },
  "MARKET": {
+  "ANALYST_BUY_MEAN_MAX": 2.3,
+  "ANALYST_PICK_COUNT": 8,
   "ANALYST_PICK_MAX_UPSIDE_PCT": 50.0,
   "ANALYST_PICK_MIN_ANALYSTS": 10,
   "ANALYST_PICK_MIN_UPSIDE_PCT": 2.0,
+  "ANALYST_STRONG_BUY_MEAN_MAX": 1.5,
   "ATR_SESSIONS": 14,
   "BASE_RATE_MOVE_PCT": 1.0,
   "BASE_RATE_YEARS": 10,
@@ -282,8 +285,13 @@
   "DEGRADED_MISSING_INPUTS": 3,
   "EARNINGS_CALENDAR_CACHE_SECONDS": 1800.0,
   "EARNINGS_CALENDAR_LIMIT": 100,
+  "EARNINGS_HISTORY_REPORTS": 8,
   "EARNINGS_MIN_MARKET_CAP": 10000000000.0,
   "EARNINGS_PER_DAY_SHOWN": 3,
+  "ENRICH_BUDGET_SECONDS": 25.0,
+  "ENRICH_HISTORY_CACHE_SECONDS": 21600.0,
+  "ENRICH_OPTIONS_CACHE_SECONDS": 1800.0,
+  "EPS_REVISION_WINDOW": "30daysAgo",
   "EXPOSURE_BANDS": {
    "cap_low_confidence": [
     30,
@@ -313,6 +321,7 @@
   "EXTENDED_FROM_20DMA": 0.12,
   "EXTENDED_MOVE_PCT": 15.0,
   "EXTENDED_RSI": 72.0,
+  "FUNDAMENTALS_CACHE_SECONDS": 21600.0,
   "FUTURES": {
    "IN": [],
    "US": [
@@ -336,8 +345,13 @@
   },
   "FX_MOVE_PCT": 0.3,
   "FX_SHARP_PCT": 0.6,
+  "GAP_FADE_SHARE": 0.4,
+  "GAP_HOLD_SHARE": 0.75,
+  "GAP_MIN_PCT": 1.0,
   "GOLD_MOVE_PCT": 1.0,
   "HIGH_IMPACT_NEWS_WARN": 3,
+  "IMPLIED_VOL_MAX": 2.5,
+  "IMPLIED_VOL_MIN": 0.05,
   "INDEX_FLAT_PCT": 0.1,
   "INDEX_LEADING_PCT": 1.0,
   "INDEX_TONE_PCT": 0.4,
@@ -350,6 +364,9 @@
   "MOMENTUM_DOWN_PCT": -6.0,
   "MOMENTUM_UP_PCT": 3.0,
   "MOMENTUM_WEAK_PCT": -2.0,
+  "MOVE_DEAL_MAX_RANGE_PCT": 1.5,
+  "MOVE_DEAL_MIN_GAP_PCT": 15.0,
+  "MOVE_SECTOR_SHARE": 0.5,
   "NEWS_DRIVER_MEDIUM": 4,
   "NEWS_FACTOR_MAX_ABS": 1,
   "NEWS_HALF_LIFE_DAYS": 4.0,
@@ -368,7 +385,13 @@
   "PULSE_SERIES_SESSIONS": 22,
   "QUOTE_BUDGET_SECONDS": 12.0,
   "REGIME_HISTORY_SESSIONS": 30,
+  "REVISION_WINDOW_DAYS": 90,
+  "RISK_FREE_FALLBACK": {
+   "IN": 0.065,
+   "US": 0.04
+  },
   "RULE2_QQQ_DROP_PCT": -1.0,
+  "RVOL_HIGH": 2.0,
   "SECTOR_BASKETS": {
    "IN": [
     [
@@ -463,6 +486,33 @@
     ]
    ]
   },
+  "SECTOR_FUND_BY_SECTOR": {
+   "IN": {
+    "Basic Materials": "^CNXMETAL",
+    "Communication Services": "^CNXMEDIA",
+    "Consumer Cyclical": "^CNXAUTO",
+    "Consumer Defensive": "^CNXFMCG",
+    "Energy": "^CNXENERGY",
+    "Financial Services": "^NSEBANK",
+    "Healthcare": "^CNXPHARMA",
+    "Industrials": "^CNXINFRA",
+    "Real Estate": "^CNXREALTY",
+    "Technology": "^CNXIT"
+   },
+   "US": {
+    "Basic Materials": "XLB",
+    "Communication Services": "XLC",
+    "Consumer Cyclical": "XLY",
+    "Consumer Defensive": "XLP",
+    "Energy": "XLE",
+    "Financial Services": "XLF",
+    "Healthcare": "XLV",
+    "Industrials": "XLI",
+    "Real Estate": "XLRE",
+    "Technology": "XLK",
+    "Utilities": "XLU"
+   }
+  },
   "SECTOR_HEAT_FULL_PCT": 2.0,
   "SECTOR_WEIGHTS": {
    "IN": {},
@@ -489,6 +539,8 @@
   "SIGNAL_SCORE_BULL": 6.5,
   "SIGNAL_SCORE_NEUTRAL": 5.5,
   "TARGET_GAP_CHECK_PCT": 50.0,
+  "TARGET_LAG_RANGE_SHARE": 0.2,
+  "TARGET_ODDS_HORIZON_DAYS": 365,
   "TRADING_DAYS_PER_YEAR": 252,
   "TREND_BASKETS": {
    "IN": {
@@ -512,6 +564,7 @@
   },
   "TREND_BUDGET_SECONDS": 12.0,
   "TREND_CACHE_SECONDS": 1800.0,
+  "TREND_DAY_CLV": 0.8,
   "TREND_FALLBACK_DOWN_PCT": -1.0,
   "TREND_FALLBACK_UP_PCT": 0.75,
   "TREND_FALLBACK_WEAK_PCT": -0.25,

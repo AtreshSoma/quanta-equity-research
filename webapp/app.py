@@ -90,6 +90,7 @@ from engine import why_picked as _why_picked  # noqa: E402
 from engine import valuation_view as _valuation_view  # noqa: E402
 from engine import scan_filters as _scan_filters  # noqa: E402
 import saved_scans  # noqa: E402  (sibling module: the saved-scans store)
+import discover_enrich as _disc  # noqa: E402  (sibling module: Discover reads and caches)
 
 
 def _display_path(path: Path) -> str:
@@ -3963,6 +3964,69 @@ def _market_snapshot(market: str = "US", news: Optional[Dict[str, Any]] = None,
     }
 
 
+def _earnings_timing_from_ts(ts: Any, market_tz: str = "America/New_York") -> Optional[str]:
+    """Before the open ("bmo") or after the close ("amc") from a report time stamp;
+    None for a time inside the session or a missing stamp."""
+    try:
+        from zoneinfo import ZoneInfo
+        when = datetime.fromtimestamp(float(ts), ZoneInfo(market_tz))
+    except Exception:
+        return None
+    if (when.hour, when.minute) < (9, 30):
+        return "bmo"
+    if when.hour >= 16:
+        return "amc"
+    return None
+
+
+def _read_fundamentals(tk: Any, symbol: str) -> Dict[str, Any]:
+    """The research fields Discover ranks on, from one `.info` and one
+    `.calendar` read. Missing fields stay None; nothing is filled in."""
+    try:
+        info = tk.info or {}
+    except Exception:
+        info = {}
+    out: Dict[str, Any] = {
+        "name": info.get("shortName") or info.get("longName") or symbol,
+        "sector": info.get("sector") or "",
+        # Listing venue, so the UI can build an exact TradingView symbol for
+        # rows that came from the universe scan rather than the screener.
+        "exchange": info.get("exchange") or info.get("fullExchangeName") or None,
+        "recommendation": info.get("recommendationKey") or info.get("recommendationMean"),
+        "recommendation_mean": _opt_round(info.get("recommendationMean")),
+        "target_mean": info.get("targetMeanPrice"),
+        "target_high": _opt_round(info.get("targetHighPrice")),
+        "target_low": _opt_round(info.get("targetLowPrice")),
+        "analyst_count": info.get("numberOfAnalystOpinions"),
+        "market_cap": info.get("marketCap"),
+        "avg_volume": info.get("averageDailyVolume3Month") or info.get("averageVolume"),
+        "short_pct_float": _opt_round(info.get("shortPercentOfFloat"), 4),
+    }
+    india = symbol.upper().endswith((".NS", ".BO"))
+    ts = info.get("earningsTimestamp") or info.get("earningsTimestampStart")
+    out["earnings_timing"] = _earnings_timing_from_ts(ts, "Asia/Kolkata" if india else "America/New_York") if ts else None
+    out["earnings_estimated"] = info.get("isEarningsDateEstimate")
+    try:
+        cal = tk.calendar
+        edate = None
+        if isinstance(cal, dict):
+            ed = cal.get("Earnings Date")
+            if isinstance(ed, list) and ed:
+                edate = ed[0]
+            elif ed:
+                edate = ed
+        elif cal is not None and hasattr(cal, "columns"):
+            try:
+                edate = cal.loc["Earnings Date"].iloc[0]
+            except Exception:
+                edate = None
+        if edate is not None:
+            out["earnings_date"] = edate.isoformat() if hasattr(edate, "isoformat") else str(edate)
+    except Exception:
+        pass
+    return out
+
+
 def _ticker_intel(symbol: str, with_info: bool = True) -> Dict[str, Any]:
     """Fetch a single ticker's price/change/analyst/earnings data.
 
@@ -3992,6 +4056,8 @@ def _ticker_intel(symbol: str, with_info: bool = True) -> Dict[str, Any]:
                 ("previous_close", "prev_close"),
                 ("year_high", "week52_high"),
                 ("year_low", "week52_low"),
+                ("last_volume", "volume"),
+                ("three_month_average_volume", "avg_volume"),
             ):
                 val = _opt_round(_fast_info_get(fi, src_key))
                 if val is not None:
@@ -4025,46 +4091,19 @@ def _ticker_intel(symbol: str, with_info: bool = True) -> Dict[str, Any]:
             out["name"] = symbol
             return out
 
-        try:
-            info = tk.info or {}
-        except Exception:
-            info = {}
-        out["name"] = info.get("shortName") or info.get("longName") or symbol
-        out["sector"] = info.get("sector") or ""
-        # Listing venue, so the UI can build an exact TradingView symbol for
-        # rows that came from the universe scan rather than the screener.
-        out["exchange"] = info.get("exchange") or info.get("fullExchangeName") or None
-        out["recommendation"] = info.get("recommendationKey") or info.get("recommendationMean")
-        out["target_mean"] = info.get("targetMeanPrice")
-        out["analyst_count"] = info.get("numberOfAnalystOpinions")
-        out["market_cap"] = info.get("marketCap")
+        # Research fields change daily, not per quote: one read per symbol is
+        # reused for MARKET.FUNDAMENTALS_CACHE_SECONDS (kept on disk).
+        fund = _disc.cached(_disc.FUNDAMENTALS, symbol, lambda: _read_fundamentals(tk, symbol))
+        for key, val in (fund or {}).items():
+            if key == "avg_volume" and out.get("avg_volume") is not None:
+                continue
+            out[key] = val
+        out.setdefault("name", symbol)
         if out.get("price") and out.get("target_mean"):
             try:
                 out["upside_pct"] = round(((float(out["target_mean"]) - out["price"]) / out["price"]) * 100, 2)
             except Exception:
                 out["upside_pct"] = None
-        # Earnings date
-        try:
-            cal = tk.calendar
-            edate = None
-            if isinstance(cal, dict):
-                ed = cal.get("Earnings Date")
-                if isinstance(ed, list) and ed:
-                    edate = ed[0]
-                elif ed:
-                    edate = ed
-            elif cal is not None and hasattr(cal, "columns"):
-                try:
-                    edate = cal.loc["Earnings Date"].iloc[0]
-                except Exception:
-                    edate = None
-            if edate is not None:
-                if hasattr(edate, "isoformat"):
-                    out["earnings_date"] = edate.isoformat()
-                else:
-                    out["earnings_date"] = str(edate)
-        except Exception:
-            pass
     except Exception as exc:
         logger.debug("ticker intel failed for %s: %s", symbol, exc)
     return out
@@ -4073,6 +4112,9 @@ def _ticker_intel(symbol: str, with_info: bool = True) -> Dict[str, Any]:
 _market_intel_inflight: Dict[str, threading.Event] = {}
 _market_intel_lock = threading.Lock()
 _market_intel_executor = ThreadPoolExecutor(max_workers=10, thread_name_prefix='market-intel')
+# The last research row per tracked symbol and market, so a name whose quote
+# misses one cycle's deadline keeps its place in the Street list.
+_research_rows_last: Dict[str, Dict[str, Dict[str, Any]]] = {}
 MARKET_INTEL_FETCH_SECONDS = 25
 MARKET_INTEL_RETRY_SECONDS = 15
 
@@ -4105,7 +4147,7 @@ SCREENER_FETCH_COUNT = 25  # quotes to pull from yf.screen per side
 # the top ~120 names of the S&P 500 by market cap with sector breadth.
 _US_BROAD_EXTRA = [
     # Tech / Comm
-    "AAPL","MSFT","GOOGL","GOOG","AMZN","META","NVDA","TSLA","AVGO","ORCL",
+    "AAPL","MSFT","GOOGL","AMZN","META","NVDA","TSLA","AVGO","ORCL",
     "ADBE","CRM","CSCO","ACN","IBM","INTC","AMD","QCOM","TXN","NOW","INTU",
     "AMAT","MU","ADI","LRCX","KLAC","PANW","SNPS","CDNS","ANET","FTNT",
     "PLTR","SHOP","UBER","ABNB","NFLX","DIS","CMCSA","T","VZ","TMUS",
@@ -4233,6 +4275,10 @@ def _normalize_screener_quote(q: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             # (NASDAQ:AAPL) instead of guessing. Absent is fine; the UI falls
             # back to the bare ticker, which TradingView resolves itself.
             "exchange": q.get("exchange") or q.get("fullExchangeName"),
+            # Relative volume and the report that may explain the move ride
+            # along in the same quote.
+            "avg_volume": q.get("averageDailyVolume3Month"),
+            "earnings_ts": q.get("earningsTimestamp") or q.get("earningsTimestampStart"),
             "source": "yf_screener",
         }
     except Exception:
@@ -4491,6 +4537,161 @@ def _merge_earnings_calendar(existing: List[Dict[str, Any]], market_key: str) ->
     return merged
 
 
+BATCH_QUOTE_CHUNK = 100
+_RESEARCH_FIELDS = ("name", "sector", "recommendation", "recommendation_mean", "target_mean", "target_high", "target_low",
+                    "analyst_count", "earnings_date", "earnings_timing", "earnings_estimated")
+
+
+def _batch_quote_fetch(symbols: List[str]) -> List[Dict[str, Any]]:
+    """Yahoo's multi-symbol quote, through yfinance's own session (cookie and crumb)."""
+    from yfinance.data import YfData
+    data = YfData().get_raw_json("https://query1.finance.yahoo.com/v7/finance/quote",
+                                 params={"symbols": ",".join(symbols)}, timeout=10)
+    return ((data or {}).get("quoteResponse") or {}).get("result") or []
+
+
+def _batch_quotes(symbols: List[str], fetch=None) -> Dict[str, Dict[str, Any]]:
+    """This session's quote for every symbol, BATCH_QUOTE_CHUNK names per request,
+    in the same row shape as the screener. A failed chunk is skipped (its names
+    fall back to their own reads); nothing is filled in. Off under pytest unless a
+    fetcher is passed, so a test never reaches the provider."""
+    if fetch is None:
+        if _disc._testing():
+            return {}
+        fetch = _batch_quote_fetch
+    out: Dict[str, Dict[str, Any]] = {}
+    for i in range(0, len(symbols), BATCH_QUOTE_CHUNK):
+        try:
+            rows = fetch(symbols[i:i + BATCH_QUOTE_CHUNK]) or []
+        except Exception as exc:
+            logger.debug("Batch quote failed: %s", exc)
+            continue
+        for q in rows:
+            row = _normalize_screener_quote(q)
+            if not row:
+                continue
+            row["source"] = "yf_quote_batch"
+            india = row["symbol"].upper().endswith((".NS", ".BO"))
+            if row.get("earnings_ts"):
+                row["earnings_timing"] = _earnings_timing_from_ts(row["earnings_ts"], "Asia/Kolkata" if india else "America/New_York")
+            out[row["symbol"]] = row
+    return out
+
+
+def _fundamentals_job(symbol: str) -> Tuple[str, Optional[Dict[str, Any]]]:
+    """The cached research read for one name (one .info and one .calendar call)."""
+    try:
+        import yfinance as yf_local
+        tk = yf_local.Ticker(symbol)
+        return symbol, _disc.cached(_disc.FUNDAMENTALS, symbol, lambda: _read_fundamentals(tk, symbol))
+    except Exception as exc:
+        logger.debug("fundamentals failed for %s: %s", symbol, exc)
+        return symbol, None
+
+
+def _with_fundamentals(quote: Dict[str, Any], fund: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """A quote row with research fields added: the quote's own figures win
+    (they are this session's), and upside is priced against the quote."""
+    row = dict(quote)
+    for k, v in (fund or {}).items():
+        if row.get(k) is None or k in ("name", "sector") and v:
+            row[k] = v
+    if row.get("price") and row.get("target_mean"):
+        try:
+            row["upside_pct"] = round((float(row["target_mean"]) - row["price"]) / row["price"] * 100, 2)
+        except (TypeError, ValueError, ZeroDivisionError):
+            row["upside_pct"] = None
+    return row
+
+
+def _extremes_past(rows: List[Dict[str, Any]]) -> int:
+    """Moves of EXTREME_MOVE_PCT or more ranked past the rows the board shows."""
+    return sum(1 for r in rows[MOVERS_DISPLAY_COUNT:]
+               if r.get("change_pct") is not None and abs(r["change_pct"]) >= EXTREME_MOVE_PCT)
+
+
+def _reported_this_session(row: Dict[str, Any], market: str) -> bool:
+    """Whether a report drives this session's move: from the quote's own report
+    time stamp, else from the report date and its known timing. A same-day
+    report of unknown timing is not counted (it may land after the close)."""
+    if row.get("earnings_ts"):
+        return _disc.earnings_in_session(row["earnings_ts"], market)
+    timing = row.get("earnings_timing")
+    ed = str(row.get("earnings_date") or "")[:10]
+    if not ed or timing not in ("bmo", "amc"):
+        return False
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo("Asia/Kolkata" if market == "IN" else "America/New_York")
+        d = datetime.strptime(ed, "%Y-%m-%d")
+        when = d.replace(hour=8, minute=0, tzinfo=tz) if timing == "bmo" else d.replace(hour=16, minute=30, tzinfo=tz)
+    except Exception:
+        return False
+    return _disc.earnings_in_session(when.timestamp(), market)
+
+
+def _buy_rated(row: Dict[str, Any]) -> bool:
+    """A buy or strong-buy consensus: the rating key, or a numeric mean at or
+    below MARKET.ANALYST_BUY_MEAN_MAX (the same cut the page labels with)."""
+    rec = row.get("recommendation") or ""
+    if isinstance(rec, str) and rec.strip():
+        return rec.strip().lower() in {"buy", "strong_buy", "strongbuy"}
+    mean = _opt_round(row.get("recommendation_mean") if row.get("recommendation_mean") is not None else rec)
+    return mean is not None and mean <= float(_T.MARKET.ANALYST_BUY_MEAN_MAX)
+
+
+_ISSUER_NOISE = re.compile(r"\b(class [a-z]|inc|incorporated|corp|corporation|co|company|ltd|limited|plc|holdings?|the)\b|[^a-z0-9 ]")
+
+
+def _issuer_key(row: Dict[str, Any]) -> str:
+    """One key per company, so two share classes never take two slots."""
+    name = str(row.get("name") or row.get("symbol") or "").lower()
+    key = " ".join(_ISSUER_NOISE.sub(" ", name).split())
+    return key or str(row.get("symbol") or "")
+
+
+def _street_candidates(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Buy-rated names with a believable consensus target, one per issuer, by
+    upside. Each carries its target range as a share of the mean target
+    (analyst disagreement) and where its price sits in its 52-week range."""
+    eligible = sorted((r for r in rows if _analyst_pick_eligible(r) and _buy_rated(r)),
+                      key=lambda r: r.get("upside_pct") or 0, reverse=True)
+    seen, out = set(), []
+    for r in eligible:
+        k = _issuer_key(r)
+        if k in seen:
+            continue
+        seen.add(k)
+        row = dict(r)
+        hi, lo, mean = _opt_round(row.get("target_high")), _opt_round(row.get("target_low")), _opt_round(row.get("target_mean"))
+        row["target_dispersion_pct"] = round((hi - lo) / mean * 100, 1) if hi is not None and lo is not None and mean else None
+        wl, wh, px = _opt_round(row.get("week52_low")), _opt_round(row.get("week52_high")), _opt_round(row.get("price"))
+        row["range_pos"] = round((px - wl) / (wh - wl), 3) if None not in (wl, wh, px) and wh > wl else None
+        out.append(row)
+        if len(out) >= int(_T.MARKET.ANALYST_PICK_COUNT):
+            break
+    return out
+
+
+def _consensus_stats(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """The median consensus upside across tracked names with enough analysts,
+    whatever their rating, and how many names carry each sector."""
+    ups, sectors = [], {}
+    for r in rows:
+        sec = str(r.get("sector") or "").strip()
+        if sec:
+            sectors[sec] = sectors.get(sec, 0) + 1
+        up = _opt_round(r.get("upside_pct"))
+        if up is not None and int(r.get("analyst_count") or 0) >= int(_T.MARKET.ANALYST_PICK_MIN_ANALYSTS):
+            ups.append(up)
+    ups.sort()
+    n = len(ups)
+    median = None if not n else (ups[n // 2] if n % 2 else round((ups[n // 2 - 1] + ups[n // 2]) / 2, 2))
+    # Every covered name's upside, rounded, so the page can draw where the
+    # listed candidates sit in the whole distribution.
+    return {"median_upside_pct": median, "n": n, "sectors": sectors, "names": len(rows), "upsides": [round(u, 1) for u in ups]}
+
+
 def _build_market_intel(key: str) -> Dict[str, Any]:
     universe = MARKET_UNIVERSES.get(key, MARKET_UNIVERSES["US"])
 
@@ -4507,9 +4708,20 @@ def _build_market_intel(key: str) -> Dict[str, Any]:
     if key == 'US':
         for side in ('day_gainers', 'day_losers'):
             futures[_market_intel_executor.submit(_screener_movers, side, SCREENER_FETCH_COUNT)] = side
+    # One batched quote request covers the whole tracked universe (about 0.3 s
+    # per 100 names), so every name has this session's quote even under the
+    # provider rate limit. Only research fields not yet cached cost a call per
+    # name; a name the batch missed falls back to its own full read.
+    batch = _batch_quotes(broad_symbols)
+    fund_results: Dict[str, Dict[str, Any]] = {}
     for symbol in broad_symbols:
-        futures[_market_intel_executor.submit(_ticker_intel, symbol)] = 'ticker'
+        if symbol in batch:
+            if _disc.FUNDAMENTALS.get(symbol) is None:
+                futures[_market_intel_executor.submit(_fundamentals_job, symbol)] = 'fund'
+        else:
+            futures[_market_intel_executor.submit(_ticker_intel, symbol)] = 'ticker'
     timed_out = False
+    extreme_hidden = 0
     try:
         for future in as_completed(futures, timeout=MARKET_INTEL_FETCH_SECONDS):
             try:
@@ -4522,6 +4734,9 @@ def _build_market_intel(key: str) -> Dict[str, Any]:
                 screener_gainers = result
             elif kind == 'day_losers':
                 screener_losers = result
+            elif kind == 'fund':
+                if result and result[1]:
+                    fund_results[result[0]] = result[1]
             elif result and result.get('price') is not None:
                 universe_rows.append(result)
     except FuturesTimeout:
@@ -4530,10 +4745,33 @@ def _build_market_intel(key: str) -> Dict[str, Any]:
         for future in futures:
             future.cancel()
     screener_used = bool(screener_gainers or screener_losers)
+    for symbol, quote in batch.items():
+        universe_rows.append(_with_fundamentals(quote, fund_results.get(symbol) or _disc.FUNDAMENTALS.get(symbol)))
 
     # Index universe rows by symbol so we can enrich screener hits with
     # analyst & earnings data when available.
     by_symbol = {r["symbol"]: r for r in universe_rows if r.get("symbol")}
+
+    # Research rows: this cycle's quotes, plus the last row of a tracked name
+    # whose quote missed the deadline, so the Street list does not change
+    # membership with provider latency. A carried row is marked and never
+    # reaches the movers or open-extreme boards, which need this session.
+    with _market_intel_cache_lock:
+        carried_prev = dict(_research_rows_last.get(key) or {})
+    research_rows = []
+    for r in universe_rows:
+        # A fresh quote whose research read is still pending keeps last cycle's
+        # research fields, repriced against this session's quote.
+        prev = carried_prev.get(r.get("symbol")) if r.get("target_mean") is None else None
+        research_rows.append(_with_fundamentals(r, {k: prev.get(k) for k in _RESEARCH_FIELDS if prev.get(k) is not None}) if prev else r)
+    carried = 0
+    for sym in broad_symbols:
+        if sym not in by_symbol and sym in carried_prev:
+            research_rows.append({**carried_prev[sym], "quote_carried": True})
+            carried += 1
+    with _market_intel_cache_lock:
+        _research_rows_last[key] = {**carried_prev, **{r["symbol"]: r for r in universe_rows
+                                                       if r.get("symbol") and r.get("target_mean") is not None}}
 
     # ---------- (3) Assemble movers (screener-first, universe-fallback) ----
     if screener_used:
@@ -4557,20 +4795,24 @@ def _build_market_intel(key: str) -> Dict[str, Any]:
         # Sort + clip
         screener_gainers.sort(key=lambda r: r.get("change_pct") or 0, reverse=True)
         screener_losers.sort(key=lambda r: r.get("change_pct") or 0)
+        extreme_hidden = _extremes_past(screener_gainers) + _extremes_past(screener_losers)
         movers_up = screener_gainers[:MOVERS_DISPLAY_COUNT]
         movers_down = screener_losers[:MOVERS_DISPLAY_COUNT]
         universe_source = f"Yahoo screener \u00b7 enriched with Top {len(universe_rows)} universe"
     else:
         # Pure universe sort
-        movers_up = sorted(
+        all_up = sorted(
             [r for r in universe_rows if (r.get("change_pct") or 0) > 0],
             key=lambda r: r.get("change_pct") or 0,
             reverse=True,
-        )[:MOVERS_DISPLAY_COUNT]
-        movers_down = sorted(
+        )
+        all_down = sorted(
             [r for r in universe_rows if (r.get("change_pct") or 0) < 0],
             key=lambda r: r.get("change_pct") or 0,
-        )[:MOVERS_DISPLAY_COUNT]
+        )
+        extreme_hidden = _extremes_past(all_up) + _extremes_past(all_down)
+        movers_up = all_up[:MOVERS_DISPLAY_COUNT]
+        movers_down = all_down[:MOVERS_DISPLAY_COUNT]
         universe_source = f"Top {len(universe_rows)} broad universe"
 
     # [OPEN-EXTREMES] Scan every quote fetched this cycle, not just the rows
@@ -4593,22 +4835,17 @@ def _build_market_intel(key: str) -> Dict[str, Any]:
         if r.get("change_pct") is not None and abs(r["change_pct"]) >= EXTREME_MOVE_PCT:
             r["extreme"] = True
             extreme_count += 1
+        # How the session traded, and a reason when this payload alone shows
+        # one (a deal pattern or a report); /api/discover/enrich adds the rest.
+        r["tape"] = _disc.tape_read(r)
+        r["earnings_today"] = _reported_this_session(r, key)
+        reason = _disc.move_reason(r)
+        if reason:
+            r["reason"] = reason
 
     # ---------- (4) Analyst Picks + Earnings (uses broad universe) -------
-    def _is_strong(r):
-        rec = (r.get("recommendation") or "")
-        if isinstance(rec, str):
-            return rec.lower() in {"buy", "strong_buy", "strongbuy"}
-        try:
-            return float(rec) <= 2.3
-        except Exception:
-            return False
-
-    analyst_picks = sorted(
-        [r for r in universe_rows if _analyst_pick_eligible(r) and _is_strong(r)],
-        key=lambda r: r.get("upside_pct") or 0,
-        reverse=True,
-    )[:8]
+    analyst_picks = _street_candidates(research_rows)
+    consensus_stats = _consensus_stats(research_rows)
 
     earnings_week: List[Dict[str, Any]] = []
     # Days are counted from the market's own date, the date its week calendar
@@ -4641,6 +4878,16 @@ def _build_market_intel(key: str) -> Dict[str, Any]:
             earnings_week.append(row)
     earnings_week.sort(key=lambda r: r["earnings_in_days"])
     earnings_week = _merge_earnings_calendar(earnings_week, key)
+    # The calendar knows report timing the per-name read may not: carry it to
+    # the Street list for the same report date.
+    cal_by_sym = {str(r.get("symbol") or "").upper(): r for r in earnings_week}
+    for r in analyst_picks:
+        c = cal_by_sym.get(str(r.get("symbol") or "").upper())
+        same_day = c and str(c.get("earnings_date_pretty") or c.get("earnings_date") or "")[:10] == str(r.get("earnings_date") or "")[:10]
+        if same_day and not r.get("earnings_timing"):
+            r["earnings_timing"] = c.get("earnings_timing")
+        if same_day and r.get("eps_estimate") is None and c.get("eps_estimate") is not None:
+            r["eps_estimate"] = c.get("eps_estimate")
     # "ok" when Yahoo's calendar answered, "off" outside the US or when disabled,
     # "unavailable" when it was asked and returned nothing.
     if key != "US" or os.environ.get("QUANTA_EARNINGS_CALENDAR", "1") == "0":
@@ -4721,6 +4968,13 @@ def _build_market_intel(key: str) -> Dict[str, Any]:
         "open_extremes_scanned": open_extremes_scanned,
         "open_extremes_coverage": open_extremes_coverage,
         "analyst_picks": analyst_picks,
+        # The tracked universe's own consensus read, so a candidate's upside
+        # can be read against the typical name rather than in isolation.
+        "consensus_stats": consensus_stats,
+        "coverage": {"tracked": len(broad_symbols), "quoted": len(universe_rows), "carried": carried,
+                     "with_targets": consensus_stats.get("n", 0)},
+        "extreme_hidden": extreme_hidden,
+        "extreme_move_pct": EXTREME_MOVE_PCT,
         "earnings_week": earnings_week[:10],
         # The full dated list for the week calendar, and the count of reports
         # still ahead (today included), so counts are not capped by the table.
@@ -5141,6 +5395,55 @@ def market_intel_endpoint():
     market = _normalize_market(request.args.get("market"))
     blocking = request.args.get("blocking", "0") in {"1", "true", "yes"}
     return jsonify(_safe_serialize(_market_intel(market, blocking=blocking)))
+
+
+@app.route("/api/discover/enrich")
+def discover_enrich_endpoint():
+    """What Discover adds once the intel payload has rendered: for each Street
+    candidate its volatility, revisions, odds of the target and (reporting
+    soon) the option market's earnings move; for each mover its sector fund's
+    move, any analyst action and so its reason.
+
+    Reads only the names the cached intel payload lists, never symbols from
+    the request. Nonblocking: returns the reads already finished and a
+    `pending` count; the page asks again until it is zero."""
+    market = _normalize_market(request.args.get("market"))
+    with _market_intel_cache_lock:
+        hit = _market_intel_cache.get(market)
+    intel = (hit or {}).get("payload") or {}
+    m = _T.MARKET
+    futures = {}
+    for r in intel.get("analyst_picks") or []:
+        sym = r.get("symbol")
+        if not sym:
+            continue
+        job = f"idea|{market}|{sym}|{r.get('target_mean')}|{r.get('earnings_date')}"
+        futures[f"idea|{sym}"] = _disc.submit(job, float(m.ENRICH_OPTIONS_CACHE_SECONDS), _disc.idea_read, sym, market,
+                                              r.get("price"), r.get("target_mean"), r.get("earnings_date"), r.get("earnings_timing"))
+    movers = {str(r.get("symbol")): r for r in (intel.get("movers_up") or []) + (intel.get("movers_down") or []) if r.get("symbol")}
+    for sym, r in movers.items():
+        futures[f"mover|{sym}"] = _disc.submit(f"mover|{market}|{sym}", float(m.CONTEXT_CACHE_SECONDS), _disc.mover_read,
+                                               sym, market, r.get("change_pct"), r.get("sector"))
+    try:
+        wait = max(0.0, min(float(request.args.get("wait") or 0), 8.0))
+    except ValueError:
+        wait = 0.0
+    done, pending = _disc.collect(futures, wait)
+    ideas, mover_reads = {}, {}
+    for k, v in done.items():
+        kind, sym = k.split("|", 1)
+        if v is None:
+            continue
+        if kind == "idea":
+            ideas[sym] = v
+        else:
+            v = dict(v)
+            v["reason"] = _disc.move_reason(movers[sym], v)
+            mover_reads[sym] = v
+    return jsonify(_safe_serialize({
+        "market": market, "ideas": ideas, "movers": mover_reads,
+        "pending": len(pending), "as_of": _now_iso(), "intel_as_of": intel.get("as_of"),
+    }))
 
 
 # ---------------------------------------------------------------------------

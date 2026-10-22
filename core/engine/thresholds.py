@@ -283,6 +283,52 @@ class MARKET(_Group):
     ANALYST_PICK_MIN_ANALYSTS = 10
     ANALYST_PICK_MIN_UPSIDE_PCT = 2.0
     ANALYST_PICK_MAX_UPSIDE_PCT = 50.0
+    ANALYST_PICK_COUNT = 8          # Street candidates Discover lists
+    # A numeric consensus (1 strong buy .. 5 sell) at or below this counts as
+    # buy-rated, for the list and for the label the page prints beside it.
+    ANALYST_BUY_MEAN_MAX = 2.3
+    ANALYST_STRONG_BUY_MEAN_MAX = 1.5
+    # Per-name research fields (targets, rating, sector, earnings date) change
+    # daily, not per quote: read once and reused this long, kept on disk.
+    FUNDAMENTALS_CACHE_SECONDS = 21600.0
+    # Discover enrichment (/api/discover/enrich): price history, analyst
+    # revisions and EPS trend are reused for HISTORY; option chains for OPTIONS.
+    ENRICH_HISTORY_CACHE_SECONDS = 21600.0
+    ENRICH_OPTIONS_CACHE_SECONDS = 1800.0
+    ENRICH_BUDGET_SECONDS = 25.0    # wall-clock wait per enrichment request
+    REVISION_WINDOW_DAYS = 90       # analyst target changes counted over this window
+    EPS_REVISION_WINDOW = "30daysAgo"  # EPS trend column the current estimate is compared with
+    # Odds of reaching the Street target: a lognormal at the option market's
+    # implied volatility (or the 1-year realised volatility when no sane chain
+    # exists), risk-neutral, over this horizon. A probability, not a forecast.
+    TARGET_ODDS_HORIZON_DAYS = 365
+    IMPLIED_VOL_MIN = 0.05          # implied volatility outside this band is a bad quote
+    IMPLIED_VOL_MAX = 2.5
+    RISK_FREE_FALLBACK = {"US": 0.04, "IN": 0.065}  # used only when the 3-month bill quote is missing
+    # A target that may trail a falling price: price in the bottom share of its
+    # 52-week range while analysts cut more targets than they raise.
+    TARGET_LAG_RANGE_SHARE = 0.2
+    EARNINGS_HISTORY_REPORTS = 8    # past reports behind the average earnings move
+    # Movers: why a name is moving and how its session traded.
+    MOVE_DEAL_MIN_GAP_PCT = 15.0    # gap up this large with a range this tight reads as a deal price
+    MOVE_DEAL_MAX_RANGE_PCT = 1.5
+    MOVE_SECTOR_SHARE = 0.5         # the sector fund explains at least this share of the move
+    GAP_MIN_PCT = 1.0               # open vs previous close beyond this: a gap session
+    GAP_HOLD_SHARE = 0.75           # the close keeps at least this share of the gap: held
+    GAP_FADE_SHARE = 0.4            # keeps less than this: faded
+    TREND_DAY_CLV = 0.8             # no gap, last in the top (or bottom) fifth of the range
+    RVOL_HIGH = 2.0                 # volume at least this multiple of its 3-month average: heavy
+    # Yahoo sector -> the sector fund in SECTOR_BASKETS a mover is compared with.
+    SECTOR_FUND_BY_SECTOR = {
+        "US": {"Technology": "XLK", "Communication Services": "XLC", "Consumer Cyclical": "XLY",
+               "Financial Services": "XLF", "Industrials": "XLI", "Healthcare": "XLV",
+               "Energy": "XLE", "Basic Materials": "XLB", "Consumer Defensive": "XLP",
+               "Utilities": "XLU", "Real Estate": "XLRE"},
+        "IN": {"Technology": "^CNXIT", "Financial Services": "^NSEBANK", "Consumer Cyclical": "^CNXAUTO",
+               "Healthcare": "^CNXPHARMA", "Consumer Defensive": "^CNXFMCG", "Basic Materials": "^CNXMETAL",
+               "Energy": "^CNXENERGY", "Real Estate": "^CNXREALTY", "Communication Services": "^CNXMEDIA",
+               "Industrials": "^CNXINFRA"},
+    }
     # Gross exposure bands (% of capital) for each Overview posture, and the caps
     # applied while confidence is low or data is stale. A Picks scan deploys no
     # more than the upper end of the band in force (owner decision 2026-10-19).

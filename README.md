@@ -144,8 +144,21 @@ Picks name can be funded**. `--port 5600` (or `QUANTA_PORT`) serves on another p
 ### Build a track record (recommended)
 
 The ledger only proves anything if calls are recorded every day and scored when their horizon
-ends. One command schedules that on macOS (Monday to Saturday at 17:30 local time; the job scans
-each completed New York session exactly once, so any local time zone works):
+ends. One command schedules that (Monday to Saturday at 17:30 local time; the job scans each
+completed New York session exactly once, so any local time zone works).
+
+On Windows, with Task Scheduler:
+
+```powershell
+scripts\schedule_daily.ps1         # install;  -Status to check, -Remove to uninstall, -RunNow to start it
+scripts\quanta_daily.ps1           # or run the job once by hand (-NoScan skips the scan)
+```
+
+It runs as you while you are signed in, and a run missed while the PC was off starts when it is
+next available. It uses `QUANTA_PYTHON` from `.env` if set, otherwise the first Python that has
+pandas and yfinance installed.
+
+On macOS, with launchd:
 
 ```bash
 scripts/schedule_daily.sh          # install;  --status to check, --remove to uninstall
@@ -215,11 +228,20 @@ host), and has no build step.
 |---|---|
 | **Overview** | Market mood, a session quote board, a plain-English read of the day and an interactive price chart, for the US or India |
 | **Discover** | Ranked ideas and the names moving today, each labelled by the model's Decision, with filters for sector and near earnings |
-| **Research** | One-ticker tear sheet: decision and levels, live chart, colour-coded technical signals, valuation, peers and risks; searchable US and Indian listings |
+| **Research** | One-ticker tear sheet: decision and levels, live chart, colour-coded technical signals, valuation, peers and risks; searchable US and Indian listings. Save the name to My list or set a price alert at its stop, its target or your own price |
 | **Picks** | Runs a scan through the engine's gates and lists Buy / Accumulate / Watchlist calls sized to your capital, with the rules each name passed or failed |
 | **My Portfolio** | Read-only Robinhood holdings with guidance, intraday, what-if, an Activity ledger and a Review tab. Every performance chart is a replay of today's holdings, not the account's own return |
 | **Evidence** | Whether each model is validated out of sample, in plain language, and how published Decisions did |
 | **Guide** | Live demonstrations of the rules the engine applies |
+| **My list and alerts** (the bell in the top bar) | Your saved names with price, day change and QUANTA's last recorded call on each; price alerts checked every five minutes while their market is open, with a desktop notification and an inbox of fired alerts. Kept on this computer (`data/my_list.sqlite3`) |
+
+**The live chart** (Overview and Research) draws a line or candles from 1D to Max with indicators
+computed in the page: simple averages (20, 50, 200), a 21-bar EMA, Bollinger bands, session VWAP,
+volume, and RSI and MACD in their own panes. Compare redraws the name against SPY (or the Nifty 50
+for Indian listings) in percent. It zooms (Ctrl + scroll, + and -) and pans, reads every bar's
+open, high, low and close in its legend, marks dividends, splits and the next earnings report, and
+stays live: the 1D chart refreshes every 20 seconds while a session is open, and longer ranges fold
+the live quote into their last bar every minute.
 
 <table>
   <tr>
@@ -395,7 +417,7 @@ Price-only pre-screen         skips the expensive fundamentals fetch when the
                               best case still can't clear the threshold
         ↓
 Composite score (0–100)       technical 28% · momentum 22% · fundamental 20%
-                              quality 12% · sentiment 10% · pattern 8%
+                              quality 12% · analyst 10% · pattern 8%
         ↓
 Regime adjustment             SPY trend + VIX → score multiplier
         ↓
@@ -510,8 +532,10 @@ The harness carries its own guards in `core/apex_quant/tests/`:
 | Test | Result |
 |---|---|
 | ELITE composite (price legs, 2010-2026) | IC -0.029 (21d, significantly negative) / -0.035 (63d) on identical cross-sections; reliably **worse than plain 12-1 momentum**, and worse than a random ranking at 63 days (`_reports/factor_baselines.txt`) |
-| Current research model `elite.research.v2` (technical leg, 2010-2026) | IC -0.003 (21d, t -0.26) / +0.001 (63d): **no signal**, and not distinguishable from 12-1 momentum or a random ranking (`_reports/research_v2_oos.txt`, `factor_baselines_research_v2_oos.txt`). Removing the inverted risk leg took the model from inverted to flat, not to an edge |
-| Short-term scanner price core (1,284 trades, 2016-2026) | 56.6% win rate, but random entries with the same exits win 55.0%; excess vs SPY **+0.03% per weekly entry cohort** (95% CI -0.29% to +0.36%; -0.10% per trade) and **no better than random entries** (+0.11%, CI -0.27% to +0.49%); probabilistic Sharpe 0.56 (`_reports/shortterm/`) |
+| Current research model `elite.research.v2`, **full model** (technical, fundamental, valuation and quality legs: 89% of weight; fundamentals from SEC filings known on each date; live regime weights; 2010-2026) | IC **+0.020** (21d, t +0.87) / **+0.041** (63d, t +1.42); the 63-day buckets rise monotonically (Q1 +3.5% to Q5 +4.8%). Positive but **not significant**, so still NO_EDGE. The fundamental and quality legs add ranking power over the price-only leg (+0.024 / +0.035 IC, CIs above zero), but the model is **not better than free 12-1 momentum** (`_reports/research_v2_pit_oos.txt`, `factor_baselines_research_v2_pit_oos.txt`) |
+| Same model, technical leg only (33% of weight; the earlier test) | IC -0.003 (21d, t -0.26) / +0.001 (63d): no signal (`_reports/research_v2_oos.txt`) |
+| Short-term scanner, price, fundamental and quality legs (90% of weight; 2,020 trades, 2016-2026) | Excess vs SPY **-0.20% per weekly entry cohort** (95% CI -0.44% to +0.02%; -0.28% per trade) and **-0.26% vs random entries** with the same exits (CI -0.59% to +0.04%); probabilistic Sharpe 0.06. Scoring fundamentals made the scanner trade more and do slightly worse (`_reports/shortterm/pit/`) |
+| Short-term scanner price core only (1,284 trades, 2016-2026; the earlier test) | 56.6% win rate, but random entries with the same exits win 55.0%; excess vs SPY +0.03% per weekly entry cohort (95% CI -0.29% to +0.36%) and no better than random entries (`_reports/shortterm/summary_latest.json`) |
 
 A high win rate with no excess return is the trap these tests exist to catch.
 
@@ -539,6 +563,11 @@ loopback, Overview page, US market.
 - Static files are fingerprinted (`?v=<mtime>`) and sent `Cache-Control: public, max-age=31536000,
   immutable`, so a repeat visit makes no request for them.
 - Scripts are `defer`red; the theme is set by a tiny blocking script so there is no flash.
+- Yahoo requests are paced where they are sent (each HTTP call, not each `Ticker` object), with a
+  token bucket: up to eight go at once, then one every 0.35 s. Concurrent reads of the same symbol
+  share one request, and a failed refresh serves the last good answer for up to six hours rather
+  than an empty panel. Measured 22 October 2026: a cold US dashboard makes 36 to 54 requests, so
+  it stays request-bound at about 12 s; a warm rebuild makes about a dozen.
 - The dashboard read is built **once per market at a time**: a second tab, or the first visitor
   arriving while the startup warm-up is still running, waits for the build in flight instead of
   repeating every provider call.
@@ -597,7 +626,7 @@ quanta-equity-research/
 │   └── img/                      Screenshots used by this README
 ├── config/                     Reference data
 ├── data/                       Static calendar data; runtime cache and ledger are created here (git-ignored)
-├── scripts/                    Daily track-record job and its launchd scheduler
+├── scripts/                    Daily track-record job and its schedulers (Task Scheduler, launchd)
 ├── .github/workflows/          CI and the Windows executable build
 ├── PRODUCT.md, DESIGN.md       Product context and the web app's design system
 ├── pyproject.toml              Dependencies, pytest and ruff configuration
@@ -633,6 +662,13 @@ Set these in your shell or in `.env` (copy `.env.example`). Every one is optiona
 | `QUANTA_TRACKING_DISABLED` | unset | `1` records no calls (every test run sets it) |
 | `QUANTA_PUBLISH_COMMIT` | unset | `1` commits the daily `track_record/` export |
 | `QUANTA_YF_INFO_TTL`, `QUANTA_YF_HIST_TTL` | 3600 s, 900 s | How long Yahoo info and history are cached |
+| `QUANTA_YF_BURST` | `8` | Yahoo requests that may go at once after a quiet spell; the sustained rate stays one per 0.35 s |
+| `QUANTA_YF_STALE_GRACE` | 21600 s | How old a cached answer may be and still be served when a refresh fails |
+| `QUANTA_MYLIST_PATH` | `data/my_list.sqlite3` | My list and price alerts |
+| `QUANTA_ALERT_INTERVAL` | 300 s | How often alerts are checked while a market is open |
+| `QUANTA_ALERTS` | `1` | `0` turns the alert checker off |
+| `QUANTA_SMTP_HOST`, `QUANTA_SMTP_PORT`, `QUANTA_SMTP_USER`, `QUANTA_SMTP_PASSWORD`, `QUANTA_ALERT_EMAIL` | none | Optional: also email fired alerts |
+| `QUANTA_PYTHON` | first Python with pandas | Interpreter for the Windows daily job (`scripts/quanta_daily.ps1`) |
 | `QUANTA_VERSION` | git commit | The build label in the footer |
 | `POLYGON_API_KEY`, `FINNHUB_API_KEY`, `FMP_API_KEY`, `ALPHA_VANTAGE_KEY` | none | Optional providers; the default path needs none |
 
@@ -895,12 +931,14 @@ Stated plainly, because the alternative is you discovering them with real money.
 
 - **No demonstrated edge.** Walk-forward testing of the ELITE composite found no out-of-sample
   predictive power. Better-looking output is not better performance.
-- **Long-only.** No short setups, options, or non-US equities.
+- **Long-only, two markets.** No short setups or options. US listings and Indian listings (NSE `.NS`, BSE `.BO`) only.
 - **Free data.** Yahoo Finance fundamentals are frequently incomplete or stale. Missing fields are
   imputed at neutral rather than scored as zero, but imputation is not measurement.
-- **No point-in-time fundamentals.** The backtest harness holds fundamental scores neutral during
-  replay because historical `info` snapshots don't exist. Backtested results therefore exercise the
-  technical core only.
+- **Point-in-time fundamentals are US-only and partial.** The validation runs rebuild fundamental,
+  valuation and quality inputs from SEC filings known on each date (`core/apex_quant/pit_fundamentals.py`),
+  so US backtests now cover about 90% of each model. Analyst targets and ratings, news sentiment,
+  insider flow, forward EPS and short interest have no history and stay neutral; Indian listings
+  have no point-in-time source at all.
 - **Intraday data is delayed.** The 5-minute playbook uses ~15-minute-delayed bars. It is advisory;
   use a real-time feed for execution.
 - **Timing estimates are pace, not prediction.** ATR says how far a name typically travels in a

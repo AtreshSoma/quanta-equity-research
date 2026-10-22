@@ -149,12 +149,12 @@ class FinnhubNewsSource:
                 'symbol': ticker,
                 'from': from_date.strftime('%Y-%m-%d'),
                 'to': to_date.strftime('%Y-%m-%d'),
-                'token': self.api_key
             }
             
             response = self.requests.get(
                 f"{self.base_url}/company-news",
                 params=params,
+                headers={"X-Finnhub-Token": self.api_key or ""},
                 timeout=5
             )
             

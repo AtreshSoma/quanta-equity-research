@@ -47,6 +47,8 @@ core/apex_quant/_cache/*.parquet
 
 # Signal ledger (production track record) - local state, never committed
 data/ledger/
+data/my_list.sqlite3*
+track_record/.publish.lock
 
 # Web app (webapp/): Node, browser-test artifacts and local runtime data
 node_modules/

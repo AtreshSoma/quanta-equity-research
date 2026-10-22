@@ -105,6 +105,14 @@
         </button>
       </div>
 
+      <div class="ml-bell">
+        <button type="button" class="icon-btn ml-toggle" id="ml-toggle" aria-expanded="false" aria-controls="ml-panel"
+                aria-label="My list and alerts" title="My list and price alerts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="ml-badge" hidden>0</span>
+        </button>
+        <div class="ml-panel" id="ml-panel" role="dialog" aria-label="My list and price alerts" hidden></div>
+      </div>
       <a class="icon-btn guide-link" id="guide-link" href="#guide" data-view-link="guide" title="How QUANTA works" aria-label="Guide: how QUANTA works">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6"/><path d="M12 17h.01"/></svg>
         <span class="guide-link-label" aria-hidden="true">Guide</span>
@@ -1517,7 +1525,8 @@
             <details><summary>What does "Model not yet validated" mean?</summary><p>The scoring model behind the call hasn't yet passed tests on past data. "Tested: no edge found" goes further: the model was tested and showed no reliable edge. Treat either kind of call as a research idea, and position sizes as a risk budget, not a prediction.</p></details>
             <details><summary>How does it decide how many shares to buy?</summary><p>From the loss at the stop: <span data-threshold="SIZING.TARGET_RISK_PER_TRADE" data-threshold-fmt="pct"></span> of capital (<span data-threshold="SIZING.TARGET_RISK_STRONG_BUY" data-threshold-fmt="pct"></span> for a Strong Buy), scaled by the call and the score, divided by the distance to the stop. Limits then trim it: at most <span data-threshold="SIZING.MAX_POSITION_PCT" data-threshold-fmt="pct"></span> in one stock, the risk grade, and the mandate, which funds <span data-threshold="SIZING.MANDATE_SCALE.conservative" data-threshold-fmt="pct"></span> for Conservative. Shares are whole, with a minimum trade of <span data-threshold="SIZING.MIN_POSITION_PCT" data-threshold-fmt="pct"></span> of capital, at least <span data-threshold="SIZING.MIN_POSITION_FLOOR" data-threshold-fmt="money"></span> and at most <span data-threshold="SIZING.MIN_POSITION_SIZE" data-threshold-fmt="money"></span>.</p></details>
             <details><summary>Which markets and assets does it cover?</summary><p>US stocks and ETFs, and Indian stocks on the NSE (add .NS) or BSE (add .BO) in Research. Scans cover ready-made US and NSE universes, or up to <span data-threshold="CAPITAL.MAX_CUSTOM_TICKERS" data-threshold-fmt="int"></span> tickers of your own. My Portfolio analyses stocks and ETFs, not options or crypto.</p></details>
-            <details><summary>What doesn't QUANTA do?</summary><p>It has no price alerts, saved watchlists, report downloads or side-by-side stock comparison. Picks can copy its picks as a TradingView watchlist, and a scan's error log can be downloaded.</p></details>
+            <details><summary>What doesn't QUANTA do?</summary><p>It places no orders and sends nothing off this computer except the requests for market data (and an alert email, only if you configure one). It has no report downloads or side-by-side stock comparison. Picks can copy its picks as a TradingView watchlist, and a scan's error log can be downloaded.</p></details>
+            <details><summary>Can QUANTA alert me when a price moves?</summary><p>Yes. Save a name to My list from its tear sheet and set an alert at the Decision's stop, its target, or your own price. While QUANTA is running, it checks alerted prices every five minutes when their market is open and posts a desktop notification; fired alerts wait under the bell in the top bar until you dismiss them. My list is kept on this computer, so every browser sees the same one.</p></details>
             <details><summary>Why can a scan take several minutes?</summary><p>QUANTA spaces out its data requests so free providers don't block it. A quick scan takes a few minutes; a full one takes longer.</p></details>
           </div>
         </section>
@@ -1568,6 +1577,7 @@
   <!-- [F9] Decision thresholds from engine/thresholds.py (also GET /api/thresholds). -->
   <script type="application/json" id="quanta-thresholds">{{ thresholds_json|safe }}</script>
   <script src="{{ asset_url('live-chart.js') }}" defer></script>
+  <script src="{{ asset_url('my-list.js') }}" defer></script>
   <script src="{{ asset_url('app.js') }}" defer></script>
   <script src="{{ asset_url('dashboard-workspace.js') }}" defer></script>
   <script src="{{ asset_url('elite-pro.js') }}" defer></script>

@@ -187,3 +187,30 @@ def test_every_config_group_is_published():
     groups = {name for name, obj in vars(T).items()
               if isinstance(obj, type) and issubclass(obj, T._Group) and obj is not T._Group}
     assert groups == {g.__name__ for g in T.GROUPS}
+
+
+# ── the short-term scanner's profile lives here too ──────────────────────────
+
+def test_shortterm_scanner_reads_its_profile_from_thresholds(monkeypatch):
+    import SP_ShortTerm as st
+
+    assert st.Config.MIN_RISK_REWARD == T.SHORTTERM.MIN_RISK_REWARD
+    assert st.Config.CORRELATION_THRESHOLD == T.SHORTTERM.CORRELATION_THRESHOLD
+    assert st.Config.MAX_PORTFOLIO_RISK == T.SHORTTERM.MAX_PORTFOLIO_RISK
+    assert st.TradingSignal.STRONG_BUY.min_score == T.SHORTTERM.STRONG_BUY
+    # Aliases, not copies: a change to the profile moves the scanner.
+    monkeypatch.setattr(T.SHORTTERM, "MIN_RISK_REWARD", 2.4)
+    assert st.Config.MIN_RISK_REWARD == 2.4
+
+
+def test_allocation_gate_defaults_to_the_books_caps(monkeypatch):
+    from engine.allocation import check_allocation_eligible
+    from engine.types import DecisionResult, FinalAction
+
+    dec = DecisionResult(final_action=FinalAction.BUY)
+    ok, _ = check_allocation_eligible(dec, sector_exposure_pct=T.BOOK.MAX_SECTOR_PCT - 0.01,
+                                      portfolio_risk_pct=T.SIZING.MAX_PORTFOLIO_RISK - 0.001)
+    assert ok
+    monkeypatch.setattr(T.SIZING, "MAX_PORTFOLIO_RISK", 0.02)
+    ok, reasons = check_allocation_eligible(dec, portfolio_risk_pct=0.03)
+    assert not ok and "2.00%" in reasons[0]

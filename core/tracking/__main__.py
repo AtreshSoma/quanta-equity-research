@@ -4,7 +4,7 @@
     python -m tracking report           # benchmarked stats per engine/horizon/stance
     python -m tracking report --by regime
     python -m tracking alerts           # stops / targets touched by open calls
-    python -m tracking alerts --notify  # ... and post a macOS notification
+    python -m tracking alerts --notify  # ... and post a desktop notification (macOS, Windows)
     python -m tracking publish          # export the tamper-evident record to track_record/
     python -m tracking verify           # check that record's hash chain and calls
 

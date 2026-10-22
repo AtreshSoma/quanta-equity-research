@@ -934,7 +934,38 @@ class SAVED_SCANS(_Group):
     MAX_SAVED = 12                  # newest kept per market; older ones are removed
 
 
-GROUPS = (CAPITAL, UNIVERSE, CHASE, SCORE, RR, INSIDER, COMMITTEE, REGIME, MARKET, BOOK, SIZING, COSTS, LEVELS,
+# ── Short-term scanner profile (core/SP_ShortTerm.py) ───────────────────────
+# A separate, deliberately stricter profile for one- to three-week setups: a
+# higher reward/risk floor, its own 0-100 score bands, and smaller books. It is
+# declared here so every rule QUANTA applies is in one file; SP_ShortTerm.Config
+# reads these through aliases. Values moved unchanged (2026-10-22).
+class SHORTTERM(_Group):
+    DEFAULT_CAPITAL = 2500
+    MAX_RISK_PER_TRADE = 0.015          # 1.5% of capital per trade
+    MAX_RISK_AGGRESSIVE = 0.025         # 2.5% for high-conviction setups
+    MAX_PORTFOLIO_RISK = 0.06           # 6% open risk across the book
+    MIN_POSITION = 150
+    MAX_POSITION_PCT = 0.35
+    MIN_MARKET_CAP = 1_000_000_000
+    MIN_PRICE = 5.0
+    MAX_PRICE = 3000.0
+    MIN_AVG_VOLUME = 500_000
+    MIN_DOLLAR_VOLUME = 10_000_000
+    MIN_SCORE = 60                      # 0-100 composite floor
+    STRONG_BUY = 80
+    BUY = 70
+    ACCUMULATE = 60
+    MIN_RISK_REWARD = 2.0               # net of friction
+    COMMISSION_BPS = 5.0                # per side
+    SLIPPAGE_BPS = 10.0                 # per side
+    MAX_SECTOR_POSITIONS = 2
+    CORRELATION_THRESHOLD = 0.78        # reject a pick this correlated to a holding
+    RS_PREFERRED_THRESHOLD = 50.0
+    LOW_CONVICTION_SCORE_BUFFER = 8.0
+    LOW_CONVICTION_SIZE_FACTOR = 0.5
+
+
+GROUPS = (CAPITAL, UNIVERSE, SHORTTERM, CHASE, SCORE, RR, INSIDER, COMMITTEE, REGIME, MARKET, BOOK, SIZING, COSTS, LEVELS,
           RISK_GRADE, LADDER, RESEARCH, PORTFOLIO, EVENTS, EVIDENCE, UI, CHECKLIST, STYLE, ETF, WHY, SAVED_SCANS)
 
 

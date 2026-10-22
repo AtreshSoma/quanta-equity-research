@@ -1,0 +1,28 @@
+QUANTA composite vs free baseline factors (cross-sectional IC)
+panel 33161 rows, 42 tickers, 2010-12-30..2026-10-21
+
+--- 21d forward return ---
+factor            mean IC   NW t              95% CI  FDR  composite minus              95% CI
+composite         +0.0181  +1.55    [-0.005, +0.042]   no
+score_technical   -0.0057  -0.58    [-0.025, +0.013]   no          +0.0238    [+0.002, +0.045]
+momentum_12_1     +0.0267  +1.59    [-0.006, +0.060]   no          -0.0086    [-0.040, +0.023]
+reversal_1m       -0.0109  -0.85    [-0.036, +0.014]   no          +0.0290    [-0.010, +0.068]
+low_volatility    -0.0798  -3.50    [-0.127, -0.033]  yes          +0.0979    [+0.035, +0.157]
+random            -0.0058  -0.92    [-0.018, +0.007]   no          +0.0239    [-0.001, +0.050]
+verdict: Composite mean IC +0.0181 (not significant after FDR control). Beats low_volatility only because that baseline is itself inverted (significantly negative IC); not evidence of skill.
+
+--- 63d forward return ---
+factor            mean IC   NW t              95% CI  FDR  composite minus              95% CI
+composite         +0.0378  +1.84    [-0.000, +0.077]   no
+score_technical   +0.0027  +0.22    [-0.021, +0.026]   no          +0.0352    [+0.001, +0.069]
+momentum_12_1     +0.0240  +0.86    [-0.029, +0.078]   no          +0.0139    [-0.036, +0.063]
+reversal_1m       -0.0194  -1.18    [-0.051, +0.013]   no          +0.0572    [-0.002, +0.118]
+low_volatility    -0.1420  -3.89    [-0.211, -0.070]  yes          +0.1798    [+0.087, +0.273]
+random            +0.0039  +0.62    [-0.008, +0.016]   no          +0.0340    [-0.003, +0.073]
+verdict: Composite mean IC +0.0378 (not significant after FDR control). Beats low_volatility only because that baseline is itself inverted (significantly negative IC); not evidence of skill.
+
+Caveats:
+  - Same panel as the out-of-sample report: a static present-day universe, so survivorship bias applies to every factor alike. Compare factors with each other, not with an absolute bar.
+  - Inference uses every evaluation date: Newey-West t with lags equal to the forward-return overlap, and a circular block bootstrap with blocks at least that long.
+  - Every factor is ranked on the same rows: those where all factors and the forward return exist, so paired differences compare identical cross-sections.
+  - Benjamini-Hochberg at q=0.05, separately across the factor ICs and across the composite-minus-baseline differences at each horizon.

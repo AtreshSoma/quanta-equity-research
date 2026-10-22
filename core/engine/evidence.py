@@ -6,7 +6,8 @@ one thing only: has the scoring behind it been validated out of sample?
 
 This module is the single place that answers that question. It reads the
 evidence registry written by the validation harness
-(``core/apex_quant/factor_study.py`` and ``elite_oos.py``) and converts a model
+(``core/apex_quant/elite_oos.py``, ``core/sp_shortterm_backtest.py`` and
+``core/apex_quant/evidence_registry.py``) and converts a model
 action into a presentation label:
 
 * VALIDATED strategy  -> the action is shown as-is (BUY, ACCUMULATE, ...).

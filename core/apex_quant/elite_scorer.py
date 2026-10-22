@@ -87,7 +87,10 @@ class ScorerConfig:
 
     eval_every: int = 1          # bars between evaluations; 1 = every bar
     warmup_bars: int = MIN_WARMUP_BARS
-    regime: Optional[str] = None  # None -> Config.REGIME_WEIGHTS['SIDEWAYS']
+    # None -> Config.REGIME_WEIGHTS['SIDEWAYS']; "auto" -> the regime the live
+    # analyzer detects on each bar (QuantaEliteAnalyzer._determine_regime), so
+    # the weights follow the live model; any other key -> that fixed table.
+    regime: Optional[str] = None
 
 
 class _PointInTimeRiskAnalyzer:
@@ -140,6 +143,7 @@ def score_history(
     ticker: str,
     benchmark_returns: pd.Series,
     cfg: Optional[ScorerConfig] = None,
+    fundamentals=None,
 ) -> pd.DataFrame:
     """Recompute ELITE component scores causally across one ticker's history.
 
@@ -148,6 +152,11 @@ def score_history(
         ticker: Symbol, used only for the engine's logging and sanitisation.
         benchmark_returns: Daily benchmark returns for beta. Truncated per bar.
         cfg: Reconstruction settings.
+        fundamentals: Optional ``apex_quant.pit_fundamentals.PITFundamentals``.
+            When given, the fundamental, valuation and quality legs are scored
+            from SEC figures filed before each bar (the live analyzers' own
+            code, run on the rebuilt payload) instead of being held neutral.
+            Bars before the first usable filing keep the neutral inputs.
 
     Returns:
         Frame indexed by evaluated dates with the component scores, the
@@ -168,8 +177,10 @@ def score_history(
     signal_generator = elite.SignalGenerator()
     neutral = _neutral_inputs()
 
-    regime_key = cfg.regime or "SIDEWAYS"
+    auto_regime = cfg.regime == "auto"
+    regime_key = "SIDEWAYS" if auto_regime else (cfg.regime or "SIDEWAYS")
     weights = dict(elite.Config.REGIME_WEIGHTS[regime_key])
+    valuation_analyzer = elite.ValuationAnalyzer() if fundamentals is not None else None
 
     # Auxiliary series are computed once over the whole frame. Every one is
     # causal (rolling / shift only), so a full-series computation and a
@@ -192,16 +203,38 @@ def score_history(
             logger.debug("%s @ %s: analyzer failed: %s", ticker, asof, exc)
             continue
 
+        fundamental, valuation, fund_filed = neutral["fundamental"], neutral["valuation"], None
+        if fundamentals is not None:
+            from .pit_fundamentals import elite_fundamental
+
+            price = float(close.iloc[i])
+            try:
+                rebuilt = elite_fundamental(fundamentals, asof, price)
+            except Exception as exc:  # noqa: BLE001 - a bad filing must not kill the run
+                logger.debug("%s @ %s: fundamentals failed: %s", ticker, asof, exc)
+                rebuilt = None
+            if rebuilt is not None:
+                fundamental = rebuilt
+                # No point-in-time analyst target: the DCF runs without one.
+                valuation = valuation_analyzer.analyze(ticker, price, rebuilt, risk, analyst_target=0.0)
+                fund_filed = fundamentals.filing_state(asof)
+
         scores = signal_generator._calculate_component_scores(
             technical,
-            neutral["fundamental"],
+            fundamental,
             risk,
             neutral["sentiment"],
             neutral["insider"],
             neutral["market_intel"],
-            neutral["valuation"],
+            valuation,
         )
-        composite = signal_generator._calculate_composite(scores, weights)
+        bar_weights = weights
+        regime_name = regime_key
+        if auto_regime:
+            regime = elite.QuantaEliteAnalyzer._determine_regime(None, technical, risk)
+            bar_weights = signal_generator._get_regime_weights(regime)
+            regime_name = regime.name
+        composite = signal_generator._calculate_composite(scores, bar_weights)
 
         rows.append(
             {
@@ -221,6 +254,10 @@ def score_history(
                 "dollar_vol20": (
                     float(dollar_vol.iloc[i]) if not pd.isna(dollar_vol.iloc[i]) else np.nan
                 ),
+                "regime": regime_name,
+                # Latest SEC filing the fundamental legs used (None = held neutral).
+                "fund_filed": fund_filed,
+                "valuation_status": getattr(valuation, "valuation_status", "unavailable"),
             }
         )
 

@@ -1,0 +1,2 @@
+track_record/*.csv text eol=lf
+track_record/*.jsonl text eol=lf

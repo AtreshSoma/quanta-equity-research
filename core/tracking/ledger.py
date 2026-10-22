@@ -52,6 +52,14 @@ logger = logging.getLogger(__name__)
 LEDGER_ENV = "QUANTA_LEDGER_PATH"
 DEFAULT_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "ledger" / "signals.sqlite3"
 BENCHMARK = "SPY"
+
+
+def benchmark_for(ticker: str) -> str:
+    """The index a call on ``ticker`` is scored against: Nifty for Indian
+    listings (NSE ``.NS`` and BSE ``.BO``), SPY for everything else."""
+    return "^NSEI" if str(ticker or "").upper().endswith((".NS", ".BO")) else BENCHMARK
+
+
 # A neutral call is "right" if the name stayed within this band of the benchmark.
 NEUTRAL_BAND_PCT = 2.0
 # Below this many resolved calls a group's statistics are shown but flagged.
@@ -170,7 +178,7 @@ class GroupStats:
     sufficient: bool
     verdict: str
     # Benchmarks the group's calls were actually scored against ("SPY" for US
-    # listings, "^NSEI" for NSE names). More than one means a mixed-market group.
+    # listings, "^NSEI" for NSE and BSE names). More than one means a mixed-market group.
     benchmarks: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -320,7 +328,7 @@ class SignalLedger:
             reference_price=decision.reference_price,
             target_price=decision.target,
             stop_price=decision.stop,
-            benchmark="^NSEI" if decision.ticker.upper().endswith(".NS") else BENCHMARK,
+            benchmark=benchmark_for(decision.ticker),
             snapshot=decision.to_dict() if callable(getattr(decision, "to_dict", None)) else None,
         )
 

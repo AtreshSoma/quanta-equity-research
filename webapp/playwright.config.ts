@@ -23,7 +23,13 @@ export default defineConfig({
       QUANTA_CACHE_DIR: path.join(scratch, 'cache'),
       QUANTA_REGIME_HISTORY_PATH: path.join(scratch, 'regime_history.json'),
       QUANTA_LEDGER_PATH: path.join(scratch, 'signals.sqlite3'),
+      QUANTA_MYLIST_PATH: path.join(scratch, 'my_list.sqlite3'),
       QUANTA_TRACKING_DISABLED: '1',
+      // The suite mocks the provider routes it reads: no background warm-up,
+      // alert checker or browser tab from the scratch server.
+      QUANTA_NO_WARMUP: '1',
+      QUANTA_ALERTS: '0',
+      QUANTA_NO_BROWSER: '1',
     },
   } : undefined,
   testDir: './tests/e2e',

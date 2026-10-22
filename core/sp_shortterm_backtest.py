@@ -33,8 +33,12 @@ What this harness does:
      week, and probabilistic / deflated Sharpe ratios.
 
 Limitations (stated so they are not mistaken for results):
-  - Fundamental, quality and analyst legs are neutral 50, so this tests the
-    price-based 58% of the composite, not the live model.
+  - By default the fundamental, quality and analyst legs are neutral 50, so the
+    replay tests the price-based 58% of the composite. With ``--pit-fundamentals``
+    the fundamental and quality legs are scored by the scanner's own cards from
+    SEC filings known on each bar (apex_quant/pit_fundamentals.py), covering 90%;
+    the analyst leg (rating, short interest) has no point-in-time source and
+    stays neutral.
   - No regime multiplier, peer re-scoring, funding overlay or portfolio caps:
     each ticker stands alone.
   - The default universe is apex_quant's static present-day list: survivorship
@@ -46,6 +50,7 @@ Limitations (stated so they are not mistaken for results):
 Usage:
     python sp_shortterm_backtest.py --universe liquid --start 2016-01-01 --end 2026-09-30
     python sp_shortterm_backtest.py --tickers AAPL,MSFT --start 2024-01-01 --end 2025-01-01
+    python sp_shortterm_backtest.py --universe liquid --pit-fundamentals --start 2016-01-01
 
 Outputs (timestamped under --output-dir, default ./backtest_reports/):
     trades_<ts>.csv    every signal and random-baseline trade
@@ -124,16 +129,29 @@ class Trade:
 # ---------------------------------------------------------------------------
 
 
-def download(ticker: str, start: str, end: str) -> pd.DataFrame:
-    """Adjusted daily OHLCV from ``HISTORY_BUFFER_DAYS`` before ``start`` to ``end``."""
+def download(ticker: str, start: str, end: str, with_split_close: bool = False) -> pd.DataFrame:
+    """Adjusted daily OHLCV from ``HISTORY_BUFFER_DAYS`` before ``start`` to ``end``.
+
+    ``with_split_close`` adds ``SplitClose``: the close adjusted for splits but
+    not dividends, the units SEC per-share figures convert to. OHLC are then
+    dividend-adjusted from the same download, exactly as ``auto_adjust`` does.
+    """
     fetch_from = (pd.Timestamp(start) - pd.Timedelta(days=HISTORY_BUFFER_DAYS)).date().isoformat()
-    hist = yf.download(ticker, start=fetch_from, end=end, progress=False, auto_adjust=True,
-                       threads=False)
+    hist = yf.download(ticker, start=fetch_from, end=end, progress=False,
+                       auto_adjust=not with_split_close, threads=False)
     if hist is None or hist.empty:
         return pd.DataFrame()
     if isinstance(hist.columns, pd.MultiIndex):
         hist.columns = hist.columns.get_level_values(0)
-    return hist[["Open", "High", "Low", "Close", "Volume"]].dropna()
+    if not with_split_close:
+        return hist[["Open", "High", "Low", "Close", "Volume"]].dropna()
+    raw = hist[["Open", "High", "Low", "Close", "Adj Close", "Volume"]].dropna()
+    ratio = raw["Adj Close"] / raw["Close"]
+    out = pd.DataFrame({c: raw[c] * ratio for c in ("Open", "High", "Low")}, index=raw.index)
+    out["Close"] = raw["Adj Close"]
+    out["Volume"] = raw["Volume"]
+    out["SplitClose"] = raw["Close"]
+    return out
 
 
 class ShortTermBacktest:
@@ -155,11 +173,15 @@ class ShortTermBacktest:
 
     # ---- core single-bar evaluation --------------------------------------
 
-    def _score_slice(self, hist_slice: pd.DataFrame, gated: bool = True) -> Optional[dict]:
+    def _score_slice(self, hist_slice: pd.DataFrame, gated: bool = True,
+                     info: Optional[dict] = None) -> Optional[dict]:
         """Score and plan a trade on a point-in-time slice.
 
         ``gated=False`` skips the score floor and signal check (the random
         baseline enters regardless) but still uses the scanner's own levels.
+        ``info`` is a point-in-time fundamentals payload (yfinance units); when
+        given, the fundamental and quality legs are scored by the scanner's own
+        cards instead of defaulting to 50.
         """
         if len(hist_slice) < 60:
             return None
@@ -182,8 +204,12 @@ class ShortTermBacktest:
         momentum_score = self.analyzer._calculate_momentum_score(indicators, returns)
         pattern_score = self.analyzer._calculate_pattern_score(patterns, indicators)
         # The scanner's own weights; legs without point-in-time data default to 50.
-        overall_score = self.analyzer.composite_score(
-            {"technical": technical_score, "momentum": momentum_score, "pattern": pattern_score})
+        components = {"technical": technical_score, "momentum": momentum_score,
+                      "pattern": pattern_score}
+        if info:
+            components["fundamental"] = self.analyzer._calculate_fundamental_score(info)
+            components["quality"] = self.analyzer._calculate_quality_score(info)
+        overall_score = self.analyzer.composite_score(components)
 
         if gated and overall_score < Config.MIN_SCORE:
             return None
@@ -219,12 +245,23 @@ class ShortTermBacktest:
 
     def replay_ticker(self, ticker: str, hist: pd.DataFrame, start: Optional[str] = None,
                       forced_entries: Optional[Sequence[int]] = None,
-                      benchmark: Optional[pd.DataFrame] = None) -> List[Trade]:
+                      benchmark: Optional[pd.DataFrame] = None,
+                      fundamentals=None) -> List[Trade]:
         """Walk bar-by-bar and produce the closed trades for ``ticker``.
 
         With ``forced_entries`` (bar indices) the signal is ignored and a trade
         opens at each listed bar that is not already inside a trade.
+        ``fundamentals`` (a ``PITFundamentals``) needs ``hist['SplitClose']``.
         """
+        split_close = hist["SplitClose"] if "SplitClose" in hist.columns else None
+        if split_close is not None:
+            hist = hist.drop(columns=["SplitClose"])
+
+        def info_at(i: int) -> Optional[dict]:
+            if fundamentals is None or split_close is None:
+                return None
+            return fundamentals.info_at(hist.index[i], float(split_close.iloc[i])) or None
+
         trades: List[Trade] = []
         n = len(hist)
         i = self.first_bar(hist, start)
@@ -239,10 +276,17 @@ class ShortTermBacktest:
 
             if open_trade is None:
                 plan = None
+                # Pass ``info`` only when there is one, so the default replay
+                # makes exactly the call it always made.
+                extra = {}
+                if fundamentals is not None and (forced is None or i in forced):
+                    payload = info_at(i)
+                    if payload:
+                        extra["info"] = payload
                 if forced is None:
-                    plan = self._score_slice(hist.iloc[: i + 1])
+                    plan = self._score_slice(hist.iloc[: i + 1], **extra)
                 elif i in forced:
-                    plan = self._score_slice(hist.iloc[: i + 1], gated=False)
+                    plan = self._score_slice(hist.iloc[: i + 1], gated=False, **extra)
                 if plan is not None:
                     # Enter at NEXT bar's OPEN, paying half the round trip.
                     entry_fill = float(hist["Open"].iloc[i + 1]) * (1.0 + self.friction_pct / 2.0)
@@ -351,7 +395,7 @@ def benchmark_return(bench: Optional[pd.DataFrame], entry: pd.Timestamp,
 _WORKER: Dict[str, object] = {}
 
 
-def _init_worker(max_hold: int, warmup: int, bench: pd.DataFrame) -> None:
+def _init_worker(max_hold: int, warmup: int, bench: pd.DataFrame, pit: bool = False) -> None:
     # Quiet: the analyzer prints a banner on construction.
     with open(os.devnull, "w") as devnull:
         stdout, sys.stdout = sys.stdout, devnull
@@ -360,20 +404,27 @@ def _init_worker(max_hold: int, warmup: int, bench: pd.DataFrame) -> None:
         finally:
             sys.stdout = stdout
     _WORKER["bench"] = bench
+    _WORKER["pit"] = pit
 
 
 def _replay_one(args: Tuple[str, str, str, int, bool]) -> Tuple[str, List[Trade], Optional[str]]:
     ticker, start, end, seed, baseline = args
     bt: ShortTermBacktest = _WORKER["bt"]  # type: ignore[assignment]
     try:
-        hist = download(ticker, start, end)
+        pit = bool(_WORKER.get("pit"))
+        hist = download(ticker, start, end, with_split_close=pit)
         if hist.empty:
             return ticker, [], "no data"
         bench = _WORKER["bench"]
-        trades = bt.replay_ticker(ticker, hist, start, benchmark=bench)
+        fundamentals = None
+        if pit:
+            from apex_quant.pit_fundamentals import load_pit_fundamentals
+            fundamentals = load_pit_fundamentals(ticker)
+        trades = bt.replay_ticker(ticker, hist, start, benchmark=bench, fundamentals=fundamentals)
         if baseline and trades:
             entries = bt.random_entries(ticker, hist, start, len(trades), seed)
-            trades += bt.replay_ticker(ticker, hist, start, forced_entries=entries, benchmark=bench)
+            trades += bt.replay_ticker(ticker, hist, start, forced_entries=entries, benchmark=bench,
+                                       fundamentals=fundamentals)
         return ticker, trades, None
     except Exception as exc:  # noqa: BLE001 - one bad ticker must not stop the run
         return ticker, [], f"{type(exc).__name__}: {exc}"
@@ -381,15 +432,24 @@ def _replay_one(args: Tuple[str, str, str, int, bool]) -> Tuple[str, List[Trade]
 
 def run(tickers: Sequence[str], start: str, end: str, max_hold_days: int = 14,
         warmup_bars: int = 220, seed: int = 0, baseline: bool = True,
-        workers: int = 1) -> List[Trade]:
+        workers: int = 1, pit_fundamentals: bool = False) -> List[Trade]:
     """Replay every ticker (in ``workers`` processes) and return all trades."""
+    if pit_fundamentals:
+        # Fetch every company's SEC facts once, here, so worker processes only
+        # read the cache and never race each other against SEC's rate limit.
+        from apex_quant.pit_fundamentals import load_pit_fundamentals
+        for t in tickers:
+            try:
+                load_pit_fundamentals(t)
+            except Exception as exc:  # noqa: BLE001 - that ticker is scored without them
+                print(f"  {t:6} SEC fundamentals unavailable: {exc}", flush=True)
     # One benchmark download, shared: a throttled empty SPY in one worker would
     # silently drop every one of its tickers from the excess-return inference.
     bench = download(BENCHMARK, start, end)
     if bench.empty:
         raise RuntimeError(f"benchmark {BENCHMARK} unavailable; retry later (provider throttling?)")
     jobs = [(t, start, end, seed, baseline) for t in tickers]
-    init = (max_hold_days, warmup_bars, bench)
+    init = (max_hold_days, warmup_bars, bench, pit_fundamentals)
     out: List[Trade] = []
     failed: Dict[str, str] = {}
 
@@ -578,6 +638,9 @@ def main() -> int:
     ap.add_argument("--trials", type=int, default=1,
                     help="strategy variants evaluated so far, for the deflated Sharpe")
     ap.add_argument("--workers", type=int, default=min(8, os.cpu_count() or 1))
+    ap.add_argument("--pit-fundamentals", action="store_true",
+                    help="score fundamental and quality legs from SEC filings known on each bar "
+                         "(needs QUANTA_SEC_CONTACT)")
     ap.add_argument("--output-dir", default=str(_THIS_DIR.parent / "backtest_reports"))
     args = ap.parse_args()
 
@@ -594,11 +657,12 @@ def main() -> int:
           f"hold≤{args.max_hold_days}d, friction={Config.FRICTION_ROUND_TRIP_PCT * 100:.2f}% "
           f"round-trip, {args.workers} worker(s)", flush=True)
     trades = run(tickers, args.start, args.end, args.max_hold_days, args.warmup_bars,
-                 seed=args.seed, baseline=not args.no_baseline, workers=args.workers)
+                 seed=args.seed, baseline=not args.no_baseline, workers=args.workers,
+                 pit_fundamentals=args.pit_fundamentals)
 
     summary = summarise(trades, n_trials=args.trials, max_hold_days=args.max_hold_days)
     summary["config"] = {k: getattr(args, k) for k in ("start", "end", "max_hold_days", "warmup_bars",
-                                                       "seed", "trials")}
+                                                       "seed", "trials", "pit_fundamentals")}
     summary["config"].update(tickers=tickers, failed_tickers=getattr(run, "failed", {}),
                              friction_round_trip=Config.FRICTION_ROUND_TRIP_PCT,
                              composite_weights=dict(StrategicStockAnalyzer.COMPOSITE_WEIGHTS))

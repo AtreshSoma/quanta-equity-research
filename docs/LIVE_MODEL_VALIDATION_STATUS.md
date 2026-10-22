@@ -1,4 +1,37 @@
-# Live model validation status — 13 October 2026
+# Live model validation status — 22 October 2026
+
+## Update, 22 October 2026: the fundamental legs are now tested
+
+Every earlier test held the fundamental, valuation and quality legs neutral,
+because yfinance only serves today's figures. `core/apex_quant/pit_fundamentals.py`
+now rebuilds them from SEC XBRL `companyfacts`, reading only facts **filed
+before** each date (restatements count from the day they were filed). The
+live analyzers score the rebuilt payload with their own code
+(`FundamentalAnalyzer.analyze_info`, `ValuationAnalyzer`, the scanner's
+fundamental and quality cards). Sentiment, insider flow, analyst targets,
+forward EPS and short interest still have no point-in-time source and stay neutral.
+
+| Model | Test | Result |
+| --- | --- | --- |
+| `elite.research.v2` | technical, fundamental, valuation, quality (89% of weight), live regime weights, 42 names, weekly, 2010-12-30..2026-10-21; 95% of rows had filings | IC +0.020 (21d, t +0.87), +0.041 (63d, t +1.42); Q5-Q1 +0.28% / +1.36%, monotone at 63d. **NO_EDGE** (positive, not significant). Beats its own technical leg (CIs above zero); not distinguishable from 12-1 momentum |
+| `shortterm.composite` | technical, momentum, pattern, fundamental, quality (90% of weight), 2,020 trades, 2016-2026 | -0.20% per weekly entry cohort vs SPY (95% CI -0.44% to +0.02%); -0.26% vs random entries with the same exits (CI -0.59% to +0.04%). **NO_EDGE**, leaning negative |
+
+Reading: the fundamental (IC +0.041 / +0.061) and quality (+0.037 / +0.046)
+legs carry the research model's ranking power; valuation (-0.007 / -0.002) and
+technical (-0.003 / +0.001) carry none. With fixed SIDEWAYS weights instead of
+the live regime tables the result barely moves (IC +0.022 / +0.040, t +0.94 /
++1.23), so the change from the earlier test comes from the fundamental legs,
+not from the weighting. For the short-term scanner, adding the
+same kind of evidence made entries worse, not better. Neither result
+validates a model, and the static present-day universe (survivorship bias)
+still applies to both.
+
+Reproduce (needs `QUANTA_SEC_CONTACT`; SEC facts cache under `core/apex_quant/_cache_research/sec/`):
+
+    cd core
+    python -m apex_quant.run elite-oos --name research_v2_pit_oos --pit-fundamentals --regime auto
+    python -m apex_quant.run baselines --panel research_v2_pit_oos
+    python sp_shortterm_backtest.py --universe liquid --pit-fundamentals --start 2016-01-01 --end 2026-09-30 --output-dir apex_quant/_reports/shortterm/pit
 
 ## Update, 13 October 2026
 

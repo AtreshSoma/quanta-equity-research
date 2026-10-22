@@ -2978,20 +2978,13 @@ CRYPTO_CORRELATED_STOCKS = frozenset(_T.SCORE.CRYPTO_CORRELATED_TICKERS)
 # checked 2026-09-23). The previous 2025/2026 lists were extrapolated from a
 # cadence and had four wrong dates — including Oct 28 2026, the next meeting,
 # which would have been haircut a week AFTER the event.
-FOMC_DATES_2025 = [
-    "2025-01-29", "2025-03-19", "2025-05-07", "2025-06-18",
-    "2025-07-30", "2025-09-17", "2025-10-29", "2025-12-10"
-]
+# The calendar itself lives in engine/fomc.py, shared with the Research engine;
+# these names remain for code and tests that read them.
+from engine.fomc import OFFICIAL as _FOMC_OFFICIAL  # noqa: E402
 
-FOMC_DATES_2026 = [
-    "2026-01-28", "2026-03-18", "2026-04-29", "2026-06-17",
-    "2026-07-29", "2026-09-16", "2026-10-28", "2026-12-09"
-]
-
-FOMC_DATES_2027 = [
-    "2027-01-27", "2027-03-17", "2027-04-28", "2027-06-09",
-    "2027-07-28", "2027-09-15", "2027-10-27", "2027-12-08"
-]
+FOMC_DATES_2025 = list(_FOMC_OFFICIAL[2025])
+FOMC_DATES_2026 = list(_FOMC_OFFICIAL[2026])
+FOMC_DATES_2027 = list(_FOMC_OFFICIAL[2027])
 # ============================================================================
 # INDIAN STOCK INDEXES - Comprehensive Coverage
 # ============================================================================
@@ -10517,6 +10510,7 @@ class QuantaEliteTradingSystem:
         # the last known date this function returned 1.0 forever with no
         # warning — a risk control that stops firing while still being
         # believed. Extend FOMC_DATES_* from the Fed's published calendar.
+        # The module lists mirror engine/fomc.py (the one calendar).
         all_dates = sorted(FOMC_DATES_2025 + FOMC_DATES_2026 + FOMC_DATES_2027)
         try:
             last_known = datetime.strptime(all_dates[-1], "%Y-%m-%d").date()
@@ -10527,8 +10521,8 @@ class QuantaEliteTradingSystem:
             logger.warning(
                 f"⚠️ FOMC calendar is EXHAUSTED (last known meeting "
                 f"{last_known.isoformat()}). Event-risk sizing is INACTIVE until "
-                f"the calendar is extended — update FOMC_DATES_* or move it to a "
-                f"data file."
+                f"the calendar is extended — extend OFFICIAL in "
+                f"core/engine/fomc.py."
             )
             return 1.0, ""
 

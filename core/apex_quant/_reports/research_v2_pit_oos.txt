@@ -1,0 +1,73 @@
+==============================================================================
+ELITE COMPOSITE - OUT-OF-SAMPLE EVALUATION
+==============================================================================
+generated      2026-10-22T16:28:30+00:00
+data hash      24c701aa7c876077e5d0d0f2eedc34c4...
+period         2010-12-30 .. 2026-10-21
+panel          33,161 rows / 42 tickers / every 5 bars
+composite      range [27.0, 79.8]  covering 89% of model weight
+scope          Technical, fundamental, valuation and quality legs (89% of SIDEWAYS composite weight), the last three from SEC filings known on each date (95% of panel rows had them). Sentiment and analyst inputs held neutral: no point-in-time source. Weights follow the live regime-adaptive tables.
+
+------------------------------------------------------------------------------
+INFORMATION COEFFICIENT  (cross-sectional Spearman, composite vs fwd return)
+------------------------------------------------------------------------------
+ horizon   mean IC   median   t-stat  n_indep    IC>0    Q5-Q1  t(Q5-Q1)   Q5<Q1
+     21d    0.0202   0.0138     0.87      159  53.7%   0.28%      0.42  47.6%
+     63d    0.0409   0.0475     1.42       56  58.2%   1.36%      1.07  42.8%
+
+  reference: |IC| 0.02-0.05 = useful factor; ~0.00 = no signal;
+             >0.10 = suspect leakage. Sign matters: negative = inverted.
+  |t| > 2.0 is the conventional significance bar.
+
+------------------------------------------------------------------------------
+IC BY COMPONENT  (which leg carries or destroys the signal)
+------------------------------------------------------------------------------
+                   input         21d         63d
+                     adx     +0.0056     +0.0107
+   annualized_volatility     +0.0710     +0.1343
+                    beta     +0.0604     +0.1177
+               composite     +0.0202     +0.0409
+                     rsi     +0.0134     +0.0120
+       score_fundamental     +0.0406     +0.0608
+           score_quality     +0.0365     +0.0455
+              score_risk     -0.0449     -0.0987
+         score_technical     -0.0028     +0.0007
+         score_valuation     -0.0073     -0.0017
+
+------------------------------------------------------------------------------
+FORWARD 21d RETURN BY COMPOSITE BUCKET  (monotonicity test)
+------------------------------------------------------------------------------
+ bucket      composite range       n      mean    median    win%
+      0            27.0-56.3   6,336    1.14%    0.91%  56.0%
+      1            43.5-61.0   6,336    1.16%    1.15%  58.0%
+      2            46.2-63.9   6,336    1.30%    1.21%  58.2%
+      3            49.0-67.2   6,336    1.28%    1.16%  58.0%
+      4            52.6-79.8   6,336    1.42%    1.41%  58.6%
+  monotonically increasing: False
+
+------------------------------------------------------------------------------
+FORWARD 63d RETURN BY COMPOSITE BUCKET  (monotonicity test)
+------------------------------------------------------------------------------
+ bucket      composite range       n      mean    median    win%
+      0            27.0-56.3   6,264    3.48%    2.84%  60.7%
+      1            43.5-61.0   6,264    3.63%    3.23%  62.0%
+      2            46.2-63.9   6,264    3.63%    3.29%  62.4%
+      3            49.0-67.2   6,264    3.95%    3.45%  63.7%
+      4            52.6-79.8   6,264    4.83%    4.40%  64.6%
+  monotonically increasing: True
+
+------------------------------------------------------------------------------
+CAVEATS
+------------------------------------------------------------------------------
+1. Fundamental, valuation and quality legs are rebuilt from SEC XBRL filings, using only facts filed before each date (apex_quant/pit_fundamentals.py) and the live analyzers' own scoring code. Sentiment (news, insider flow) and analyst targets have no point-in-time source and are held neutral, so the DCF runs without an analyst anchor.
+2. Rebuilt figures follow stated definitions (TTM from discrete quarters, diluted shares, debt excluding leases) that can differ from Yahoo's own fields by a few percent.
+3. Universe is a static present-day list: results carry survivorship and selection bias. Absolute numbers are optimistic; relative comparisons are the trustworthy part.
+4. t_stat is computed on non-overlapping dates. t_stat_overlapping is shown only to expose the inflation from overlapping forward returns and must not be quoted.
+5. IC statistics exclude transaction costs. Costs enter the walk-forward trade simulation, which is a separate report.
+==============================================================================
+
+SIGNAL DECAY  (mean IC by calendar year; the latest three years against the whole)
+  21d  2010:-0.156  2011:+0.055  2012:-0.040  2013:+0.006  2014:-0.029  2015:+0.018  2016:+0.008  2017:+0.045  2018:-0.003  2019:+0.058  2020:+0.076  2021:+0.030  2022:-0.060  2023:+0.010  2024:+0.136  2025:-0.008  2026:+0.024
+       positive in 11 of 17 years; last 3 years IC +0.0505 (t +1.71) against +0.0202 overall
+  63d  2010:-0.290  2011:+0.092  2012:-0.068  2013:-0.007  2014:+0.020  2015:+0.020  2016:+0.012  2017:+0.175  2018:+0.028  2019:+0.119  2020:+0.036  2021:+0.134  2022:-0.141  2023:+0.040  2024:+0.197  2025:-0.022  2026:+0.010
+       positive in 12 of 17 years; last 3 years IC +0.0636 (t +1.21) against +0.0409 overall

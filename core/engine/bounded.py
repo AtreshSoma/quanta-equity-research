@@ -7,14 +7,20 @@ owns: on timeout the child is killed and reaped before ``run`` returns, so no
 abandoned provider work overlaps the fallback.
 
 A target is named ``"module:function"`` and must be importable in the child.
-Its keyword arguments and return value travel pickled. ``QUANTA_BULK_TARGET``
-overrides the default bulk-download target (the test suite points it at a
-target that refuses network access).
+Its keyword arguments go to the child over a pipe; its return value (a price
+frame) comes back pickled in a file inside a fresh private temporary directory,
+so no other account can swap the file between write and read.
+``QUANTA_BULK_TARGET`` overrides the default bulk-download target only with the
+default itself or a test target (module ``_bounded_targets``, which the suite
+uses to refuse network access); any other value is ignored and logged, so an
+environment variable cannot make the scan call arbitrary code.
 """
 from __future__ import annotations
 
+import logging
 import os
 import pickle
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -23,6 +29,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 DEFAULT_BULK_TARGET = "engine.bounded:yf_download"
+_TEST_TARGET_MODULE = "_bounded_targets"
+logger = logging.getLogger(__name__)
 
 _CHILD = (
     "import pickle, sys\n"
@@ -50,15 +58,23 @@ class Bounded:
 
 
 def bulk_target() -> str:
-    return os.environ.get("QUANTA_BULK_TARGET") or DEFAULT_BULK_TARGET
+    override = (os.environ.get("QUANTA_BULK_TARGET") or "").strip()
+    if not override or override == DEFAULT_BULK_TARGET:
+        return DEFAULT_BULK_TARGET
+    if override.split(":", 1)[0] == _TEST_TARGET_MODULE:
+        return override
+    logger.warning("Ignoring QUANTA_BULK_TARGET=%r: only the test targets may replace the bulk download",
+                   override[:80])
+    return DEFAULT_BULK_TARGET
 
 
 def run(target: str, kwargs: Dict[str, Any], budget: float,
         kill_grace: float = 5.0) -> Bounded:
     """Run ``target(**kwargs)`` in a child process for at most ``budget`` seconds."""
     started = time.time()
-    fd, out_path = tempfile.mkstemp(prefix="quanta-bounded-", suffix=".pkl")
-    os.close(fd)
+    # mkdtemp makes the directory readable and writable by this account only.
+    work_dir = tempfile.mkdtemp(prefix="quanta-bounded-")
+    out_path = os.path.join(work_dir, "result.pkl")
     payload = pickle.dumps({"sys_path": list(sys.path), "target": target,
                             "kwargs": kwargs, "out": out_path})
     proc = subprocess.Popen([sys.executable, "-c", _CHILD], stdin=subprocess.PIPE,
@@ -88,10 +104,7 @@ def run(target: str, kwargs: Dict[str, Any], budget: float,
         if proc.poll() is None:
             proc.kill()
             proc.wait()
-        try:
-            os.remove(out_path)
-        except OSError:
-            pass
+        shutil.rmtree(work_dir, ignore_errors=True)
 
 
 def yf_download(tickers, period: str, threads: int = 1) -> Optional[Any]:

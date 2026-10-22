@@ -384,3 +384,15 @@ test('the cards and list toggle is remembered', () => {
   assert.ok($('#portfolio-scan-body .idea-grid'));
   assert.equal(store['quanta.discover.view'], 'cards');
 });
+
+test('while the side panel is open the rest of the page is inert, and released on close', () => {
+  app.renderTopOpportunities({ analyst_picks: [pick('AAA', 40)] });
+  app.openIdeaDrawer('AAA');
+  const drawer = $('#dsc-drawer');
+  assert.ok($('.topbar').hasAttribute('inert'), 'the top bar is out of reach');
+  assert.ok($('#portfolio-scan-body').closest('[inert]'), 'the cards behind the panel are out of reach');
+  assert.equal(drawer.closest('[inert]'), null, 'the panel itself is not');
+  assert.equal($('#dsc-drawer-scrim').hasAttribute('inert'), false, 'the scrim still closes it');
+  app.closeIdeaDrawer();
+  assert.equal(document.querySelectorAll('[inert]').length, 0);
+});

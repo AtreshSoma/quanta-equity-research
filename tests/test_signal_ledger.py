@@ -313,3 +313,12 @@ def test_scanner_final_decision_records_matching_benchmark_and_freshness(ledger)
     rec.market_timestamp = (last_completed_session() - timedelta(days=14)).isoformat()
     assert record_decisions([decision_for_scan_result(rec)], ledger=ledger) == 0
     assert len(ledger.rows()) == 1
+
+
+def test_indian_listings_on_either_exchange_are_scored_against_nifty():
+    from tracking.ledger import benchmark_for
+
+    assert benchmark_for("RELIANCE.NS") == "^NSEI"
+    assert benchmark_for("reliance.bo") == "^NSEI"
+    assert benchmark_for("AAPL") == "SPY"
+    assert benchmark_for("BRK-B") == "SPY"

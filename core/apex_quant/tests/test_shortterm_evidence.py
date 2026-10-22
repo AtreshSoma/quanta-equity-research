@@ -39,3 +39,29 @@ def test_summary_names_the_test_that_failed_and_the_measured_win_rates():
     e = shortterm_entry_from_backtest(s, "s")
     assert e["summary"].startswith("Entry signals do not beat random entries")
     assert any("60.0%" in c and "56.4%" in c for c in e["caveats"])
+
+
+def test_point_in_time_replay_states_its_wider_scope():
+    s = _summary([-0.1, 0.3], [0.1, 0.4])
+    s["config"]["pit_fundamentals"] = True
+    e = shortterm_entry_from_backtest(s, "s")
+    assert "90% of composite weight" in e["scope"] and "SEC filings" in e["scope"]
+    assert e["status"] == "NO_EDGE"
+
+
+def test_elite_entry_records_point_in_time_scope_and_honest_wording():
+    from apex_quant.evidence_registry import elite_entry_from_oos
+
+    report = {"ic": {"21d": {"mean_ic": 0.012, "t_stat": 1.1, "n_independent_dates": 150,
+                             "decile_spread": 0.002},
+                     "63d": {"mean_ic": 0.02, "t_stat": 0.9, "n_independent_dates": 50,
+                             "decile_spread": 0.004}},
+              "end": "2026-10-21", "scope": "Technical, fundamental, valuation and quality legs",
+              "pit_fundamentals": True, "fundamentals_row_share": 0.93}
+    e = elite_entry_from_oos(report, source="x.json")
+    assert e["status"] == "NO_EDGE"
+    assert "positive but below the t >= 2 bar" in e["summary"]
+    assert e["scope"].startswith("Technical, fundamental") and e["source"] == "x.json"
+    assert any("93% of panel rows" in c for c in e["caveats"])
+    report["ic"]["21d"]["t_stat"] = report["ic"]["63d"]["t_stat"] = 2.4
+    assert elite_entry_from_oos(report)["status"] == "PARTIAL"

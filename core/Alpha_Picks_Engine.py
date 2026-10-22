@@ -135,7 +135,12 @@ class APIManager:
         """GET request with retry logic"""
         for attempt in range(max_retries):
             try:
-                response = requests.get(url, params=params, timeout=10)
+                # Finnhub takes its key in a header, so it never sits in a logged URL.
+                headers = None
+                if params and "finnhub.io" in url and "token" in params:
+                    headers = {"X-Finnhub-Token": str(params["token"] or "")}
+                    params = {k: v for k, v in params.items() if k != "token"}
+                response = requests.get(url, params=params, headers=headers, timeout=10)
                 if response.status_code == 200:
                     return response.json()
                 elif response.status_code == 403:

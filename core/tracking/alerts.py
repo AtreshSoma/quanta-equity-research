@@ -142,21 +142,65 @@ def recent_alerts(ledger: SignalLedger, limit: int = 25,
 
 
 def notify_desktop(alerts: List[LevelAlert]) -> bool:
-    """Best-effort macOS notification summarising ``alerts``. False elsewhere."""
-    if not alerts or sys.platform != "darwin":
+    """Best-effort desktop notification summarising ``alerts`` (macOS or Windows).
+
+    Returns False when there is nothing to show, on other platforms, or when
+    the notification could not be posted.
+    """
+    if not alerts:
         return False
     title = f"QUANTA: {len(alerts)} level alert{'s' if len(alerts) != 1 else ''}"
     body = "; ".join(a.message() for a in alerts[:3])
     if len(alerts) > 3:
         body += f"; +{len(alerts) - 3} more"
-    script = f"display notification {_osa(body)} with title {_osa(title)}"
+    return notify_text(title, body)
+
+
+def notify_text(title: str, body: str) -> bool:
+    """Post one desktop notification (macOS or Windows). False elsewhere or on failure."""
+    if sys.platform not in ("darwin", "win32"):
+        return False
     try:
-        subprocess.run(["osascript", "-e", script], check=False, timeout=10,
-                       capture_output=True)
-        return True
+        if sys.platform == "darwin":
+            script = f"display notification {_osa(body)} with title {_osa(title)}"
+            subprocess.run(["osascript", "-e", script], check=False, timeout=10,
+                           capture_output=True)
+            return True
+        return _notify_windows(title, body)
     except (OSError, subprocess.SubprocessError) as exc:
         logger.warning("alerts: desktop notification failed: %s", exc)
         return False
+
+
+# A Windows toast through the WinRT API in Windows PowerShell. The text travels in
+# environment variables, never in the script, so no message can inject code. The
+# app id is PowerShell's own, which Windows already allows to post toasts.
+_WINDOWS_TOAST = r"""
+$ErrorActionPreference = 'Stop'
+[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null
+$xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
+$text = $xml.GetElementsByTagName('text')
+$text.Item(0).AppendChild($xml.CreateTextNode($env:QUANTA_TOAST_TITLE)) > $null
+$text.Item(1).AppendChild($xml.CreateTextNode($env:QUANTA_TOAST_BODY)) > $null
+$app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($app).Show(
+    [Windows.UI.Notifications.ToastNotification]::new($xml))
+"""
+
+
+def _notify_windows(title: str, body: str) -> bool:
+    import os
+
+    env = dict(os.environ, QUANTA_TOAST_TITLE=title, QUANTA_TOAST_BODY=body)
+    done = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+         "-Command", _WINDOWS_TOAST],
+        check=False, timeout=20, capture_output=True, env=env)
+    if done.returncode != 0:
+        logger.warning("alerts: Windows notification failed: %s",
+                       (done.stderr or b"").decode("utf-8", "replace").strip()[:300])
+        return False
+    return True
 
 
 def _osa(text: str) -> str:

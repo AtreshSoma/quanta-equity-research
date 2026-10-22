@@ -1,0 +1,175 @@
+{
+  "total_trades": 2020,
+  "win_rate_pct": 55.79,
+  "avg_win_pct": 3.703,
+  "avg_loss_pct": 4.505,
+  "expectancy_pct_per_trade": 0.075,
+  "exit_reason_breakdown": {
+    "target": 881,
+    "stop": 731,
+    "time": 400,
+    "end": 8
+  },
+  "sequential_drawdown_pct": 51.79,
+  "years_tested": 11,
+  "per_year": {
+    "2016": {
+      "count": 111,
+      "mean_net_pct": 0.4345090090090091,
+      "mean_excess_pct": 0.14948378378378382
+    },
+    "2017": {
+      "count": 179,
+      "mean_net_pct": 0.4767491620111732,
+      "mean_excess_pct": -0.07559217877094972
+    },
+    "2018": {
+      "count": 203,
+      "mean_net_pct": -0.7124871921182266,
+      "mean_excess_pct": -0.31345763546798033
+    },
+    "2019": {
+      "count": 155,
+      "mean_net_pct": 0.4896496774193549,
+      "mean_excess_pct": -0.3740916129032258
+    },
+    "2020": {
+      "count": 166,
+      "mean_net_pct": -0.102266265060241,
+      "mean_excess_pct": -0.5699319277108434
+    },
+    "2021": {
+      "count": 324,
+      "mean_net_pct": 0.1554388888888889,
+      "mean_excess_pct": -0.23400246913580247
+    },
+    "2022": {
+      "count": 164,
+      "mean_net_pct": -0.651134756097561,
+      "mean_excess_pct": -0.2502798780487805
+    },
+    "2023": {
+      "count": 136,
+      "mean_net_pct": 0.24588161764705885,
+      "mean_excess_pct": -0.28069632352941176
+    },
+    "2024": {
+      "count": 208,
+      "mean_net_pct": 0.3231067307692307,
+      "mean_excess_pct": -0.32728028846153845
+    },
+    "2025": {
+      "count": 180,
+      "mean_net_pct": 0.4674494444444445,
+      "mean_excess_pct": -0.091718888888889
+    },
+    "2026": {
+      "count": 194,
+      "mean_net_pct": -0.13177628865979388,
+      "mean_excess_pct": -0.5855396907216495
+    }
+  },
+  "trades_without_benchmark": 0,
+  "excess_vs_spy": {
+    "n": 512,
+    "mean": -0.20052980124584616,
+    "t_newey_west": -1.6560135093501975,
+    "p_value": 0.0977190830550505,
+    "ci95_bootstrap": [
+      -0.43950093341617963,
+      0.02032118963087161
+    ],
+    "unit": "weekly entry cohort",
+    "mean_per_trade": -0.28038559405940594
+  },
+  "probabilistic_sharpe": 0.055698235183807954,
+  "deflated_sharpe": null,
+  "n_trials_assumed": 1,
+  "random_baseline": {
+    "total_trades": 1614,
+    "win_rate_pct": 56.94,
+    "avg_win_pct": 4.567,
+    "avg_loss_pct": 4.734,
+    "expectancy_pct_per_trade": 0.562,
+    "exit_reason_breakdown": {
+      "target": 620,
+      "stop": 575,
+      "time": 413,
+      "end": 6
+    },
+    "mean_excess_pct": -0.016167905824039583
+  },
+  "signal_minus_random_excess": {
+    "mean": -0.26421768823536634,
+    "ci95_bootstrap": [
+      -0.5899604018934601,
+      0.04222451759256594
+    ],
+    "unit": "per trade, resampled by calendar week"
+  },
+  "verdict": "Signal trades are not distinguishable from SPY over the same dates. Entry timing is not distinguishable from random entries with the same exits. Probabilistic Sharpe 0.06 that weekly excess beats zero (0.95+ is the usual bar; pass --trials to deflate it for the variants tried).",
+  "config": {
+    "start": "2016-01-01",
+    "end": "2026-09-30",
+    "max_hold_days": 14,
+    "warmup_bars": 220,
+    "seed": 0,
+    "trials": 1,
+    "pit_fundamentals": true,
+    "tickers": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "GOOGL",
+      "AMZN",
+      "META",
+      "AVGO",
+      "TXN",
+      "QCOM",
+      "INTC",
+      "CSCO",
+      "WMT",
+      "COST",
+      "HD",
+      "MCD",
+      "NKE",
+      "SBUX",
+      "PG",
+      "KO",
+      "PEP",
+      "JPM",
+      "BAC",
+      "GS",
+      "V",
+      "MA",
+      "AXP",
+      "JNJ",
+      "UNH",
+      "PFE",
+      "MRK",
+      "ABBV",
+      "TMO",
+      "CAT",
+      "BA",
+      "HON",
+      "UNP",
+      "XOM",
+      "CVX",
+      "DIS",
+      "NFLX",
+      "T",
+      "VZ"
+    ],
+    "failed_tickers": {},
+    "friction_round_trip": 0.003,
+    "composite_weights": {
+      "technical": 0.28,
+      "fundamental": 0.2,
+      "momentum": 0.22,
+      "quality": 0.12,
+      "analyst": 0.1,
+      "pattern": 0.08
+    }
+  },
+  "code_fingerprint": "b31bb5c308b80e61bcccf5a1873bd9540666a563eb5b60605ecc790181e71738"
+}

@@ -122,8 +122,16 @@ class OOSReport:
     n_panel_rows: int
     ic: Dict[str, ICResult] = field(default_factory=dict)
     component_ic: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    # Signal decay: IC by year and over the latest three years, per horizon.
+    drift: Dict[str, Dict[str, object]] = field(default_factory=dict)
     buckets: Dict[str, List[BucketRow]] = field(default_factory=dict)
     caveats: List[str] = field(default_factory=list)
+    # Point-in-time fundamentals (apex_quant.pit_fundamentals); False = held neutral.
+    pit_fundamentals: bool = False
+    # Share of panel rows whose fundamental legs rested on SEC filings.
+    fundamentals_row_share: float = 0.0
+    regime_mode: str = "SIDEWAYS"
+    scope: str = ""
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), indent=2, default=str)
@@ -197,8 +205,12 @@ def build_panel(
     horizons: tuple[int, ...] = DEFAULT_HORIZONS,
     cfg: Optional[ScorerConfig] = None,
     log: Callable[[str], None] = logger.info,
+    fundamentals_loader: Optional[Callable[[str], object]] = None,
 ) -> pd.DataFrame:
     """Score every ticker's history and attach forward-return labels.
+
+    ``fundamentals_loader(ticker)`` returns a ``PITFundamentals`` (or None) so
+    the fundamental, valuation and quality legs are scored point-in-time.
 
     Returns a long panel indexed by (date, ticker). Rows whose label is not yet
     observable are dropped per horizon at analysis time, not here, so the same
@@ -228,7 +240,16 @@ def build_panel(
                 log(f"SKIP {ticker}: data quality {verdict}")
                 continue
 
-        scored = score_history(history, ticker, benchmark_returns, cfg)
+        fundamentals = None
+        if fundamentals_loader is not None:
+            try:
+                fundamentals = fundamentals_loader(ticker)
+            except Exception as exc:  # noqa: BLE001 - scored without them, and said so
+                log(f"{ticker}: SEC fundamentals unavailable ({type(exc).__name__}: {exc})")
+            if fundamentals is None:
+                log(f"{ticker}: no SEC fundamentals; its fundamental legs stay neutral")
+
+        scored = score_history(history, ticker, benchmark_returns, cfg, fundamentals=fundamentals)
         if scored.empty:
             log(f"SKIP {ticker}: no scoreable bars")
             continue
@@ -379,6 +400,52 @@ def _decile_spread(usable: pd.DataFrame, label: str, column: str = "composite") 
     return float(series.mean()) if len(series) else float("nan")
 
 
+def per_date_ic(panel: pd.DataFrame, horizon: int, column: str = "composite",
+                min_names: int = 8) -> pd.Series:
+    """Cross-sectional Spearman IC on each evaluation date."""
+    label = f"fwd_{horizon}d"
+    usable = panel[[column, label]].dropna()
+    out: Dict[pd.Timestamp, float] = {}
+    for date, group in usable.groupby(level="date"):
+        if len(group) < min_names:
+            continue
+        ic = _spearman(group[column], group[label])
+        if not np.isnan(ic):
+            out[date] = ic
+    return pd.Series(out, dtype=float).sort_index()
+
+
+def ic_drift(panel: pd.DataFrame, horizon: int, recent_years: int = 3) -> Dict[str, object]:
+    """Is the ranking power fading? IC by calendar year and over the latest window.
+
+    The recent window's t-statistic uses non-overlapping dates, as the headline
+    does. A model whose full-sample IC rests on early years, with a recent IC
+    near zero or reversed, is decaying even when the full-sample figure looks fine.
+    """
+    series = per_date_ic(panel, horizon)
+    if series.empty:
+        return {}
+    by_year = {int(y): float(v.mean()) for y, v in series.groupby(series.index.year)}
+    cutoff = series.index.max() - pd.DateOffset(years=recent_years)
+    recent = series[series.index > cutoff]
+    step = max(1, int(np.ceil(horizon / _median_spacing_days(series.index))))
+    indep = recent.iloc[::step]
+    t = (float(indep.mean() / (indep.std(ddof=1) / np.sqrt(len(indep))))
+         if len(indep) > 2 and indep.std(ddof=1) > 0 else 0.0)
+    years = sorted(by_year)
+    positive_years = sum(1 for y in years if by_year[y] > 0)
+    return {
+        "by_year": by_year,
+        "recent_years": recent_years,
+        "recent_mean_ic": float(recent.mean()) if len(recent) else float("nan"),
+        "recent_t_stat": t,
+        "recent_n_independent_dates": int(len(indep)),
+        "full_mean_ic": float(series.mean()),
+        "positive_years": positive_years,
+        "years": len(years),
+    }
+
+
 def compute_component_ic(
     panel: pd.DataFrame, horizon: int, min_names: int = 8
 ) -> Dict[str, float]:
@@ -395,6 +462,9 @@ def compute_component_ic(
         for c in (
             "composite",
             "score_technical",
+            "score_fundamental",
+            "score_valuation",
+            "score_quality",
             "score_risk",
             "rsi",
             "adx",
@@ -490,8 +560,15 @@ def run_oos_report(
     provider: Optional[DataProvider] = None,
     log: Callable[[str], None] = print,
     panel_path: Optional[Path] = None,
+    pit_fundamentals: bool = False,
+    regime: Optional[str] = None,
 ) -> OOSReport:
-    """Build the panel and evaluate it. `eval_every=5` scores weekly."""
+    """Build the panel and evaluate it. `eval_every=5` scores weekly.
+
+    ``pit_fundamentals=True`` scores the fundamental, valuation and quality legs
+    from SEC filings known on each date (needs QUANTA_SEC_CONTACT). ``regime``
+    is passed to ``ScorerConfig`` ("auto" = the live regime-adaptive weights).
+    """
     # Deliberately NOT the default `_cache`: thirteen files there are committed
     # test fixtures frozen at 2023-12-29 (see data_provider._CACHE_DIR_RESEARCH).
     # A research run needs current data, so it gets its own directory.
@@ -499,9 +576,17 @@ def run_oos_report(
     tickers = tickers or get_universe()
     as_of_ts = pd.Timestamp(as_of) if as_of else pd.Timestamp.today().normalize()
 
-    cfg = ScorerConfig(eval_every=eval_every)
-    log(f"scoring {len(tickers)} tickers through {as_of_ts.date()} (every {eval_every} bars)")
-    panel = build_panel(provider, tickers, as_of_ts, horizons, cfg, log=lambda m: None)
+    cfg = ScorerConfig(eval_every=eval_every, regime=regime)
+    loader = None
+    if pit_fundamentals:
+        from .pit_fundamentals import load_pit_fundamentals
+
+        loader = load_pit_fundamentals
+    log(f"scoring {len(tickers)} tickers through {as_of_ts.date()} (every {eval_every} bars"
+        f"{', point-in-time fundamentals' if pit_fundamentals else ''}"
+        f"{', regime ' + regime if regime else ''})")
+    panel = build_panel(provider, tickers, as_of_ts, horizons, cfg, log=log,
+                        fundamentals_loader=loader)
 
     n_tickers = panel.index.get_level_values("ticker").nunique()
     dates = panel.index.get_level_values("date")
@@ -512,6 +597,7 @@ def run_oos_report(
 
     ic = {f"{h}d": compute_ic(panel, h) for h in horizons}
     component_ic = {f"{h}d": compute_component_ic(panel, h) for h in horizons}
+    drift = {f"{h}d": ic_drift(panel, h) for h in horizons}
     buckets = {f"{h}d": compute_buckets(panel, h) for h in horizons}
 
     import TradingAnalysis_ELITE as elite
@@ -524,7 +610,18 @@ def run_oos_report(
     if "risk" in raw:  # a pre-alpha-only weight table
         legs += ("risk",)
     used = {k: max(0.0, raw.get(k, 0.0)) for k in legs}
-    covered = (used.get("technical", 0.0) + used.get("risk", 0.0)) / (sum(used.values()) or 1.0)
+    live_legs = ("technical", "risk") + (("fundamental", "valuation", "quality") if pit_fundamentals else ())
+    covered = sum(used.get(k, 0.0) for k in live_legs) / (sum(used.values()) or 1.0)
+    fund_share = float(panel["fund_filed"].notna().mean()) if "fund_filed" in panel.columns else 0.0
+    if pit_fundamentals:
+        scope = (f"Technical, fundamental, valuation and quality legs ({covered:.0%} of SIDEWAYS composite "
+                 f"weight), the last three from SEC filings known on each date ({fund_share:.0%} of "
+                 "panel rows had them). Sentiment and analyst inputs held neutral: no point-in-time source.")
+        if regime == "auto":
+            scope += " Weights follow the live regime-adaptive tables."
+    else:
+        scope = (f"Price-based legs only ({covered:.0%} of SIDEWAYS composite weight); fundamental, "
+                 "valuation, quality and sentiment held neutral.")
 
     report = OOSReport(
         generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -540,14 +637,27 @@ def run_oos_report(
         n_panel_rows=int(len(panel)),
         ic=ic,
         component_ic=component_ic,
+        drift=drift,
         buckets=buckets,
-        caveats=[
+        pit_fundamentals=bool(pit_fundamentals),
+        fundamentals_row_share=fund_share,
+        regime_mode=regime or "SIDEWAYS",
+        scope=scope,
+        caveats=([
+            "Fundamental, valuation and quality legs are rebuilt from SEC XBRL filings, using only "
+            "facts filed before each date (apex_quant/pit_fundamentals.py) and the live analyzers' "
+            "own scoring code. Sentiment (news, insider flow) and analyst targets have no "
+            "point-in-time source and are held neutral, so the DCF runs without an analyst anchor.",
+            "Rebuilt figures follow stated definitions (TTM from discrete quarters, diluted "
+            "shares, debt excluding leases) that can differ from Yahoo's own fields by a few percent.",
+        ] if pit_fundamentals else [
             "Only the price-based legs (technical, and risk where the model has one) are "
             f"point-in-time reconstructible: {covered:.0%} of SIDEWAYS composite weight. The other four components are "
             "held constant because no as-of-date source exists; varying them with "
             "present-day values would be look-ahead bias.",
             "STRONG_BUY (>=75) is unreachable in this configuration, so no result here "
             "validates the full model.",
+        ]) + [
             "Universe is a static present-day list: results carry survivorship and "
             "selection bias. Absolute numbers are optimistic; relative comparisons are "
             "the trustworthy part.",
@@ -576,6 +686,8 @@ def format_report(report: OOSReport) -> str:
         f" / every {report.eval_every_bars} bars")
     add(f"composite      range [{report.composite_min:.1f}, {report.composite_max:.1f}]"
         f"  covering {report.composite_weight_covered:.0%} of model weight")
+    if report.scope:
+        add(f"scope          {report.scope}")
     add("")
     add("-" * 78)
     add("INFORMATION COEFFICIENT  (cross-sectional Spearman, composite vs fwd return)")
@@ -608,6 +720,20 @@ def format_report(report: OOSReport) -> str:
                 v = report.component_ic[h].get(col, float('nan'))
                 row += f"{v:>+12.4f}"
             add(row)
+        add("")
+
+    if report.drift:
+        add("-" * 78)
+        add("SIGNAL DECAY  (mean IC by calendar year; the latest three years against the whole)")
+        add("-" * 78)
+        for key, d in report.drift.items():
+            if not d:
+                continue
+            years = d["by_year"]
+            add(f"{key:>5}  " + "  ".join(f"{y}:{v:+.3f}" for y, v in years.items()))
+            add(f"       positive in {d['positive_years']} of {d['years']} years; last {d['recent_years']} years "
+                f"IC {d['recent_mean_ic']:+.4f} (t {d['recent_t_stat']:+.2f}, {d['recent_n_independent_dates']} dates) "
+                f"against {d['full_mean_ic']:+.4f} overall")
         add("")
 
     for key, rows in report.buckets.items():

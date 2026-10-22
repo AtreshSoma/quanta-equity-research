@@ -52,10 +52,12 @@ class EnhancedAPIManager:
             'Polygon': True
         }
 
-    def _safe_request(self, url: str, api_name: str, timeout: int = 10) -> Optional[dict]:
-        """Make a safe API request with error handling."""
+    def _safe_request(self, url: str, api_name: str, timeout: int = 10,
+                      headers: Optional[dict] = None) -> Optional[dict]:
+        """Make a safe API request with error handling. Keys go in ``headers``
+        where the provider accepts it (Finnhub does; FMP only takes a query key)."""
         try:
-            response = self.session.get(url, timeout=timeout)
+            response = self.session.get(url, timeout=timeout, headers=headers)
             response.raise_for_status()
             data = response.json()
 
@@ -281,8 +283,8 @@ class EnhancedAPIManager:
         from_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
         to_date = datetime.now().strftime('%Y-%m-%d')
 
-        url = f"https://finnhub.io/api/v1/company-news?symbol={ticker}&from={from_date}&to={to_date}&token={self.finnhub_key}"
-        data = self._safe_request(url, 'Finnhub')
+        url = f"https://finnhub.io/api/v1/company-news?symbol={ticker}&from={from_date}&to={to_date}"
+        data = self._safe_request(url, 'Finnhub', headers={"X-Finnhub-Token": self.finnhub_key or ""})
 
         if not data or not isinstance(data, list):
             return []
@@ -320,8 +322,8 @@ class EnhancedAPIManager:
 
         print(f"💰 Fetching basic financials for {ticker}...")
 
-        url = f"https://finnhub.io/api/v1/stock/metric?symbol={ticker}&metric=all&token={self.finnhub_key}"
-        data = self._safe_request(url, 'Finnhub')
+        url = f"https://finnhub.io/api/v1/stock/metric?symbol={ticker}&metric=all"
+        data = self._safe_request(url, 'Finnhub', headers={"X-Finnhub-Token": self.finnhub_key or ""})
 
         if not data or 'metric' not in data:
             return {}

@@ -8,6 +8,31 @@ from .thresholds import LADDER
 from .types import DecisionInputs, FinalAction
 
 
+def measured_red_flags(inputs: DecisionInputs) -> List[str]:
+    """Every measured, company- or price-specific red flag, at ANY score.
+
+    The override rules below only look for these while the candidate is a buy,
+    because their job there is to stop new money. A holder needs them whatever
+    the score: they are what corroborates an exit review, and a Hold shown
+    without them claims a clean bill it never checked (audit 2026-10-21, F2).
+    All flags that fire are listed, in a fixed order; none short-circuits.
+    """
+    if not inputs.is_valid or not _is_valid_price(inputs.current_price):
+        return []
+    flags: List[str] = []
+    if _is_valid_price(inputs.target_price) and inputs.target_price <= inputs.current_price:
+        flags.append("TARGET_BELOW_ENTRY")
+    if inputs.dcf_overvaluation_pct is not None and inputs.dcf_overvaluation_pct > LADDER.DCF_OVERVALUATION_CAP_PCT:
+        flags.append("DCF_OVERVALUATION")
+    if inputs.analyst_downside_pct is not None and inputs.analyst_downside_pct > LADDER.ANALYST_DOWNSIDE_TRIM_PCT:
+        flags.append("ANALYST_DOWNSIDE")
+    if inputs.heavy_insider_selling:
+        flags.append("HEAVY_INSIDER_SELLING")
+    if inputs.bearish_reversal:
+        flags.append("BEARISH_REVERSAL")
+    return flags
+
+
 def apply_risk_overrides(
     inputs: DecisionInputs,
     candidate: FinalAction,

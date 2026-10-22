@@ -204,13 +204,13 @@ test('the action queue: the three most urgent decisions, the impact of acting, a
   const q = panel(render('overview'), 'overview').querySelector('.mpo-queue');
   const items = [...q.querySelectorAll('.mpo-q')].map(words);
   assert.deepEqual(items, [
-    'High Review whether to keep RIVN QUANTA score 29 is below 35, with a measured red flag: 12-month valuation target is at or below the entry 3.9% Review',
-    'Medium Trim NVDA Position is 35.0% of the portfolio, past the 20% review level 35.0% → 10.0% Review',
+    "High Review whether to keep RIVN QUANTA score 29 is below 35, with a measured red flag: QUANTA's 12-month valuation target is below the price 3.9% Review",
+    'Medium Trim NVDA 35.0% of the account, past the 20% review level 35.0% → 10.0% Review',
     'Medium Trim XOM QUANTA score 41 is in the reduce band (35 to 45) 8.5% Review']);
   assert.equal(words(q.querySelector('[data-hp-tab-go="guidance"]')), 'See all 3');
   // The same reason Guidance gives.
   const g = frag(hp.guidanceHtml(pf));
-  assert.equal(g.querySelector('.hp-hero-why').textContent, 'Position is 35.0% of the portfolio, past the 20% review level');
+  assert.equal(g.querySelector('.hp-hero-why').textContent, '35.0% of the account, past the 20% review level');
 });
 
 test('guidance what-if: only the server-defined scenarios, previewed with the server’s own risk rule', () => {

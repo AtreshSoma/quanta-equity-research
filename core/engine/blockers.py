@@ -77,6 +77,14 @@ _BLOCKER_TEMPLATES: Dict[str, tuple] = {
                                 "SEC EDGAR answering (set QUANTA_SEC_CONTACT)"),
     "EVENT_CHECK_NOT_COVERED": ("missing_data", "No corporate-event source covers this exchange's listings",
                                 "None: names on exchanges no event source covers get no Buy call (owner decision)"),
+    # A foreign private issuer announces deals in free-form Form 6-K reports, which
+    # the check does not read. Structural, not transient: a refresh does not clear it.
+    "EVENT_CHECK_FOREIGN_FILER": ("missing_data",
+                                  "No corporate-event coverage for this foreign filer (its Form 6-K reports are not read)",
+                                  "None: check its recent 6-K reports on SEC EDGAR yourself; no Buy call meanwhile"),
+    "PRICE_HISTORY_TRUNCATED": ("missing_data",
+                                "The provider returned a short price history, so risk was not measured on the full window",
+                                "A full price-history fetch (refresh later)"),
     "RESEARCH_DECISION_CAP": ("consistency",
                               "The Research Decision for this name is more cautious than the scan",
                               "The Research Decision permitting new money"),
@@ -155,8 +163,13 @@ _BLOCKING = {
     "INVALID_TICKER", "INSUFFICIENT_HISTORY", "PROVIDER_RATE_LIMITED",
     "PROVIDER_DATA_UNAVAILABLE", "STALE_DATA", "RESEARCH_DECISION_CAP", "DECISION_CORE_ERROR",
     "PENDING_ACQUISITION", "DELISTING", "POSSIBLE_PENDING_DEAL", "EVENT_CHECK_UNAVAILABLE",
-    "EVENT_CHECK_NOT_COVERED",
+    "EVENT_CHECK_NOT_COVERED", "EVENT_CHECK_FOREIGN_FILER", "PRICE_HISTORY_TRUNCATED",
 }
+
+
+def is_blocking(code: str) -> bool:
+    """True when ``code`` on its own keeps new money out (a trim only caps at Accumulate)."""
+    return code in _BLOCKING
 
 _FUNDED = {FinalAction.STRONG_BUY, FinalAction.BUY, FinalAction.ACCUMULATE}
 
@@ -188,18 +201,27 @@ _EXIT_CORROBORATION = {
     "TARGET_BELOW_ENTRY", "ANALYST_CONSENSUS_DOWNSIDE", "ANALYST_DOWNSIDE", "DCF_OVERVALUATION",
     "HEAVY_INSIDER_SELLING", "BEARISH_REVERSAL",
 }
+RED_FLAG_CODES = frozenset(_EXIT_CORROBORATION)
 # Measured risk that warrants trimming a holding whatever the score says.
 _TRIM_RISK = {"RISK_GRADE_F"}
 
 
 def holder_rule(action: FinalAction, composite_score: Optional[float],
-                codes: Iterable[str] = (), event: Optional[Dict[str, object]] = None) -> Dict[str, object]:
+                codes: Iterable[str] = (), event: Optional[Dict[str, object]] = None,
+                red_flags: Iterable[str] = ()) -> Dict[str, object]:
     """The holder action AND the rule that produced it, so a reason can never
     cite a band the score is not in.
 
     ``basis`` is one of PENDING_ACQUISITION_SPREAD, SCORE_EXIT_CORROBORATED,
     SCORE_REDUCE_BAND, RISK_GRADE_F, SCORE_HOLD or NO_DECISION; ``codes`` are
     the rule codes that fired with it (the corroborating red flags for an exit).
+    ``flags`` lists every measured red flag found, whatever the action.
+
+    ``red_flags`` are the holder red flags measured at every score
+    (``engine.risk_overrides.measured_red_flags``). The new-money rules only
+    look for them while the score is in a buy band, so without this list a
+    bearish score could never be corroborated and an exit review never fired
+    (audit 2026-10-21, F2).
 
     ``event`` is the corporate-event check (engine.corporate_events). A holder
     of a name under a pending cash acquisition whose remaining spread to the deal
@@ -208,31 +230,32 @@ def holder_rule(action: FinalAction, composite_score: Optional[float],
     unknown spread never produces an exit.
     """
     codes = set(codes or ())
+    flags = sorted((codes | set(red_flags or ())) & _EXIT_CORROBORATION)
     if event and "PENDING_ACQUISITION" in codes:
         spread = event.get("spread_pct")
         if isinstance(spread, (int, float)) and spread < _T.EVENTS.ARB_SPREAD_MIN:
-            return {"action": "EXIT", "basis": "PENDING_ACQUISITION_SPREAD", "codes": ["PENDING_ACQUISITION"]}
+            return {"action": "EXIT", "basis": "PENDING_ACQUISITION_SPREAD", "codes": ["PENDING_ACQUISITION"],
+                    "flags": flags}
     if action is FinalAction.INVALID or composite_score is None:
-        return {"action": "N/A", "basis": "NO_DECISION", "codes": []}
-    red_flags = sorted(codes & _EXIT_CORROBORATION)
-    if composite_score < TRIM_FLOOR and red_flags:
-        return {"action": "EXIT", "basis": "SCORE_EXIT_CORROBORATED", "codes": red_flags}
+        return {"action": "N/A", "basis": "NO_DECISION", "codes": [], "flags": []}
+    if composite_score < TRIM_FLOOR and flags:
+        return {"action": "EXIT", "basis": "SCORE_EXIT_CORROBORATED", "codes": flags, "flags": flags}
     if composite_score < NEUTRAL_FLOOR:
-        return {"action": "TRIM", "basis": "SCORE_REDUCE_BAND", "codes": []}
+        return {"action": "TRIM", "basis": "SCORE_REDUCE_BAND", "codes": [], "flags": flags}
     if codes & _TRIM_RISK:
-        return {"action": "TRIM", "basis": "RISK_GRADE_F", "codes": sorted(codes & _TRIM_RISK)}
-    return {"action": "HOLD", "basis": "SCORE_HOLD", "codes": []}
+        return {"action": "TRIM", "basis": "RISK_GRADE_F", "codes": sorted(codes & _TRIM_RISK), "flags": flags}
+    return {"action": "HOLD", "basis": "SCORE_HOLD", "codes": [], "flags": flags}
 
 
 def holder_action(action: FinalAction, composite_score: Optional[float],
-                  codes: Iterable[str] = ()) -> str:
+                  codes: Iterable[str] = (), red_flags: Iterable[str] = ()) -> str:
     """What the evidence implies for an existing holder (conditional).
 
     EXIT needs a bearish score AND at least one measured red flag; a bearish
     score alone is a TRIM review. A risk grade of F is a TRIM review even on a
     neutral or bullish score.
     """
-    return str(holder_rule(action, composite_score, codes)["action"])
+    return str(holder_rule(action, composite_score, codes, red_flags=red_flags)["action"])
 
 
 def blocker_info(code: str, event: Optional[Mapping] = None) -> Dict[str, str]:
@@ -264,13 +287,13 @@ def primary_blocker(action: FinalAction, composite_score: Optional[float],
 
 def action_contract(action: FinalAction, composite_score: Optional[float],
                     codes: Iterable[str] = (), holdings_known: bool = False,
-                    event: Optional[Mapping] = None) -> Dict[str, object]:
+                    event: Optional[Mapping] = None, red_flags: Iterable[str] = ()) -> Dict[str, object]:
     """The published per-reader meaning of one resolved action."""
     codes = list(codes or ())
     return {
         "model_stance": model_stance(composite_score),
         "new_money": new_money(action),
-        "holder_action": holder_action(action, composite_score, codes),
+        "holder_action": holder_action(action, composite_score, codes, red_flags),
         "holdings_known": bool(holdings_known),
         "primary_blocker": primary_blocker(action, composite_score, codes, event),
     }

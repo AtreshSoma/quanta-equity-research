@@ -499,7 +499,7 @@ test.describe('My Portfolio', () => {
     await mockPortfolio(page);
     await openHoldings(page);
     await goTab(page, 'Holdings');
-    await page.locator('.hp-toolbar [data-hp-filter="do_not_add"]').click();
+    await page.locator('.hp-toolbar [data-hp-filter="hold"]').click();
     await page.selectOption('#hp-sort', 'weight');
     // Decisions sit above the table: bring the row into view first, then measure.
     const aapl = page.locator('[data-hp-toggle="AAPL"]');
@@ -509,7 +509,7 @@ test.describe('My Portfolio', () => {
     const panel = page.locator('#hp-drawer');
     await expect(panel).toBeVisible();
     await expect(page.locator('#hp-drawer-title')).toBeFocused();
-    await expect(panel.locator('.hp-drawer-s')).toContainText('1 of 3 in Holdings');
+    await expect(panel.locator('.hp-drawer-s')).toContainText('1 of 4 in Holdings');
     await panel.getByRole('button', { name: 'Next: MSFT' }).click();
     await expect(page.locator('#hp-drawer-title')).toContainText('MSFT');
     // Focus stays inside the modal panel.
@@ -524,7 +524,7 @@ test.describe('My Portfolio', () => {
     await expect(panel).toBeHidden();
     await expect(page.locator('[data-hp-toggle="MSFT"]')).toBeFocused();
     await expect(page.locator('[data-hp-row="MSFT"]')).toHaveClass(/is-selected/);
-    await expect(page.locator('[data-hp-row]')).toHaveCount(3);
+    await expect(page.locator('[data-hp-row]')).toHaveCount(4);
     await expect(page.locator('#hp-sort')).toHaveValue('weight');
     expect(Math.abs((await page.evaluate(() => window.scrollY)) - y)).toBeLessThan(2);
     const results = await new AxeBuilder({ page }).include('#view-holdings').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();

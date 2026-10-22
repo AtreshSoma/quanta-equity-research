@@ -18,9 +18,13 @@ test('summaries take the right article', () => {
   assert.equal(withArticle('bullish'), 'a bullish');
 });
 
-test('My Portfolio shows one label for Hold / No New Money on every tab', () => {
+test('My Portfolio shows one Hold label on every tab (the older "Hold / No New Money" reads as Hold)', () => {
   const mp = read('static/my-portfolio.js');
-  assert.match(mp, /'Hold \/ No New Money': 'Hold, no new money'/);
+  assert.match(mp, /'Hold \/ No New Money': 'Hold'/);
+  assert.match(mp, /'Review Risk': 'Review risk'/);
+  // Chip labels are the row labels, word for word (audit 2026-10-21, F8).
+  assert.match(mp, /trim_review: 'Trim', risk_review: 'Review risk'/);
+  assert.match(mp, /hold: 'Hold'/);
   assert.match(mp, /const actionChip = \(a(, ev)?(, g)?\) => [^\n]*actionLabel\(a(, g)?\)/);
   for (const f of ['static/my-portfolio.js', 'static/mp-overview.js', 'static/mp-guidance.js']) {
     assert.doesNotMatch(read(f), /Hold, no adds/, f);

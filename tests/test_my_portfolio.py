@@ -62,7 +62,8 @@ def decision(action="BUY", score=68.0, stance=None, new_money=None, holder=None,
         "blockers": [dict(b) for b in blockers],
         "reasons": ["Earnings momentum and margin expansion"], "risks": ["Valuation is rich"],
         "invalidation": ["A daily close below the stop"],
-        "levels": {"stop": stop, "reference_price": 100.0},
+        "levels": {"stop": stop, "reference_price": 100.0, "valuation_target": 120.0},
+        "red_flags": [],
         "evidence": {"status": evidence, "status_text": "Never validated", "permits_recommendation": False},
         "qualifier": "Unproven model", "caveat": "Treat as research.",
         "freshness": {"status": freshness}, "sizing": {"position_value": 5000.0},
@@ -99,12 +100,14 @@ class TestGuidance:
         assert (g.stance, g.new_money, g.existing, g.action) == ("Bullish", "Accumulate", "Hold", "Accumulate")
         assert g.group == "consider_adding"
 
-    def test_bullish_but_overweight_is_hold_no_new_money(self):
+    def test_bullish_but_overweight_holds_and_blocks_adding(self):
         """The critical distinction: a stock-level BUY never becomes Accumulate by itself."""
         g = gd.guide_position(pctx(weight=0.14), ctx(), decision())
         assert g.stance == "Bullish"
-        assert g.new_money == "Hold / No New Money"
-        assert g.action == "Hold / No New Money"
+        assert g.new_money == "No New Money"
+        assert g.action == "Hold" and g.group == "hold"
+        assert g.adding["status"] == "blocked" and g.adding["code"] == "POSITION_AT_CAP"
+        assert g.basis["code"] == "POSITION_AT_CAP" and "over the 10% single-name limit" in g.key_reason
         assert g.blocks[0]["code"] == "POSITION_AT_CAP" and g.blocks[0]["source"] == "portfolio"
         assert any("below 10%" in c for c in g.would_change)
 
@@ -115,13 +118,35 @@ class TestGuidance:
     ])
     def test_each_portfolio_constraint_holds_back_new_money(self, kw, code):
         g = gd.guide_position(pctx(**kw), ctx(), decision())
-        assert g.action == "Hold / No New Money"
+        assert g.action == "Hold" and g.adding["status"] == "blocked"
         assert code in [b["code"] for b in g.blocks]
+
+    @pytest.mark.parametrize("kw,code", [
+        ({"weight": 0.117}, "POSITION_AT_CAP"),
+        ({"sector_weight": 0.467}, "SECTOR_AT_CAP"),
+    ])
+    def test_limits_are_shown_on_holdings_the_engine_would_not_buy(self, kw, code):
+        """Audit F4: a holding over the 10% cap was explained by its reward/risk instead."""
+        dec = decision("WATCHLIST", 58, new_money="WATCH", blockers=[{"code": "LOW_REWARD_RISK", "text": "", "remedy": ""}])
+        dec["primary_blocker"] = {"code": "LOW_REWARD_RISK"}
+        g = gd.guide_position(pctx(**kw), ctx(), dec)
+        assert g.action == "Hold" and g.basis["code"] == code
+        assert g.adding["code"] == code
+        codes = [b["code"] for b in g.blocks]
+        assert codes.index(code) < codes.index("LOW_REWARD_RISK")
+
+    def test_funds_never_count_toward_a_sector_limit(self):
+        g = gd.guide_position(pctx(sector="Large Blend", sector_weight=0.5, is_fund=True), ctx(),
+                              decision("WATCHLIST", 52, new_money="WATCH"))
+        assert "SECTOR_AT_CAP" not in [b["code"] for b in g.blocks]
+        assert g.basis["code"] == "FUND_HOLD" and "does not rate funds" in g.key_reason
+        assert g.adding["code"] == "FUND_NOT_RATED"
 
     def test_unknown_buying_power_fails_closed(self):
         g = gd.guide_position(pctx(), ctx(buying_power=None), decision())
-        assert g.new_money == "Hold / No New Money"
+        assert g.new_money == "No New Money" and g.action == "Hold"
         assert "BUYING_POWER_UNKNOWN" in [b["code"] for b in g.blocks]
+        assert g.adding["code"] == "BUYING_POWER_UNKNOWN"
 
     def test_no_buying_power_and_full_risk_budget(self):
         g = gd.guide_position(pctx(), ctx(buying_power=10, stop_risk_pct=0.07), decision())
@@ -133,24 +158,94 @@ class TestGuidance:
         g = gd.guide_position(pctx(), ctx(), decision("AVOID", 30, holder="EXIT", blockers=[TARGET_BELOW]))
         assert g.action == "Exit Review" and g.group == "exit_review"
         assert "not an instruction to sell" in g.why[0]
-        assert g.key_reason.startswith("QUANTA score 30 is below 35, with a measured red flag: 12-month valuation")
+        assert g.key_reason.startswith("QUANTA score 30 is below 35, with a measured red flag: QUANTA's 12-month valuation")
+
+    def test_exit_review_from_red_flags_measured_at_any_score(self):
+        """Audit F2: red flags were only recorded in a buy band, so an exit could never fire."""
+        from engine.blockers import holder_action
+        from engine.types import FinalAction
+        flags = ["HEAVY_INSIDER_SELLING", "DCF_OVERVALUATION"]
+        dec = decision("AVOID", 30, holder=holder_action(FinalAction.AVOID, 30, [], flags))
+        dec["red_flags"] = flags
+        assert dec["holder_action"] == "EXIT"
+        g = gd.guide_position(pctx(), ctx(), dec)
+        assert g.action == "Exit Review" and g.status == "ok"
+        assert g.red_flags == sorted(flags)
+
+    def test_a_hold_discloses_red_flags_instead_of_a_clean_bill(self):
+        dec = decision("WATCHLIST", 54.0, new_money="WATCH")
+        dec["red_flags"] = ["TARGET_BELOW_ENTRY"]
+        g = gd.guide_position(pctx(), ctx(), dec)
+        assert g.action == "Hold" and g.basis["code"] == "TARGET_BELOW_ENTRY"
+        assert g.key_reason == "QUANTA's 12-month valuation target is below the price"
+        assert not any("Nothing measured argues" in w for w in g.why)
+
+    def test_an_analysis_without_the_red_flag_check_does_not_claim_none(self):
+        dec = decision("WATCHLIST", 50, new_money="WATCH")
+        del dec["red_flags"]
+        g = gd.guide_position(pctx(), ctx(), dec)
+        assert "not checked" in g.key_reason and "No measured red flag" not in g.key_reason
 
     # --- the reason is the rule that fired, never an assumed score band ---
 
-    def test_risk_grade_f_trim_cites_risk_not_a_score_band(self):
+    def test_risk_grade_f_review_cites_risk_size_and_risk_share(self):
         """The screenshot bug: scores 68-72 were explained as 'in the reduce band (35 to 45)'."""
         for score in (68.0, 70.0, 72.0):
             dec = decision("WATCHLIST", score, stance="NEUTRAL", new_money="WATCH", blockers=[RISK_F])
             assert dec["holder_action"] == "TRIM"
-            g = gd.guide_position(pctx(), ctx(), dec)
-            assert g.action == "Trim" and g.basis["code"] == "RISK_GRADE_F" and g.basis["kind"] == "risk"
-            assert "Risk grade F" in g.key_reason
+            g = gd.guide_position(pctx(weight=0.023, risk_share=0.059), ctx(), dec)
+            assert g.action == "Review Risk" and g.group == "risk_review"
+            assert g.basis["code"] == "RISK_GRADE_F" and g.basis["kind"] == "risk"
+            assert "Risk grade F" in g.key_reason and "2.3% of the account" in g.key_reason
+            assert "5.9% of portfolio risk" in g.key_reason
             assert "reduce band" not in g.key_reason and "35 to 45" not in " ".join(g.why)
             assert "not a negative view" in g.why[0]
             assert not any("score recovering" in w for w in g.would_change)
 
+    def test_grade_f_past_the_review_level_is_a_size_trim(self):
+        dec = decision("WATCHLIST", 60, stance="NEUTRAL", new_money="WATCH", blockers=[RISK_F])
+        g = gd.guide_position(pctx(weight=0.22), ctx(), dec)
+        assert g.action == "Trim" and g.basis["code"] == "CONCENTRATION"
+        assert any("risk grade is F" in w for w in g.why)
+
+    def test_key_reason_is_the_binding_rule_not_the_first_listed(self):
+        """Audit F1: the reason named a candle-timing trim while low reward/risk was the rule that blocked."""
+        from engine.blockers import blocker_info
+        dec = decision("WATCHLIST", 67.0, new_money="WATCH",
+                       blockers=[blocker_info(c) for c in ("BUY_NOW_NO", "BEARISH_REVERSAL", "LOW_REWARD_RISK")])
+        dec["primary_blocker"] = blocker_info("LOW_REWARD_RISK")
+        dec["levels"].update(reward_risk=0.15, stop=91.0, valuation_target=105.1)
+        g = gd.guide_position(pctx(), ctx(), dec)
+        assert g.adding["code"] == "LOW_REWARD_RISK"
+        assert "passing needs about 54% of 12-month upside" in g.adding["text"]
+        assert "QUANTA's 12-month target is +5%" in g.adding["text"]
+        assert "BUY_NOW_NO" in [n["code"] for n in g.notes]
+        assert "BUY_NOW_NO" not in [b["code"] for b in g.blocks]
+        dec2 = decision("WATCHLIST", 64.0, new_money="WATCH",
+                        blockers=[blocker_info(c) for c in ("RISK_GRADE_D_CAP", "LOW_REWARD_RISK")])
+        g2 = gd.guide_position(pctx(), ctx(), dec2)          # no primary_blocker: first BLOCKING code
+        assert g2.adding["code"] == "LOW_REWARD_RISK"
+
+    @pytest.mark.parametrize("dec_update,phrase", [
+        ({"blocking_codes": ["PRICE_HISTORY_TRUNCATED"]}, "six months of history"),
+        ({"history_range": "6mo/1d"}, "six months of history"),
+        ({"levels": {"stop": 90.0, "reference_price": 100.0, "valuation_target": None}}, "valuation inputs"),
+    ])
+    def test_degraded_data_is_a_no_call_not_a_changed_call(self, dec_update, phrase):
+        """Audit F3: a 6-month fallback history and a missing valuation target changed holders' calls."""
+        dec = dict(decision("WATCHLIST", 60, new_money="WATCH"), **dec_update)
+        c = ctx(last_calls={"AAA": {"date": "2026-10-19", "action": "Trim", "basis_code": "RISK_GRADE_F"}})
+        g = gd.guide_position(pctx(), c, dec)
+        assert g.status == "unavailable" and phrase in g.key_reason
+        assert any("Review risk" in w for w in g.why)
+
+    def test_a_fund_or_an_event_anchored_name_without_valuation_still_gets_a_call(self):
+        dec = dict(decision("WATCHLIST", 50, new_money="WATCH"),
+                   levels={"stop": 90.0, "reference_price": 100.0, "valuation_target": None})
+        assert gd.guide_position(pctx(is_fund=True), ctx(), dec).status == "ok"
+
     @pytest.mark.parametrize("score,codes,action,basis,text", [
-        (45.0, [], "Hold", "SCORE_HOLD", "neutral"),
+        (45.0, [], "Hold", "HOLD_CLEAR", "No measured red flag"),
         (44.9, [], "Trim", "SCORE_REDUCE_BAND", "is in the reduce band (35 to 45)"),
         (35.0, [], "Trim", "SCORE_REDUCE_BAND", "is in the reduce band (35 to 45)"),
         (34.9, [], "Trim", "SCORE_REDUCE_BAND", "below 35; no measured red flag confirms an exit"),
@@ -174,14 +269,14 @@ class TestGuidance:
         c = ctx()
         c.incomplete_reasons.append(gd.ACCOUNT_UNRECONCILED)
         g = gd.guide_position(pctx(), c, decision())
-        assert g.action == "Hold / No New Money"
-        assert g.basis == {"code": "ACCOUNT_DATA_UNRECONCILED", "kind": "account_data",
-                           "text": "Account data has not fully reconciled"}
-        assert "analysis limitation, not a view on the stock" in g.why[0]
+        assert g.action == "Hold" and g.basis["kind"] not in gd.LIMITATION_KINDS
+        assert g.adding == {"status": "blocked", "code": "ACCOUNT_DATA_UNRECONCILED", "kind": "account_data",
+                            "text": "Account data has not fully reconciled",
+                            "remedy": "Positions plus cash reconciling with the account total"}
         missing = gd.guide_position(pctx(), ctx(), decision("WATCHLIST", 60, new_money="WATCH", blockers=[{
             "code": "INVALID_TARGET", "text": "", "remedy": ""}]))
-        assert missing.basis["kind"] == "missing_evidence"
-        assert missing.key_reason.startswith("No valuation target")
+        assert missing.adding["kind"] == "missing_evidence"
+        assert missing.adding["text"].startswith("No valuation target")
 
     def test_every_engine_rule_code_has_a_sentence(self):
         """An unmapped code used to reach users as 'Risk grade d hold'."""
@@ -189,7 +284,48 @@ class TestGuidance:
         assert BLOCKERS["RISK_GRADE_D_HOLD"][1] == "Risk grade D limits new money to a reduced Accumulate size"
         g = gd.guide_position(pctx(), ctx(), decision("WATCHLIST", 61, new_money="WATCH", blockers=[{
             "code": "RISK_GRADE_D_HOLD", "text": "Risk grade d hold", "remedy": ""}]))
-        assert g.key_reason == "Risk grade D limits new money to a reduced Accumulate size"
+        assert g.notes[0]["text"] == "Risk grade D limits new money to a reduced Accumulate size"
+        for code in ("EVENT_CHECK_FOREIGN_FILER", "PRICE_HISTORY_TRUNCATED"):
+            assert BLOCKERS[code][0] == "missing_data" and gd.reason_kind(code) == "missing_evidence"
+
+    def test_old_journal_actions_read_under_the_current_vocabulary(self):
+        assert gd.canonical_action("Hold / No New Money") == "Hold"
+        assert gd.canonical_action("Trim", "RISK_GRADE_F") == "Review Risk"
+        assert gd.canonical_action("Trim", "CONCENTRATION") == "Trim"
+
+    def test_attention_names_sector_grade_f_group_earnings_and_over_cap(self):
+        rows = [
+            {"symbol": "AAA", "broker": {"weight": 0.25}, "market": {"earnings_date": "2026-11-05"},
+             "guidance": {"action": "Trim", "basis": {"code": "CONCENTRATION"}}, "risk_share": 0.21},
+            {"symbol": "BBB", "broker": {"weight": 0.12}, "market": {"earnings_date": "2026-10-27"},
+             "guidance": {"action": "Hold", "basis": {}}, "risk_share": 0.15},
+            {"symbol": "CCC", "broker": {"weight": 0.03}, "market": {"earnings_date": "2026-10-21"},
+             "guidance": {"action": "Review Risk", "basis": {"code": "RISK_GRADE_F"}}, "risk_share": 0.06},
+            {"symbol": "DDD", "broker": {"weight": 0.04}, "market": {},
+             "guidance": {"action": "Review Risk", "basis": {"code": "RISK_GRADE_F"}}, "risk_share": 0.05},
+        ]
+        metrics = {"sectors": [{"sector": "Technology", "weight": 0.48, "symbols": ["AAA", "CCC", "DDD"]},
+                               {"sector": "Large Blend", "weight": 0.5, "symbols": ["FFF"], "fund": True}]}
+        items = gd.attention_items(rows, metrics, an.PortfolioPolicy(), date(2026, 10, 21))
+        assert [i["code"] for i in items] == ["SECTOR_OVER_LIMIT", "RISK_GRADE_F_GROUP", "EARNINGS_SOON"]
+        assert items[0]["text"] == "Technology is 48.0% of the account (QUANTA limit 30%)"
+        assert items[1]["text"] == ("Holdings under a grade-F risk review (CCC and DDD) are 7.0% of the account "
+                                    "and 11.0% of portfolio risk")
+        assert items[2]["text"].startswith("Earnings: CCC today; BBB within 7 days")
+
+    @pytest.mark.parametrize("grade,last,action", [
+        ("D", {"action": "Review Risk", "basis_code": "RISK_GRADE_F"}, "Review Risk"),
+        ("D", {"action": "Trim", "basis_code": "RISK_GRADE_F"}, "Review Risk"),     # pre-rename journal entry
+        ("C", {"action": "Review Risk", "basis_code": "RISK_GRADE_F"}, "Hold"),     # C or better closes it
+        ("D", {"action": "Hold", "basis_code": "HOLD_CLEAR"}, "Hold"),              # D alone never opens one
+        ("D", {}, "Hold"),
+    ])
+    def test_a_grade_f_review_stays_open_at_d_and_closes_at_c(self, grade, last, action):
+        dec = dict(decision("WATCHLIST", 60, new_money="WATCH"), risk_grade=grade)
+        g = gd.guide_position(pctx(weight=0.03), ctx(last_calls={"AAA": last} if last else {}), dec)
+        assert g.action == action
+        if action == "Review Risk":
+            assert g.basis["code"] == "RISK_REVIEW_HELD" and "until grade C or better" in g.key_reason
 
     def test_conditional_target_only_where_a_rule_defines_one(self):
         g = gd.guide_position(pctx(weight=0.24), ctx(), decision("WATCHLIST", 50),
@@ -197,7 +333,7 @@ class TestGuidance:
         assert g.target["weight"] == 0.10 and "not a personal target" in g.target["basis"]
         g = gd.guide_position(pctx(), ctx(), decision("AVOID", 40))
         assert g.target["weight"] is None and "does not size reductions" in g.target["text"]
-        assert gd.guide_position(pctx(), ctx(), decision("WATCHLIST", 50)).next_step == "No change warranted."
+        assert gd.guide_position(pctx(), ctx(), decision("WATCHLIST", 50)).next_step == "No change indicated."
 
     def test_concentration_sends_a_hold_to_trim_review(self):
         g = gd.guide_position(pctx(weight=0.24), ctx(), decision("WATCHLIST", 50))
@@ -207,16 +343,20 @@ class TestGuidance:
     def test_neutral_is_plain_hold(self):
         g = gd.guide_position(pctx(), ctx(), decision("WATCHLIST", 50, blockers=[
             {"code": "HOLD_NOT_OWNED", "text": "Overall score is in the neutral band (45–55)", "remedy": "Overall score reaching 55"}]))
-        assert g.action == "Hold" and g.new_money == "Hold / No New Money"
+        assert g.action == "Hold" and g.new_money == "No New Money"
+        assert g.adding["status"] == "not_supported" and "below the 55 buy band" in g.adding["text"]
 
-    def test_bullish_score_blocked_at_stock_level_is_do_not_add(self):
+    def test_one_hold_label_whatever_the_score(self):
+        """Audit F7: a higher score used to read the more restrictive 'Hold, no new money'."""
         g = gd.guide_position(pctx(), ctx(), decision("WATCHLIST", 66, stance="NEUTRAL", new_money="WATCH", blockers=[
             {"code": "RISK_GRADE_F", "text": "Risk grade F allows no new money", "remedy": "Risk grade improving to D"}]))
         g2 = dict(decision("WATCHLIST", 66, stance="NEUTRAL", new_money="WATCH"), model_stance="BULLISH")
         g2 = gd.guide_position(pctx(), ctx(), g2)
-        # The engine's holder rule sends a grade-F holding to trim review, for risk.
-        assert g.action == "Trim" and g.basis["kind"] == "risk"
-        assert g2.action == "Hold / No New Money" and g2.score_leaning == "Bullish"
+        g3 = gd.guide_position(pctx(), ctx(), decision("WATCHLIST", 51, new_money="WATCH"))
+        # The engine's holder rule sends a grade-F holding to a risk review.
+        assert g.action == "Review Risk" and g.basis["kind"] == "risk"
+        assert g2.action == g3.action == "Hold" and g2.score_leaning == "Bullish"
+        assert g2.adding["status"] == "blocked" and "buy band" not in g2.adding["text"]
 
     @pytest.mark.parametrize("dec,err", [
         (None, None),
@@ -1160,7 +1300,7 @@ class TestService:
         # AAPL is 40% of this account: bullish stock, but over the limit -> no new money,
         # and past the 20% review level -> Trim for concentration.
         g = rows["AAPL"]["guidance"]
-        assert g["stance"] == "Bullish" and g["new_money"] == "Hold / No New Money" and g["action"] == "Trim"
+        assert g["stance"] == "Bullish" and g["new_money"] == "No New Money" and g["action"] == "Trim"
         assert rows["BRK.B"]["guidance"]["action"] == "Unavailable"
         assert set(rows["AAPL"]) >= {"broker", "market", "analysis", "interpretation", "guidance"}
         assert rows["AAPL"]["market"]["sector_source"] == "quanta"

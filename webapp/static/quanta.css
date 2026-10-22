@@ -2508,7 +2508,27 @@ button.q-board-research { border: 0; background: none; padding: 0; font: inherit
 .hp-action--hold { color: var(--text-primary); }
 .hp-action--muted, .hp-stance--muted { color: var(--text-muted); }
 .hp-ev { display: flex; flex-direction: column; gap: 2px; }
-.hp-score { font-family: var(--font-mono); font-weight: 600; color: var(--quant); }
+.hp-score { font-family: var(--font-mono); font-weight: 500; color: var(--text-secondary); }
+/* Holdings audit 2026-10-21: evidence once per table, grade and risk share, earnings,
+   data-gap tags, the adding sub-line and the attention strip. */
+.hp-ev-note { margin: 4px 0 0; font-size: var(--fs-2xs); color: var(--text-muted); line-height: 1.5; }
+.hp-ev-note .model-flag { margin-left: 2px; }
+.hp-tr--risk_review td:first-child { box-shadow: inset 2px 0 var(--warn); }
+.hp-grade { display: inline-block; min-width: 1.6em; font-family: var(--font-mono); font-weight: 600; font-size: var(--fs-xs); color: var(--text-secondary); }
+.hp-grade.is-high { color: var(--warn-bright); }
+.hp-over { color: var(--warn-bright); font-weight: 600; }
+.hp-col-weight .hp-wbar { width: 72px; margin: 4px 0 2px auto; height: 4px; }
+.hp-col-weight .hp-wbar em { top: -2px; bottom: -2px; }
+.hp-earn { display: inline-block; margin-top: 2px; padding: 0 6px; border: 1px solid var(--info-line); border-radius: var(--r-xs); font-size: var(--fs-2xs); line-height: 1.6; color: var(--info); white-space: nowrap; }
+.hp-earn.is-now { border-color: var(--warn-line); color: var(--warn-bright); }
+.hp-gap { display: inline-block; margin-right: 4px; padding: 0 5px; border: 1px solid var(--border-strong); border-radius: var(--r-xs); font-size: var(--fs-2xs); line-height: 1.5; color: var(--text-muted); }
+.hp-adding { margin-top: 3px; }
+.hp-attn { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: 0; padding: 0 var(--sp-4) var(--sp-3); list-style: none; }
+.hp-attn-b { display: inline-flex; align-items: center; min-height: 32px; padding: 4px 10px; border: 1px solid var(--border-soft); border-left: 3px solid var(--info); border-radius: var(--r-xs); background: var(--bg-elev-1); color: var(--text-secondary); font: inherit; font-size: var(--fs-xs); text-align: left; cursor: pointer; }
+.hp-attn-b--warn { border-left-color: var(--warn); }
+.hp-attn-b.is-on { border-color: var(--primary-line); background: var(--primary-soft); color: var(--text-primary); }
+@media (hover: hover) { .hp-attn-b:hover { color: var(--text-primary); border-color: var(--border-strong); } }
+.hp-attn-b:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .hp-score-scale { margin-left: 3px; color: var(--text-muted); font-size: var(--fs-2xs); font-family: var(--font-sans); font-weight: 400; }
 .hp-ev-t { font-size: var(--fs-2xs); color: var(--text-muted); white-space: nowrap; }
 .hp-dl { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-2) var(--sp-4); }
@@ -2574,7 +2594,9 @@ button.q-board-research { border: 0; background: none; padding: 0; font: inherit
   .hp-table .hp-tr > td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; font: 400 var(--fs-2xs)/1.4 var(--font-sans); color: var(--text-muted); }
   .hp-table .hp-tr > td.hp-col-ev, .hp-table .hp-tr > td.hp-col-reason { grid-column: 1 / -1; max-width: none; text-align: left; }
   .hp-table .hp-col-ev .hp-ev { flex-direction: row; flex-wrap: wrap; gap: var(--sp-2); align-items: baseline; }
-  .hp-table .hp-tr--exit_review, .hp-table .hp-tr--trim_review { border-left: 2px solid var(--warn); }
+  .hp-table .hp-tr--exit_review, .hp-table .hp-tr--trim_review, .hp-table .hp-tr--risk_review { border-left: 2px solid var(--warn); }
+  .hp-attn { padding: 0 var(--sp-3) var(--sp-3); }
+  .hp-col-weight .hp-wbar { margin-left: auto; }
   .hp-table .hp-action { white-space: normal; }
   .hp-table .hp-detail:not([hidden]) { display: block; }
   .hp-detail-grid { grid-template-columns: minmax(0, 1fr); }

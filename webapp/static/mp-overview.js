@@ -154,8 +154,8 @@
     X.slotRenderers['movers-overview'] = moversInner;
 
     // ------------------------------------------------------------ action queue
-    const URGENCY = { 'Exit Review': ['High', 'high'], Trim: ['Medium', 'med'], Accumulate: ['Low', 'low'] };
-    const VERB = { 'Exit Review': 'Review whether to keep', Trim: 'Trim', Accumulate: 'Consider adding to' };
+    const URGENCY = { 'Exit Review': ['High', 'high'], Trim: ['Medium', 'med'], 'Review Risk': ['Medium', 'med'], Accumulate: ['Low', 'low'] };
+    const VERB = { 'Exit Review': 'Review whether to keep', Trim: 'Trim', 'Review Risk': 'Review the size of', Accumulate: 'Consider adding to' };
     function queueInner(pf) {
       const rows = H.decisionOrder(pf);
       const pol = pf.policy || {};
@@ -254,7 +254,7 @@
 
     const posOf = (pf, sym) => (pf.positions || []).find((r) => r.symbol === sym);
     const callText = (g) => (g.status !== 'ok' ? 'No call' : H.actionLabel(g.action, g));
-    const callChip = (g) => `<span class="mpo-call mpo-call--${esc({ Trim: 'trim', 'Exit Review': 'exit', Accumulate: 'add', Hold: 'hold', 'Hold / No New Money': 'noadd' }[g.action] || 'none')}">${esc(callText(g))}</span>`;
+    const callChip = (g) => `<span class="mpo-call mpo-call--${esc({ Trim: 'trim', 'Review Risk': 'trim', 'Exit Review': 'exit', Accumulate: 'add', Hold: 'hold', 'Hold / No New Money': 'hold' }[g.action] || 'none')}">${esc(callText(g))}</span>`;
 
     function allocData(pf) {
       const E = ins.expo;

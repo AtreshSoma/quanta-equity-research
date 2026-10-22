@@ -40,7 +40,7 @@ def test_typed_fund_is_nonblocking_only_in_portfolio(monkeypatch, kind):
     assert dec["action"] == "BUY"
     assert dec["new_money"] == "ELIGIBLE"
     assert not any(b["code"].startswith("EVENT_") for b in dec["blockers"])
-    g = gd.guide_position(pctx(), ctx(), dec)
+    g = gd.guide_position(pctx(is_fund=True), ctx(), dec)
     assert g.new_money == gd.NM_ACCUMULATE
     assert "Corporate-event check: not applicable to funds." in g.why
     assert serialized["decision"]["action"] == "WATCHLIST"

@@ -202,6 +202,16 @@ class Insights:
         except OSError:
             return 0
 
+    def last_calls(self) -> Dict[str, Dict[str, Any]]:
+        """The last journalled call per ticker (shown beside a No call)."""
+        j = self.src.journal
+        if j is None:
+            return {}
+        try:
+            return j.last_by_symbol()
+        except OSError:
+            return {}
+
     def journal_info(self) -> Dict[str, Any]:
         j = self.src.journal
         if j is None:

@@ -106,3 +106,5 @@ class DecisionResult:
     # Per-reader meaning (model_stance / new_money / holder_action /
     # primary_blocker); see engine.blockers.action_contract.
     contract: Dict[str, Any] = field(default_factory=dict)
+    # Measured holder red flags at any score (risk_overrides.measured_red_flags).
+    red_flags: List[str] = field(default_factory=list)

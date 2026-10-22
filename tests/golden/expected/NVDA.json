@@ -167,6 +167,7 @@
         "status": "fresh"
       },
       "generated_at": "<volatile>",
+      "history_range": "2y/1d",
       "holder_action": "TRIM",
       "holdings_known": false,
       "horizon": {
@@ -201,6 +202,7 @@
         "Composite score 63.0 \u2192 candidate ACCUMULATE",
         "Risk Grade F blocks new-money BUY \u2192 WATCHLIST"
       ],
+      "red_flags": [],
       "risk_grade": "F",
       "risk_grade_drivers": [
         {

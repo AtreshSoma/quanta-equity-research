@@ -12,6 +12,12 @@ any account identifier.
 Recording rule (so repeat sightings do not inflate the sample): a call is written
 when a ticker first appears, when its action changes, and again when the last
 entry for that ticker is at least :data:`REAFFIRM_DAYS` old.
+
+A call whose rule is an analysis limitation (missing evidence, account data) is
+not a view and is never written, so the outcome record cannot score a data gap
+as a call (audit 2026-10-21, F10). Actions are compared under the current
+vocabulary (:func:`portfolio.guidance.canonical_action`): an entry written as
+"Hold / No New Money" and a Hold today are the same call.
 """
 from __future__ import annotations
 
@@ -24,6 +30,13 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 REAFFIRM_DAYS = 21
+# Rule kinds that describe a gap in the analysis, not a view on the stock.
+_LIMITATION_KINDS = ("missing_evidence", "account_data")
+
+
+def _canonical(action, basis_code=""):
+    from .guidance import canonical_action
+    return canonical_action(action, basis_code)
 MAX_ENTRIES = 5000
 SCHEMA = 1
 
@@ -91,6 +104,8 @@ class DecisionJournal:
                 g = r.get("guidance") or {}
                 if g.get("status") != "ok" or g.get("action") in (None, "", "Unavailable"):
                     continue
+                if (g.get("basis") or {}).get("kind") in _LIMITATION_KINDS:
+                    continue
                 price = (r.get("broker") or {}).get("last_price")
                 if not isinstance(price, (int, float)) or price <= 0:
                     continue
@@ -99,7 +114,8 @@ class DecisionJournal:
                 if prev is not None and prev["date"] > session_date:
                     continue                      # the journal only moves forward in time
                 if prev is not None:
-                    same_action = prev["action"] == g["action"]
+                    prev_action = _canonical(prev["action"], prev.get("basis_code"))
+                    same_action = prev_action == g["action"]
                     age = (date.fromisoformat(session_date) - date.fromisoformat(prev["date"])).days
                     if prev["date"] == session_date and same_action:
                         continue
@@ -112,9 +128,9 @@ class DecisionJournal:
                     "action": g["action"], "stance": g.get("stance"), "score": dec.get("score"),
                     "basis_code": basis.get("code"), "basis_text": basis.get("text") or g.get("key_reason"),
                     "price": price,
-                    "kind": "change" if prev is not None and prev["action"] != g["action"] else
+                    "kind": "change" if prev is not None and not same_action else
                             ("reaffirmed" if prev is not None else "first"),
-                    "from_action": prev["action"] if prev is not None and prev["action"] != g["action"] else None,
+                    "from_action": prev_action if prev is not None and not same_action else None,
                 }
                 entries.append(entry)
                 last[sym] = entry
@@ -125,6 +141,14 @@ class DecisionJournal:
                 data["entries"] = entries[-MAX_ENTRIES:]
                 self._write(data)
             return added
+
+    def last_by_symbol(self) -> Dict[str, Dict[str, Any]]:
+        """The latest entry per ticker: {symbol: {date, action, basis_code}}."""
+        out: Dict[str, Dict[str, Any]] = {}
+        for e in self.entries():
+            out[e["symbol"]] = {"date": e.get("date"), "action": e.get("action"),
+                                "basis_code": e.get("basis_code")}
+        return out
 
     def changes(self, limit: int = 12) -> List[Dict[str, Any]]:
         """Thesis-change tracking: dated moves from one action to another."""

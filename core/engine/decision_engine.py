@@ -17,7 +17,7 @@ from typing import Optional
 
 from .blockers import action_contract
 from .evidence import stance_for
-from .risk_overrides import apply_risk_override_details
+from .risk_overrides import apply_risk_override_details, measured_red_flags
 from .score_bands import SCORE_BANDS
 from .types import ConfidenceTier, DecisionInputs, DecisionResult, FinalAction
 
@@ -115,6 +115,7 @@ def resolve_final_action(
     reasons.extend(overrides)
 
     allocation_eligible = resolved.allocates_new_capital
+    red_flags = measured_red_flags(inputs)
 
     return DecisionResult(
         final_action=resolved,
@@ -130,7 +131,9 @@ def resolve_final_action(
             resolved,
             inputs.composite_score if starting_candidate is None else None,
             override_codes, inputs.has_existing_position,
+            red_flags=red_flags,
         ),
+        red_flags=red_flags,
     )
 
 

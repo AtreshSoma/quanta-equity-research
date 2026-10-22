@@ -660,8 +660,29 @@ class PORTFOLIO(_Group):
     MAX_SECTOR = 0.30               # no new money into a sector at or above this
     CORRELATION_THRESHOLD = 0.70
     EARNINGS_WINDOW_DAYS = 7
+    # Earnings dates shown on Holdings rows and counted in the earnings exposure.
+    EARNINGS_HORIZON_DAYS = 14
     STOP_RISK_BUDGET = 0.06
     MIN_ADD_VALUE = 50.0
+    # A broker quote fetched this many minutes ago or less reads "Live" while the
+    # market is open. An older quote from the same session still values the book
+    # (a 63-session call does not lapse in minutes); the page says how old it is.
+    QUOTE_LIVE_MINUTES = 20
+    # While prices move (regular and extended hours) the broker's total and its
+    # position quotes are read a few seconds apart, so they drift by cents. Within
+    # this share of the total they reconcile; overnight the half-cent-per-line rule
+    # applies alone.
+    RECON_SESSION_TOLERANCE_PCT = 0.0005
+    # US extended-hours window (New York time) in which quotes can still move.
+    PRICES_MOVE_HOURS = (4, 20)
+    # A holding's grade-F risk review stays open while its grade sits at this level
+    # just below F, and closes at anything better. Grade-F status changes reverse
+    # within 8 weeks about half the time (elite_panel, 42 names, 2010-2026: 52%,
+    # vs 3% with this rule), and names at D straight after F kept F-like forward
+    # volatility (63-day return sd 0.19 vs 0.23 at F, 0.14 at other D).
+    RISK_REVIEW_HOLD_GRADE = "D"
+    # Holdings attention strip: at most this many portfolio-level items.
+    ATTENTION_MAX = 3
     OUTCOME_MIN_SAMPLE = 20         # completed outcomes needed before a hit rate is drawn
     OUTCOME_HORIZON_DAYS = 63       # trading days after a call before its outcome counts
     JOURNAL_RECENT_DAYS = 45        # Review lists call changes from this many calendar days

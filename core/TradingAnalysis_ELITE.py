@@ -1265,6 +1265,9 @@ class AnalysisResult:
     final_blocking_reasons: List[str] = field(default_factory=list)
     final_action_transitions: List[Dict[str, Any]] = field(default_factory=list)
     final_stance: str = ""            # pre-ownership directional view for outcome tracking
+    # Measured holder red flags at any score (engine.risk_overrides.measured_red_flags
+    # plus the analyst-consensus check); they corroborate a holder's exit review.
+    holder_red_flags: List[str] = field(default_factory=list)
     decision: Optional[Dict[str, Any]] = None  # published single-horizon contract
     has_existing_position: bool = False
     # [F7] Corporate-event check (engine.corporate_events.EventCheck.to_dict()).
@@ -1392,6 +1395,9 @@ class AnalysisResult:
     history_bars: int = 0
     first_bar_date: str = ""
     last_bar_date: str = ""
+    # The range the bars came from: "2y/1d", or "6mo/1d" when the long request
+    # failed and the provider fallback answered (too short for the risk window).
+    history_range: str = ""
     data_freshness: str = ""
     
     def __post_init__(self):
@@ -7557,6 +7563,20 @@ def decision_for_analysis(result: "AnalysisResult"):
             "code": "STALE_PRICE_DATA", "reason": stale_reason,
         })
 
+    # A short price history from the provider fallback measures risk on a few
+    # months, which reads milder than the full window: never fund on it (fail
+    # closed), and say so, so a holder's call is not changed by it (audit F3).
+    history_range = str(getattr(result, "history_range", "") or "")
+    if history_range.startswith("6mo"):
+        reason = ("The provider returned only a short price history (6 months), so risk was not "
+                  "measured on the full window.")
+        blocking.append(reason)
+        blocking_codes.append("PRICE_HISTORY_TRUNCATED")
+        if action.allocates_new_capital:
+            transitions.append({"from": action.value, "to": FinalAction.WATCHLIST.value,
+                                "code": "PRICE_HISTORY_TRUNCATED", "reason": reason})
+            action = FinalAction.WATCHLIST
+
     scenarios = _valuation_scenarios(result)
     has_target = bool(getattr(setup, "horizon_target", 0) or 0)
     valuation_target = float(getattr(setup, "target_base", 0) or 0) or None
@@ -7644,10 +7664,12 @@ def decision_for_analysis(result: "AnalysisResult"):
     _score = getattr(scores, "composite_score", None) if scores else None
     # [F7] One ladder for both pages: grade policy (F counts for the holder at
     # any score), the Strong Buy fold, and the holder rule.
+    decision.red_flags = dedupe(list(getattr(result, "holder_red_flags", []) or []))
+    decision.history_range = history_range
     lad = ladder_decide(LadderInputs(
         action, _score, getattr(result.risk, "risk_grade", "") if result.risk else "",
         dedupe(decision.blocking_codes), str(decision.evidence.status.value),
-        getattr(result, "event_check", None)))
+        getattr(result, "event_check", None), red_flags=list(decision.red_flags)))
     if lad.action is not action:
         decision.action = lad.action
         decision.reasons = list(decision.reasons) + lad.reasons
@@ -7656,7 +7678,7 @@ def decision_for_analysis(result: "AnalysisResult"):
     decision.blockers = [blocker_info(c, getattr(result, "event_check", None)) for c in decision.blocking_codes]
     contract = action_contract(
         action, _score, decision.blocking_codes, holdings_known=bool(result.has_existing_position),
-        event=getattr(result, "event_check", None),
+        event=getattr(result, "event_check", None), red_flags=decision.red_flags,
     )
     contract["holder_action"] = lad.holder_action
     decision.event_check = getattr(result, "event_check", None)
@@ -8168,6 +8190,7 @@ class QuantaEliteAnalyzer:
             result.history_bars = int(fetch_meta.get("rows") or 0)
             result.first_bar_date = fetch_meta.get("first_bar") or ""
             result.last_bar_date = fetch_meta.get("last_bar") or ""
+            result.history_range = str(fetch_meta.get("range") or "")
             result.data_quality_status = (
                 "ok" if data_status == DataStatus.OK else str(data_status)
             )
@@ -8611,6 +8634,18 @@ class QuantaEliteAnalyzer:
                         heavy_insider_selling=_heavy_insider,
                     )
                     dec = resolve_final_action(di)
+                    # Holder red flags at any score (audit 2026-10-21, F2). The
+                    # consensus check mirrors the generator's buy-tier rule.
+                    _holder_flags = list(getattr(dec, "red_flags", []) or [])
+                    try:
+                        _mi = result.market_intel
+                        _tm = float(getattr(_mi, 'target_mean', 0.0) or 0.0) if _mi else 0.0
+                        _px = float(result.current_price or 0.0)
+                        if _tm > 0 and _px > 0 and (_tm - _px) / _px * 100 < _T.RESEARCH.ANALYST_DOWNSIDE_LIMIT_PCT:
+                            _holder_flags.append("ANALYST_CONSENSUS_DOWNSIDE")
+                    except (TypeError, ValueError):
+                        pass
+                    result.holder_red_flags = list(dict.fromkeys(_holder_flags))
 
                     # [T5 FIX] The core's verdict used to be adopted
                     # unconditionally. `_candidate_from_score` maps
@@ -8962,6 +8997,7 @@ class QuantaEliteAnalyzer:
         cached = self.cache.get(cache_key)
         if cached is not None and len(cached) >= Config.MIN_DATA_POINTS:
             meta["from_cache"] = True
+            meta["range"] = (getattr(cached, 'attrs', {}) or {}).get('range') or ""
             meta["rows"] = int(len(cached))
             meta["variant"] = (getattr(cached, 'attrs', {}) or {}).get('ticker') or plan.normalized
             meta["resolution_note"] = resolution_note(plan, meta["variant"])
@@ -9027,12 +9063,12 @@ class QuantaEliteAnalyzer:
                     try:
                         info = self._normalize_info(stock.info, stock, data, candidate)
                         info_ok = bool(info.get('shortName') or info.get('longName'))
-                        data.attrs = {'info': info, 'ticker': candidate}
+                        data.attrs = {'info': info, 'ticker': candidate, 'range': label}
                     except Exception as info_exc:
                         meta["info_exception"] = f"{type(info_exc).__name__}: {info_exc}"
                         if self._looks_like_rate_limit(info_exc):
                             meta["rate_limited"] = True
-                        data.attrs = {'ticker': candidate}
+                        data.attrs = {'ticker': candidate, 'range': label}
                     if info_ok:
                         self.cache.set(cache_key, data)
                     else:

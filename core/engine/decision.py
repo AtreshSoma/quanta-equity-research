@@ -198,6 +198,12 @@ class Decision:
     blockers: List[Dict[str, str]] = field(default_factory=list)
     # For a funded call: the measurable conditions that would withdraw it.
     invalidation: List[str] = field(default_factory=list)
+    # Measured holder red flags at any score (engine.risk_overrides.measured_red_flags):
+    # what corroborates an exit review, and what a Hold must disclose.
+    red_flags: List[str] = field(default_factory=list)
+    # The price-history range the analysis read ("2y/1d"; "6mo/1d" is the
+    # provider fallback, too short for the risk window).
+    history_range: str = ""
 
     @property
     def presentation(self) -> Presentation:
@@ -230,6 +236,8 @@ class Decision:
             "primary_blocker": dict(self.primary_blocker) if self.primary_blocker else None,
             "blockers": [dict(b) for b in self.blockers],
             "invalidation": list(self.invalidation),
+            "red_flags": list(self.red_flags),
+            "history_range": self.history_range,
             "sizing_basis": pres.sizing_basis,
             "caveat": pres.caveat,
             "qualifier": pres.qualifier,

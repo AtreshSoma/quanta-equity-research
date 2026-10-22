@@ -578,7 +578,10 @@ class TestNoCallCause:
         from portfolio.service import _no_call_cause
         p = Position("AAA", 1, last_price=10)
         assert _no_call_cause(Position("A", 1), {}, {}, None, None)["code"] == "NO_QUOTE"
-        assert _no_call_cause(p, {"status": "delayed", "text": "25 min old"}, {}, None, None)["remedy"] == "wait"
+        # A same-session quote read a while ago still values the book: it is not a cause (audit F3).
+        assert _no_call_cause(p, {"status": "delayed", "text": "25 min ago"}, {"state": "running"}, None,
+                              None)["code"] == "ANALYSIS_PENDING"
+        assert _no_call_cause(p, {"status": "stale"}, {}, None, None)["code"] == "QUOTE_STALE"
         assert _no_call_cause(p, {"status": "live"}, {"state": "running"}, None, None)["code"] == "ANALYSIS_PENDING"
         err = _no_call_cause(p, {"status": "live"}, {"state": "error", "error": {"title": "rate limited", "retryable": False}}, None, None)
         assert err["code"] == "ANALYSIS_FAILED" and err["remedy"] == "none"

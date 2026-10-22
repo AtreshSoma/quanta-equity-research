@@ -40,6 +40,7 @@
    "computed": 90576.0,
    "difference": 0.0,
    "difference_pct": 0.0,
+   "tolerance": 0.05,
    "note": ""
   },
   "freshness": {
@@ -130,6 +131,7 @@
       "NVDA",
       "MSFT"
      ],
+     "fund": false,
      "weight": 0.5969351704645822
     },
     {
@@ -138,6 +140,7 @@
      "symbols": [
       "XOM"
      ],
+     "fund": false,
      "weight": 0.08470234940823176
     },
     {
@@ -146,6 +149,7 @@
      "symbols": [
       "KO"
      ],
+     "fund": false,
      "weight": 0.0840399222752164
     },
     {
@@ -154,6 +158,7 @@
      "symbols": [
       "BRK.B"
      ],
+     "fund": false,
      "weight": 0.06200317965023847
     },
     {
@@ -162,6 +167,7 @@
      "symbols": [
       "RIVN"
      ],
+     "fund": false,
      "weight": 0.03908320084790673
     },
     {
@@ -170,12 +176,14 @@
      "symbols": [
       "JNJ"
      ],
+     "fund": false,
      "weight": 0.026695813460519344
     },
     {
      "sector": "Cash",
      "value": 9650.0,
      "symbols": [],
+     "fund": false,
      "weight": 0.10654036389330507
     }
    ],
@@ -215,7 +223,17 @@
       "correlation": 0.9818143733567796
      }
     ],
-    "avg_correlation": 0.3614183372643444
+    "avg_correlation": 0.3614183372643444,
+    "risk_share": {
+     "AAPL": 0.17198948042343776,
+     "NVDA": 0.5652845551626814,
+     "MSFT": 0.10211585148755188,
+     "KO": 0.03562529878879333,
+     "XOM": 0.03540414655088955,
+     "RIVN": 0.04439856156545408,
+     "BRK.B": 0.037935430667056645,
+     "JNJ": 0.00724667535413535
+    }
    },
    "stops": {
     "loss": 5296.000000000002,
@@ -271,12 +289,18 @@
    },
    {
     "key": "trim_review",
-    "title": "Trim / Risk Review",
+    "title": "Trim",
     "symbols": [
      "NVDA",
      "XOM"
     ],
     "count": 2
+   },
+   {
+    "key": "risk_review",
+    "title": "Review Risk",
+    "symbols": [],
+    "count": 0
    },
    {
     "key": "consider_adding",
@@ -285,22 +309,15 @@
     "count": 0
    },
    {
-    "key": "do_not_add",
-    "title": "Do Not Add",
-    "symbols": [
-     "AAPL",
-     "MSFT",
-     "JNJ"
-    ],
-    "count": 3
-   },
-   {
     "key": "hold",
     "title": "Hold",
     "symbols": [
-     "KO"
+     "AAPL",
+     "MSFT",
+     "KO",
+     "JNJ"
     ],
-    "count": 1
+    "count": 4
    },
    {
     "key": "unavailable",
@@ -309,6 +326,26 @@
      "BRK.B"
     ],
     "count": 1
+   }
+  ],
+  "attention": [
+   {
+    "code": "SECTOR_OVER_LIMIT",
+    "tone": "warn",
+    "symbols": [
+     "AAPL",
+     "NVDA",
+     "MSFT"
+    ],
+    "text": "Technology is 59.7% of the account (QUANTA limit 30%)"
+   },
+   {
+    "code": "OVER_SINGLE_LIMIT",
+    "tone": "info",
+    "symbols": [
+     "AAPL"
+    ],
+    "text": "AAPL (15.1%) is over the 10% single-name limit"
    }
   ],
   "positions": [
@@ -463,8 +500,10 @@
       ],
       "levels": {
        "stop": null,
-       "reference_price": 100.0
+       "reference_price": 100.0,
+       "valuation_target": 120.0
       },
+      "red_flags": [],
       "evidence": {
        "status": "UNTESTED",
        "status_text": "Never validated",
@@ -493,11 +532,18 @@
      "group": "exit_review",
      "priority": 0,
      "headline": "Review whether to keep this",
-     "key_reason": "QUANTA score 29 is below 35, with a measured red flag: 12-month valuation target is at or below the entry",
+     "key_reason": "QUANTA score 29 is below 35, with a measured red flag: QUANTA's 12-month valuation target is below the price",
      "basis": {
       "code": "SCORE_EXIT_CORROBORATED",
       "kind": "investment",
-      "text": "QUANTA score 29 is below 35, with a measured red flag: 12-month valuation target is at or below the entry"
+      "text": "QUANTA score 29 is below 35, with a measured red flag: QUANTA's 12-month valuation target is below the price"
+     },
+     "adding": {
+      "status": "blocked",
+      "code": "RISK_GRADE_F",
+      "kind": "risk",
+      "text": "Risk grade F (very high volatility/drawdown) allows no new money",
+      "remedy": "Risk grade improving to D or better"
      },
      "next_step": "Review the thesis against the red flags. This is a review prompt, not an order.",
      "target": {
@@ -506,7 +552,7 @@
       "basis": "The right size depends on your own risk tolerance; see the scenarios"
      },
      "why": [
-      "The research engine is bearish on RIVN with a score 29, below 35, corroborated by 1 measured red flag. This is a prompt to review the thesis, not an instruction to sell.",
+      "The research engine's score 29 for RIVN is below 35, corroborated by 1 measured red flag: QUANTA's 12-month valuation target is below the price. This is a prompt to review the thesis, not an instruction to sell.",
       "You are down 28.5% on a cost of $16.50 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -528,11 +574,23 @@
        "remedy": "A valuation target above the entry price",
        "source": "quanta",
        "kind": "valuation"
+      },
+      {
+       "code": "PORTFOLIO_DATA_INCOMPLETE",
+       "text": "Portfolio stop-risk coverage is incomplete",
+       "remedy": "Complete portfolio analysis and risk coverage",
+       "source": "portfolio",
+       "kind": "missing_evidence"
       }
+     ],
+     "notes": [],
+     "red_flags": [
+      "TARGET_BELOW_ENTRY"
      ],
      "would_change": [
       "Risk grade improving to D or better",
       "A valuation target above the entry price",
+      "Complete portfolio analysis and risk coverage",
       "A daily close below the stop",
       "Overall score recovering above 45"
      ],
@@ -566,9 +624,12 @@
       },
       "room_to_cap": 5517.6
      },
-     "unavailable_reason": ""
+     "unavailable_reason": "",
+     "last_call": {}
     },
-    "no_call": null
+    "no_call": null,
+    "is_fund": false,
+    "risk_share": 0.04439856156545408
    },
    {
     "symbol": "NVDA",
@@ -710,8 +771,10 @@
       ],
       "levels": {
        "stop": 158.0,
-       "reference_price": 100.0
+       "reference_price": 100.0,
+       "valuation_target": 120.0
       },
+      "red_flags": [],
       "evidence": {
        "status": "UNTESTED",
        "status_text": "Never validated",
@@ -734,26 +797,33 @@
      "stance": "Bullish",
      "stance_code": "BULLISH",
      "score_leaning": "",
-     "new_money": "Hold / No New Money",
+     "new_money": "No New Money",
      "existing": "Trim",
      "action": "Trim",
      "group": "trim_review",
      "priority": 1,
      "headline": "Trim for position size",
-     "key_reason": "Position is 35.0% of the portfolio, past the 20% review level",
+     "key_reason": "35.0% of the account, past the 20% review level",
      "basis": {
       "code": "CONCENTRATION",
       "kind": "concentration",
-      "text": "Position is 35.0% of the portfolio, past the 20% review level"
+      "text": "35.0% of the account, past the 20% review level"
      },
-     "next_step": "Consider trimming toward the 10% single-name limit; the size scenarios show the effect. The limit and the 20% review level are QUANTA defaults, not a target set for your goals, time horizon or tax position.",
+     "adding": {
+      "status": "blocked",
+      "code": "POSITION_AT_CAP",
+      "kind": "portfolio_limit",
+      "text": "35.0% of the account, over the 10% single-name limit",
+      "remedy": "The position falling below 10% of the account"
+     },
+     "next_step": "Trim range: to the 20% review level (sell about $13,619, 77.25 shares) or to the 10% single-name limit (sell about $22,676, 128.62 shares). Trimming to the limit realises about $14,805 of gain ($14,805 long-term, $0 short-term if the oldest lots go first); informational, not tax advice. The 20% review level and the 10% limit are QUANTA defaults, not a target set for your goals, time horizon or tax position.",
      "target": {
       "weight": 0.10000000000000002,
       "text": "About 10.0% if trimmed to the 10% single-name limit",
       "basis": "QUANTA default limit (10%), not a personal target"
      },
      "why": [
-      "QUANTA is still willing to hold NVDA (score 77), but at 35.0% it is past the 20% review level. Trimming is about single-name risk, not a change of view on the stock.",
+      "At 35.0% of the account, NVDA is past the 20% review level. Trimming is about single-name risk (it carries 56.5% of the portfolio's risk).",
       "You are up 188.1% on a cost of $61.20 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -764,14 +834,14 @@
      "blocks": [
       {
        "code": "POSITION_AT_CAP",
-       "text": "Already 35.0% of the portfolio, at or over the 10% single-name limit",
-       "remedy": "The position falling below 10% of the portfolio",
+       "text": "35.0% of the account, over the 10% single-name limit",
+       "remedy": "The position falling below 10% of the account",
        "source": "portfolio",
        "kind": "portfolio_limit"
       },
       {
        "code": "SECTOR_AT_CAP",
-       "text": "Technology is already 60% of the portfolio (limit 30%)",
+       "text": "Technology is 59.7% of the account (limit 30%)",
        "remedy": "Technology exposure falling below 30%",
        "source": "portfolio",
        "kind": "portfolio_limit"
@@ -784,14 +854,16 @@
        "kind": "missing_evidence"
       }
      ],
+     "notes": [],
+     "red_flags": [],
      "would_change": [
-      "The position falling below 10% of the portfolio",
+      "The position falling below 10% of the account",
       "Technology exposure falling below 30%",
       "Complete portfolio analysis and risk coverage",
       "A daily close below the stop"
      ],
      "risks": [
-      "At 35.0% of the portfolio, a 20% drop here costs 7.0% of the whole account.",
+      "At 35.0% of the account, a 20% drop here costs 7.0% of the whole account.",
       "Valuation is rich",
       "Hardware cycle is maturing"
      ],
@@ -820,6 +892,24 @@
        "portfolio_beta_after": 0.4815712771595124
       },
       "room_to_cap": 0.0,
+      "trim_to_review": {
+       "symbol": "NVDA",
+       "delta_value": -13618.800000000003,
+       "weight_before": 0.35035771065182836,
+       "weight_after": 0.2,
+       "sector": "Technology",
+       "sector_weight_before": 0.5969351704645822,
+       "sector_weight_after": 0.4465774598127539,
+       "cash_after": 23268.800000000003,
+       "portfolio_beta_before": 1.0771793852676206,
+       "portfolio_beta_after": 0.8215712771595125,
+       "shares": 77.24787294384573,
+       "gain": 8891.230175836645,
+       "gain_short": 0.0,
+       "gain_long": 8891.230175836645,
+       "lot_order": "oldest lots first (FIFO)",
+       "basis": "Selling down to the 20% review level"
+      },
       "trim_to_cap": {
        "symbol": "NVDA",
        "delta_value": -22676.4,
@@ -831,12 +921,20 @@
        "cash_after": 32326.4,
        "portfolio_beta_before": 1.0771793852676206,
        "portfolio_beta_after": 0.6515712771595124,
+       "shares": 128.62393647192286,
+       "gain": 14804.615087918322,
+       "gain_short": 0.0,
+       "gain_long": 14804.615087918322,
+       "lot_order": "oldest lots first (FIFO)",
        "basis": "Selling down to the 10% single-name limit"
       }
      },
-     "unavailable_reason": ""
+     "unavailable_reason": "",
+     "last_call": {}
     },
-    "no_call": null
+    "no_call": null,
+    "is_fund": false,
+    "risk_share": 0.5652845551626814
    },
    {
     "symbol": "XOM",
@@ -984,8 +1082,10 @@
       ],
       "levels": {
        "stop": null,
-       "reference_price": 100.0
+       "reference_price": 100.0,
+       "valuation_target": 120.0
       },
+      "red_flags": [],
       "evidence": {
        "status": "UNTESTED",
        "status_text": "Never validated",
@@ -1020,6 +1120,13 @@
       "kind": "investment",
       "text": "QUANTA score 41 is in the reduce band (35 to 45)"
      },
+     "adding": {
+      "status": "not_supported",
+      "code": "SCORE_BELOW_BUY_BAND",
+      "kind": "investment",
+      "text": "QUANTA score 41 is below 45 (bearish)",
+      "remedy": "Overall score reaching 55 or higher"
+     },
      "next_step": "Review whether to scale down; re-check if the score recovers above 45.",
      "target": {
       "weight": null,
@@ -1027,7 +1134,7 @@
       "basis": "The right size depends on your own risk tolerance; see the scenarios"
      },
      "why": [
-      "The evidence has turned against XOM (score 41). A holder would normally scale down rather than wait for confirmation.",
+      "The research engine's score for XOM has turned down (score 41). The score has no demonstrated predictive edge, so treat this as a review, not a forecast.",
       "You are down 7.1% on a cost of $118.00 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -1037,6 +1144,15 @@
      ],
      "blocks": [
       {
+       "code": "PORTFOLIO_DATA_INCOMPLETE",
+       "text": "Portfolio stop-risk coverage is incomplete",
+       "remedy": "Complete portfolio analysis and risk coverage",
+       "source": "portfolio",
+       "kind": "missing_evidence"
+      }
+     ],
+     "notes": [
+      {
        "code": "SCORE_BEARISH",
        "text": "Overall score is below 45 (bearish)",
        "remedy": "Overall score recovering above 45",
@@ -1044,9 +1160,12 @@
        "kind": "investment"
       }
      ],
+     "red_flags": [],
      "would_change": [
-      "Overall score recovering above 45",
-      "A daily close below the stop"
+      "Overall score reaching 55 or higher",
+      "Complete portfolio analysis and risk coverage",
+      "A daily close below the stop",
+      "Overall score recovering above 45"
      ],
      "risks": [
       "Valuation is rich",
@@ -1078,9 +1197,12 @@
       },
       "room_to_cap": 1385.6000000000004
      },
-     "unavailable_reason": ""
+     "unavailable_reason": "",
+     "last_call": {}
     },
-    "no_call": null
+    "no_call": null,
+    "is_fund": false,
+    "risk_share": 0.03540414655088955
    },
    {
     "symbol": "AAPL",
@@ -1230,8 +1352,10 @@
       ],
       "levels": {
        "stop": 209.0,
-       "reference_price": 100.0
+       "reference_price": 100.0,
+       "valuation_target": 120.0
       },
+      "red_flags": [],
       "evidence": {
        "status": "UNTESTED",
        "status_text": "Never validated",
@@ -1254,26 +1378,33 @@
      "stance": "Bullish",
      "stance_code": "BULLISH",
      "score_leaning": "",
-     "new_money": "Hold / No New Money",
+     "new_money": "No New Money",
      "existing": "Hold",
-     "action": "Hold / No New Money",
-     "group": "do_not_add",
-     "priority": 3,
-     "headline": "Keep it, but do not add",
-     "key_reason": "Already 15.1% of the portfolio, at or over the 10% single-name limit",
+     "action": "Hold",
+     "group": "hold",
+     "priority": 4,
+     "headline": "Keep, but do not add",
+     "key_reason": "15.1% of the account, over the 10% single-name limit",
      "basis": {
       "code": "POSITION_AT_CAP",
       "kind": "portfolio_limit",
-      "text": "Already 15.1% of the portfolio, at or over the 10% single-name limit"
+      "text": "15.1% of the account, over the 10% single-name limit"
      },
-     "next_step": "Keep the position. Do not add until: the position falling below 10% of the portfolio.",
+     "adding": {
+      "status": "blocked",
+      "code": "POSITION_AT_CAP",
+      "kind": "portfolio_limit",
+      "text": "15.1% of the account, over the 10% single-name limit",
+      "remedy": "The position falling below 10% of the account"
+     },
+     "next_step": "Keep the position. Do not add until: the position falling below 10% of the account.",
      "target": {
       "weight": 0.15129835718071014,
       "text": "Current weight, 15.1%",
       "basis": "No change indicated"
      },
      "why": [
-      "QUANTA likes the stock (bullish, score 67), but already 15.1% of the portfolio, at or over the 10% single-name limit. Adding would make the portfolio less balanced, not better.",
+      "Keep AAPL; no measured red flag argues for cutting it, but 15.1% of the account, over the 10% single-name limit.",
       "You are up 60.7% on a cost of $142.10 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -1284,14 +1415,14 @@
      "blocks": [
       {
        "code": "POSITION_AT_CAP",
-       "text": "Already 15.1% of the portfolio, at or over the 10% single-name limit",
-       "remedy": "The position falling below 10% of the portfolio",
+       "text": "15.1% of the account, over the 10% single-name limit",
+       "remedy": "The position falling below 10% of the account",
        "source": "portfolio",
        "kind": "portfolio_limit"
       },
       {
        "code": "SECTOR_AT_CAP",
-       "text": "Technology is already 60% of the portfolio (limit 30%)",
+       "text": "Technology is 59.7% of the account (limit 30%)",
        "remedy": "Technology exposure falling below 30%",
        "source": "portfolio",
        "kind": "portfolio_limit"
@@ -1304,14 +1435,16 @@
        "kind": "missing_evidence"
       }
      ],
+     "notes": [],
+     "red_flags": [],
      "would_change": [
-      "The position falling below 10% of the portfolio",
+      "The position falling below 10% of the account",
       "Technology exposure falling below 30%",
       "Complete portfolio analysis and risk coverage",
       "A daily close below the stop"
      ],
      "risks": [
-      "At 15.1% of the portfolio, a 20% drop here costs 3.0% of the whole account.",
+      "At 15.1% of the account, a 20% drop here costs 3.0% of the whole account.",
       "Valuation is rich",
       "Hardware cycle is maturing",
       "Tends to move with MSFT, so the diversification is less than it looks."
@@ -1352,12 +1485,20 @@
        "cash_after": 14296.4,
        "portfolio_beta_before": 1.0771793852676206,
        "portfolio_beta_after": 1.0156213566507684,
+       "shares": 20.343257443082308,
+       "gain": 2205.2091068301224,
+       "gain_short": 0.0,
+       "gain_long": 2205.2091068301224,
+       "lot_order": "oldest lots first (FIFO)",
        "basis": "Selling down to the 10% single-name limit"
       }
      },
-     "unavailable_reason": ""
+     "unavailable_reason": "",
+     "last_call": {}
     },
-    "no_call": null
+    "no_call": null,
+    "is_fund": false,
+    "risk_share": 0.17198948042343776
    },
    {
     "symbol": "MSFT",
@@ -1494,8 +1635,10 @@
       ],
       "levels": {
        "stop": 398.0,
-       "reference_price": 100.0
+       "reference_price": 100.0,
+       "valuation_target": 120.0
       },
+      "red_flags": [],
       "evidence": {
        "status": "UNTESTED",
        "status_text": "Never validated",
@@ -1518,17 +1661,24 @@
      "stance": "Bullish",
      "stance_code": "BULLISH",
      "score_leaning": "",
-     "new_money": "Hold / No New Money",
+     "new_money": "No New Money",
      "existing": "Hold",
-     "action": "Hold / No New Money",
-     "group": "do_not_add",
-     "priority": 3,
-     "headline": "Keep it, but do not add",
-     "key_reason": "Technology is already 60% of the portfolio (limit 30%)",
+     "action": "Hold",
+     "group": "hold",
+     "priority": 4,
+     "headline": "Keep, but do not add",
+     "key_reason": "Technology is 59.7% of the account (limit 30%)",
      "basis": {
       "code": "SECTOR_AT_CAP",
       "kind": "portfolio_limit",
-      "text": "Technology is already 60% of the portfolio (limit 30%)"
+      "text": "Technology is 59.7% of the account (limit 30%)"
+     },
+     "adding": {
+      "status": "blocked",
+      "code": "SECTOR_AT_CAP",
+      "kind": "portfolio_limit",
+      "text": "Technology is 59.7% of the account (limit 30%)",
+      "remedy": "Technology exposure falling below 30%"
      },
      "next_step": "Keep the position. Do not add until: technology exposure falling below 30%.",
      "target": {
@@ -1537,7 +1687,7 @@
       "basis": "No change indicated"
      },
      "why": [
-      "QUANTA likes the stock (bullish, score 58), but technology is already 60% of the portfolio (limit 30%). Adding would make the portfolio less balanced, not better.",
+      "Keep MSFT; no measured red flag argues for cutting it, but technology is 59.7% of the account (limit 30%).",
       "You are up 7.3% on a cost of $402.00 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -1548,7 +1698,7 @@
      "blocks": [
       {
        "code": "SECTOR_AT_CAP",
-       "text": "Technology is already 60% of the portfolio (limit 30%)",
+       "text": "Technology is 59.7% of the account (limit 30%)",
        "remedy": "Technology exposure falling below 30%",
        "source": "portfolio",
        "kind": "portfolio_limit"
@@ -1561,6 +1711,8 @@
        "kind": "missing_evidence"
       }
      ],
+     "notes": [],
+     "red_flags": [],
      "would_change": [
       "Technology exposure falling below 30%",
       "Complete portfolio analysis and risk coverage",
@@ -1610,9 +1762,273 @@
        "basis": "QUANTA's risk-budget size for this account, capped by the single-name limit and buying power"
       }
      },
-     "unavailable_reason": ""
+     "unavailable_reason": "",
+     "last_call": {}
     },
-    "no_call": null
+    "no_call": null,
+    "is_fund": false,
+    "risk_share": 0.10211585148755188
+   },
+   {
+    "symbol": "KO",
+    "broker": {
+     "symbol": "KO",
+     "name": "Coca-Cola",
+     "instrument_type": "equity",
+     "quantity": 110,
+     "average_cost": 58.4,
+     "cost_basis": 6424.0,
+     "last_price": 69.2,
+     "previous_close": 69.0,
+     "market_value": 7612.0,
+     "day_change": 22.000000000000313,
+     "unrealized_pnl": 1188.0,
+     "unrealized_pnl_pct": 18.493150684931507,
+     "quote_as_of": "2026-09-25T20:00:00+00:00",
+     "quote_source": "broker",
+     "tax_lots": [],
+     "sector": "",
+     "industry": "",
+     "earnings_date": null,
+     "earnings_verified": null,
+     "earnings_timing": null,
+     "eps_estimate": null,
+     "ex_dividend_date": "2026-09-30",
+     "payable_date": "2026-10-15",
+     "dividend_per_share": 0.51,
+     "distribution_frequency": "quarterly",
+     "missing": [],
+     "weight": 0.0840399222752164,
+     "quote_freshness": {
+      "status": "last_close",
+      "age_minutes": 1140.0,
+      "text": "Latest session"
+     }
+    },
+    "market": {
+     "sector": "Consumer Defensive",
+     "sector_source": "quanta",
+     "industry": "",
+     "beta": 0.6,
+     "beta_status": "measured",
+     "earnings_date": null,
+     "earnings_source": "",
+     "correlated_with": []
+    },
+    "analysis": {
+     "state": "done",
+     "error": null,
+     "finished_at": null,
+     "sector": "Consumer Defensive",
+     "industry": "",
+     "company_name": "Coca-Cola",
+     "risk": {
+      "beta": 0.6,
+      "beta_status": "measured",
+      "annualized_volatility": 0.28,
+      "max_drawdown": -0.22,
+      "risk_grade": "B"
+     },
+     "analysis_timestamp": "2026-09-26T14:02:00+00:00",
+     "data_provider": "yfinance",
+     "thesis": {
+      "summary": "Durable franchise; valuation is the debate.",
+      "bull_case": [
+       "Services mix lifts margins",
+       "Buybacks shrink the share count"
+      ],
+      "bear_case": [
+       "Hardware cycle is maturing"
+      ]
+     },
+     "fundamental": {
+      "roe": 148.7,
+      "net_margin": 24.3,
+      "revenue_growth_yoy": 6.1,
+      "debt_to_equity": 1.8,
+      "pe_ratio": 31.2,
+      "forward_pe": 28.4,
+      "dividend_yield": 0.0045,
+      "quality_score": 71
+     },
+     "valuation": {
+      "dcf_status": "measured",
+      "dcf_upside": -8.5,
+      "valuation_label": "fairly_valued",
+      "target_base": 238.0
+     },
+     "market_intel": {
+      "target_mean": 245.0,
+      "analyst_count": 38
+     },
+     "technical": {
+      "trend_direction": "UP",
+      "rsi": 58,
+      "adx": 24,
+      "support_level": 212.0,
+      "resistance_level": 236.0,
+      "week_52_low": 164.1,
+      "week_52_high": 237.5
+     },
+     "catalysts": {
+      "last_earnings_result": "beat",
+      "last_earnings_surprise_pct": 3.2
+     },
+     "account_context": {
+      "note": "Sized against a $128,400 account."
+     },
+     "decision": {
+      "action": "WATCHLIST",
+      "stance": "NEUTRAL",
+      "model_stance": "NEUTRAL",
+      "new_money": "WATCH",
+      "holder_action": "HOLD",
+      "score": 51,
+      "risk_grade": "B",
+      "horizon": {
+       "key": "position",
+       "trading_days": 63,
+       "label": "Position (~3 months)"
+      },
+      "blockers": [
+       {
+        "code": "HOLD_NOT_OWNED",
+        "text": "Overall score is in the neutral band (45\u201355)",
+        "remedy": "Overall score reaching 55 or higher"
+       }
+      ],
+      "reasons": [
+       "Earnings momentum and margin expansion"
+      ],
+      "risks": [
+       "Valuation is rich"
+      ],
+      "invalidation": [
+       "A daily close below the stop"
+      ],
+      "levels": {
+       "stop": null,
+       "reference_price": 100.0,
+       "valuation_target": 120.0
+      },
+      "red_flags": [],
+      "evidence": {
+       "status": "UNTESTED",
+       "status_text": "Never validated",
+       "permits_recommendation": false
+      },
+      "qualifier": "Unproven model",
+      "caveat": "Treat as research.",
+      "freshness": {
+       "status": "fresh"
+      },
+      "sizing": {
+       "position_value": 5000.0
+      }
+     }
+    },
+    "interpretation": null,
+    "guidance": {
+     "symbol": "KO",
+     "status": "ok",
+     "stance": "Neutral",
+     "stance_code": "NEUTRAL",
+     "score_leaning": "",
+     "new_money": "No New Money",
+     "existing": "Hold",
+     "action": "Hold",
+     "group": "hold",
+     "priority": 4,
+     "headline": "No change indicated",
+     "key_reason": "No measured red flag; within portfolio limits",
+     "basis": {
+      "code": "HOLD_CLEAR",
+      "kind": "investment",
+      "text": "No measured red flag; within portfolio limits"
+     },
+     "adding": {
+      "status": "not_supported",
+      "code": "SCORE_BELOW_BUY_BAND",
+      "kind": "investment",
+      "text": "QUANTA score 51 is below the 55 buy band",
+      "remedy": "Overall score reaching 55 or higher"
+     },
+     "next_step": "No change indicated.",
+     "target": {
+      "weight": 0.0840399222752164,
+      "text": "Current weight, 8.4%",
+      "basis": "No change indicated"
+     },
+     "why": [
+      "Nothing measured argues for cutting KO: no red flag, and the position is 8.4% of the account, within limits.",
+      "Adding: not supported: QUANTA score 51 is below the 55 buy band.",
+      "You are up 18.5% on a cost of $58.40 a share. QUANTA's view does not depend on your entry price."
+     ],
+     "supports": [
+      "Earnings momentum and margin expansion",
+      "Services mix lifts margins",
+      "Buybacks shrink the share count"
+     ],
+     "blocks": [
+      {
+       "code": "PORTFOLIO_DATA_INCOMPLETE",
+       "text": "Portfolio stop-risk coverage is incomplete",
+       "remedy": "Complete portfolio analysis and risk coverage",
+       "source": "portfolio",
+       "kind": "missing_evidence"
+      }
+     ],
+     "notes": [
+      {
+       "code": "HOLD_NOT_OWNED",
+       "text": "Overall score is in the neutral band (45\u201355)",
+       "remedy": "Overall score reaching 55 or higher",
+       "source": "quanta",
+       "kind": "investment"
+      }
+     ],
+     "red_flags": [],
+     "would_change": [
+      "Overall score reaching 55 or higher",
+      "Complete portfolio analysis and risk coverage",
+      "A daily close below the stop"
+     ],
+     "risks": [
+      "Valuation is rich",
+      "Hardware cycle is maturing"
+     ],
+     "horizon": "Position (~3 months)",
+     "conviction": 51,
+     "evidence": {
+      "status": "UNTESTED",
+      "text": "Never validated",
+      "permits_recommendation": false,
+      "qualifier": "Unproven model",
+      "caveat": "Treat as research."
+     },
+     "tax_note": "",
+     "trace": [],
+     "impact": {
+      "remove": {
+       "symbol": "KO",
+       "delta_value": -7612.0,
+       "weight_before": 0.0840399222752164,
+       "weight_after": 0.0,
+       "sector": "Consumer Defensive",
+       "sector_weight_before": 0.0840399222752164,
+       "sector_weight_after": 0.0,
+       "cash_after": 17262.0,
+       "portfolio_beta_before": 1.0771793852676206,
+       "portfolio_beta_after": 1.0267554319024907
+      },
+      "room_to_cap": 1445.6000000000004
+     },
+     "unavailable_reason": "",
+     "last_call": {}
+    },
+    "no_call": null,
+    "is_fund": false,
+    "risk_share": 0.03562529878879333
    },
    {
     "symbol": "JNJ",
@@ -1754,8 +2170,10 @@
       ],
       "levels": {
        "stop": 150.0,
-       "reference_price": 100.0
+       "reference_price": 100.0,
+       "valuation_target": 120.0
       },
+      "red_flags": [],
       "evidence": {
        "status": "UNTESTED",
        "status_text": "Never validated",
@@ -1778,26 +2196,34 @@
      "stance": "Bullish",
      "stance_code": "BULLISH",
      "score_leaning": "",
-     "new_money": "Hold / No New Money",
+     "new_money": "No New Money",
      "existing": "Hold",
-     "action": "Hold / No New Money",
-     "group": "do_not_add",
-     "priority": 3,
-     "headline": "Keep it, but do not add",
-     "key_reason": "Portfolio stop-risk coverage is incomplete",
+     "action": "Hold",
+     "group": "hold",
+     "priority": 4,
+     "headline": "No change indicated",
+     "key_reason": "No measured red flag; within portfolio limits",
      "basis": {
+      "code": "HOLD_CLEAR",
+      "kind": "investment",
+      "text": "No measured red flag; within portfolio limits"
+     },
+     "adding": {
+      "status": "blocked",
       "code": "PORTFOLIO_DATA_INCOMPLETE",
       "kind": "missing_evidence",
-      "text": "Portfolio stop-risk coverage is incomplete"
+      "text": "Portfolio stop-risk coverage is incomplete",
+      "remedy": "Complete portfolio analysis and risk coverage"
      },
-     "next_step": "Keep the position. Do not add until: complete portfolio analysis and risk coverage.",
+     "next_step": "No change indicated.",
      "target": {
       "weight": 0.026695813460519344,
       "text": "Current weight, 2.7%",
       "basis": "No change indicated"
      },
      "why": [
-      "QUANTA likes the stock (bullish, score 66), but portfolio stop-risk coverage is incomplete. This is an analysis limitation, not a view on the stock.",
+      "Nothing measured argues for cutting JNJ: no red flag, and the position is 2.7% of the account, within limits.",
+      "Adding: blocked: portfolio stop-risk coverage is incomplete.",
       "You are up 8.9% on a cost of $148.00 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -1814,6 +2240,8 @@
        "kind": "missing_evidence"
       }
      ],
+     "notes": [],
+     "red_flags": [],
      "would_change": [
       "Complete portfolio analysis and risk coverage",
       "A daily close below the stop"
@@ -1861,246 +2289,12 @@
        "basis": "QUANTA's risk-budget size for this account, capped by the single-name limit and buying power"
       }
      },
-     "unavailable_reason": ""
+     "unavailable_reason": "",
+     "last_call": {}
     },
-    "no_call": null
-   },
-   {
-    "symbol": "KO",
-    "broker": {
-     "symbol": "KO",
-     "name": "Coca-Cola",
-     "instrument_type": "equity",
-     "quantity": 110,
-     "average_cost": 58.4,
-     "cost_basis": 6424.0,
-     "last_price": 69.2,
-     "previous_close": 69.0,
-     "market_value": 7612.0,
-     "day_change": 22.000000000000313,
-     "unrealized_pnl": 1188.0,
-     "unrealized_pnl_pct": 18.493150684931507,
-     "quote_as_of": "2026-09-25T20:00:00+00:00",
-     "quote_source": "broker",
-     "tax_lots": [],
-     "sector": "",
-     "industry": "",
-     "earnings_date": null,
-     "earnings_verified": null,
-     "earnings_timing": null,
-     "eps_estimate": null,
-     "ex_dividend_date": "2026-09-30",
-     "payable_date": "2026-10-15",
-     "dividend_per_share": 0.51,
-     "distribution_frequency": "quarterly",
-     "missing": [],
-     "weight": 0.0840399222752164,
-     "quote_freshness": {
-      "status": "last_close",
-      "age_minutes": 1140.0,
-      "text": "Latest session"
-     }
-    },
-    "market": {
-     "sector": "Consumer Defensive",
-     "sector_source": "quanta",
-     "industry": "",
-     "beta": 0.6,
-     "beta_status": "measured",
-     "earnings_date": null,
-     "earnings_source": "",
-     "correlated_with": []
-    },
-    "analysis": {
-     "state": "done",
-     "error": null,
-     "finished_at": null,
-     "sector": "Consumer Defensive",
-     "industry": "",
-     "company_name": "Coca-Cola",
-     "risk": {
-      "beta": 0.6,
-      "beta_status": "measured",
-      "annualized_volatility": 0.28,
-      "max_drawdown": -0.22,
-      "risk_grade": "B"
-     },
-     "analysis_timestamp": "2026-09-26T14:02:00+00:00",
-     "data_provider": "yfinance",
-     "thesis": {
-      "summary": "Durable franchise; valuation is the debate.",
-      "bull_case": [
-       "Services mix lifts margins",
-       "Buybacks shrink the share count"
-      ],
-      "bear_case": [
-       "Hardware cycle is maturing"
-      ]
-     },
-     "fundamental": {
-      "roe": 148.7,
-      "net_margin": 24.3,
-      "revenue_growth_yoy": 6.1,
-      "debt_to_equity": 1.8,
-      "pe_ratio": 31.2,
-      "forward_pe": 28.4,
-      "dividend_yield": 0.0045,
-      "quality_score": 71
-     },
-     "valuation": {
-      "dcf_status": "measured",
-      "dcf_upside": -8.5,
-      "valuation_label": "fairly_valued",
-      "target_base": 238.0
-     },
-     "market_intel": {
-      "target_mean": 245.0,
-      "analyst_count": 38
-     },
-     "technical": {
-      "trend_direction": "UP",
-      "rsi": 58,
-      "adx": 24,
-      "support_level": 212.0,
-      "resistance_level": 236.0,
-      "week_52_low": 164.1,
-      "week_52_high": 237.5
-     },
-     "catalysts": {
-      "last_earnings_result": "beat",
-      "last_earnings_surprise_pct": 3.2
-     },
-     "account_context": {
-      "note": "Sized against a $128,400 account."
-     },
-     "decision": {
-      "action": "WATCHLIST",
-      "stance": "NEUTRAL",
-      "model_stance": "NEUTRAL",
-      "new_money": "WATCH",
-      "holder_action": "HOLD",
-      "score": 51,
-      "risk_grade": "B",
-      "horizon": {
-       "key": "position",
-       "trading_days": 63,
-       "label": "Position (~3 months)"
-      },
-      "blockers": [
-       {
-        "code": "HOLD_NOT_OWNED",
-        "text": "Overall score is in the neutral band (45\u201355)",
-        "remedy": "Overall score reaching 55 or higher"
-       }
-      ],
-      "reasons": [
-       "Earnings momentum and margin expansion"
-      ],
-      "risks": [
-       "Valuation is rich"
-      ],
-      "invalidation": [
-       "A daily close below the stop"
-      ],
-      "levels": {
-       "stop": null,
-       "reference_price": 100.0
-      },
-      "evidence": {
-       "status": "UNTESTED",
-       "status_text": "Never validated",
-       "permits_recommendation": false
-      },
-      "qualifier": "Unproven model",
-      "caveat": "Treat as research.",
-      "freshness": {
-       "status": "fresh"
-      },
-      "sizing": {
-       "position_value": 5000.0
-      }
-     }
-    },
-    "interpretation": null,
-    "guidance": {
-     "symbol": "KO",
-     "status": "ok",
-     "stance": "Neutral",
-     "stance_code": "NEUTRAL",
-     "score_leaning": "",
-     "new_money": "Hold / No New Money",
-     "existing": "Hold",
-     "action": "Hold",
-     "group": "hold",
-     "priority": 4,
-     "headline": "No change warranted",
-     "key_reason": "Overall score is in the neutral band (45\u201355)",
-     "basis": {
-      "code": "HOLD_NOT_OWNED",
-      "kind": "investment",
-      "text": "Overall score is in the neutral band (45\u201355)"
-     },
-     "next_step": "No change warranted.",
-     "target": {
-      "weight": 0.0840399222752164,
-      "text": "Current weight, 8.4%",
-      "basis": "No change indicated"
-     },
-     "why": [
-      "Nothing here argues for adding or cutting: QUANTA is neutral (score 51) and the position is 8.4% of the portfolio.",
-      "You are up 18.5% on a cost of $58.40 a share. QUANTA's view does not depend on your entry price."
-     ],
-     "supports": [
-      "Earnings momentum and margin expansion",
-      "Services mix lifts margins",
-      "Buybacks shrink the share count"
-     ],
-     "blocks": [
-      {
-       "code": "HOLD_NOT_OWNED",
-       "text": "Overall score is in the neutral band (45\u201355)",
-       "remedy": "Overall score reaching 55 or higher",
-       "source": "quanta",
-       "kind": "investment"
-      }
-     ],
-     "would_change": [
-      "Overall score reaching 55 or higher",
-      "A daily close below the stop"
-     ],
-     "risks": [
-      "Valuation is rich",
-      "Hardware cycle is maturing"
-     ],
-     "horizon": "Position (~3 months)",
-     "conviction": 51,
-     "evidence": {
-      "status": "UNTESTED",
-      "text": "Never validated",
-      "permits_recommendation": false,
-      "qualifier": "Unproven model",
-      "caveat": "Treat as research."
-     },
-     "tax_note": "",
-     "trace": [],
-     "impact": {
-      "remove": {
-       "symbol": "KO",
-       "delta_value": -7612.0,
-       "weight_before": 0.0840399222752164,
-       "weight_after": 0.0,
-       "sector": "Consumer Defensive",
-       "sector_weight_before": 0.0840399222752164,
-       "sector_weight_after": 0.0,
-       "cash_after": 17262.0,
-       "portfolio_beta_before": 1.0771793852676206,
-       "portfolio_beta_after": 1.0267554319024907
-      },
-      "room_to_cap": 1445.6000000000004
-     },
-     "unavailable_reason": ""
-    },
-    "no_call": null
+    "no_call": null,
+    "is_fund": false,
+    "risk_share": 0.00724667535413535
    },
    {
     "symbol": "BRK.B",
@@ -2179,11 +2373,14 @@
       "kind": "missing_evidence",
       "text": "Analysis unavailable: Market data provider rate-limited the request"
      },
+     "adding": {},
      "next_step": "Refresh to re-run the analysis. A missing analysis is not a view on the stock.",
      "target": {},
      "why": [],
      "supports": [],
      "blocks": [],
+     "notes": [],
+     "red_flags": [],
      "would_change": [
       "A successful, current QUANTA analysis of this holding"
      ],
@@ -2194,14 +2391,17 @@
      "tax_note": "",
      "trace": [],
      "impact": {},
-     "unavailable_reason": "Analysis unavailable: Market data provider rate-limited the request"
+     "unavailable_reason": "Analysis unavailable: Market data provider rate-limited the request",
+     "last_call": {}
     },
     "no_call": {
      "code": "ANALYSIS_FAILED",
      "text": "Market data provider rate-limited the request",
      "remedy": "refresh",
      "detail": "Retry in a few minutes."
-    }
+    },
+    "is_fund": false,
+    "risk_share": 0.037935430667056645
    }
   ],
   "issues": [

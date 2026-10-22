@@ -94,13 +94,14 @@
   // Portfolio actions. Amber is the strongest tone used: guidance here asks for a
   // review, it never sounds an alarm.
   const ACTION_TONE = {
-    Accumulate: 'add', Hold: 'neutral', 'Hold / No New Money': 'hold', Trim: 'warn',
+    Accumulate: 'add', Hold: 'neutral', 'Hold / No New Money': 'neutral', Trim: 'warn', 'Review Risk': 'warn',
     'Exit Review': 'review', Unavailable: 'muted',
   };
   const STANCE_TONE = { Bullish: 'bull', Neutral: 'neutral', Bearish: 'warn', 'Not rated': 'muted' };
   // One display word per portfolio action, on every tab (the engine's enum
   // strings stay as sent in data attributes and the journal).
-  const ACTION_LABEL = { 'Hold / No New Money': 'Hold, no new money', 'Exit Review': 'Exit review', Unavailable: 'No call' };
+  // "Hold / No New Money" is the pre-2026-10-21 name of a Hold whose adding is blocked.
+  const ACTION_LABEL = { 'Hold / No New Money': 'Hold', 'Review Risk': 'Review risk', 'Exit Review': 'Exit review', Unavailable: 'No call' };
   // A risk-grade-F trim has no target size behind it (the grade says the swings are large, not
   // what the position should be), so it reads as a risk review, not an instruction to trim.
   const actionLabel = (a, g) => (a === 'Trim' && g && g.basis && g.basis.code === 'RISK_GRADE_F' ? 'Review risk' : (ACTION_LABEL[a] || a));
@@ -129,8 +130,11 @@
     basis: { label: 'Cost basis', dir: 'desc', key: (r) => num(r.broker.cost_basis) },
     action: { label: 'Action', dir: 'asc', key: (r) => r.guidance.priority },
     risk: {
-      label: 'Risk', dir: 'desc',
+      label: 'Share of risk', dir: 'desc',
       key: (r) => {
+        // Measured risk share first; the grade and volatility order the rest.
+        const share = num(r.risk_share);
+        if (share !== null) return 100 + share;
         const g = GRADE_RANK[String((r.analysis.decision || {}).risk_grade || '').toUpperCase()] || 0;
         const vol = num((r.analysis.risk || {}).annualized_volatility) || 0;
         return g * 10 + Math.min(vol, 9.99);
@@ -139,7 +143,7 @@
     weight: { label: 'Weight', dir: 'desc', key: (r) => num(r.broker.weight) },
     today: { label: 'Session change', dir: 'desc', key: (r) => num(r.broker.day_change) },
     pnl: { label: 'P&L', dir: 'desc', key: (r) => num(r.broker.unrealized_pnl_pct) },
-    conviction: { label: 'Conviction', dir: 'desc', key: (r) => num(r.guidance.conviction) },
+    conviction: { label: 'Score', dir: 'desc', key: (r) => num(r.guidance.conviction) },
   };
 
   function sortRows(rows, sortKey = 'action', dir) {
@@ -770,10 +774,60 @@
     STALE: 'Validation out of date', UNTESTED: 'Not yet tested',
   };
   const evidenceShort = (ev) => EVIDENCE_SHORT[(ev || {}).status] || (ev || {}).text || '';
+  // The research score, muted: it has no demonstrated edge until validated, so it
+  // is context, never the loudest number on the row. The evidence status is stated
+  // once above the table instead of on every row (audit F14).
   function evidenceCell(g) {
     if (g.status !== 'ok') return NA;
     const score = num(g.conviction);
-    return `<span class="hp-ev">${score !== null ? `<span class="hp-score">${score.toFixed(0)}<span class="hp-score-scale">/100 score</span></span>` : ''}${evidenceValidated(g.evidence) ? `<span class="hp-ev-t">${esc(evidenceShort(g.evidence))}</span>` : modelFlag(g.evidence)}</span>`;
+    return `<span class="hp-ev">${score !== null ? `<span class="hp-score">${score.toFixed(0)}<span class="hp-score-scale">/100</span></span>` : NA}${evidenceValidated(g.evidence) ? `<span class="hp-ev-t">${esc(evidenceShort(g.evidence))}</span>` : ''}</span>`;
+  }
+  // One line for the whole table: what the Score column is worth.
+  function evidenceNoteHtml(pf) {
+    const rated = (pf.positions || []).filter((r) => r.guidance.status === 'ok');
+    if (!rated.length) return '';
+    const ev = rated[0].guidance.evidence;
+    const same = rated.every((r) => ((r.guidance.evidence || {}).status || '') === ((ev || {}).status || ''));
+    const flag = same ? (evidenceValidated(ev) ? esc(evidenceShort(ev)) : modelFlag(ev)) : 'evidence varies by holding; see each detail';
+    return `<p class="hp-ev-note">Score: QUANTA’s research score out of 100, not a probability of profit · ${flag}</p>`;
+  }
+  // Grade and the holding's share of the portfolio's day-to-day risk.
+  function riskCell(r) {
+    const grade = String(((r.analysis || {}).decision || {}).risk_grade || ((r.analysis || {}).risk || {}).risk_grade || '').toUpperCase();
+    const share = num(r.risk_share);
+    if (!grade && share === null) return NA;
+    return `${grade ? `<span class="hp-grade${grade === 'F' || grade === 'D' ? ' is-high' : ''}" title="Risk grade ${esc(grade)}">${esc(grade)}</span>` : ''}${share !== null ? `<span class="hp-sub">${share < 0 ? 'lowers risk' : `${pct(share, 1)} of risk`}</span>` : ''}`;
+  }
+  // Earnings within the horizon in config (PORTFOLIO.EARNINGS_HORIZON_DAYS), dated from the quote's session.
+  function earningsBadge(r) {
+    const iso = (r.market || {}).earnings_date;
+    if (!iso) return '';
+    const base = nyDate(r.broker.quote_as_of) || nyDate(new Date().toISOString());
+    const days = Math.round((Date.parse(`${iso}T12:00:00Z`) - Date.parse(`${base}T12:00:00Z`)) / 864e5);
+    const horizon = typeof thr === 'function' ? num(thr('PORTFOLIO.EARNINGS_HORIZON_DAYS')) : null;
+    if (!Number.isFinite(days) || days < 0 || days > (horizon !== null ? horizon : 14)) return '';
+    const when = days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days}d`;
+    return `<span class="hp-earn${days <= 1 ? ' is-now' : ''}" title="Next earnings ${esc(iso)}">Earnings ${when}</span>`;
+  }
+  const lowerFirst = (s) => (s && !(s.length > 1 && s[1] === s[1].toUpperCase() && /[A-Z]/.test(s[1])) ? s[0].toLowerCase() + s.slice(1) : s || '');
+  // The rule behind the action, tagged when it is a data gap, and for a Hold the one
+  // rule that decides whether new money may go in (audit F1, F7, F9).
+  function reasonCell(g) {
+    const b = g.basis || {};
+    const text = g.status === 'ok' ? g.key_reason : (g.unavailable_reason || g.key_reason);
+    const gap = DATA_GAP_KINDS.has(b.kind) ? '<span class="hp-gap">Data gap</span> ' : '';
+    const a = g.adding || {};
+    const hold = g.status === 'ok' && (g.action === 'Hold' || g.action === 'Hold / No New Money');
+    const word = { blocked: 'Adding blocked', eligible: 'Adding allowed', not_supported: 'Adding not supported' }[a.status];
+    const line = hold && word && a.text && a.code !== b.code
+      ? `<span class="hp-sub hp-adding">${word}: ${DATA_GAP_KINDS.has(a.kind) ? 'data gap, ' : ''}${esc(lowerFirst(a.text))}</span>` : '';
+    return `${gap}${esc(text || '')}${line}`;
+  }
+  function attentionHtml(pf) {
+    const items = list(pf.attention);
+    if (!items.length) return '';
+    const on = (state.holdFilter || {}).code;
+    return `<ul class="hp-attn" aria-label="Portfolio items to review">${items.map((a) => `<li><button type="button" class="hp-attn-b hp-attn-b--${esc(a.tone || 'info')}${on === a.code ? ' is-on' : ''}" data-hp-attn="${esc(a.code)}" aria-pressed="${on === a.code}">${esc(a.text)}</button></li>`).join('')}</ul>`;
   }
 
   // ---------------------------------------------------------------- guidance
@@ -781,11 +835,18 @@
   // next step is the resolver's own output, never re-derived here.
   const KIND_LABEL = {
     investment: 'Investment view', risk: 'Risk', valuation: 'Valuation', concentration: 'Position size',
-    portfolio_limit: 'Portfolio limit', missing_evidence: 'Missing evidence', account_data: 'Account data',
+    portfolio_limit: 'Portfolio limit', missing_evidence: 'Missing evidence', account_data: 'Account data', fund: 'Fund',
   };
-  const GROUP_LABEL = { exit_review: 'Exit review', trim_review: 'Trim', consider_adding: 'Consider adding', do_not_add: 'Hold, no new money', hold: 'No change', unavailable: 'No call' };
-  const DECISIONS = new Set(['Exit Review', 'Trim', 'Accumulate']);
+  // A reason that is a gap in the data, not a view on the stock, carries this tag in the table.
+  const DATA_GAP_KINDS = new Set(['missing_evidence', 'account_data']);
+  // Chip labels match the row labels word for word (audit F8). do_not_add is the
+  // pre-2026-10-21 group of Holds whose adding was blocked.
+  const GROUP_LABEL = { exit_review: 'Exit review', trim_review: 'Trim', risk_review: 'Review risk', consider_adding: 'Consider adding', do_not_add: 'Hold', hold: 'Hold', unavailable: 'No call' };
+  const DECISIONS = new Set(['Exit Review', 'Trim', 'Review Risk', 'Accumulate']);
   const isShared = (g) => SHARED_CODES.has((g.basis || {}).code);
+  // Adding is blocked by a rule (a Hold that would not take new money).
+  const addingBlocked = (g) => g.group === 'do_not_add' || (g.adding || {}).status === 'blocked';
+  const addingOf = (g) => (g.adding && g.adding.text ? g.adding : g.basis || {});
 
   // The one scenario the server sized for a decision: trimming to the single-name limit,
   // or adding QUANTA's size. Unsized reductions (a risk-grade trim, an exit review) have none.
@@ -805,7 +866,7 @@
         <div class="hp-gi-foot"><button type="button" class="q-btn q-btn--link hp-open" data-hp-inspect="${esc(r.symbol)}">${esc(r.symbol)} details and research</button></div></div>`;
     }
     const ev = g.evidence || {};
-    const reduction = g.action === 'Trim' || g.action === 'Exit Review';
+    const reduction = g.action === 'Trim' || g.action === 'Exit Review' || g.action === 'Review Risk';
     const risks = list(g.risks);
     const supports = list(g.supports);
     // A reduction is argued against by the bull case; a hold or add by the next risk.
@@ -822,7 +883,7 @@
       r.market && r.market.earnings_date ? `Next earnings ${r.market.earnings_date} (${r.market.earnings_source === 'broker' ? 'Robinhood calendar' : 'market data'})` : '',
     ].filter(Boolean);
     const im = g.impact || {};
-    const scen = [['Trimmed to the limit', im.trim_to_cap], [g.action === 'Accumulate' ? 'Adding QUANTA’s size' : null, im.add], ['Selling it all', im.remove]]
+    const scen = [['Trimmed to the review level', im.trim_to_review], ['Trimmed to the limit', im.trim_to_cap], [g.action === 'Accumulate' ? 'Adding QUANTA’s size' : null, im.add], ['Selling it all', im.remove]]
       .filter(([k, x]) => k && x && x.weight_after != null)
       .map(([k, x]) => `<li><span>${k}</span><span>${pct(x.weight_before, 1)} → ${pct(x.weight_after, 1)}; ${esc(x.sector || 'sector')} ${pct(x.sector_weight_before, 0)} → ${pct(x.sector_weight_after, 0)}${x.cash_after != null ? `; cash after ${money(x.cash_after)}` : ''}</span></li>`);
     const row = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
@@ -830,6 +891,8 @@
       <dl class="hp-gi-dl">
         ${row('Investment outlook', `${stanceChip(g.stance)} score ${num(g.conviction) !== null ? Number(g.conviction).toFixed(0) : '--'}/100${g.score_leaning ? `, leans ${esc(g.score_leaning.toLowerCase())}` : ''}`)}
         ${row('Portfolio action', `${esc(actionLabel(g.action, g))}: ${esc(g.headline)}`)}
+        ${g.adding && g.adding.text ? row('Adding', `${esc({ eligible: 'Allowed', blocked: 'Blocked', not_supported: 'Not supported', unavailable: 'Unknown' }[g.adding.status] || 'Unknown')}<span class="hp-sub">${esc(g.adding.text)}</span>`) : ''}
+        ${list(g.red_flags).length ? row('Red flags', `${list(g.red_flags).length} measured<span class="hp-sub">${esc(g.action === 'Hold' ? g.key_reason : list(g.red_flags).join(', ').toLowerCase().replace(/_/g, ' '))}</span>`) : ''}
         ${row('Weight now', `${pct(r.broker.weight, 1)} of the account`)}
         ${row('Conditional target', `${esc(t.text || 'Not computed')}${t.basis ? `<span class="hp-sub">${esc(t.basis)}</span>` : ''}`)}
         ${row('Horizon', esc(g.horizon || 'Not stated'))}
@@ -880,8 +943,11 @@
       LOW_REWARD_RISK: typeof thr === 'function'
         ? `Reward/risk below ${fmtThreshold(thr('RR.RESEARCH_MIN'), 'rr')}` : 'Reward/risk below the minimum',
       INVALID_TARGET: 'No valuation target',
+      SCORE_BELOW_BUY_BAND: 'Score below the buy band', FUND_NOT_RATED: 'Fund, not rated by the score',
+      EVENT_CHECK_FOREIGN_FILER: 'No event coverage (foreign filer)', EVENT_CHECK_UNAVAILABLE: 'Event check unavailable',
+      PRICE_HISTORY_TRUNCATED: 'Short price history',
       RISK_GRADE_D_CAP: 'Risk grade D', RISK_GRADE_D_HOLD: 'Risk grade D', RISK_GRADE_F: 'Risk grade F',
-      POSITION_AT_CAP: `At the ${pct(pol.max_single_position, 0)} single-name limit`, SECTOR_AT_CAP: `Sector at the ${pct(pol.max_sector, 0)} limit`,
+      POSITION_AT_CAP: `Over the ${pct(pol.max_single_position, 0)} single-name limit`, SECTOR_AT_CAP: `Sector over the ${pct(pol.max_sector, 0)} limit`,
       EARNINGS_SOON: 'Earnings within days', RISK_BUDGET_FULL: 'Stop-risk budget full', CORRELATED_CLUSTER: 'Moves with another holding',
       NO_BUYING_POWER: 'No buying power', BUYING_POWER_UNKNOWN: 'Buying power unknown',
     };
@@ -979,20 +1045,21 @@
   // that waits on shared account data is counted here and explained once, in the data status.
   function holdTableHtml(pf, full) {
     const pol = pf.policy || {};
-    const rows = (pf.positions || []).filter((r) => r.guidance.group === 'do_not_add').sort(byWeight);
+    const rows = (pf.positions || []).filter((r) => ['hold', 'do_not_add'].includes(r.guidance.group) && addingBlocked(r.guidance)).sort(byWeight);
     if (!rows.length) return '';
-    const own = rows.filter((r) => !isShared(r.guidance));
+    const own = rows.filter((r) => !SHARED_CODES.has(addingOf(r.guidance).code));
     const shared = rows.length - own.length;
     const tags = new Map();
     own.forEach((r) => {
-      const t = reasonTag(r.guidance.basis, pol);
-      if (!tags.has(t)) tags.set(t, { kind: KIND_LABEL[(r.guidance.basis || {}).kind] || '', rows: [] });
+      const a = addingOf(r.guidance);
+      const t = reasonTag(a, pol);
+      if (!tags.has(t)) tags.set(t, { kind: KIND_LABEL[a.kind] || '', rows: [] });
       tags.get(t).rows.push(r);
     });
     const body = [...tags.entries()].map(([t, x]) => `<tr><th scope="row"><span class="hp-tag" title="${esc(x.kind)}">${esc(t)}</span></th>
         <td>${full
-    ? `<ul class="hp-hold-full">${x.rows.map((r) => `<li><button type="button" class="hp-chip-sym" data-hp-inspect="${esc(r.symbol)}" aria-label="${esc(`${r.symbol} details`)}">${esc(r.symbol)}</button><span>${esc(r.guidance.key_reason)}</span><span class="hp-num">${pct(r.broker.weight, 1)}</span></li>`).join('')}</ul>`
-    : x.rows.map((r) => `<button type="button" class="hp-chip-sym" data-hp-inspect="${esc(r.symbol)}" title="${esc(r.guidance.key_reason)}" aria-label="${esc(`${r.symbol}: ${r.guidance.key_reason}. Details.`)}">${esc(r.symbol)}</button>`).join('')}</td></tr>`).join('');
+    ? `<ul class="hp-hold-full">${x.rows.map((r) => `<li><button type="button" class="hp-chip-sym" data-hp-inspect="${esc(r.symbol)}" aria-label="${esc(`${r.symbol} details`)}">${esc(r.symbol)}</button><span>${esc(addingOf(r.guidance).text)}</span><span class="hp-num">${pct(r.broker.weight, 1)}</span></li>`).join('')}</ul>`
+    : x.rows.map((r) => `<button type="button" class="hp-chip-sym" data-hp-inspect="${esc(r.symbol)}" title="${esc(addingOf(r.guidance).text)}" aria-label="${esc(`${r.symbol}: ${addingOf(r.guidance).text}. Details.`)}">${esc(r.symbol)}</button>`).join('')}</td></tr>`).join('');
     return `<section class="hp-holdt" aria-labelledby="hp-holdt-h">
       <header class="hp-gc-h"><h3 class="hp-gc-t" id="hp-holdt-h">New money on hold</h3><span class="hp-gc-n">${rows.length} ${plural(rows.length, 'holding', 'holdings')}</span></header>
       ${tags.size ? `<table class="hp-holdt-t"><caption class="sr-only">Holdings QUANTA keeps but would not add to, grouped by reason</caption><tbody>${body}</tbody></table>` : ''}
@@ -1006,7 +1073,7 @@
     return `<table class="hp-plain"><tbody>${rows.map((r) => `<tr><th scope="row"><button type="button" class="hp-chip-sym" data-hp-inspect="${esc(r.symbol)}" aria-label="${esc(`${r.symbol} details`)}">${esc(r.symbol)}</button></th><td class="hp-num">${pct(r.broker.weight, 1)}</td><td>${esc(r.guidance.status === 'ok' ? r.guidance.key_reason : (r.guidance.unavailable_reason || r.guidance.key_reason))}</td></tr>`).join('')}</tbody></table>`;
   }
 
-  const GUIDE_ORDER = ['exit_review', 'trim_review', 'consider_adding', 'do_not_add', 'hold', 'unavailable'];
+  const GUIDE_ORDER = ['exit_review', 'trim_review', 'risk_review', 'consider_adding', 'do_not_add', 'hold', 'unavailable'];
   function guidanceChipsHtml(pf) {
     const groups = GUIDE_ORDER.map((k) => (pf.groups || []).find((g) => g.key === k)).filter((g) => g && g.count);
     if (groups.length < 2) return '';
@@ -1082,12 +1149,12 @@
       const quoteBlocked = lateQuotes(pf).length === rows.length && rows.length > 0;
       const msg = !rated.length
         ? `<strong>${running ? 'Analysis in progress.' : 'Analysis paused.'}</strong> ${running ? 'Current calls will appear as analysis completes.' : quoteBlocked ? 'Fresh quotes are required before portfolio calls can be generated.' : 'Current research is unavailable; refresh data to retry.'}`
-        : `<strong>No position changes indicated.</strong> ${rows.some((r) => r.guidance.action === 'Hold / No New Money') ? 'Restrictions on new money still apply; see each holding’s reason.' : 'No portfolio changes require attention among the current calls.'}`;
+        : `<strong>No position changes indicated.</strong> ${rows.some((r) => addingBlocked(r.guidance)) ? 'Restrictions on new money still apply; see each holding’s reason.' : 'No portfolio changes require attention among the current calls.'}`;
       const recovery = paused ? `<div class="hp-gd-recovery"><button type="button" id="hp-guidance-refresh" class="q-btn" data-hp="refresh"${state.busy || running ? ' disabled' : ''}>${state.busy ? 'Refreshing…' : 'Refresh data'}</button></div>` : chips;
       return `<section class="q-panel hp-panel hp-guidance is-quiet" aria-labelledby="hp-gd-h">
         <div class="hp-gd-bar">${title}<p class="hp-gd-msg">${msg}</p>${recovery}
         ${paused ? `<details class="hp-gd-details hp-more" data-hp-disclosure="guidance-state"><summary>Details</summary><p class="hp-fine">${when}. Missing research is not a negative investment judgement. Account values remain available; individual data limitations are recorded in Data details and Holdings.</p></details>` : ''}</div>
-        ${!paused ? `<div class="q-body">${ratingHtml(pf)}${rows.some((r) => r.guidance.group === 'do_not_add') ? holdTableHtml(pf, false) : ''}</div>` : ''}
+        ${!paused ? `<div class="q-body">${ratingHtml(pf)}${rows.some((r) => addingBlocked(r.guidance)) ? holdTableHtml(pf, false) : ''}</div>` : ''}
       </section>`;
     }
 
@@ -1098,8 +1165,10 @@
     const X = api_.ext || {};
     const head = `<header class="q-head"><div class="q-head-l">${title}<p class="q-head-sub">${actionable.length} ${plural(actionable.length, 'needs', 'need')} a decision · <span class="hp-evidence-note">${evText}</span> · ${when}</p></div><div class="q-head-r">${tag('quanta')}</div></header>`;
     let body;
-    if (filter === 'do_not_add') body = `<div class="hp-gd-one">${holdTableHtml(pf, true)}</div>`;
-    else if (filter === 'hold' || filter === 'unavailable') body = `<div class="hp-gd-one">${plainListHtml(rows.filter((r) => r.guidance.group === filter), pf)}</div>`;
+    if (filter === 'do_not_add' || filter === 'hold') {
+      const open = rows.filter((r) => ['hold', 'do_not_add'].includes(r.guidance.group) && !addingBlocked(r.guidance));
+      body = `<div class="hp-gd-one">${holdTableHtml(pf, true)}${open.length ? plainListHtml(open, pf) : ''}</div>`;
+    } else if (filter === 'unavailable') body = `<div class="hp-gd-one">${plainListHtml(rows.filter((r) => r.guidance.group === filter), pf)}</div>`;
     else {
       const shown = filter ? actionable.filter((r) => r.guidance.group === filter) : actionable;
       const hero = heroOf(shown);
@@ -1147,6 +1216,7 @@
     const ariaSort = (k) => (state.sort === k ? ((state.dir || SORTS[k].dir) === 'asc' ? 'ascending' : 'descending') : 'none');
     const th = (k, label, cls = '') => `<th scope="col" class="${cls}" aria-sort="${ariaSort(k)}"><span class="hp-mobile-heading">${label}</span><button type="button" class="q-sortable" data-hp-sort="${k}">${label}<span class="q-sort${state.sort === k ? ' is-on' : ''}" aria-hidden="true">${state.sort === k && (state.dir || SORTS[k].dir) === 'asc' ? '▲' : '▼'}</span></button></th>`;
     const ses = sessionOf(pf);
+    const pol = pf.policy || {};
     const body = rows.map((r) => {
       const g = r.guidance; const b = r.broker;
       const selected = state.selected === r.symbol;
@@ -1157,30 +1227,34 @@
       const today = b.day_change != null
         ? `<span class="${dirClass(b.day_change)}">${signedMoney(b.day_change)}</span><span class="hp-sub ${dirClass(b.day_change)}">${dp !== null ? priv(pct(dp, 2, false, true)) : ''}</span>`
         : '<span class="q-na" title="Robinhood did not report a previous close">--</span>';
+      const w = num(b.weight);
+      const cap = num(pol.max_single_position);
+      const over = w !== null && cap !== null && w >= cap;
       return `<tr class="q-tr hp-tr hp-tr--${esc(g.group)}${selected ? ' is-selected' : ''}" data-hp-row="${esc(r.symbol)}">
-          <td><button type="button" class="hp-row-toggle" data-hp-toggle="${esc(r.symbol)}" aria-haspopup="dialog" aria-label="${esc(`${r.symbol} details`)}"><span class="hp-sym">${esc(r.symbol)}</span><span class="q-caret" aria-hidden="true"></span></button><span class="hp-sub hp-company">${esc(b.name || r.market.sector || '')}</span></td>
-          <td class="num hp-col-weight" data-label="Weight">${pct(b.weight, 1)}<span class="hp-sub">${money(b.market_value)}</span></td>
+          <td><button type="button" class="hp-row-toggle" data-hp-toggle="${esc(r.symbol)}" aria-haspopup="dialog" aria-label="${esc(`${r.symbol} details`)}"><span class="hp-sym">${esc(r.symbol)}</span><span class="q-caret" aria-hidden="true"></span></button><span class="hp-sub hp-company">${esc(b.name || (r.analysis || {}).company_name || r.market.sector || '')}</span>${earningsBadge(r)}</td>
+          <td class="num hp-col-weight" data-label="Weight"><span${over ? ` class="hp-over" title="${esc(`Over the ${pct(cap, 0)} single-name limit`)}"` : ''}>${pct(b.weight, 1)}</span>${w !== null ? weightBarHtml(w, null, pol, Math.max(0.25, w * 1.1)) : ''}<span class="hp-sub">${money(b.market_value)}</span></td>
           <td class="num hp-col-today" data-label="${esc(ses.live ? 'Today' : 'Last session')}">${today}</td>
           <td class="num hp-col-basis" data-label="Cost basis">${b.cost_basis != null ? money(b.cost_basis) : NA}<span class="hp-sub">${b.average_cost != null ? `${priv(price(b.average_cost))} / share` : 'Average cost unavailable'}</span></td>
           <td class="num" data-label="P&amp;L">${pnl}</td>
-          <td data-label="QUANTA stance">${g.status === 'ok' ? stanceChip(g.stance) : NA}</td>
+          <td class="hp-col-risk" data-label="Risk">${riskCell(r)}</td>
           <td data-label="Portfolio action">${actionChip(g.action, null, g)}</td>
-          <td class="hp-col-ev" data-label="Evidence">${evidenceCell(g)}</td>
-          <td class="hp-reason hp-col-reason" data-label="Key reason">${esc(g.key_reason || '')}</td>
+          <td class="hp-col-ev" data-label="Score">${evidenceCell(g)}</td>
+          <td class="hp-reason hp-col-reason" data-label="Key reason">${reasonCell(g)}</td>
         </tr>`;
     }).join('');
     const sortOpts = Object.entries(SORTS).map(([k, s]) => `<option value="${k}"${state.sort === k ? ' selected' : ''}>${s.label}</option>`).join('');
     return `<section class="q-panel hp-panel hp-holdings" aria-labelledby="hp-holdings-h">
       <header class="q-head"><div class="q-head-l"><h2 class="q-head-title" id="hp-holdings-h">Holdings <span class="hp-count">${rows.length}${state.filter || state.holdFilter ? ` / ${(pf.positions || []).length}` : ''}</span></h2>
-        <p class="q-head-sub">Select a ticker for its position, portfolio call and research.</p></div>
-        <div class="q-head-r"><label class="hp-sortsel">Sort by <select id="hp-sort">${sortOpts}</select></label><button type="button" class="q-btn hp-sort-direction" data-hp="sort-direction" aria-label="${(state.dir || SORTS[state.sort].dir) === 'asc' ? 'Sort descending' : 'Sort ascending'}" title="Reverse sort order">${(state.dir || SORTS[state.sort].dir) === 'asc' ? '↑' : '↓'}</button></div></header>
+        <p class="q-head-sub">Select a ticker for its position, portfolio call and research.</p>${evidenceNoteHtml(pf)}</div>
+        <div class="q-head-r"><label class="hp-sortsel">Sort by <select id="hp-sort">${sortOpts}</select></label><button type="button" class="q-btn hp-sort-direction" data-hp="sort-direction" aria-label="${(state.dir || SORTS[state.sort].dir) === 'asc' ? 'Ascending; reverse to descending' : 'Descending; reverse to ascending'}" title="Reverse sort order">${(state.dir || SORTS[state.sort].dir) === 'asc' ? '▲' : '▼'}</button></div></header>
+      ${attentionHtml(pf)}
       ${holdFilterHtml(pf)}
       ${filtersHtml(pf) ? `<div class="hp-toolbar">${filtersHtml(pf)}</div>` : ''}
       <div class="q-tablewrap hp-table-scroll" tabindex="0" role="region" aria-label="Holdings table"><table class="q-table hp-table" role="table">
-        <caption class="sr-only">Holdings with QUANTA stance and portfolio action. Select a ticker for the full analysis. Scores are out of 100, not a probability of profit.</caption>
+        <caption class="sr-only">Holdings with weight (share of the whole account, cash included, against the single-name limit), risk grade and share of portfolio risk, and portfolio action. Select a ticker for the full analysis. Scores are out of 100, not a probability of profit.</caption>
         <thead><tr>
           ${th('ticker', 'Ticker')}${th('weight', 'Weight', 'num hp-col-weight')}${th('today', ses.live ? 'Today' : 'Last session', 'num hp-col-today')}${th('basis', 'Cost basis', 'num hp-col-basis')}${th('pnl', 'P&amp;L', 'num')}
-          <th scope="col">QUANTA stance</th>${th('action', 'Portfolio action')}${th('conviction', 'Evidence', 'hp-col-ev')}<th scope="col" class="hp-col-reason">Key reason</th>
+          ${th('risk', 'Risk', 'hp-col-risk')}${th('action', 'Portfolio action')}${th('conviction', 'Score', 'hp-col-ev')}<th scope="col" class="hp-col-reason">Key reason</th>
         </tr></thead>
         <tbody>${body || '<tr><td colspan="9" class="q-na">No holdings in this group. Select another action or show all holdings.</td></tr>'}</tbody>
       </table></div>
@@ -1269,7 +1343,7 @@
     ])}`);
     const impact = chapter('Portfolio Impact', ['broker', 'quanta'], impactHtml(g, r));
     const blocks = (g.blocks || []).map((x) => `${x.text}${x.source === 'portfolio' ? ' (portfolio)' : ''}`);
-    const reduction = g.action === 'Trim' || g.action === 'Exit Review';
+    const reduction = g.action === 'Trim' || g.action === 'Exit Review' || g.action === 'Review Risk';
     const counter = reduction ? list(g.supports)[0] : list(g.risks)[1];
     const guidance = chapter('Portfolio call', ['quanta'], `
       <div class="hp-three">
@@ -1443,7 +1517,7 @@
       ${panel('activity', X.activity ? X.activity(pf) : '')}
       ${panel('review', X.review ? X.review(pf, { contribution: todayHtml(pf), risk: exposureHtml(pf) }) : `${todayHtml(pf)}${exposureHtml(pf)}`)}
       ${panel('news', X.news ? X.news(pf) : '')}
-      <p class="hp-fine hp-foot">QUANTA's guidance is research, not investment advice. Model evidence is shown per holding; unless it says "validated", no predictive edge has been demonstrated.</p>`;
+      <p class="hp-fine hp-foot">QUANTA's guidance is research, not investment advice. Model evidence is stated above the holdings and in each holding’s detail; unless it says "validated", no predictive edge has been demonstrated.</p>`;
   }
 
   // Fallback when the insight modules are not loaded: the three priorities alone.
@@ -1826,6 +1900,17 @@
         announce(state.gFilter ? `Guidance: ${GROUP_LABEL[state.gFilter] || state.gFilter}.` : 'Guidance: all holdings.');
         return;
       }
+      const at = e.target.closest('[data-hp-attn]');
+      if (at) {
+        // An attention item narrows the table to the holdings it names; again shows all.
+        const item = list(((state.view || {}).portfolio || {}).attention).find((x) => x.code === at.dataset.hpAttn);
+        const same = state.holdFilter && item && state.holdFilter.code === item.code;
+        state.holdFilter = item && !same && list(item.symbols).length ? { label: item.text, symbols: list(item.symbols), code: item.code } : null;
+        state.filter = null;
+        render();
+        announce(state.holdFilter ? `Holdings filtered to ${state.holdFilter.symbols.join(', ')}.` : 'Showing all holdings.');
+        return;
+      }
       const f = e.target.closest('[data-hp-filter]');
       if (f) {
         // In the table's own toolbar a filter toggles; from anywhere else it
@@ -1842,7 +1927,7 @@
       if (review) {
         const sym = review.dataset.hpReview;
         // The decision may be filtered out of view: show every decision first.
-        if (state.gFilter && !['exit_review', 'trim_review', 'consider_adding'].includes(state.gFilter)) { state.gFilter = null; render(); }
+        if (state.gFilter && !['exit_review', 'trim_review', 'risk_review', 'consider_adding'].includes(state.gFilter)) { state.gFilter = null; render(); }
         setTab('guidance', { scroll: false });
         const item = [...document.querySelectorAll('#hp-panel-guidance .hp-gi')].find((el) => el.dataset.hpDisclosure === `gi-${sym}`);
         if (item) {

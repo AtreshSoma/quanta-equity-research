@@ -145,37 +145,76 @@ except Exception:
 
 # ---------------------------------------------------------------------------
 # yfinance rate-limit protection — MUST run before any engine import
-# Patches yfinance's download session to throttle requests (max 1/sec)
+# Patches yfinance's download session to throttle requests (one every 0.35 s at most)
 # ---------------------------------------------------------------------------
 try:
     import yfinance as yf
     _yf_original_get = None
     _yf_lock = threading.Lock()
-    _yf_last_call = 0.0
-    _YF_MIN_INTERVAL = 0.35  # seconds between requests
+    _YF_MIN_INTERVAL = 0.35  # seconds per request, sustained
+    # A token bucket: the sustained rate stays one request per _YF_MIN_INTERVAL
+    # (what keeps long scans clear of Yahoo's 429s), but up to _YF_BURST
+    # requests may go at once after a quiet spell. A page load is a short burst
+    # (the Overview makes about three dozen requests cold, a dozen warm); strict
+    # spacing made it wait 0.35s for every one of them.
+    _YF_BURST = int(os.environ.get("QUANTA_YF_BURST", "8"))
+    _yf_tokens = float(_YF_BURST)
+    _yf_refill_at = time.monotonic()
 
     def _throttled_yf():
-        """Ensure yfinance calls are spaced out to avoid rate-limiting."""
-        global _yf_last_call
+        """Wait for a request token; slower while the provider is rate-limiting."""
+        global _yf_tokens, _yf_refill_at
         with _yf_lock:
+            interval = _YF_MIN_INTERVAL
+            # Never import here (an import could request data under this lock):
+            # read the scanner's provider state only if it is already loaded.
+            _pro = sys.modules.get("SP_ELITE_PRO")
+            try:
+                if _pro is not None and _pro.PROVIDER_STATE.in_cooldown():
+                    interval = max(interval, 1.0)
+            except Exception:  # noqa: BLE001 - pacing must never fail a request
+                pass
             now = time.monotonic()
-            elapsed = now - _yf_last_call
-            if elapsed < _YF_MIN_INTERVAL:
-                time.sleep(_YF_MIN_INTERVAL - elapsed)
-            _yf_last_call = time.monotonic()
+            _yf_tokens = min(float(_YF_BURST), _yf_tokens + (now - _yf_refill_at) / interval)
+            _yf_refill_at = now
+            if _yf_tokens < 1.0:
+                wait = (1.0 - _yf_tokens) * interval
+                time.sleep(wait)
+                _yf_tokens = 1.0
+                _yf_refill_at = time.monotonic()
+            _yf_tokens -= 1.0
 
-    # Monkey-patch yfinance.Ticker to add throttling + remember the symbol so
-    # the cache layer below can key on it.
+    # The throttle spaces real HTTP requests: every Yahoo call goes through
+    # YfData._make_request. It used to sit in Ticker.__init__, so building a
+    # Ticker whose data was already cached still slept 350ms; a dashboard that
+    # builds a few dozen Tickers spent most of its cold load asleep.
+    _throttle_on_request = False
+    try:
+        import yfinance.data as _yf_data
+        _orig_make_request = _yf_data.YfData._make_request
+
+        def _throttled_make_request(self, *args, **kwargs):
+            _throttled_yf()
+            return _orig_make_request(self, *args, **kwargs)
+
+        _yf_data.YfData._make_request = _throttled_make_request
+        _throttle_on_request = True
+    except Exception as _exc:  # pragma: no cover - a yfinance without the request layer
+        logger.warning("yfinance request layer not found (%s); throttling Ticker creation instead", _exc)
+
+    # Remember the symbol so the cache layer below can key on it.
     _orig_ticker_init = yf.Ticker.__init__
     def _patched_ticker_init(self, ticker, *args, **kwargs):
-        _throttled_yf()
+        if not _throttle_on_request:
+            _throttled_yf()
         _orig_ticker_init(self, ticker, *args, **kwargs)
         try:
             self._quanta_symbol = str(ticker).upper()
         except Exception:
             self._quanta_symbol = None
     yf.Ticker.__init__ = _patched_ticker_init
-    logger.info("yfinance rate-limiter installed (%.0fms interval)", _YF_MIN_INTERVAL * 1000)
+    logger.info("yfinance rate-limiter installed (%.0fms between %s)", _YF_MIN_INTERVAL * 1000,
+                "requests" if _throttle_on_request else "Ticker objects")
 
     # -----------------------------------------------------------------------
     # yfinance response cache — PERF (no behaviour change)
@@ -218,6 +257,65 @@ try:
     _yf_cache_dirty = False
     _yf_cache_last_save = 0.0
     _YF_CACHE_SAVE_INTERVAL = 30.0  # debounce disk writes to at most once / 30s
+
+    # Single flight: concurrent misses for one key share one network call.
+    _yf_inflight: Dict[Any, threading.Event] = {}
+    # How long an expired entry may still be served when a refresh fails.
+    _YF_STALE_GRACE = float(os.environ.get("QUANTA_YF_STALE_GRACE", "21600"))  # 6h
+
+    def _yf_single_flight(cache, key, ttl, fetch, usable):
+        """Return a fresh cached value, or fetch once for every waiting caller.
+
+        ``usable(value)`` says whether a fetched value may be cached and served.
+        When the fetch fails or returns an unusable value, an expired copy no
+        older than ``_YF_STALE_GRACE`` is served instead (flagged in the log),
+        so one provider hiccup does not blank a panel that had data a minute ago.
+        """
+        global _yf_cache_dirty
+        owner = False
+        while True:
+            now = time.time()
+            with _yf_cache_lock:
+                hit = cache.get(key)
+                if hit and usable(hit[1]) and (now - hit[0]) < ttl:
+                    return hit[1], True
+                waiter = _yf_inflight.get(key)
+                if waiter is None:
+                    _yf_inflight[key] = threading.Event()
+                    owner = True
+                    break
+            # Another thread is fetching this key: wait for it, then re-read.
+            # A wait that times out fetches on its own and leaves the marker alone.
+            if not waiter.wait(timeout=60):
+                break
+        try:
+            try:
+                value = fetch()
+                error = None
+            except Exception as exc:  # noqa: BLE001 - decided below
+                value, error = None, exc
+            if usable(value):
+                with _yf_cache_lock:
+                    cache[key] = (time.time(), value)
+                    _yf_cache_evict(cache)
+                    _yf_cache_dirty = True
+                _yf_cache_save_disk()
+                return value, False
+            with _yf_cache_lock:
+                stale = cache.get(key)
+            if stale and usable(stale[1]) and (time.time() - stale[0]) < _YF_STALE_GRACE:
+                logger.info("yfinance: serving a %.0f-minute-old copy of %s after a failed refresh",
+                            (time.time() - stale[0]) / 60, str(key)[:80])
+                return stale[1], True
+            if error is not None:
+                raise error
+            return value, False
+        finally:
+            if owner:
+                with _yf_cache_lock:
+                    done = _yf_inflight.pop(key, None)
+                if done is not None:
+                    done.set()
 
     def _yf_cache_evict(cache):
         """Drop the oldest ~10% of entries when a cache exceeds the cap."""
@@ -375,23 +473,12 @@ try:
         _orig_info_get = yf.Ticker.info.fget
 
         def _cached_info_getter(self):
-            global _yf_cache_dirty
             sym = getattr(self, "_quanta_symbol", None)
             if not sym:
                 return _orig_info_get(self)
-            now = time.time()
-            with _yf_cache_lock:
-                hit = _yf_info_cache.get(sym)
-                if hit and isinstance(hit[1], dict) and hit[1] and (now - hit[0]) < _YF_INFO_TTL:
-                    return dict(hit[1]) if isinstance(hit[1], dict) else hit[1]
-            info = _orig_info_get(self)  # network round-trip (outside lock)
-            if not isinstance(info, dict) or not info:
-                return info
-            with _yf_cache_lock:
-                _yf_info_cache[sym] = (time.time(), info)
-                _yf_cache_evict(_yf_info_cache)
-                _yf_cache_dirty = True
-            _yf_cache_save_disk()
+            info, _cached = _yf_single_flight(
+                _yf_info_cache, sym, _YF_INFO_TTL, lambda: _orig_info_get(self),
+                lambda v: isinstance(v, dict) and bool(v))
             return dict(info) if isinstance(info, dict) else info
 
         yf.Ticker.info = property(_cached_info_getter)
@@ -408,27 +495,13 @@ try:
                 key = None
             if key is None:
                 return _orig_history(self, *args, **kwargs)
-            now = time.time()
-            with _yf_cache_lock:
-                hit = _yf_hist_cache.get(key)
-                if hit and hit[1] is not None and not getattr(hit[1], 'empty', True) and (now - hit[0]) < _YF_HIST_TTL:
-                    cached_df = hit[1]
-                    return cached_df.copy() if hasattr(cached_df, "copy") else cached_df
-            df = _orig_history(self, *args, **kwargs)  # network round-trip (outside lock)
             # Yahoo can return an empty frame on a transient failure. Caching
             # that response made Retry replay the outage for fifteen minutes,
-            # including after restarts via the disk cache.
-            if df is None or getattr(df, 'empty', True):
-                return df
-            try:
-                with _yf_cache_lock:
-                    _yf_hist_cache[key] = (time.time(), df.copy() if hasattr(df, "copy") else df)
-                    _yf_cache_evict(_yf_hist_cache)
-                    _yf_cache_dirty = True
-                _yf_cache_save_disk()
-            except Exception:
-                pass
-            return df
+            # including after restarts via the disk cache, so empty is never cached.
+            df, _cached = _yf_single_flight(
+                _yf_hist_cache, key, _YF_HIST_TTL, lambda: _orig_history(self, *args, **kwargs),
+                lambda v: v is not None and not getattr(v, 'empty', True))
+            return df.copy() if hasattr(df, "copy") else df
 
         yf.Ticker.history = _cached_history
         logger.info(
@@ -7781,8 +7854,9 @@ def _run_stock_picks(job_id: str, params: dict):
 # and the session boundaries so the time axis spans the whole trading day.
 CHART_RANGES: Dict[str, Tuple[str, str, bool, float]] = {
     # key: (period, interval, include extended hours, cache seconds)
-    "1d": ("1d", "1m", True, 60.0),
-    "5d": ("5d", "5m", False, 120.0),
+    # The 1D chart refreshes every 20 seconds while a session is open; 5D every minute.
+    "1d": ("1d", "1m", True, 20.0),
+    "5d": ("5d", "5m", False, 60.0),
     "1mo": ("1mo", "30m", False, 600.0),
     "6mo": ("6mo", "1d", False, 900.0),
     "ytd": ("ytd", "1d", False, 900.0),
@@ -7790,6 +7864,19 @@ CHART_RANGES: Dict[str, Tuple[str, str, bool, float]] = {
     "5y": ("5y", "1wk", False, 3600.0),
     "max": ("max", "1mo", False, 3600.0),
 }
+# Indicator warm-up. A 200-bar average on a 1-year daily chart needs 200 bars
+# before the first plotted one, so these ranges download a longer period and
+# send the extra bars as ``lead`` (never plotted, only fed to the indicators).
+# key: (period to download, how the plotted window starts)
+CHART_WARMUP: Dict[str, Tuple[str, str]] = {
+    "5d": ("1mo", "sessions:5"),
+    "1mo": ("60d", "days:31"),
+    "6mo": ("2y", "months:6"),
+    "ytd": ("2y", "ytd"),
+    "1y": ("2y", "months:12"),
+    "5y": ("10y", "months:60"),
+}
+CHART_LEAD_BARS = 250
 _chart_cache: Dict[Tuple[str, str], Tuple[float, Dict[str, Any]]] = {}
 _chart_cache_lock = threading.Lock()
 
@@ -7814,14 +7901,57 @@ def _chart_epoch_ms(value: Any) -> Optional[int]:
         return None
 
 
+def _chart_bar(stamp: Any, row: Any) -> Optional[List[Any]]:
+    """[time ms, close, volume, open, high, low]; the first three keep their old places."""
+    close = row.get("Close")
+    if close is None or close != close:
+        return None
+
+    def num(key: str) -> Optional[float]:
+        value = row.get(key)
+        return round(float(value), 4) if value is not None and value == value else None
+
+    vol = row.get("Volume")
+    c = round(float(close), 4)
+    o, h, lo = num("Open"), num("High"), num("Low")
+    # A bar whose range does not contain its close is a provider glitch: draw it flat.
+    if h is not None and lo is not None and not (lo <= c <= h and lo <= (o if o is not None else c) <= h):
+        o = h = lo = None
+    return [_chart_epoch_ms(stamp), c, int(vol) if vol is not None and vol == vol else None,
+            o if o is not None else c, h if h is not None else c, lo if lo is not None else c]
+
+
+def _chart_window_start(stamps: List[Any], rule: str) -> int:
+    """Index of the first plotted bar for a warm-up rule (see CHART_WARMUP)."""
+    import pandas as pd
+
+    if not stamps:
+        return 0
+    last = pd.Timestamp(stamps[-1])
+    kind, _, amount = rule.partition(":")
+    if kind == "sessions":
+        days = sorted({pd.Timestamp(t).date() for t in stamps})
+        keep = set(days[-int(amount):])
+        return next((i for i, t in enumerate(stamps) if pd.Timestamp(t).date() in keep), 0)
+    if kind == "ytd":
+        cutoff = pd.Timestamp(year=last.year, month=1, day=1, tz=last.tz)
+    elif kind == "days":
+        cutoff = last - pd.Timedelta(days=int(amount))
+    else:
+        cutoff = last - pd.DateOffset(months=int(amount))
+    return next((i for i, t in enumerate(stamps) if pd.Timestamp(t) >= cutoff), 0)
+
+
 def _chart_payload(symbol: str, range_key: str) -> Dict[str, Any]:
     import yfinance as yf
     period, interval, prepost, _ttl = CHART_RANGES[range_key]
+    warm = CHART_WARMUP.get(range_key)
     ticker = yf.Ticker(symbol)
     # The process-wide history cache keeps bars for fifteen minutes; a live
     # chart keeps its own shorter cache, so it reads the provider directly.
     raw_history = globals().get("_orig_history")
-    kwargs = {"period": period, "interval": interval, "prepost": prepost, "auto_adjust": False}
+    kwargs = {"period": warm[0] if warm else period, "interval": interval, "prepost": prepost,
+              "auto_adjust": False}
     frame = raw_history(ticker, **kwargs) if callable(raw_history) else ticker.history(**kwargs)
     if frame is None or getattr(frame, "empty", True):
         return {"available": False, "symbol": symbol, "range": range_key,
@@ -7831,17 +7961,28 @@ def _chart_payload(symbol: str, range_key: str) -> Dict[str, Any]:
         meta = ticker.history_metadata or {}
     except Exception:  # noqa: BLE001
         meta = {}
-    points = []
+    bars: List[List[Any]] = []
+    stamps: List[Any] = []
+    events: List[Dict[str, Any]] = []
     for stamp, row in frame.iterrows():
-        close = row.get("Close")
-        if close is None or close != close:
+        bar = _chart_bar(stamp, row)
+        if bar is None:
             continue
-        vol = row.get("Volume")
-        points.append([_chart_epoch_ms(stamp), round(float(close), 4),
-                       int(vol) if vol is not None and vol == vol else None])
-    if not points:
+        bars.append(bar)
+        stamps.append(stamp)
+        dividend, split = row.get("Dividends"), row.get("Stock Splits")
+        if dividend is not None and dividend == dividend and float(dividend) > 0:
+            events.append({"t": bar[0], "kind": "dividend", "value": round(float(dividend), 4)})
+        if split is not None and split == split and float(split) > 0 and float(split) != 1.0:
+            events.append({"t": bar[0], "kind": "split", "value": round(float(split), 4)})
+    if not bars:
         return {"available": False, "symbol": symbol, "range": range_key,
                 "reason": "No price bars were returned for this symbol and range."}
+    start = _chart_window_start(stamps, warm[1]) if warm else 0
+    lead = bars[max(0, start - CHART_LEAD_BARS):start]
+    points = bars[start:]
+    first_ms = points[0][0]
+    events = [e for e in events if e["t"] >= first_ms]
     periods = meta.get("currentTradingPeriod") or {}
     session = {}
     for key in ("pre", "regular", "post"):
@@ -7875,6 +8016,9 @@ def _chart_payload(symbol: str, range_key: str) -> Dict[str, Any]:
         "range": range_key,
         "interval": interval,
         "points": points,
+        # Bars before the window, for indicator warm-up only (same shape as points).
+        "lead": lead,
+        "events": events,
         "previous_close": prev_close,
         "regular_price": round(float(reg_price), 4) if reg_price is not None else None,
         "regular_time": _chart_epoch_ms(meta.get("regularMarketTime")),
@@ -9079,6 +9223,83 @@ def _portfolio_articles() -> List[Dict[str, Any]]:
     return articles
 
 
+def _quick_quote(symbol: str) -> Optional[Dict[str, Any]]:
+    """Last price, previous close and whether the market is open, for one symbol.
+
+    Shares the live chart's 1D cache (CHART_RANGES['1d'] TTL), so My list, the
+    alert checker and an open chart never fetch the same bars twice.
+    """
+    sym = (symbol or "").strip().upper()
+    if not re.fullmatch(r"[A-Z0-9^.=&-]{1,32}", sym):
+        return None
+    key = (sym, "1d")
+    now = time.time()
+    with _chart_cache_lock:
+        hit = _chart_cache.get(key)
+    payload = hit[1] if hit and now - hit[0] < CHART_RANGES["1d"][3] else None
+    if payload is None:
+        if _provider_in_cooldown():
+            payload = hit[1] if hit else None
+        else:
+            try:
+                payload = _chart_payload(sym, "1d")
+            except Exception as exc:  # noqa: BLE001
+                if _provider_classify_rate_limit(exc):
+                    _provider_note_rate_limit()
+                payload = hit[1] if hit else None
+            if payload and payload.get("available"):
+                with _chart_cache_lock:
+                    _chart_cache[key] = (now, payload)
+    if not payload or not payload.get("available"):
+        return None
+    pts = payload.get("points") or []
+    price = payload.get("regular_price")
+    if price is None and pts:
+        price = pts[-1][1]
+    prev = payload.get("previous_close")
+    return {
+        "price": price,
+        "previous_close": prev,
+        "change_pct": ((price / prev) - 1) * 100 if price and prev else None,
+        "market_open": bool(payload.get("market_open")),
+        "currency": payload.get("currency"),
+        "name": payload.get("name"),
+        "as_of": payload.get("regular_time") or payload.get("retrieved_at"),
+    }
+
+
+def _last_recorded_call(symbol: str) -> Optional[Dict[str, Any]]:
+    """QUANTA's latest call on ``symbol`` in the track-record ledger, or None."""
+    try:
+        from tracking.ledger import SignalLedger
+        rows = SignalLedger().rows(ticker=symbol)
+    except Exception:  # noqa: BLE001 - no ledger, no call to show
+        return None
+    if not rows:
+        return None
+    last = rows[-1]
+    engine = {"elite": "Research", "elite_pro": "Picks", "shortterm": "Short-term scanner"}.get(
+        last.get("engine"), last.get("engine"))
+    return {
+        "engine": engine,
+        "label": last.get("label") or last.get("action"),
+        "as_of": last.get("as_of_date"),
+        "price": last.get("reference_price"),
+        "stop": last.get("stop_price"),
+        "target": last.get("target_price"),
+        "evidence": last.get("evidence_status"),
+    }
+
+
+_alert_worker = None
+try:
+    from my_list import init_my_list as _init_my_list
+    from tracking.alerts import notify_text as _notify_text
+    _alert_worker = _init_my_list(app, _quick_quote, _notify_text, last_call=_last_recorded_call)
+except Exception as _mylist_exc:  # noqa: BLE001 - the rest of QUANTA must still start
+    logger.error("My list and price alerts unavailable: %s", _mylist_exc)
+
+
 try:
     from portfolio_routes import init_portfolio as _init_portfolio
     from portfolio.insights import MarketSources as _MarketSources
@@ -9196,6 +9417,8 @@ def main():
 
     if os.getenv("QUANTA_NO_WARMUP") != "1":
         threading.Thread(target=_warm_dashboard, name="dashboard-warmup", daemon=True).start()
+    if _alert_worker is not None and os.getenv("QUANTA_ALERTS", "1") != "0":
+        _alert_worker.start()
 
     # Auto-open browser
     if os.getenv("QUANTA_NO_BROWSER") != "1":

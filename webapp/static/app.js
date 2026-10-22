@@ -6361,6 +6361,26 @@ function refreshIdeaDrawer() {
   if (hadFocus) drawer.querySelector('[data-drawer-close]')?.focus({ preventScroll: true });
 }
 
+// The side panel is modal: while it is open, everything outside it is inert
+// (no focus, no clicks, hidden from screen readers), so Tab cannot walk out of
+// the dialog. Every sibling along the panel's path to <body> is marked, except
+// the scrim; exactly those are released on close.
+let _drawerInerted = [];
+function setDrawerInert(drawer, on) {
+  _drawerInerted.forEach((el) => el.removeAttribute('inert'));
+  _drawerInerted = [];
+  if (!on || !drawer || typeof document === 'undefined') return;
+  let node = drawer;
+  while (node && node.parentElement && node !== document.body) {
+    for (const sib of node.parentElement.children) {
+      if (sib === node || sib.id === 'dsc-drawer-scrim' || sib.tagName === 'SCRIPT' || sib.hasAttribute('inert')) continue;
+      sib.setAttribute('inert', '');
+      _drawerInerted.push(sib);
+    }
+    node = node.parentElement;
+  }
+}
+
 function openIdeaDrawer(sym, opener = null) {
   const drawer = document.getElementById('dsc-drawer');
   const scrim = document.getElementById('dsc-drawer-scrim');
@@ -6372,6 +6392,7 @@ function openIdeaDrawer(sym, opener = null) {
   // The next frame lets the hidden-to-shown change land before the slide starts.
   const show = () => { drawer.classList.add('is-open'); if (scrim) scrim.classList.add('is-open'); };
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(show); else show();
+  setDrawerInert(drawer, true);
   drawer.querySelector('[data-drawer-close]')?.focus({ preventScroll: true });
 }
 
@@ -6384,6 +6405,7 @@ function closeIdeaDrawer() {
   const done = () => { drawer.hidden = true; if (scrim) scrim.hidden = true; };
   const reduce = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (typeof setTimeout === 'function' && !reduce) setTimeout(done, 180); else done();
+  setDrawerInert(drawer, false);
   if (_drawerOpener && typeof _drawerOpener.focus === 'function') _drawerOpener.focus({ preventScroll: true });
   _drawerOpener = null;
   _drawerSym = null;
@@ -13207,6 +13229,11 @@ function renderAnalysis(data) {
               ${expenseLabel ? `<span class="tag">Expense ${expenseLabel}</span>` : ''}
               ${dqGate.failed ? `<span class="tag warn" data-status-chip="dq">Data quality fail</span>` : ''}
             </div>
+            <div class="ml-ts" data-ml-slot data-symbol="${escapeHtml(String(data.ticker || '').toUpperCase())}"
+                 data-price="${escapeHtml(String(isPositive(currentPrice) ? currentPrice : ''))}"
+                 data-stop="${escapeHtml(String(isPositive(heroStop) ? heroStop : ''))}"
+                 data-target="${escapeHtml(String(isPositive(heroTarget) ? heroTarget : ''))}"
+                 data-target-label="${escapeHtml(isPositive(heroTarget) && targetMonths ? `${targetMonths}-month target` : 'Target')}"></div>
           </div>
         </div>
 
@@ -13303,13 +13330,20 @@ function renderAnalysis(data) {
   wirePriceChart(container);
   // The live chart draws the Decision's own stop and target, named as the
   // Decision names them; levels far outside the range are listed under it.
+  // Save to My list and price alerts (static/my-list.js).
+  const mlSlot = container.querySelector('[data-ml-slot]');
+  if (mlSlot && typeof window !== 'undefined' && window.QuantaMyList) window.QuantaMyList.mountTearSheet(mlSlot);
   const chartHost = container.querySelector('#ts-chart');
   if (chartHost && typeof window !== 'undefined' && window.QuantaLiveChart) {
     const chartLevels = [
       isPositive(heroStop) ? { label: 'Stop', value: Number(heroStop), tone: 'stop' } : null,
       isPositive(heroTarget) ? { label: targetMonths ? `${targetMonths}-month target` : 'Target', value: Number(heroTarget), tone: 'target' } : null,
     ].filter(Boolean);
-    window.QuantaLiveChart.mount(chartHost, { symbol: chartHost.dataset.symbol, context: 'research', showQuote: false, levels: chartLevels });
+    // The next report is listed under the chart (a future date has no bar to mark).
+    const earnRaw = String(catalysts.earnings_date || mi.next_earnings_date || '').slice(0, 10);
+    const earnT = /^\d{4}-\d{2}-\d{2}$/.test(earnRaw) ? Date.parse(`${earnRaw}T12:00:00Z`) : NaN;
+    const chartEvents = Number.isFinite(earnT) ? [{ t: earnT, kind: 'earnings', label: 'Earnings report' }] : [];
+    window.QuantaLiveChart.mount(chartHost, { symbol: chartHost.dataset.symbol, context: 'research', showQuote: false, levels: chartLevels, events: chartEvents });
   } else if (chartHost) {
     chartHost.innerHTML = renderPriceChartCard(data.price_chart, { ticker: data.ticker, currentPrice, sym, vbWidth: 720, vbHeight: 300,
       target: isPositive(heroTarget) ? heroTarget : (decision ? null : baseTgt),

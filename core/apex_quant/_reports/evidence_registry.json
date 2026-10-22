@@ -31,70 +31,83 @@
       "caveats": [
         "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
         "This is a ranking test (does a higher score precede a better 21- and 63-session return?). It does not simulate the live engine's entries, stops, position sizes or costs, so it says nothing about the returns of following the calls.",
+        "Fundamental, valuation and quality legs were scored from SEC filings known on each date (95% of panel rows had them; earlier rows and names without XBRL history keep neutral inputs). Sentiment and analyst targets stayed neutral.",
         "The risk-leg removal behind this version was chosen after reading elite.composite's result on the same 2010-2026 sample, so this period is not fully out of sample for it.",
-        "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.033 (CI -0.067 to +0.002); 63d -0.022 (CI -0.072 to +0.030) (apex_quant/_reports/factor_baselines_research_v2_oos.txt)."
+        "Versus free 12-1 momentum on identical cross-sections: composite minus momentum IC 21d -0.009 (CI -0.040 to +0.023); 63d +0.014 (CI -0.036 to +0.063). Versus the model's own price-only technical leg: 21d +0.024 (CI +0.002 to +0.045); 63d +0.035 (CI +0.001 to +0.069), so the fundamental and quality legs add ranking power, but the whole model is not yet better than momentum (apex_quant/_reports/factor_baselines_research_v2_pit_oos.txt).",
+        "Earlier test of this version with fundamentals held neutral (technical leg only, 33% of weight): 21d IC -0.003 (t -0.26), 63d IC +0.001 (apex_quant/_reports/research_v2_oos.txt).",
+        "No sign of decay: the IC was positive in 11 of 17 years at 21 days and the last three years (+0.051, t +1.71) beat the whole period, but much of that rests on 2024, and no window clears t >= 2."
       ],
-      "code_fingerprint": "3e11cd6b178ee87de7225643e63f84602327fd2e5a19720abc57a5e1d6e9491e",
-      "generated_utc": "2026-10-13T19:51:29+00:00",
+      "code_fingerprint": "389879e604d7388e501f086576888581a1660ebeb66200a99abc62d2f87d244e",
+      "generated_utc": "2026-10-22T16:28:30+00:00",
       "metrics": {
         "21d": {
-          "decile_spread": -0.0024035656719926177,
-          "mean_ic": -0.0030889578086794153,
-          "n_independent_dates": 158,
-          "t_stat": -0.2607822879668139
+          "decile_spread": 0.0027975805231435107,
+          "mean_ic": 0.02023139470222952,
+          "n_independent_dates": 159,
+          "positive_years": 11,
+          "recent_3y_mean_ic": 0.05052630663085782,
+          "recent_3y_t_stat": 1.709570290026837,
+          "t_stat": 0.8691907620027823,
+          "years": 17
         },
         "63d": {
-          "decile_spread": -0.0012229729495425974,
-          "mean_ic": 0.0007075958826456032,
+          "decile_spread": 0.013573164710882631,
+          "mean_ic": 0.04088822034807652,
           "n_independent_dates": 56,
-          "t_stat": -0.002385428234255261
+          "positive_years": 12,
+          "recent_3y_mean_ic": 0.06360233015502675,
+          "recent_3y_t_stat": 1.210774911246656,
+          "t_stat": 1.4186521578484257,
+          "years": 17
         }
       },
-      "scope": "Technical leg only (33% of the alpha-only SIDEWAYS composite); fundamental, valuation, quality and sentiment legs have no point-in-time source.",
-      "source": "apex_quant/_reports/research_v2_oos.json",
+      "scope": "Technical, fundamental, valuation and quality legs (89% of SIDEWAYS composite weight), the last three from SEC filings known on each date (95% of panel rows had them). Sentiment and analyst inputs held neutral: no point-in-time source. Weights follow the live regime-adaptive tables.",
+      "source": "apex_quant/_reports/research_v2_pit_oos.json",
       "status": "NO_EDGE",
-      "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.003 (t -0.26); 63d: IC +0.001 (t -0.00)",
-      "tested_through": "2026-09-30"
+      "summary": "Composite score does not predict forward returns out of sample at a significant level: the IC is positive but below the t >= 2 bar. 21d: IC +0.020 (t +0.87); 63d: IC +0.041 (t +1.42)",
+      "tested_through": "2026-10-21"
     },
     "shortterm.composite": {
       "caveats": [
         "Universe is a static list of 42 present-day US large caps (survivorship and selection bias). Relative comparisons are more trustworthy than levels.",
-        "A 56.62% win rate is not evidence on its own: random entries with the same exits won 55.03%."
+        "A 55.79% win rate is not evidence on its own: random entries with the same exits won 56.94%.",
+        "Leaning negative, not just flat: with the fundamental and quality legs scored, signal trades trail SPY (t -1.66) and random entries with the same exits; the price-only replay (1,284 trades) was flat (+0.03% per weekly cohort, CI -0.29% to +0.36%; apex_quant/_reports/shortterm/summary_latest.json).",
+        "Forward P/E and PEG have no point-in-time source; the scanner's value card imputes them at neutral, as it does live when Yahoo omits them."
       ],
-      "code_fingerprint": "1dbba0aeb44208bf894b8dba067fb9c80f619c9962c83c9831e6a8f8bf05ef0a",
-      "generated_utc": "2026-10-13T19:18:15.666672+00:00",
+      "code_fingerprint": "b31bb5c308b80e61bcccf5a1873bd9540666a563eb5b60605ecc790181e71738",
+      "generated_utc": "2026-10-22T16:42:24.428210+00:00",
       "metrics": {
         "deflated_sharpe": null,
         "excess_vs_spy": {
           "ci95_bootstrap": [
-            -0.28629591073648414,
-            0.36077163829773395
+            -0.43950093341617963,
+            0.02032118963087161
           ],
-          "mean": 0.02657737501497721,
-          "mean_per_trade": -0.09573870716510902,
-          "n": 428,
-          "p_value": 0.8743305510592418,
-          "t_newey_west": 0.15816021737991792,
+          "mean": -0.20052980124584616,
+          "mean_per_trade": -0.28038559405940594,
+          "n": 512,
+          "p_value": 0.0977190830550505,
+          "t_newey_west": -1.6560135093501975,
           "unit": "weekly entry cohort"
         },
-        "probabilistic_sharpe": 0.5625330317056848,
-        "sequential_drawdown_pct": 41.98,
+        "probabilistic_sharpe": 0.055698235183807954,
+        "sequential_drawdown_pct": 51.79,
         "signal_minus_random_excess": {
           "ci95_bootstrap": [
-            -0.26994286517588184,
-            0.48862886307392217
+            -0.5899604018934601,
+            0.04222451759256594
           ],
-          "mean": 0.1106865822382748,
+          "mean": -0.26421768823536634,
           "unit": "per trade, resampled by calendar week"
         },
-        "win_rate_pct": 56.62
+        "win_rate_pct": 55.79
       },
-      "scope": "Price-based legs only (technical, momentum, pattern: 58% of composite weight); fundamental, quality and analyst legs held neutral. No regime multiplier, peer re-scoring or portfolio caps.",
-      "source": "apex_quant/_reports/shortterm/summary_latest.json",
+      "scope": "Technical, momentum, pattern, fundamental and quality legs (90% of composite weight), the last two from SEC filings known on each bar; the analyst leg (rating, short interest) held neutral. No regime multiplier, sector-relative re-scoring or portfolio caps.",
+      "source": "apex_quant/_reports/shortterm/pit/summary_20261022_123100.json",
       "status": "NO_EDGE",
-      "summary": "Entry signals do not beat SPY or random entries out of sample. 1284 trades 2016-01-01..2026-09-30: excess vs SPY +0.03% per weekly entry cohort (95% CI -0.29% to +0.36%; -0.10% per trade); vs random entries +0.11% (CI -0.27% to +0.49%)",
+      "summary": "Entry signals do not beat SPY or random entries out of sample. 2020 trades 2016-01-01..2026-09-30: excess vs SPY -0.20% per weekly entry cohort (95% CI -0.44% to +0.02%; -0.28% per trade); vs random entries -0.26% (CI -0.59% to +0.04%)",
       "tested_through": "2026-09-30"
     }
   },
-  "updated_utc": "2026-10-13T19:52:10.551139+00:00"
+  "updated_utc": "2026-10-22T18:30:52.646681+00:00"
 }

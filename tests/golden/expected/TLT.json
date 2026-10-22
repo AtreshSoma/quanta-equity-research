@@ -165,6 +165,7 @@
         "status": "fresh"
       },
       "generated_at": "<volatile>",
+      "history_range": "2y/1d",
       "holder_action": "HOLD",
       "holdings_known": false,
       "horizon": {
@@ -199,6 +200,7 @@
         "Composite score 56.5 \u2192 candidate ACCUMULATE",
         "Invalid target_price=0.0 \u2192 WATCHLIST"
       ],
+      "red_flags": [],
       "risk_grade": "B",
       "risk_grade_drivers": [
         {
@@ -516,6 +518,7 @@
         "status": "fresh"
       },
       "generated_at": "<volatile>",
+      "history_range": "2y/1d",
       "holder_action": "HOLD",
       "holdings_known": false,
       "horizon": {
@@ -550,6 +553,7 @@
         "Composite score 56.5 \u2192 candidate ACCUMULATE",
         "Invalid target_price=0.0 \u2192 WATCHLIST"
       ],
+      "red_flags": [],
       "risk_grade": "B",
       "risk_grade_drivers": [
         {

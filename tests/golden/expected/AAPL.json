@@ -169,6 +169,7 @@
         "status": "fresh"
       },
       "generated_at": "<volatile>",
+      "history_range": "2y/1d",
       "holder_action": "HOLD",
       "holdings_known": false,
       "horizon": {
@@ -202,6 +203,11 @@
       "reasons": [
         "Composite score 62.4 \u2192 candidate ACCUMULATE",
         "Target 311.12 <= entry 319.97 \u2192 WATCHLIST"
+      ],
+      "red_flags": [
+        "TARGET_BELOW_ENTRY",
+        "DCF_OVERVALUATION",
+        "BEARISH_REVERSAL"
       ],
       "risk_grade": "C",
       "risk_grade_drivers": [

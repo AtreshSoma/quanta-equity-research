@@ -24,7 +24,7 @@
 
     // The decisions a preview can act on, with the server's own scenario sizes.
     function options(pf) {
-      return H.decisionOrder(pf).filter((r) => r.guidance.action === 'Trim' || r.guidance.action === 'Exit Review').map((r) => {
+      return H.decisionOrder(pf).filter((r) => ['Trim', 'Review Risk', 'Exit Review'].includes(r.guidance.action)).map((r) => {
         const im = r.guidance.impact || {};
         const opts = [{ k: 'keep', label: 'Keep', delta: null }];
         if (im.trim_to_cap && num(im.trim_to_cap.delta_value) !== null) opts.push({ k: 'trim', label: `To ${pct(im.trim_to_cap.weight_after, 0)}`, delta: im.trim_to_cap.delta_value, long: `Trim to ${pct(im.trim_to_cap.weight_after, 0)}` });

@@ -197,11 +197,16 @@ class Portfolio:
             return None
         return float(sum(values))
 
-    def reconciliation(self) -> Dict[str, Any]:
+    def reconciliation(self, session_open: bool = False) -> Dict[str, Any]:
         """Do our position values plus cash add up to the broker's total?
 
         This is the live check that the normalizer read the payload the way the
         broker meant it. A mismatch is reported, never silently corrected.
+
+        While the market is open the total and the position quotes are read
+        seconds apart, so prices drift between them; ``session_open`` widens the
+        tolerance by ``PORTFOLIO.RECON_SESSION_TOLERANCE_PCT`` of the total. After
+        the close only the rounding allowance applies.
         """
         reported = self.account.portfolio_value
         pos = self.positions_value
@@ -216,9 +221,12 @@ class Portfolio:
         # Half a cent per independently rounded holding, cash and total;
         # a percentage tolerance could hide hundreds of dollars of missing data.
         tolerance = max(0.01, (len(self.positions) + 2) * 0.005)
+        if session_open and reported:
+            from engine.thresholds import PORTFOLIO as _PF
+            tolerance = max(tolerance, abs(reported) * _PF.RECON_SESSION_TOLERANCE_PCT)
         matches = abs(diff) <= tolerance + 1e-9
         return {"status": "ok" if matches else "mismatch",
                 "reported": reported, "computed": computed, "difference": diff,
-                "difference_pct": pct,
+                "difference_pct": pct, "tolerance": tolerance,
                 "note": "" if matches else
                 "Positions plus cash do not add up to Robinhood's reported total."}

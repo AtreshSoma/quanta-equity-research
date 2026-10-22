@@ -167,6 +167,7 @@
         "status": "fresh"
       },
       "generated_at": "<volatile>",
+      "history_range": "2y/1d",
       "holder_action": "HOLD",
       "holdings_known": false,
       "horizon": {
@@ -201,6 +202,7 @@
         "Composite score 70.7 \u2192 candidate BUY",
         "R/R 0.29 below min 1.50 \u2192 WATCHLIST"
       ],
+      "red_flags": [],
       "risk_grade": "A",
       "risk_grade_drivers": [
         {

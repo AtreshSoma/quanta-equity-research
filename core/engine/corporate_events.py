@@ -62,6 +62,9 @@ DELISTING = "DELISTING"
 POSSIBLE_PENDING_DEAL = "POSSIBLE_PENDING_DEAL"
 EVENT_CHECK_UNAVAILABLE = "EVENT_CHECK_UNAVAILABLE"
 EVENT_CHECK_NOT_COVERED = "EVENT_CHECK_NOT_COVERED"
+# A foreign private issuer's free-form 6-K reports are not read: a standing
+# coverage gap, not a transient failure, so it carries its own code and wording.
+EVENT_CHECK_FOREIGN_FILER = "EVENT_CHECK_FOREIGN_FILER"
 
 AVOID_CODES = frozenset({PENDING_ACQUISITION, DELISTING})
 
@@ -612,7 +615,9 @@ def _check_filings(symbol: str, res: Dict[str, Any], today: date, price: Optiona
     if current:
         # A foreign private issuer files no 8-K or merger proxy; its 6-Ks are
         # free-form and not classified here, so no deal found is not "clear".
-        return _unavailable("", "foreign_reports_unread", symbol=symbol, filed=current[0].get("filed") or "")
+        ev = _unavailable("", "foreign_reports_unread", symbol=symbol, filed=current[0].get("filed") or "")
+        ev.code = EVENT_CHECK_FOREIGN_FILER
+        return ev
     return EventCheck("clear", checked_at=stamp)
 
 

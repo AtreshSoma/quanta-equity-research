@@ -1417,7 +1417,7 @@ class EnhancedMarketData:
 
         fallback = self._get_fallback_sp500()
         logger.warning(
-            "S&P 500 constituents unavailable — falling back to a built-in "
+            "S&P 500 constituents unavailable; falling back to a built-in "
             "list of only %d names; index coverage is REDUCED.", len(fallback),
         )
         EnhancedMarketData._sp500_cache = fallback
@@ -1443,7 +1443,7 @@ class EnhancedMarketData:
 
         fallback = self._get_fallback_nasdaq100()
         logger.warning(
-            "NASDAQ-100 constituents unavailable — falling back to a built-in "
+            "NASDAQ-100 constituents unavailable; falling back to a built-in "
             "list of only %d names; index coverage is REDUCED.", len(fallback),
         )
         EnhancedMarketData._nasdaq100_cache = fallback
@@ -2486,14 +2486,14 @@ class StrategicStockAnalyzer:
         add_tickers(sp500)
         sp500_degraded = EnhancedMarketData.sp500_degraded
         print(f"{'⚠️ ' if sp500_degraded else '✅'} {len(sp500)} stocks"
-              f"{' (FALLBACK — reduced coverage)' if sp500_degraded else ''}")
+              f"{' (FALLBACK: reduced coverage)' if sp500_degraded else ''}")
 
         print("   [3/3] Fetching NASDAQ-100 constituents...", end=" ", flush=True)
         nasdaq = self.market_data.get_nasdaq100_tickers()
         add_tickers(nasdaq)
         nasdaq_degraded = EnhancedMarketData.nasdaq100_degraded
         print(f"{'⚠️ ' if nasdaq_degraded else '✅'} {len(nasdaq)} stocks"
-              f"{' (FALLBACK — reduced coverage)' if nasdaq_degraded else ''}")
+              f"{' (FALLBACK: reduced coverage)' if nasdaq_degraded else ''}")
 
         universe_list = universe
         print(f"\n   📊 Total Universe: {len(universe_list)} unique stocks")
@@ -2531,7 +2531,7 @@ class StrategicStockAnalyzer:
         if self.universe_degraded:
             # A silently-shrunken universe is the worst kind of failure: the
             # scan still "succeeds", just over a fraction of the market.
-            print("   ⚠️  UNIVERSE DEGRADED — one or more index constituent lists "
+            print("   ⚠️  UNIVERSE DEGRADED: one or more index constituent lists "
                   "could not be fetched.")
             print("      The scan below covers materially fewer names than "
                   f"{scan_type.upper()} implies. See apex_trading.log.")
@@ -4101,7 +4101,7 @@ class StrategicStockAnalyzer:
         print(f"   • No price data:            {diag['no_data_tickers']}")
         if diag.get('analysis_errors'):
             print(f"   • ⚠️  Analysis errors:       {diag['analysis_errors']} "
-                  "(valid data, model raised — see apex_trading.log)")
+                  "(valid data, model raised; see apex_trading.log)")
         print(f"   • True data-success rate:   {diag['true_success_rate']:.1f}% "
               f"(clean data / universe, provider failures excluded)")
         if getattr(self, 'universe_degraded', False):
@@ -4133,7 +4133,7 @@ class StrategicStockAnalyzer:
             score_blocked = (filter_reasons.get('score_below_min', 0)
                              + filter_reasons.get('score_below_min_regime', 0))
             rr_blocked = filter_reasons.get('reward_risk_below_min', 0)
-            print("\n   ℹ️  0 setups is a RESULT, not an error — every analyzed name")
+            print("\n   ℹ️  0 setups is a RESULT, not an error: every analyzed name")
             print("       was filtered for a concrete reason above. Main drivers:")
             if score_blocked > 0:
                 print(f"       • {score_blocked} scored below the {Config.MIN_SCORE} "
@@ -4200,7 +4200,7 @@ class StrategicStockAnalyzer:
                     f"   Best setup: score {best.overall_score:.1f}/100, "
                     f"RS {best.relative_strength:.0f}/99\n"
                     f"   Preferred bar: score >= {min_score:.0f} or RS >= {min_rs:.0f}\n"
-                    "   Picks shown below — consider reducing size or skipping.\n"
+                    "   Picks shown below: consider reducing size or skipping.\n"
                 )
 
         # === CANDIDATE FUNDING BREAKDOWN ===
@@ -4432,7 +4432,7 @@ class StrategicStockAnalyzer:
             if passed:
                 # Kept within the PM-table column width so the report never
                 # truncates mid-word (e.g. "...and red").
-                pm_comment = "Clean setup — full size acceptable."
+                pm_comment = "Clean setup: full size acceptable."
             elif s.conviction == "LOW" or s.info_missing:
                 pm_comment = "Confirm + reduce size before entry."
             else:
@@ -5011,13 +5011,13 @@ class StrategicStockAnalyzer:
                 pattern = "Opening Range Breakdown (Short)"
                 direction = "SHORT"
             elif bullish_trend:
-                pattern = "Bull trend — wait for pullback to EMA9/VWAP"
+                pattern = "Bull trend: wait for pullback to EMA9/VWAP"
                 direction = "WAIT"
             elif bearish_trend:
-                pattern = "Bear trend — avoid longs"
+                pattern = "Bear trend: avoid longs"
                 direction = "WAIT"
             else:
-                pattern = "Choppy / no edge — stand aside"
+                pattern = "Choppy / no edge: stand aside"
                 direction = "WAIT"
 
             # ---- Concrete scalp levels (only if directional) ----
@@ -5068,7 +5068,7 @@ class StrategicStockAnalyzer:
         if not setups:
             return
 
-        print("   Source: yfinance 5m bars (~15 min delayed). Advisory only — "
+        print("   Source: yfinance 5m bars (~15 min delayed). Advisory only: "
               "use a real-time feed for execution.")
 
         rows = []
@@ -5076,16 +5076,16 @@ class StrategicStockAnalyzer:
         for setup in setups:
             play = self._compute_scalping_playbook(setup.ticker)
             if play is None:
-                rows.append([setup.ticker, "—", "—", "—", "—", "—", "—",
+                rows.append([setup.ticker, "--", "--", "--", "--", "--", "--",
                              f"no {Config.SCALP_INTERVAL} data "
                              "(closed market / weekend / illiquid)"])
                 continue
 
             dir_emoji = {'LONG': '🟢', 'SHORT': '🔴', 'WAIT': '🟡', 'NONE': '⚪'}.get(play['direction'], '•')
-            entry_str = f"${play['entry']:.2f}" if play['entry'] is not None else "—"
-            stop_str = f"${play['stop']:.2f}" if play['stop'] is not None else "—"
-            t1_str = f"${play['target1']:.2f}" if play['target1'] is not None else "—"
-            t2_str = f"${play['target2']:.2f}" if play['target2'] is not None else "—"
+            entry_str = f"${play['entry']:.2f}" if play['entry'] is not None else "--"
+            stop_str = f"${play['stop']:.2f}" if play['stop'] is not None else "--"
+            t1_str = f"${play['target1']:.2f}" if play['target1'] is not None else "--"
+            t2_str = f"${play['target2']:.2f}" if play['target2'] is not None else "--"
 
             rows.append([
                 setup.ticker,
@@ -5117,7 +5117,7 @@ class StrategicStockAnalyzer:
         print("     • Avoid first 5 min after open, lunch 11:30–13:30 ET, and 15 min around FOMC / earnings.")
         print("     • Max 3–5 scalps per day per ticker; hard daily loss cap = 2% of account.")
         print("     • Scale 50% off at T1 (+1.5R), trail rest with EMA9; never widen the initial stop.")
-        print("     • This is NOT a replacement for the swing setup — it's a "
+        print("     • This is NOT a replacement for the swing setup; it's a "
               "tactical entry refinement.")
 
     def _display_watchlist(self) -> bool:
@@ -5135,7 +5135,7 @@ class StrategicStockAnalyzer:
         if not watchlist:
             return False
 
-        print("\n👀 WATCHLIST / UNFUNDED CANDIDATES — not fundable at this capital\n")
+        print("\n👀 WATCHLIST / UNFUNDED CANDIDATES: not fundable at this capital\n")
         rows = []
         for s in watchlist:
             signal_label = f"{s.signal} LOW" if s.conviction == "LOW" else s.signal
@@ -5248,7 +5248,7 @@ class StrategicStockAnalyzer:
         if setup.volume_ratio >= 1.5:
             bullets.append(
                 f"{setup.volume_ratio:.1f}x average volume on the last completed "
-                "session — the move is being funded, not drifting.")
+                "session: the move is being funded, not drifting.")
 
         bullish = [p for p in setup.detected_patterns
                    if p not in ('RSI Overbought', 'Support Breakdown', 'Gap Down',
@@ -5315,7 +5315,7 @@ class StrategicStockAnalyzer:
         if setup.quant_rating in ("WEAK", "AVOID", "HOLD"):
             risks.append(
                 f"Factor grades read {setup.quant_rating} even though the setup "
-                "cleared the technical gate — the two disagree.")
+                "cleared the technical gate: the two disagree.")
 
         if self.market_regime in (MarketRegime.BEAR_STRONG, MarketRegime.BEAR_WEAK,
                                   MarketRegime.VOLATILE):
@@ -5394,7 +5394,7 @@ class StrategicStockAnalyzer:
 
             def cell(label: str) -> str:
                 if label not in eta:
-                    return "—"
+                    return "--"
                 when = datetime.strptime(dates[label], "%Y-%m-%d")
                 return f"{eta[label]}d · {when:%a %d %b}"
 
@@ -5403,8 +5403,8 @@ class StrategicStockAnalyzer:
                 s.timeframe,
                 f"{s.expected_hold_days}d",
                 cell("T1"), cell("T2"), cell("T3"),
-                s.review_date or "—",
-                s.time_stop_date or "—",
+                s.review_date or "--",
+                s.time_stop_date or "--",
             ])
         headers = ['Ticker', 'Style', 'Expected hold', 'T1 due', 'T2 due',
                    'T3 due', 'Review on', 'Close by']
@@ -5447,7 +5447,7 @@ class StrategicStockAnalyzer:
         if setup.time_stop_date:
             steps.append(
                 f"If neither level has triggered by {setup.time_stop_date}, "
-                "close it anyway — the setup has expired.")
+                "close it anyway: the setup has expired.")
         return steps
 
     def _display_legend(self) -> None:
@@ -5462,7 +5462,7 @@ class StrategicStockAnalyzer:
               "A+ (top 5%) to F (bottom 8%).")
         print("   ⚠ LOW        conviction downgrade: position size already halved. "
               "Treat as confirmation-only.")
-        print("   Sessions     trading days, holidays excluded — not calendar days.")
+        print("   Sessions     trading days, holidays excluded: not calendar days.")
 
     def _display_market_context(self) -> None:
         """Banner describing the tape the picks were generated in."""
@@ -5479,7 +5479,7 @@ class StrategicStockAnalyzer:
                   f"({diag.get('universe_count', 0)} in universe)")
             if diag.get('provider_failures'):
                 print(f"   ⚠️  {diag['provider_failures']} ticker(s) lost to provider "
-                      "errors — coverage is incomplete for this run.")
+                      "errors: coverage is incomplete for this run.")
 
     @staticmethod
     def _r_multiple(price: float, entry: float, risk_per_share: float) -> float:
@@ -5521,7 +5521,7 @@ class StrategicStockAnalyzer:
                    'Target 1 (take 50%)', 'Target 2 (trail)', 'Target 3 (stretch)', 'Trail']
         print()
         print(tabulate(rows, headers=headers, tablefmt='simple'))
-        print("\n   Work the buy limit inside the zone — never chase above it. "
+        print("\n   Work the buy limit inside the zone: never chase above it. "
               "R = entry − stop (see section 12).")
 
     def _display_factor_grades(self, setups: List["TradingSetup"]) -> None:
@@ -5534,21 +5534,21 @@ class StrategicStockAnalyzer:
             rows.append([
                 s.ticker,
                 s.sector[:18],
-                *[grades.get(name, "—") for name in self.FACTOR_NAMES],
-                s.quant_rating or "—",
-                f"#{s.sector_rank} of {s.sector_peers}" if s.sector_peers else "—",
+                *[grades.get(name, "--") for name in self.FACTOR_NAMES],
+                s.quant_rating or "--",
+                f"#{s.sector_rank} of {s.sector_peers}" if s.sector_peers else "--",
                 "sector" if s.grade_basis == "sector" else "universe*",
             ])
         headers = ['Ticker', 'Sector', *self.FACTOR_NAMES,
                    'Quant Rating', 'Rank', 'Graded vs']
         print()
         print(tabulate(rows, headers=headers, tablefmt='simple'))
-        print("\n   Percentile ranks within the peer set — A+ (top 5%) to F "
+        print("\n   Percentile ranks within the peer set: A+ (top 5%) to F "
               "(bottom 8%), not absolute quality.")
         if any(s.grade_basis != "sector" for s in setups):
             print(f"   * fewer than {Config.MIN_SECTOR_PEERS} scored peers in that "
                   "sector, so the whole analysed universe was used instead.")
-        print("   An internal factor model — not a validated alpha signal, and not "
+        print("   An internal factor model, not a validated alpha signal, and not "
               "any third-party rating.")
 
     def _display_execution_tickets(self, setups: List["TradingSetup"]) -> None:
@@ -5566,8 +5566,8 @@ class StrategicStockAnalyzer:
             entry = setup.execution_entry or setup.optimal_entry or setup.entry_price
             risk_ps = max(1e-9, entry - setup.stop_loss)
             t1_shares, runner_shares = self._scale_out_plan(setup)
-            conviction = ("⚠ LOW — confirmation only, half size"
-                          if setup.conviction == "LOW" else "NORMAL — full size")
+            conviction = ("⚠ LOW: confirmation only, half size"
+                          if setup.conviction == "LOW" else "NORMAL: full size")
             # Structural invalidation: the highest support still below the
             # entry, i.e. the level whose loss breaks the thesis before the hard
             # stop is even reached.
@@ -5611,7 +5611,7 @@ class StrategicStockAnalyzer:
                                   f"trail {runner_shares:g} sh by "
                                   f"{setup.trailing_stop_pct:.0f}%"))
                 print(target_line("TARGET 3", setup.aggressive_target, runner_shares,
-                                  "stretch — only if the trend keeps paying"))
+                                  "stretch: only if the trend keeps paying"))
             print(f"│  R/R        {setup.risk_reward_ratio:.2f}:1 to Target 1, net of "
                   f"{Config.FRICTION_ROUND_TRIP_PCT * 100:.2f}% round-trip cost"
                   f"   ·  break-even hit rate {setup.breakeven_win_rate:.0f}%")
@@ -5689,7 +5689,7 @@ class StrategicStockAnalyzer:
         step += 1
         print(f"   {step}. Working orders: {len(setups)} buy limit(s) + "
               f"{len(setups)} protective stop(s). Place the stop in the same "
-              "session the fill occurs — never overnight without one.")
+              "session the fill occurs: never overnight without one.")
         step += 1
         disagree = [s for s in setups if s.quant_rating in ("HOLD", "WEAK", "AVOID")]
         if disagree:
@@ -5748,7 +5748,7 @@ class StrategicStockAnalyzer:
                              "; ".join(problems))
         setups = [s for s, _ in checked]
         if not setups:
-            print("\n⚠️  Every pick failed the internal consistency check — "
+            print("\n⚠️  Every pick failed the internal consistency check: "
                   "see apex_trading.log. Nothing is shown rather than showing "
                   "levels that do not reconcile.")
             return
@@ -5795,7 +5795,7 @@ class StrategicStockAnalyzer:
                 f"{signal_emoji} {setup.ticker}",
                 setup.company[:22],
                 (setup.signal + " ⚠LOW") if setup.conviction == "LOW" else setup.signal,
-                setup.quant_rating or "—",
+                setup.quant_rating or "--",
                 f"{setup.overall_score:.0f}",
                 f"{setup.relative_strength:.0f}",
                 f"${entry:.2f}",
@@ -5812,7 +5812,7 @@ class StrategicStockAnalyzer:
         # Low-conviction legend: explain the ⚠LOW marker and why size was cut.
         low_conv = [s for s in setups if s.conviction == "LOW"]
         if low_conv:
-            print("\n⚠️  LOW-CONVICTION PICKS (confirmation only — size halved):")
+            print("\n⚠️  LOW-CONVICTION PICKS (confirmation only, size halved):")
             for s in low_conv:
                 print(f"   • {s.ticker}: {', '.join(s.conviction_reasons)}")
 
@@ -5996,7 +5996,7 @@ class StrategicStockAnalyzer:
             print()
 
         # === 5-MIN SCALPING PLAYBOOK (Top 5 setups) ===
-        self._section(10, "Intraday refinement", "optional — for timing the entry only")
+        self._section(10, "Intraday refinement", "optional, for timing the entry only")
         self._display_scalping_playbook(setups[:5])
 
         # === SYNTHESIS: what to actually do ===
@@ -6009,11 +6009,11 @@ class StrategicStockAnalyzer:
 
         print("\n" + "─" * self.REPORT_WIDTH)
         print(" STANDING RULES")
-        print("   • Work the buy limit inside the entry zone — never chase above it.")
+        print("   • Work the buy limit inside the entry zone: never chase above it.")
         print("   • The protective stop goes in the same session as the fill.")
         print(f"   • Scale {Config.SCALE_OUT_T1_FRACTION * 100:.0f}% off at Target 1, "
               "trail the runner; never widen the initial stop.")
-        print("   • Close the position at the time stop even if neither level is hit —")
+        print("   • Close the position at the time stop even if neither level is hit:")
         print("     a setup that has not worked in its window is no longer the setup.")
         print("   • Re-run the scan daily: entries, stops and targets are all ATR-scaled")
         print("     and move with the tape.")
@@ -6058,7 +6058,7 @@ class StrategicStockAnalyzer:
                 f"{diag.get('universe_count', 0)} universe")
             if diag.get('provider_failures'):
                 add(f"- **⚠ Provider failures:** {diag['provider_failures']} ticker(s) "
-                    "— coverage incomplete")
+                    "(coverage incomplete)")
         add("")
 
         add("## At a glance")
@@ -6113,13 +6113,13 @@ class StrategicStockAnalyzer:
             eta, dates = s.eta_sessions or {}, s.eta_dates or {}
 
             def due(label: str) -> str:
-                return (f"{eta[label]}d<br>{dates[label]}" if label in eta else "—")
+                return (f"{eta[label]}d<br>{dates[label]}" if label in eta else "--")
 
             add(f"| **{s.ticker}** | {s.timeframe} | {s.expected_hold_days}d | "
                 f"{due('T1')} | {due('T2')} | {due('T3')} | "
-                f"{s.review_date or '—'} | **{s.time_stop_date or '—'}** |")
+                f"{s.review_date or '--'} | **{s.time_stop_date or '--'}** |")
         add("")
-        add("*ETAs measure the distance to each target in ATR (average daily range) — "
+        add("*ETAs measure the distance to each target in ATR (average daily range): "
             "estimates of PACE, not predictions that the level will be reached. "
             "\"Close by\" is a hard time stop. Sessions are trading days, holidays "
             "excluded.*")
@@ -6135,11 +6135,11 @@ class StrategicStockAnalyzer:
             for s in setups:
                 g = s.factor_grades or {}
                 add(f"| **{s.ticker}** | {s.sector} | "
-                    + " | ".join(g.get(n, "—") for n in self.FACTOR_NAMES)
-                    + f" | {s.quant_rating or '—'} | #{s.sector_rank} of "
-                    f"{s.sector_peers} | {s.grade_basis or '—'} |")
+                    + " | ".join(g.get(n, "--") for n in self.FACTOR_NAMES)
+                    + f" | {s.quant_rating or '--'} | #{s.sector_rank} of "
+                    f"{s.sector_peers} | {s.grade_basis or '--'} |")
             add("")
-            add("*Percentile ranks within the peer set, A+ (top 5%) to F (bottom 8%) — "
+            add("*Percentile ranks within the peer set, A+ (top 5%) to F (bottom 8%): "
                 "an internal factor model, not a validated alpha signal and not any "
                 "third-party rating.*")
             add("")
@@ -6218,7 +6218,7 @@ class StrategicStockAnalyzer:
         add("---")
         add("")
         add("**Disclaimer:** educational purposes only. Not financial advice. "
-            "Levels are ATR-scaled and move with the tape — re-run before acting.")
+            "Levels are ATR-scaled and move with the tape: re-run before acting.")
         add("")
         return "\n".join(out)
 
@@ -6444,7 +6444,7 @@ def _run(args: argparse.Namespace) -> int:
         if not all_setups:
             print("\n❌ No candidates passed the model filters with current settings")
             print("   The rejection funnel above shows exactly which gate stopped each")
-            print("   name — try a broader scan type, or run again after the close.")
+            print("   name: try a broader scan type, or run again after the close.")
             return 0
 
         # Funded, risk/sector/correlation-limited final selection.

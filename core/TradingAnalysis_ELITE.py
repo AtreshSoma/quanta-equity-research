@@ -9133,9 +9133,9 @@ class QuantaEliteAnalyzer:
         if not provider_answered and not self._provider_reachable():
             meta["provider_unreachable"] = True
             logger.warning("No data for %s and the provider is not answering a control "
-                           "symbol — provider unavailable, not an invalid ticker", ticker)
+                           "symbol: provider unavailable, not an invalid ticker", ticker)
             return None, DataStatus.PROVIDER_DATA_UNAVAILABLE, meta
-        logger.warning("No data and no metadata for %s — treating as invalid ticker", ticker)
+        logger.warning("No data and no metadata for %s: treating as invalid ticker", ticker)
         return None, DataStatus.INVALID_TICKER, meta
 
     PROVIDER_PROBE_SYMBOL = "SPY"
@@ -10107,7 +10107,7 @@ def audience_framing(result: 'AnalysisResult') -> Dict[str, str]:
     if action == 'WATCHLIST':
         return {
             'action': 'WATCHLIST',
-            'headline': '👁  WATCHLIST — NO POSITION',
+            'headline': '👁  WATCHLIST: NO POSITION',
             'one_liner': 'Not a buy today. Track it and wait for the setup to earn an entry.',
             'new_buyer': 'Do not open a position at these levels',
             'holder': ('If you already own it: the levels below are your risk plan'
@@ -10116,7 +10116,7 @@ def audience_framing(result: 'AnalysisResult') -> Dict[str, str]:
     if action == 'HOLD_EXISTING':
         return {
             'action': 'HOLD_EXISTING',
-            'headline': '🔵 HOLD — EXISTING POSITION ONLY',
+            'headline': '🔵 HOLD: EXISTING POSITION ONLY',
             'one_liner': 'Keep what you own. This is not a new-money entry.',
             'new_buyer': 'No new entry at these levels',
             'holder': 'Hold to the stop below; trim into the first target',
@@ -10132,7 +10132,7 @@ def audience_framing(result: 'AnalysisResult') -> Dict[str, str]:
     if action == 'INVALID':
         return {
             'action': 'INVALID',
-            'headline': '⚪ NO VERDICT — DATA INSUFFICIENT',
+            'headline': '⚪ NO VERDICT: DATA INSUFFICIENT',
             'one_liner': 'The data did not support an analysis. No recommendation is made.',
             'new_buyer': 'No recommendation',
             'holder': 'No recommendation',
@@ -10153,12 +10153,12 @@ def audience_framing(result: 'AnalysisResult') -> Dict[str, str]:
             'ACCUMULATE': 'Scale in. Start partial and add on confirmation.',
         }[action]
         if not timing_ok:
-            one_liner += " Timing is not confirmed — stage the entry, do not chase."
+            one_liner += " Timing is not confirmed: stage the entry, do not chase."
         return {
             'action': action,
             'headline': label + ("" if timing_ok else "  (timing: stage in)"),
             'one_liner': one_liner,
-            'new_buyer': ('Entry is actionable — see the risk plan below' if timing_ok
+            'new_buyer': ('Entry is actionable: see the risk plan below' if timing_ok
                           else 'Thesis qualifies, but wait for the pullback or the '
                                'breakout confirmation below'),
             'holder': 'Add only on the terms below; keep the same stop',
@@ -10397,7 +10397,7 @@ def display_decision_snapshot(result: 'AnalysisResult', sym: str = "$") -> None:
               f"≈ {sym}{ps.position_value:,.0f} ({ps.portfolio_weight:.1%} of account) "
               f"· risk {sym}{ps.dollar_risk:,.0f} ({ps.risk_percent:.2%})")
         if not lv['actionable']:
-            print("     (size shown for reference — the verdict above is not an entry)")
+            print("     (size shown for reference; the verdict above is not an entry)")
         for w in (getattr(ps, 'warnings', None) or [])[:2]:
             print(f"     ⚠ {w}")
     elif lv['actionable']:
@@ -10544,7 +10544,7 @@ def display_what_to_do(result: 'AnalysisResult', sym: str = "$") -> None:
             print(f"  Round-trip cost {sym}{cost_dollars:,.2f} ({cost_pct:.2f}%) "
                   f"— already deducted from the R:R above")
             if not lv['actionable']:
-                print("  (reference only — the verdict above is not an entry)")
+                print("  (reference only; the verdict above is not an entry)")
             for w in (getattr(ps, 'warnings', None) or []):
                 print(f"  ⚠ {w}")
         else:
@@ -10570,7 +10570,7 @@ def display_what_to_do(result: 'AnalysisResult', sym: str = "$") -> None:
     elif framing['action'] == 'WATCHLIST':
         print("  Conservative: ❌   Growth: ❌   Aggressive: ❌  (no entry for anyone today)")
     elif framing['action'] == 'HOLD_EXISTING':
-        print("  Holders only — no new entry for any profile")
+        print("  Holders only: no new entry for any profile")
     else:
         print("  Conservative: ❌   Growth: ❌   Aggressive: ❌  (exit recommended)")
 
@@ -10606,16 +10606,16 @@ def display_execution_context(result: 'AnalysisResult', sym: str = "$") -> None:
             pct_adv = ps.position_value / adv_dollars * 100
             verdict = ("fine" if pct_adv < 1 else
                        "watch the fill" if pct_adv < 5 else
-                       "TOO LARGE — expect material slippage")
+                       "TOO LARGE: expect material slippage")
             pct_txt = "<0.01%" if 0 < pct_adv < 0.01 else f"{pct_adv:.2f}%"
             print(f"  This position         {pct_txt} of a day's volume — {verdict}")
         vr = float(getattr(t, 'volume_ratio', 0.0) or 0.0)
         if vr > 0:
-            tone = ("thin — conviction unconfirmed" if vr < 0.8 else
-                    "normal" if vr < 1.5 else "elevated — something is happening")
+            tone = ("thin: conviction unconfirmed" if vr < 0.8 else
+                    "normal" if vr < 1.5 else "elevated: something is happening")
             print(f"  Today vs 20d avg      {vr:.2f}x — {tone}")
     else:
-        print("  Volume data unavailable — liquidity not assessed")
+        print("  Volume data unavailable: liquidity not assessed")
 
     # ── Event risk ────────────────────────────────────────────────────────
     print(f"\n  EVENT RISK")
@@ -10624,11 +10624,11 @@ def display_execution_context(result: 'AnalysisResult', sym: str = "$") -> None:
     edate = str(getattr(cat, 'earnings_date', 'Unknown') or 'Unknown') if cat else 'Unknown'
     if days >= 0:
         if days <= 3:
-            note = "IMMINENT — a gap through the stop is likely; size down or wait"
+            note = "IMMINENT: a gap through the stop is likely; size down or wait"
         elif days <= 14:
-            note = "inside the horizon — the event will decide the trade, not the setup"
+            note = "inside the horizon: the event will decide the trade, not the setup"
         elif days <= 30:
-            note = "elevated — plan to be flat or reduced into it"
+            note = "elevated: plan to be flat or reduced into it"
         else:
             note = "clear of the near horizon"
         print(f"  Next earnings         {edate} — {days} day(s) away: {note}")
@@ -10675,7 +10675,7 @@ def display_execution_context(result: 'AnalysisResult', sym: str = "$") -> None:
     flag = "OK" if status == 'ok' else f"{status.upper()}"
     print(f"  Status                {flag}" + (f" — {reason}" if reason else ""))
     if getattr(result, 'is_fast_mode', False):
-        print("  Mode                  FAST — peer comparison and some modules were skipped")
+        print("  Mode                  FAST: peer comparison and some modules were skipped")
     print("  " + "═" * 74)
 
 
@@ -12299,7 +12299,7 @@ def display_analysis(result: 'AnalysisResult', detailed: bool = True):
         action_text.append(f"Hold / Trim plan. Stop at {fmt(stop)}. Watch {resistance_str} resistance.\n", style="bold yellow")
     elif 'buy' in signal_lower or 'accumulate' in signal_lower:
         action_text.append(
-            "Profit plan is hypothetical — assumes entry at current price.\n\n",
+            "Profit plan is hypothetical: assumes entry at current price.\n\n",
             style="dim italic",
         )
         action_text.append(f"Entry Zone:      {fmt(buy_zone_low)} - {fmt(buy_zone_high)} (pullback -2% to -5%)\n", style="bold green")
@@ -12337,7 +12337,7 @@ def display_analysis(result: 'AnalysisResult', detailed: bool = True):
             action_text.append("\n")
     else:
         action_text.append(
-            "Targets:         none above spot — the valuation does not support "
+            "Targets:         none above spot: the valuation does not support "
             "a profit plan here\n", style="dim")
     if trailing_stop_pct > 0:
         action_text.append(
@@ -12388,7 +12388,7 @@ def display_analysis(result: 'AnalysisResult', detailed: bool = True):
         empty_line = Text(
             "No reversal/continuation candlestick patterns triggered on the "
             "most recent 3 bars. This is itself a signal: the market is not "
-            "showing decisive buyer/seller exhaustion — defer to trend & momentum.",
+            "showing decisive buyer/seller exhaustion: defer to trend & momentum.",
             style="dim italic",
         )
         cs_group = Group(summary_line, Text(""), empty_line)
@@ -12530,8 +12530,8 @@ def display_analysis(result: 'AnalysisResult', detailed: bool = True):
         _contrib_total += contrib
         scores_table.add_row(
             name, f"{score_val:>3.0f}",
-            f"{wt:.0%}" if wt else "—",
-            f"{contrib:.1f}" if wt else "—",
+            f"{wt:.0%}" if wt else "--",
+            f"{contrib:.1f}" if wt else "--",
             f"[{color}]{label}[/{color}]", desc)
 
     comp = result.scores.composite_score
@@ -12540,8 +12540,8 @@ def display_analysis(result: 'AnalysisResult', detailed: bool = True):
     comp_color = "green" if comp >= 70 else ("yellow" if comp >= 40 else "red")
     scores_table.add_row(
         "COMPOSITE", f"[bold]{comp:>3.0f}[/bold]",
-        f"{sum(_w.values()):.0%}" if _w else "—",
-        f"[bold]{_contrib_total:.1f}[/bold]" if _w else "—",
+        f"{sum(_w.values()):.0%}" if _w else "--",
+        f"[bold]{_contrib_total:.1f}[/bold]" if _w else "--",
         f"[bold {comp_color}]Grade {comp_grade}[/bold {comp_color}]",
         "")
     _title = "MULTI-FACTOR SCORES"
@@ -12575,7 +12575,7 @@ def display_analysis(result: 'AnalysisResult', detailed: bool = True):
         # warning fired, and say what that does and does not mean.
         risks_text.append(
             "No risk warning triggered.\nThis is the absence of a flag, not a "
-            "clean bill of health — see the risk metrics below.", style="dim")
+            "clean bill of health: see the risk metrics below.", style="dim")
     console.print(Columns([
         Panel(why_text, title=f"[bold]WHY {signal_display.upper()}[/bold]", border_style="cyan", expand=True),
         Panel(risks_text, title="[bold]KEY RISKS[/bold]", border_style="red", expand=True),
@@ -12605,7 +12605,7 @@ def display_analysis(result: 'AnalysisResult', detailed: bool = True):
             f"Sentiment: {s.sentiment_label} ({s.sentiment_score:+.2f}) | Trend: {s.sentiment_trend}\n",
             style="bold")
         news_text.append(
-            "No direct company headlines found — score driven by peer/macro news; confidence reduced.\n",
+            "No direct company headlines found: score driven by peer/macro news; confidence reduced.\n",
             style="dim yellow")
     # Provenance line (only shown when available)
     _ts = getattr(s, 'last_news_timestamp', '') or ''
@@ -12618,7 +12618,7 @@ def display_analysis(result: 'AnalysisResult', detailed: bool = True):
         )
     else:
         news_text.append(
-            "Source/date unavailable — sentiment confidence reduced.\n",
+            "Source/date unavailable: sentiment confidence reduced.\n",
             style="dim yellow",
         )
     news_text.append("\n")
@@ -12999,7 +12999,7 @@ def display_analysis(result: 'AnalysisResult', detailed: bool = True):
             bottom_line = ("Wait for confirmation candle and volume before adding. "
                            "Existing holders may hold with a trailing stop.")
         else:
-            bottom_line = ("Mixed signals — defer new buying until a clearer setup emerges.")
+            bottom_line = ("Mixed signals: defer new buying until a clearer setup emerges.")
 
         outlook_text = Text()
         outlook_text.append(f"RECOMMENDATION: {action}\n", style="bold cyan")

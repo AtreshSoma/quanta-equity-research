@@ -14,7 +14,7 @@ from typing import Iterable, List
 
 
 BACKTEST_DIAGNOSTIC_BANNER = (
-    "DIAGNOSTIC REPLAY — NOT A VALIDATED BACKTEST\n"
+    "DIAGNOSTIC REPLAY: NOT A VALIDATED BACKTEST\n"
     "These numbers are a sanity-check using today's weights on past data. "
     "They are NOT evidence of strategy quality."
 )

@@ -652,7 +652,7 @@ def render_advisor_analysis(report: dict) -> None:
     with st.expander("Risk assessment", expanded=True):
         render_bullets(report["risk_points"])
 
-    section_label("Reference levels — not automatic orders")
+    section_label("Reference levels, not automatic orders")
     level_items = list(report["levels"].items())
     level_cols = st.columns(2)
     for column, (label, value) in zip(level_cols, level_items[:2]):
@@ -795,7 +795,7 @@ with market_tab:
                 help="Reduces concentration when multiple candidates have similar scores.",
             )
             st.caption(
-                "Confidence is heuristic—not a win probability. Event-risk and final-action controls can reduce an allocation to zero."
+                "Confidence is heuristic, not a win probability. Event-risk and final-action controls can reduce an allocation to zero."
             )
         with action_col:
             scan_clicked = st.button("Run market scan", key="scan_button", type="primary")
@@ -854,7 +854,7 @@ with stock_tab:
     st.markdown('<div class="eyebrow">Company research</div>', unsafe_allow_html=True)
     st.markdown('<h1 class="editorial-title">One stock.<br>A complete decision brief.</h1>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="editorial-deck">A deep review of price action, business quality, valuation, catalysts, evidence strength, and downside—translated into separate guidance for a new buyer and an existing holder.</div>',
+        '<div class="editorial-deck">A deep review of price action, business quality, valuation, catalysts, evidence strength, and downside, translated into separate guidance for a new buyer and an existing holder.</div>',
         unsafe_allow_html=True,
     )
     with st.form("single_stock_form", clear_on_submit=False):

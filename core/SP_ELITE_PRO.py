@@ -7512,7 +7512,7 @@ class QuantaEliteTradingSystem:
             ]
             if offenders:
                 logger.warning(
-                    "⚠️  Sub-score collinearity above 0.80 — these are effectively "
+                    "⚠️  Sub-score collinearity above 0.80: these are effectively "
                     "one factor carrying two weights: "
                     + ", ".join(f"{a}~{b} {v:.2f}" for a, b, v in offenders)
                 )
@@ -7910,7 +7910,7 @@ class QuantaEliteTradingSystem:
         """
         logger.warning(
             "save_portfolio() is deprecated: a scan must not write the position "
-            "ledger. Writing to the signal log instead — record actual fills in "
+            "ledger. Writing to the signal log instead; record actual fills in "
             f"{self.POSITIONS_PATH} yourself."
         )
         return self.save_signals(recommendations)
@@ -11556,7 +11556,7 @@ class QuantaEliteTradingSystem:
                         _banner = (
                             BACKTEST_DIAGNOSTIC_BANNER
                             if HAS_DECISION_CORE
-                            else "DIAGNOSTIC REPLAY — NOT A VALIDATED BACKTEST"
+                            else "DIAGNOSTIC REPLAY: NOT A VALIDATED BACKTEST"
                         )
                         logger.info("=" * 60)
                         for _line in _banner.splitlines():
@@ -11764,7 +11764,7 @@ class QuantaEliteTradingSystem:
                 "the deep analyzer and are NOT safe for live/paper trading."
             )
             self._console_print("\n" + "!" * 80)
-            self._console_print("⚠️  DEEP CONFIRMATION DISABLED — DEVELOPER-ONLY OVERRIDE")
+            self._console_print("⚠️  DEEP CONFIRMATION DISABLED: DEVELOPER-ONLY OVERRIDE")
             self._console_print("    Published picks were NOT independently confirmed and may")
             self._console_print("    contradict the deep analyzer. Do not trade from this output.")
             self._console_print("!" * 80 + "\n")
@@ -13544,7 +13544,7 @@ class QuantaEliteTradingSystem:
             )
         if getattr(regime, 'vix_is_proxy', False):
             out.append(
-                "VIX is a realized-volatility proxy, not a live implied quote — "
+                "VIX is a realized-volatility proxy, not a live implied quote: "
                 "treat the regime read as provisional"
             )
         if regime.regime_type in ("BEAR", "VOLATILE"):
@@ -13554,7 +13554,7 @@ class QuantaEliteTradingSystem:
             )
         if regime.regime_type == "UNKNOWN":
             out.append(
-                "Trend regime UNKNOWN (benchmark history too short) — "
+                "Trend regime UNKNOWN (benchmark history too short): "
                 "factor weights defaulted to the quality-tilted set"
             )
         dd = float(getattr(self, 'current_drawdown', 0.0) or 0.0)
@@ -13639,7 +13639,7 @@ class QuantaEliteTradingSystem:
         sector_str = "  │  ".join(
             f"{s} {v / deployed * 100:.0f}%"
             for s, v in sorted(sectors.items(), key=lambda x: -x[1])
-        ) if deployed > 0 else "—"
+        ) if deployed > 0 else "--"
 
         sum_tbl = Table(box=None, show_header=False, padding=(0, 1), expand=True)
         sum_tbl.add_column(ratio=1)
@@ -13714,7 +13714,7 @@ class QuantaEliteTradingSystem:
             # honestly named SETUP and carries the classifier's own label.
             setup_label = str(getattr(rec, 'setup_type', 'Momentum') or 'Momentum')
             cs = self.currency_symbol
-            dash = "[dim]—[/]"
+            dash = "[dim]--[/]"
             table.add_row(
                 str(i), rec.ticker, action,
                 fmt_price(rec.entry_price, cs) if is_buy_row else dash,
@@ -13723,7 +13723,7 @@ class QuantaEliteTradingSystem:
                 f"{rec.risk_reward_ratio:.1f}" if is_buy_row else dash,
                 fmt_shares(rec.shares) if is_buy_row else dash,
                 f"{cs}{rec.allocation:,.0f}" if is_buy_row else dash,
-                conf_label, rec.sector or "—", setup_label,
+                conf_label, rec.sector or "--", setup_label,
             )
 
         console.print(table)
@@ -13744,7 +13744,7 @@ class QuantaEliteTradingSystem:
         console.print()
         # ── DETAILED ANALYSIS CARDS (every published pick) ─────────
         console.print(Panel(
-            Align.center("[bold white]DETAILED ANALYSIS — TOP PICKS[/]"),
+            Align.center("[bold white]DETAILED ANALYSIS: TOP PICKS[/]"),
             border_style="bright_white", box=box.HORIZONTALS, padding=(0, 0)
         ))
         console.print()
@@ -13968,7 +13968,7 @@ class QuantaEliteTradingSystem:
                 note = ("Own it → hold per your original plan"
                         if final_value == "HOLD_EXISTING" else
                         "Reduce / exit on strength" if final_value == "AVOID" else
-                        "On watch — wait for a valid setup before buying")
+                        "On watch: wait for a valid setup before buying")
                 execution_block = (
                     f"\n[bold yellow]EXECUTION[/]\n"
                     f"  [dim]No new entry — {note}.[/]\n"
@@ -14029,7 +14029,7 @@ class QuantaEliteTradingSystem:
         # the QUANTA_VERBOSE env var.
         if verbose and debug_rows:
             dbg = Table(
-                title="[bold]DEBUG — ACTION CLASSIFICATION[/]",
+                title="[bold]DEBUG: ACTION CLASSIFICATION[/]",
                 box=box.SIMPLE_HEAD, header_style="bold white on grey23",
                 padding=(0, 1), show_edge=False, expand=True,
             )
@@ -14487,7 +14487,7 @@ class QuantaEliteTradingSystem:
                 f.write(f"Total Capital: {self.currency_symbol}{self.capital:,.2f}\n")
                 f.write(f"Recommendations: {len(recommendations)}\n")
                 if not deep_confirm_enabled:
-                    f.write("\n⚠️  DEEP CONFIRMATION DISABLED (developer-only override) — "
+                    f.write("\n⚠️  DEEP CONFIRMATION DISABLED (developer-only override): "
                             "picks were NOT independently confirmed and may contradict "
                             "the deep analyzer.\n")
                 f.write("\n")
@@ -14938,7 +14938,7 @@ def run_interactive_session():
                 print("\n✓ FULL MARKET SCAN")
                 print("  Universe: S&P 500 + DOW 30 + NASDAQ-100 + Russell 2000 + Mid-Caps")
                 print("  Every assembled name is deep-scanned; nothing is pre-pruned.")
-                print("  Expect ~12-15 minutes — the request throttle is deliberate.")
+                print("  Expect ~12-15 minutes: the request throttle is deliberate.")
                 
             elif scan_choice == "2":  # QUICK SCAN
                 scan_type = "quick"

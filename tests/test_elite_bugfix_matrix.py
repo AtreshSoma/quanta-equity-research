@@ -581,7 +581,7 @@ class TestTemplateLabels(unittest.TestCase):
         self.assertIn("R/R (to base target, net costs):", self.src)
 
     def test_profit_plan_labeled_hypothetical(self):
-        self.assertIn("hypothetical — assumes entry at current price", self.src)
+        self.assertIn("hypothetical: assumes entry at current price", self.src)
 
     def test_no_equal_weight_blend_remains(self):
         self.assertNotIn("Equal-weight avg of analyst low/consensus/high", self.src)

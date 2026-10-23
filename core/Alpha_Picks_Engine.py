@@ -834,7 +834,7 @@ class Backtester:
     """
 
     LOOKAHEAD_WARNING = (
-        "LOOK-AHEAD/SURVIVORSHIP BIASED DIAGNOSTIC — NOT A VALID BACKTEST. "
+        "LOOK-AHEAD/SURVIVORSHIP BIASED DIAGNOSTIC: NOT A VALID BACKTEST. "
         "Picks were chosen with present-day data then replayed into the past; "
         "returns are inflated. Use apex_quant walk-forward or forward paper "
         "tracking for any decision-grade performance estimate."
@@ -914,7 +914,7 @@ class Backtester:
         }
 
         print(f"\n{'='*60}")
-        print("DIAGNOSTIC REPLAY (LOOK-AHEAD BIASED — NOT A VALID BACKTEST)")
+        print("DIAGNOSTIC REPLAY (LOOK-AHEAD BIASED: NOT A VALID BACKTEST)")
         print(f"{'='*60}")
         print(f"Period: {period_days} days")
         print(f"Picks Tested: {len(results)}")

@@ -21,7 +21,8 @@ def test_symbols_are_validated_deduplicated_and_capped(store, monkeypatch):
     assert ml.clean_symbol("^VIX") == "^VIX"
     assert ml.clean_symbol("DROP TABLE") is None
     assert store.add_symbol("AAPL") and not store.add_symbol("AAPL")
-    monkeypatch.setattr(ml, "MAX_SYMBOLS", 1)
+    import my_list_store
+    monkeypatch.setattr(my_list_store, "MAX_SYMBOLS", 1)
     with pytest.raises(ValueError):
         store.add_symbol("MSFT")
 

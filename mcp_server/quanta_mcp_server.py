@@ -1558,6 +1558,94 @@ def position_advisor(
 
 
 # =============================================================================
+# MY LIST AND PRICE ALERTS (the web app's store, data/my_list.sqlite3)
+# =============================================================================
+# The running web app checks these alerts and posts the notifications; these
+# tools only read and change the list, so they work whether it is running or not.
+
+def _my_list_store():
+    webapp_dir = os.path.join(PROJECT_ROOT, 'webapp')
+    if webapp_dir not in sys.path:
+        sys.path.insert(0, webapp_dir)
+    from my_list_store import MyListStore
+    return MyListStore()
+
+
+def _clean(symbol: str) -> Optional[str]:
+    from my_list_store import clean_symbol
+    return clean_symbol(symbol)
+
+
+@mcp.tool()
+def my_list() -> str:
+    """Show My list (saved symbols), the active price alerts and any fired alerts not yet dismissed."""
+    store = _my_list_store()
+    symbols = [r["symbol"] for r in store.symbols()]
+    lines = [f"My list ({len(symbols)}): " + (", ".join(symbols) if symbols else "empty")]
+    active = store.alerts(active_only=True)
+    lines.append(f"Active price alerts ({len(active)}):")
+    lines += [f"  #{a['id']} {a['symbol']} at or {a['direction']} {a['level']:,.2f}"
+              + (f" ({a['label']})" if a['label'] else "") for a in active]
+    fired = store.inbox()
+    if fired:
+        lines.append(f"Fired, not dismissed ({len(fired)}):")
+        lines += [f"  #{a['id']} {a['symbol']} {'rose' if a['direction'] == 'above' else 'fell'} to "
+                  f"{a['triggered_price']:,.2f} at {a['triggered_at']} (level {a['level']:,.2f})" for a in fired]
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def my_list_add(symbol: str) -> str:
+    """Save a symbol to My list (e.g. MSFT, BRK-B, TCS.NS)."""
+    sym = _clean(symbol)
+    if not sym:
+        return f"{symbol!r} is not a supported symbol."
+    try:
+        added = _my_list_store().add_symbol(sym)
+    except ValueError as exc:
+        return str(exc)
+    return f"{sym} {'added to' if added else 'was already in'} My list."
+
+
+@mcp.tool()
+def my_list_remove(symbol: str) -> str:
+    """Remove a symbol from My list. Its alerts are kept until deleted."""
+    sym = _clean(symbol)
+    if not sym:
+        return f"{symbol!r} is not a supported symbol."
+    removed = _my_list_store().remove_symbol(sym)
+    return f"{sym} {'removed from' if removed else 'was not in'} My list."
+
+
+@mcp.tool()
+def set_price_alert(symbol: str, direction: str, level: float, label: str = "") -> str:
+    """Alert when a symbol trades at or above / at or below a price.
+
+    Args:
+        symbol: Ticker (e.g. AAPL, RELIANCE.NS)
+        direction: "above" or "below"
+        level: The price
+        label: Optional note, e.g. "Stop" or "Target"
+    The web app checks alerts every five minutes while the symbol's market is open.
+    """
+    sym = _clean(symbol)
+    if not sym:
+        return f"{symbol!r} is not a supported symbol."
+    try:
+        alert_id = _my_list_store().add_alert(sym, str(direction).strip().lower(), float(level), label=label)
+    except (TypeError, ValueError) as exc:
+        return f"Alert not set: {exc}"
+    return f"Alert #{alert_id}: {sym} at or {direction.strip().lower()} {float(level):,.2f}."
+
+
+@mcp.tool()
+def delete_price_alert(alert_id: int) -> str:
+    """Delete a price alert by its number (see my_list)."""
+    deleted = _my_list_store().delete_alert(int(alert_id))
+    return f"Alert #{alert_id} {'deleted' if deleted else 'not found'}."
+
+
+# =============================================================================
 # MCP RESOURCES (Context for the LLM)
 # =============================================================================
 

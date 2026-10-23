@@ -5113,7 +5113,10 @@ function renderSectorMap() {
   const idxUp = members.filter((m) => m.above).length;
   const ring = (n, d, label) => { const p = d ? (n / d) * 100 : 0; return `<div class="ovx-ring" role="img" aria-label="${escapeHtml(`${n} of ${d} ${label}`)}"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.9" class="trk"/><circle cx="18" cy="18" r="15.9" class="val" stroke-dasharray="${p.toFixed(1)} 100"/></svg><div><b class="num">${n} of ${d}</b><span>${escapeHtml(label)}</span></div></div>`; };
   const maxAbs = Math.max(...rows.map((r) => Math.abs(r.change_pct)), 0.5);
-  const weighted = rows.map((r) => ({ ...r, weight: numOrNull(r.weight) || 1 }));
+  // A floor of 2% of the map keeps the smallest sector readable (the smallest
+  // US weights are 2%, so the US map is unchanged; India's Media index is 0.4%).
+  const wsum = rows.reduce((t, r) => t + (numOrNull(r.weight) || 0), 0);
+  const weighted = rows.map((r) => ({ ...r, weight: wsum ? Math.max(numOrNull(r.weight) || 0, wsum * 0.02) : 1 }));
   const tiles = squarify(weighted.sort((a, b) => b.weight - a.weight)).map(({ item: r, x, y, w, h }) => {
     const k = Math.min(1, Math.abs(r.change_pct) / Math.max(maxAbs, 2));
     const small = w * h < 520;
@@ -5125,7 +5128,9 @@ function renderSectorMap() {
   const sized = rows.some((r) => numOrNull(r.weight) != null);
   body.innerHTML = `<div class="ovx-rings">${trend.length ? ring(up, trend.length, 'sectors in an uptrend') : ''}${members.length ? ring(idxUp, members.length, 'major indexes in an uptrend') : ''}<p class="ovx-fine"><i class="ovx-up50" aria-hidden="true"></i> An uptrend means trading above the 50-day (about 2-month) average.</p></div>
     <div class="ovx-heat" role="group" aria-label="Sector heatmap">${tiles}</div>
-    <p class="ovx-fine ovx-heat-k">Green rose, red fell; a deeper colour is a bigger move.${sized ? ' Tile size is each sector’s approximate weight in the S&P 500.' : ''} Select a sector to chart it.</p>`;
+    <p class="ovx-fine ovx-heat-k">Green rose, red fell; a deeper colour is a bigger move.${sized ? (ctx.market === 'IN'
+      ? ' Tile size is each sector index’s market value as a share of the eleven (the smallest drawn at 2% so it stays readable).'
+      : ' Tile size is each sector’s approximate weight in the S&P 500.') : ''} Select a sector to chart it.</p>`;
   body.querySelectorAll('.ovx-tile').forEach((b) => b.addEventListener('click', () => openProChart(b.dataset.chartSymbol)));
 }
 

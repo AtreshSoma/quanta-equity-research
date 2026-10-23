@@ -439,11 +439,17 @@ class MARKET(_Group):
     }
     # Heatmap tile size only (never a calculation input): approximate share of
     # the S&P 500 held by each sector fund's sector, reviewed quarterly. A
-    # market without weights draws equal tiles.
+    # market without weights draws equal tiles. India: each NSE sector index's
+    # total constituent market cap as a share of the eleven (they overlap, so
+    # these size the indices, not a partition), from
+    # scripts/india_sector_weights.py on 2026-10-22 (168 names, NSE lists,
+    # Yahoo market caps).
     SECTOR_WEIGHTS = {
         "US": {"XLK": 33.0, "XLF": 13.0, "XLY": 10.5, "XLC": 9.5, "XLV": 9.0, "XLI": 8.5,
                "XLP": 5.0, "XLE": 3.0, "XLU": 2.5, "XLRE": 2.0, "XLB": 2.0},
-        "IN": {},
+        "IN": {"^CNXINFRA": 24.8, "^CNXENERGY": 17.9, "^NSEBANK": 14.9, "^CNXIT": 8.2, "^CNXAUTO": 7.5,
+               "^CNXMETAL": 6.6, "^CNXPHARMA": 6.4, "^CNXFMCG": 6.0, "^CNXPSUBANK": 5.7,
+               "^CNXREALTY": 1.8, "^CNXMEDIA": 0.4},
     }
     PULSE_SERIES_SESSIONS = 22      # daily closes behind each pulse sparkline (about one month)
     BASE_RATE_YEARS = 10            # history behind the next-session base rate

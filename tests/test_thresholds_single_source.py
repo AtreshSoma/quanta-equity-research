@@ -214,3 +214,10 @@ def test_allocation_gate_defaults_to_the_books_caps(monkeypatch):
     monkeypatch.setattr(T.SIZING, "MAX_PORTFOLIO_RISK", 0.02)
     ok, reasons = check_allocation_eligible(dec, portfolio_risk_pct=0.03)
     assert not ok and "2.00%" in reasons[0]
+
+
+def test_every_sector_tile_in_each_market_has_a_size():
+    for market, baskets in T.MARKET.SECTOR_BASKETS.items():
+        weights = T.MARKET.SECTOR_WEIGHTS[market]
+        assert {sym for sym, _ in baskets} == set(weights), market
+        assert all(w > 0 for w in weights.values()), market

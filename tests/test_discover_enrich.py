@@ -130,9 +130,111 @@ def test_implied_move_and_strike_iv():
              {"strike": 130, "bid": 0.5, "ask": 0.6, "impliedVolatility": 0.45}]
     puts = [{"strike": 100, "bid": 3.8, "ask": 4.0, "impliedVolatility": 0.39}]
     assert D.implied_move(calls, puts, 100) == 8.0
-    assert D.strike_iv(calls, puts, 128, 100) == 0.45
-    bad = [{"strike": 130, "bid": 0, "ask": 0, "impliedVolatility": 0.00001}, {"strike": 100, "impliedVolatility": 0.36}]
-    assert D.strike_iv(bad, puts, 130, 100) == 0.36, "a junk quote falls back to the money"
+    want = D.solve_iv(0.55, 100, 130, 0.25, 0.04, True)
+    assert D.strike_iv(calls, puts, 128, 100, 0.25, 0.04) == want
+    bad = [{"strike": 130, "bid": 0, "ask": 0, "impliedVolatility": 0.00001}, {"strike": 100, "bid": 4, "ask": 4.2, "impliedVolatility": 0.36}]
+    assert D.strike_iv(bad, puts, 130, 100, 0.25, 0.04) == D.solve_iv(4.1, 100, 100, 0.25, 0.04, True), \
+        "a strike without a two-sided quote falls back to the money"
+    assert D.strike_iv([{"strike": 130, "bid": 0, "ask": 0}], puts, 130, 100, 0.25) is None
+
+
+def test_solve_iv_inverts_black_scholes_and_refuses_impossible_prices():
+    for sigma, call in ((0.37, True), (0.12, True), (0.8, False)):
+        price = D.bs_price(100, 120, 0.9, 0.04, sigma, call)
+        assert D.solve_iv(price, 100, 120, 0.9, 0.04, call) == pytest.approx(sigma, abs=1e-4)
+    assert D.solve_iv(0.0, 100, 120, 1.0) is None
+    assert D.solve_iv(150.0, 100, 120, 1.0) is None, "worth more than the stock: no volatility in the band gives it"
+
+
+def test_a_placeholder_volatility_no_longer_prices_a_target_at_zero():
+    """2026-10-23 10:03: Yahoo returned impliedVolatility 0.0625 on BKNG's one-year
+    chain beside a live bid and ask, and the card showed a 0% chance for a 48%
+    upside. The volatility is solved from the quote, so the placeholder is ignored."""
+    spot, target, years, rate = 156.72, 232.97, 0.9, 0.0404
+    calls = [{"strike": 232.0, "bid": 5.3, "ask": 6.8, "impliedVolatility": 0.0625},
+             {"strike": 156.0, "bid": 26.1, "ask": 28.8, "impliedVolatility": 0.0625}]
+    sigma = D.strike_iv(calls, [], target, spot, years, rate)
+    assert sigma is not None and 0.3 < sigma < 0.5
+    odds = D.target_odds(spot, target, sigma, rate, 1.0)
+    assert 0.08 < odds < 0.2
+    assert D.target_odds(spot, target, 0.0625, rate, 1.0) < 1e-6, "what the placeholder priced it at"
+
+
+class _FakeTicker:
+    """yfinance.Ticker's shape for one idea read, counting requests the way yfinance
+    makes them: option_chain(date) downloads the expiry list first on a fresh object."""
+    requests = []
+
+    def __init__(self, sym):
+        self.sym, self._expirations = sym, None
+
+    def _download_options(self):
+        _FakeTicker.requests.append("expiries")
+        self._expirations = ["2026-10-30", "2027-09-17"]
+
+    @property
+    def options(self):
+        if self._expirations is None:
+            self._download_options()
+        return tuple(self._expirations)
+
+    def option_chain(self, expiry):
+        if self._expirations is None:
+            self._download_options()
+        _FakeTicker.requests.append(f"chain {expiry}")
+        import pandas as pd
+        row = {"strike": 130.0, "bid": 1.0, "ask": 1.2, "lastPrice": 1.1, "impliedVolatility": 0.0625}
+        atm = {"strike": 100.0, "bid": 5.0, "ask": 5.4, "lastPrice": 5.2, "impliedVolatility": 0.0625}
+        return type("Chain", (), {"calls": pd.DataFrame([atm, row]), "puts": pd.DataFrame([atm])})()
+
+    def history(self, **kw):
+        import pandas as pd
+        idx = pd.date_range("2025-01-01", periods=300, freq="B")
+        return pd.DataFrame({"Close": [100 * (1.001 ** i) * (1.02 if i % 2 else 0.98) for i in range(300)]}, index=idx)
+
+    upgrades_downgrades = None
+    eps_trend = None
+
+    def get_earnings_dates(self, limit=12):
+        return None
+
+
+def test_one_idea_read_downloads_the_expiry_list_once(monkeypatch):
+    _FakeTicker.requests = []
+    monkeypatch.setattr(D, "_yf", lambda: type("YF", (), {"Ticker": _FakeTicker}))
+    monkeypatch.setattr(D, "_quote_fetch", lambda syms: [{"symbol": "^IRX", "regularMarketPrice": 4.0, "regularMarketPreviousClose": 4.0}])
+    now = datetime(2026, 10, 23, 10, 0)
+    read = D.idea_read("X", "US", 100.0, 130.0, "2026-10-28", "amc", now=now)
+    assert _FakeTicker.requests.count("expiries") == 1, _FakeTicker.requests
+    assert sorted(r for r in _FakeTicker.requests if r.startswith("chain")) == ["chain 2026-10-30", "chain 2027-09-17"]
+    assert read["odds"]["source"] == "options" and read["odds"]["sigma"] != 0.0625
+    assert read["earnings"]["implied_move_pct"] == 10.4
+
+
+def test_quote_change_reads_one_quote(monkeypatch):
+    seen = []
+    monkeypatch.setattr(D, "_quote_fetch", lambda syms: seen.append(syms) or [
+        {"symbol": "XLK", "regularMarketPrice": 101.0, "regularMarketPreviousClose": 100.0}])
+    assert D.quote_change("XLK") == {"last": 101.0, "change_pct": 1.0}
+    assert seen == [["XLK"]]
+    monkeypatch.setattr(D, "_quote_fetch", lambda syms: [{"symbol": "XLK", "regularMarketPrice": 101.0}])
+    assert D.quote_change("XLK") is None, "no previous close, no change"
+
+
+def test_a_movers_sector_is_read_once_and_kept(monkeypatch):
+    monkeypatch.setenv("QUANTA_TEST_CACHE", "1")
+    monkeypatch.setattr(D, "_SECTORS", D.TTLStore(lambda: 3600.0))
+    monkeypatch.setattr(D, "FUNDAMENTALS", D.TTLStore(lambda: 3600.0))
+    monkeypatch.setattr(D, "_QUOTES", D.TTLStore(lambda: 3600.0))
+    monkeypatch.setattr(D, "_FAST", D.TTLStore(lambda: 3600.0))
+    asked = []
+    monkeypatch.setattr(D, "quote_summary", lambda sym, modules: asked.append((sym, modules)) or {"assetProfile": {"sector": "Technology"}})
+    monkeypatch.setattr(D, "_quote_fetch", lambda syms: [{"symbol": syms[0], "regularMarketPrice": 102.0, "regularMarketPreviousClose": 100.0}])
+    monkeypatch.setattr(D, "_revisions", lambda sym: [])
+    for _ in range(2):
+        read = D.mover_read("NEWCO", "US", 5.0)
+        assert read["sector"] == "Technology" and read["fund"] == "XLK" and read["fund_change_pct"] == 2.0
+    assert asked == [("NEWCO", "assetProfile")], "one profile request, then the kept sector"
 
 
 def test_pick_expiry():
@@ -210,3 +312,31 @@ def test_quote_figures_win_and_upside_is_repriced(app_mod):
     row = app_mod._with_fundamentals(quote, {"target_mean": 60.0, "market_cap": 1.0, "name": "X Holdings", "sector": "Energy"})
     assert row["market_cap"] == 9e9 and row["name"] == "X Holdings" and row["sector"] == "Energy"
     assert row["upside_pct"] == 20.0
+
+
+def test_fundamentals_come_from_one_quote_summary_request(app_mod, monkeypatch):
+    from datetime import datetime as _dt
+    report = _dt(2026, 11, 2, 16, 30).timestamp()
+    asked = []
+    summary = {
+        "price": {"shortName": "Apple Inc.", "exchange": "NMS", "marketCap": 4.0e12, "averageDailyVolume3Month": 5.0e7},
+        "assetProfile": {"sector": "Technology"},
+        "financialData": {"recommendationKey": "buy", "recommendationMean": 2.04, "targetMeanPrice": 290.5,
+                          "targetHighPrice": 350.0, "targetLowPrice": 200.0, "numberOfAnalystOpinions": 41},
+        "defaultKeyStatistics": {"shortPercentOfFloat": 0.0081},
+        # Yahoo often leaves last quarter's call in earningsCallDate; the report time is earningsDate.
+        "calendarEvents": {"earnings": {"earningsDate": [report], "earningsCallDate": [report - 86400 * 70],
+                                        "isEarningsDateEstimate": False}},
+    }
+    monkeypatch.setattr(app_mod._disc, "quote_summary", lambda sym, modules: asked.append(modules) or summary)
+    out = app_mod._read_fundamentals("AAPL")
+    assert len(asked) == 1 and {"assetProfile", "financialData", "calendarEvents"} <= set(asked[0].split(","))
+    assert out["name"] == "Apple Inc." and out["sector"] == "Technology" and out["exchange"] == "NMS"
+    assert (out["recommendation"], out["recommendation_mean"], out["target_mean"], out["analyst_count"]) == ("buy", 2.04, 290.5, 41)
+    assert (out["target_high"], out["target_low"], out["short_pct_float"]) == (350.0, 200.0, 0.0081)
+    assert out["market_cap"] == 4.0e12 and out["avg_volume"] == 5.0e7
+    assert out["earnings_date"] == "2026-11-02" and out["earnings_estimated"] is False
+
+    monkeypatch.setattr(app_mod._disc, "quote_summary", lambda sym, modules: (_ for _ in ()).throw(RuntimeError("404")))
+    empty = app_mod._read_fundamentals("GONE")
+    assert empty["name"] == "GONE" and empty["target_mean"] is None and "earnings_date" not in empty

@@ -127,3 +127,25 @@ test('tape marks stale quotes and shows N/A for an unknown daily change', () => 
   assert.match(tape.textContent, /Stale quote/);
   assert.equal(tape.querySelector('.ovx-pu-c b').textContent.trim(), 'N/A');
 });
+
+test('a partial Discover read is read once more after the server retry time, and only once', async () => {
+  const urls = [];
+  const partial = { ...intel, partial: true, retry_seconds: 15 };
+  const app = boot(async url => { urls.push(url); return response(partial); });
+  app.state.dashboard = dashboard('US');
+  await app.loadMarketIntel();
+  const followUp = [...app.timers].find(([, timer]) => timer.ms === 16000);
+  assert.ok(followUp, 'one follow-up after retry_seconds + 1');
+  app.timers.delete(followUp[0]);
+  await followUp[1].fn();
+  await new Promise(setImmediate);
+  assert.equal(urls.length, 2);
+  assert.equal([...app.timers.values()].filter(t => t.ms === 16000).length, 0, 'a second partial read stays as it is');
+});
+
+test('a complete Discover read schedules no follow-up', async () => {
+  const app = boot(async () => response({ ...intel, partial: false, retry_seconds: 15 }));
+  app.state.dashboard = dashboard('US');
+  await app.loadMarketIntel();
+  assert.equal([...app.timers.values()].filter(t => t.ms === 16000).length, 0);
+});

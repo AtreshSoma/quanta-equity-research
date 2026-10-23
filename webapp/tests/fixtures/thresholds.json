@@ -486,6 +486,7 @@
     ]
    ]
   },
+  "SECTOR_CACHE_SECONDS": 604800.0,
   "SECTOR_FUND_BY_SECTOR": {
    "IN": {
     "Basic Materials": "^CNXMETAL",

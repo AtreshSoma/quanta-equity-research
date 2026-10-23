@@ -175,5 +175,31 @@ class MarketIntelInvariants(unittest.TestCase):
         self.assertGreaterEqual(payload["extreme_count"], 2)
 
 
+class PartialReadRetry(unittest.TestCase):
+    """A build that hit its deadline ranks only the names that answered, so it is
+    rebuilt after MARKET_INTEL_RETRY_SECONDS, not kept MARKET_INTEL_CACHE_SECONDS."""
+
+    def _age(self, payload, seconds):
+        import time
+        webapp_app._market_intel_cache["US"] = {"timestamp": time.time() - seconds, "payload": payload}
+
+    def tearDown(self):
+        webapp_app._market_intel_cache.clear()
+
+    def test_a_partial_read_is_rebuilt_after_the_retry_time(self):
+        age = webapp_app.MARKET_INTEL_RETRY_SECONDS + 5
+        assert age < webapp_app.MARKET_INTEL_CACHE_SECONDS
+        with mock.patch.object(webapp_app, "_build_market_intel") as build:
+            self._age({"market": "US", "partial": True, "analyst_picks": []}, age)
+            out = webapp_app._market_intel("US", blocking=True)
+            self.assertEqual(build.call_count, 1)
+            self.assertTrue(out.get("stale"), "the partial list is served while the rebuild runs")
+
+            self._age({"market": "US", "partial": False, "analyst_picks": []}, age)
+            out = webapp_app._market_intel("US", blocking=True)
+            self.assertEqual(build.call_count, 1, "a complete read is kept for the cache window")
+            self.assertFalse(out.get("stale"))
+
+
 if __name__ == "__main__":
     unittest.main()

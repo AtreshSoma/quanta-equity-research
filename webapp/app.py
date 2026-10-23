@@ -5675,7 +5675,9 @@ def _session_still_open(bar_ts: Any, now: Any = None) -> bool:
         from engine.market_calendar import SESSION_CLOSE
         ts = _pd.Timestamp(bar_ts)
         tz = ts.tz
-        cur = _pd.Timestamp(now) if now is not None else _pd.Timestamp.now(tz=tz)
+        # datetime.now, not pd.Timestamp.now: the same clock, and one a test can pin.
+        cur = _pd.Timestamp(now) if now is not None else (
+            _pd.Timestamp(datetime.now(timezone.utc)).tz_convert(tz) if tz is not None else _pd.Timestamp(datetime.now()))
         if tz is not None:
             cur = cur.tz_convert(tz) if cur.tz is not None else cur.tz_localize(tz)
         india = "Kolkata" in str(tz) or "Calcutta" in str(tz)

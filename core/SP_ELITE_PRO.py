@@ -991,7 +991,8 @@ class DataValidator:
         if hist is None or hist.empty:
             return hist
         zone = 'Asia/Kolkata' if market == 'IN' else 'America/New_York'
-        current = pd.Timestamp.now(tz=zone) if now is None else pd.Timestamp(now)
+        # datetime.now, not pd.Timestamp.now: the same clock, and one a test can pin.
+        current = pd.Timestamp(datetime.now(timezone.utc)).tz_convert(zone) if now is None else pd.Timestamp(now)
         current = current.tz_localize(zone) if current.tzinfo is None else current.tz_convert(zone)
         from engine.market_calendar import SESSION_CLOSE
         close_h, close_m = (_T.RESEARCH.INDIA_SESSION_CLOSE_IST if market == 'IN'
@@ -3817,7 +3818,11 @@ def indicator_window(hist: pd.DataFrame, now: Optional[pd.Timestamp] = None) -> 
     if hist is None or hist.empty:
         return hist
     tz = getattr(hist.index, "tz", None)
-    now = pd.Timestamp.now(tz=tz) if now is None else pd.Timestamp(now)
+    if now is None:
+        # datetime.now, not pd.Timestamp.now: the same clock, and one a test can pin
+        # (the pandas clock ignored the scan golden's pinned date, so its window drifted daily).
+        now = pd.Timestamp(datetime.now(timezone.utc)).tz_convert(tz) if tz is not None else pd.Timestamp(datetime.now())
+    now = pd.Timestamp(now)
     if tz is not None and now.tzinfo is None:
         now = now.tz_localize(tz)
     elif tz is not None:

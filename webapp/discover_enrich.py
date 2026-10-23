@@ -119,6 +119,7 @@ _HISTORY = TTLStore(lambda: M.ENRICH_HISTORY_CACHE_SECONDS)
 _SLOW = TTLStore(lambda: M.ENRICH_HISTORY_CACHE_SECONDS)     # EPS trend, earnings dates
 _FAST = TTLStore(lambda: M.ENRICH_OPTIONS_CACHE_SECONDS)     # option chains, analyst actions
 _QUOTES = TTLStore(lambda: M.CONTEXT_CACHE_SECONDS)          # sector fund and bill quotes
+_SECTORS = TTLStore(lambda: M.SECTOR_CACHE_SECONDS, _CACHE_DIR / "discover_sectors.json")
 
 
 def cached(store: TTLStore, key: str, fetch: Callable[[], Any]) -> Any:
@@ -376,17 +377,57 @@ def implied_move(calls: List[Dict[str, Any]], puts: List[Dict[str, Any]], spot: 
     return round((mc + mp) / spot * 100, 2) if mc and mp else None
 
 
-def strike_iv(calls: List[Dict[str, Any]], puts: List[Dict[str, Any]], strike: float, spot: float) -> Optional[float]:
-    """Implied volatility at the strike nearest `strike` (the out-of-the-money
-    side, which trades more), falling back to the money; None when the quote is
-    outside the sane band."""
+def bs_price(spot: float, strike: float, years: float, rate: float, sigma: float, call: bool = True) -> float:
+    """Black-Scholes value of a European option (no dividends)."""
+    vt = sigma * math.sqrt(years)
+    d1 = (math.log(spot / strike) + (rate + sigma * sigma / 2) * years) / vt
+    d2 = d1 - vt
+    disc = strike * math.exp(-rate * years)
+    if call:
+        return spot * _norm_cdf(d1) - disc * _norm_cdf(d2)
+    return disc * _norm_cdf(-d2) - spot * _norm_cdf(-d1)
+
+
+def solve_iv(price: Any, spot: Any, strike: Any, years: float, rate: float = 0.0, call: bool = True) -> Optional[float]:
+    """The volatility at which Black-Scholes gives `price`, by bisection inside
+    MARKET's sane band; None when no volatility in the band does."""
+    p, s, k = _num(price), _num(spot), _num(strike)
+    if not p or not s or not k or p <= 0 or s <= 0 or k <= 0 or years <= 0:
+        return None
     lo, hi = float(M.IMPLIED_VOL_MIN), float(M.IMPLIED_VOL_MAX)
-    side = calls if strike >= spot else puts
+    gap = lambda v: bs_price(s, k, years, rate, v, call) - p  # noqa: E731 - rises with volatility
+    if gap(lo) > 0 or gap(hi) < 0:
+        return None
+    for _ in range(50):
+        mid = (lo + hi) / 2
+        if gap(mid) > 0:
+            hi = mid
+        else:
+            lo = mid
+    return round((lo + hi) / 2, 4)
+
+
+def strike_iv(calls: List[Dict[str, Any]], puts: List[Dict[str, Any]], strike: float, spot: float,
+              years: float, rate: float = 0.0) -> Optional[float]:
+    """Implied volatility at the strike nearest `strike` (the out-of-the-money
+    side, which trades more), falling back to the money; None without a usable quote.
+
+    Solved from the bid/ask mid, never read from Yahoo's impliedVolatility
+    column: that column carries placeholders (0.0625, 0.00001) on strikes it has
+    not priced, even beside a live bid and ask, and one such placeholder priced
+    every Street target at a 0% chance. A strike without a two-sided quote is skipped."""
+    call = strike >= spot
+    side = calls if call else puts
     for k in (strike, spot):
         row = _nearest(side, k)
-        iv = _num(row.get("impliedVolatility")) if row else None
-        if iv is not None and lo <= iv <= hi:
-            return round(iv, 4)
+        if not row:
+            continue
+        bid, ask = _num(row.get("bid")), _num(row.get("ask"))
+        if not (bid and ask and ask >= bid > 0):
+            continue
+        iv = solve_iv((bid + ask) / 2, spot, row["strike"], years, rate, call)
+        if iv is not None:
+            return iv
     return None
 
 
@@ -467,25 +508,47 @@ def _earnings_dates(sym: str) -> Optional[List[List[Any]]]:
     return cached(_SLOW, f"ed|{sym}", fetch)
 
 
-def _options(sym: str) -> Optional[Dict[str, Any]]:
+# `tk` lets one read share a Ticker: yfinance's option_chain(date) on a fresh
+# Ticker downloads the expiry list again before the chain, a wasted request.
+def _options(sym: str, tk: Any = None) -> Optional[Dict[str, Any]]:
     def fetch():
-        return {"expiries": list(_yf().Ticker(sym).options or [])}
+        return {"expiries": list((tk or _yf().Ticker(sym)).options or [])}
     return cached(_FAST, f"ox|{sym}", fetch)
 
 
-def _chain(sym: str, expiry: str) -> Optional[Dict[str, List[Dict[str, Any]]]]:
+def _chain(sym: str, expiry: str, tk: Any = None) -> Optional[Dict[str, List[Dict[str, Any]]]]:
     def fetch():
-        ch = _yf().Ticker(sym).option_chain(expiry)
+        ch = (tk or _yf().Ticker(sym)).option_chain(expiry)
         keep = ["strike", "bid", "ask", "lastPrice", "impliedVolatility"]
         pack = lambda df: [{k: _num(v) for k, v in r.items() if k in keep} for _, r in df[keep].iterrows()] if df is not None and not df.empty else []
         return {"calls": pack(ch.calls), "puts": pack(ch.puts)}
     return cached(_FAST, f"oc|{sym}|{expiry}", fetch)
 
 
+def quote_summary(sym: str, modules: str) -> Dict[str, Dict[str, Any]]:
+    """The named quoteSummary modules for one symbol, in one request (yfinance's
+    `.info` spends three requests and `.calendar` a fourth on the same data).
+    Raw values, keyed by module; a module Yahoo does not return is absent."""
+    from yfinance.data import YfData
+    data = YfData().get_raw_json(f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{sym}",
+                                 params={"modules": modules, "formatted": "false", "symbol": sym}, timeout=10)
+    result = (((data or {}).get("quoteSummary") or {}).get("result") or [None])[0] or {}
+    return {k: v for k, v in result.items() if isinstance(v, dict)}
+
+
+def _quote_fetch(symbols: List[str]) -> List[Dict[str, Any]]:
+    """Yahoo's multi-symbol quote: one request for any number of symbols."""
+    from yfinance.data import YfData
+    data = YfData().get_raw_json("https://query1.finance.yahoo.com/v7/finance/quote",
+                                 params={"symbols": ",".join(symbols)}, timeout=10)
+    return ((data or {}).get("quoteResponse") or {}).get("result") or []
+
+
 def quote_change(sym: str) -> Optional[Dict[str, float]]:
     def fetch():
-        fi = _yf().Ticker(sym).fast_info
-        last, prev = _num(fi["lastPrice"]), _num(fi["previousClose"])
+        # One quote request; fast_info spent two price-history requests on the same two figures.
+        q = next((r for r in _quote_fetch([sym]) if str(r.get("symbol") or "").upper() == sym.upper()), None) or {}
+        last, prev = _num(q.get("regularMarketPrice")), _num(q.get("regularMarketPreviousClose"))
         if not last or not prev:
             return None
         return {"last": last, "change_pct": round((last / prev - 1) * 100, 2)}
@@ -537,17 +600,19 @@ def idea_read(sym: str, market: str, price: Any, target: Any, earnings_date: Any
     out["eps_revision_pct"] = round((cur / ago - 1) * 100, 2) if cur and ago and ago > 0 else None
 
     sigma, source, expiry = None, None, None
-    ox = _safe(lambda: _options(sym), f"options {sym}") if market == "US" else None
+    rate, rate_src = risk_free(market)
+    tk = _yf().Ticker(sym) if market == "US" else None
+    ox = _safe(lambda: _options(sym, tk), f"options {sym}") if market == "US" else None
     expiries = (ox or {}).get("expiries") or []
     if s and k and expiries:
         expiry = pick_expiry(expiries, now.date(), int(M.TARGET_ODDS_HORIZON_DAYS))
-        ch = _safe(lambda: _chain(sym, expiry), f"chain {sym}") if expiry else None
+        ch = _safe(lambda: _chain(sym, expiry, tk), f"chain {sym}") if expiry else None
         if ch:
-            sigma = strike_iv(ch["calls"], ch["puts"], k, s)
+            to_expiry = (datetime.strptime(expiry[:10], "%Y-%m-%d").date() - now.date()).days / 365.0
+            sigma = strike_iv(ch["calls"], ch["puts"], k, s, to_expiry, rate)
             source = "options" if sigma else None
     if sigma is None and out["vol_1y"]:
         sigma, source, expiry = out["vol_1y"], "history", None
-    rate, rate_src = risk_free(market)
     years = float(M.TARGET_ODDS_HORIZON_DAYS) / 365.0
     out["odds"] = {"p": target_odds(s, k, sigma, rate, years), "sigma": sigma, "source": source,
                    "expiry": expiry, "rate": rate, "rate_source": rate_src, "horizon_days": int(M.TARGET_ODDS_HORIZON_DAYS)} if sigma else None
@@ -564,7 +629,7 @@ def idea_read(sym: str, market: str, price: Any, target: Any, earnings_date: Any
         if s and expiries:
             first = ed + timedelta(days=1) if earnings_timing == "amc" else ed
             ex = pick_expiry(expiries, first)
-            ch = _safe(lambda: _chain(sym, ex), f"chain {sym}") if ex else None
+            ch = _safe(lambda: _chain(sym, ex, tk), f"chain {sym}") if ex else None
             if ch:
                 er["implied_move_pct"] = implied_move(ch["calls"], ch["puts"], s)
                 er["expiry"] = ex
@@ -628,8 +693,7 @@ def mover_read(sym: str, market: str, change_pct: Any, sector: Optional[str] = N
         f = fundamentals_cached(sym)
         out["sector"] = sector = (f or {}).get("sector") or None
         if f is None:
-            info = _safe(lambda: _yf().Ticker(sym).info or {}, f"info {sym}") or {}
-            out["sector"] = sector = info.get("sector") or None
+            out["sector"] = sector = _safe(lambda: sector_of(sym), f"sector {sym}") or None
     fund = dict(dict(M.SECTOR_FUND_BY_SECTOR).get(market, {})).get(sector or "")
     out["fund"] = fund
     q = quote_change(fund) if fund else None
@@ -643,6 +707,15 @@ def mover_read(sym: str, market: str, change_pct: Any, sector: Optional[str] = N
 
 def fundamentals_cached(sym: str) -> Optional[Dict[str, Any]]:
     return FUNDAMENTALS.get(sym)
+
+
+def sector_of(sym: str) -> Optional[str]:
+    """A company's sector from one assetProfile request ("" when it has none, as
+    a fund), kept on disk for MARKET.SECTOR_CACHE_SECONDS: a mover's sector was
+    read through `.info` (three requests) on every five-minute refresh."""
+    def fetch():
+        return (quote_summary(sym, "assetProfile").get("assetProfile") or {}).get("sector") or ""
+    return cached(_SECTORS, sym, fetch)
 
 
 # ---------------------------------------------------------------------------

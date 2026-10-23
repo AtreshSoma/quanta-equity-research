@@ -291,6 +291,9 @@ class MARKET(_Group):
     # Per-name research fields (targets, rating, sector, earnings date) change
     # daily, not per quote: read once and reused this long, kept on disk.
     FUNDAMENTALS_CACHE_SECONDS = 21600.0
+    # A mover's sector (for "Sector move" reasons) is a classification, not a
+    # quote: kept on disk a week.
+    SECTOR_CACHE_SECONDS = 604800.0
     # Discover enrichment (/api/discover/enrich): price history, analyst
     # revisions and EPS trend are reused for HISTORY; option chains for OPTIONS.
     ENRICH_HISTORY_CACHE_SECONDS = 21600.0

@@ -3121,6 +3121,7 @@ function renderIntelSkeleton() {
 
 let _intelPollHandle = null;
 let _intelPollAttempts = 0;
+let _intelFollowUpKey = null;  // market|generation already given its one partial-read follow-up
 let _intelRequest = null;
 let _dashboardGeneration = 0;
 let _dashboardRequest = null;
@@ -3175,6 +3176,15 @@ async function loadMarketIntel({ pollUntilReady = true, resetAttempts = false } 
         _intelPollHandle = setTimeout(() => loadMarketIntel({ pollUntilReady: true }), 4000);
       } else {
         _intelPollAttempts = 0;
+        // A partial read ranks only the names that answered in time. Read once more
+        // after the server's retry time; a second partial read stays as it is.
+        const wait = Number(intel.retry_seconds);
+        const key = `${market}|${generation}`;
+        if (intel.partial && wait > 0 && _intelFollowUpKey !== key) {
+          _intelFollowUpKey = key;
+          _intelPollHandle = setTimeout(() => { if (current()) loadMarketIntel({ pollUntilReady: true }); }, (wait + 1) * 1000);
+          if (typeof _intelPollHandle.unref === 'function') _intelPollHandle.unref();
+        }
       }
     } catch (err) {
       if (!current()) return;

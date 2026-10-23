@@ -4112,51 +4112,46 @@ def _earnings_timing_from_ts(ts: Any, market_tz: str = "America/New_York") -> Op
     return None
 
 
-def _read_fundamentals(tk: Any, symbol: str) -> Dict[str, Any]:
-    """The research fields Discover ranks on, from one `.info` and one
-    `.calendar` read. Missing fields stay None; nothing is filled in."""
+_FUNDAMENTAL_MODULES = "price,quoteType,assetProfile,financialData,defaultKeyStatistics,summaryDetail,calendarEvents"
+
+
+def _read_fundamentals(symbol: str) -> Dict[str, Any]:
+    """The research fields Discover ranks on, from one quoteSummary request (the
+    same modules `.info` and `.calendar` read in four). Missing fields stay None;
+    nothing is filled in."""
     try:
-        info = tk.info or {}
+        q = _disc.quote_summary(symbol, _FUNDAMENTAL_MODULES)
     except Exception:
-        info = {}
+        q = {}
+    price, qt, profile, fin = (q.get(m) or {} for m in ("price", "quoteType", "assetProfile", "financialData"))
+    stats, detail = q.get("defaultKeyStatistics") or {}, q.get("summaryDetail") or {}
+    earnings = (q.get("calendarEvents") or {}).get("earnings") or {}
     out: Dict[str, Any] = {
-        "name": info.get("shortName") or info.get("longName") or symbol,
-        "sector": info.get("sector") or "",
+        "name": price.get("shortName") or qt.get("shortName") or price.get("longName") or qt.get("longName") or symbol,
+        "sector": profile.get("sector") or "",
         # Listing venue, so the UI can build an exact TradingView symbol for
         # rows that came from the universe scan rather than the screener.
-        "exchange": info.get("exchange") or info.get("fullExchangeName") or None,
-        "recommendation": info.get("recommendationKey") or info.get("recommendationMean"),
-        "recommendation_mean": _opt_round(info.get("recommendationMean")),
-        "target_mean": info.get("targetMeanPrice"),
-        "target_high": _opt_round(info.get("targetHighPrice")),
-        "target_low": _opt_round(info.get("targetLowPrice")),
-        "analyst_count": info.get("numberOfAnalystOpinions"),
-        "market_cap": info.get("marketCap"),
-        "avg_volume": info.get("averageDailyVolume3Month") or info.get("averageVolume"),
-        "short_pct_float": _opt_round(info.get("shortPercentOfFloat"), 4),
+        "exchange": price.get("exchange") or qt.get("exchange") or None,
+        "recommendation": fin.get("recommendationKey") or fin.get("recommendationMean"),
+        "recommendation_mean": _opt_round(fin.get("recommendationMean")),
+        "target_mean": fin.get("targetMeanPrice"),
+        "target_high": _opt_round(fin.get("targetHighPrice")),
+        "target_low": _opt_round(fin.get("targetLowPrice")),
+        "analyst_count": fin.get("numberOfAnalystOpinions"),
+        "market_cap": price.get("marketCap") or detail.get("marketCap"),
+        "avg_volume": price.get("averageDailyVolume3Month") or detail.get("averageVolume"),
+        "short_pct_float": _opt_round(stats.get("shortPercentOfFloat"), 4),
     }
     india = symbol.upper().endswith((".NS", ".BO"))
-    ts = info.get("earningsTimestamp") or info.get("earningsTimestampStart")
+    # The report time is the first earningsDate (the quote's earningsTimestamp). Not
+    # earningsCallDate: Yahoo often leaves last quarter's call there.
+    dates = [d for d in (earnings.get("earningsDate") or []) if isinstance(d, (int, float))]
+    ts = dates[0] if dates else None
     out["earnings_timing"] = _earnings_timing_from_ts(ts, "Asia/Kolkata" if india else "America/New_York") if ts else None
-    out["earnings_estimated"] = info.get("isEarningsDateEstimate")
-    try:
-        cal = tk.calendar
-        edate = None
-        if isinstance(cal, dict):
-            ed = cal.get("Earnings Date")
-            if isinstance(ed, list) and ed:
-                edate = ed[0]
-            elif ed:
-                edate = ed
-        elif cal is not None and hasattr(cal, "columns"):
-            try:
-                edate = cal.loc["Earnings Date"].iloc[0]
-            except Exception:
-                edate = None
-        if edate is not None:
-            out["earnings_date"] = edate.isoformat() if hasattr(edate, "isoformat") else str(edate)
-    except Exception:
-        pass
+    out["earnings_estimated"] = earnings.get("isEarningsDateEstimate")
+    if dates:
+        # The calendar's date: the first report date, on this machine's clock (as yfinance reads it).
+        out["earnings_date"] = datetime.fromtimestamp(dates[0]).date().isoformat()
     return out
 
 
@@ -4226,7 +4221,7 @@ def _ticker_intel(symbol: str, with_info: bool = True) -> Dict[str, Any]:
 
         # Research fields change daily, not per quote: one read per symbol is
         # reused for MARKET.FUNDAMENTALS_CACHE_SECONDS (kept on disk).
-        fund = _disc.cached(_disc.FUNDAMENTALS, symbol, lambda: _read_fundamentals(tk, symbol))
+        fund = _disc.cached(_disc.FUNDAMENTALS, symbol, lambda: _read_fundamentals(symbol))
         for key, val in (fund or {}).items():
             if key == "avg_volume" and out.get("avg_volume") is not None:
                 continue
@@ -4522,13 +4517,17 @@ def _market_intel(market: str = "US", *, blocking: bool = True) -> Dict[str, Any
     Data sources (in order of preference):
       - Movers (US):    yfinance predefined screener (`day_gainers`/`day_losers`)
       - Movers (other): broad universe scan, sorted by change_pct
-      - Analyst/Earnings: broad ~150-symbol universe scan (needs .info fields)
+      - Analyst/Earnings: broad ~150-symbol universe scan (research fields, one request a name)
     """
     key = _normalize_market(market)
     now = time.time()
     with _market_intel_cache_lock:
         cached = _market_intel_cache.get(key)
-    ttl = MARKET_INTEL_RETRY_SECONDS if cached and cached['payload'].get('degraded') else MARKET_INTEL_CACHE_SECONDS
+    # A partial read (the build hit its deadline, so the Street list ranks only
+    # the names that answered) is retried as soon as a degraded one; the next
+    # build reuses every research read already cached and fetches the rest.
+    payload = cached['payload'] if cached else {}
+    ttl = MARKET_INTEL_RETRY_SECONDS if payload.get('degraded') or payload.get('partial') else MARKET_INTEL_CACHE_SECONDS
     if cached and (now - cached["timestamp"]) < ttl:
         return cached["payload"]
 
@@ -4677,10 +4676,7 @@ _RESEARCH_FIELDS = ("name", "sector", "recommendation", "recommendation_mean", "
 
 def _batch_quote_fetch(symbols: List[str]) -> List[Dict[str, Any]]:
     """Yahoo's multi-symbol quote, through yfinance's own session (cookie and crumb)."""
-    from yfinance.data import YfData
-    data = YfData().get_raw_json("https://query1.finance.yahoo.com/v7/finance/quote",
-                                 params={"symbols": ",".join(symbols)}, timeout=10)
-    return ((data or {}).get("quoteResponse") or {}).get("result") or []
+    return _disc._quote_fetch(symbols)
 
 
 def _batch_quotes(symbols: List[str], fetch=None) -> Dict[str, Dict[str, Any]]:
@@ -4712,11 +4708,9 @@ def _batch_quotes(symbols: List[str], fetch=None) -> Dict[str, Dict[str, Any]]:
 
 
 def _fundamentals_job(symbol: str) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """The cached research read for one name (one .info and one .calendar call)."""
+    """The cached research read for one name (one quoteSummary request)."""
     try:
-        import yfinance as yf_local
-        tk = yf_local.Ticker(symbol)
-        return symbol, _disc.cached(_disc.FUNDAMENTALS, symbol, lambda: _read_fundamentals(tk, symbol))
+        return symbol, _disc.cached(_disc.FUNDAMENTALS, symbol, lambda: _read_fundamentals(symbol))
     except Exception as exc:
         logger.debug("fundamentals failed for %s: %s", symbol, exc)
         return symbol, None
@@ -5124,6 +5118,7 @@ def _build_market_intel(key: str) -> Dict[str, Any]:
         "as_of": fallback_as_of if fallback_used else _now_iso(),
         "loading": False,
         "partial": timed_out,
+        "retry_seconds": MARKET_INTEL_RETRY_SECONDS,
         "stale": fallback_used,
         "degraded": not bool(movers_up or movers_down or universe_rows),
     }

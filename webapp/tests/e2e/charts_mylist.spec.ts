@@ -97,3 +97,25 @@ test('My list: the bell adds a name, holds an alert, and closes with Escape', as
     await fetch(`/api/my-list/${s}`, { method: 'DELETE', headers: h });
   }, sym);
 });
+
+test('full screen: the chart fills the screen with every tool, and comes back', async ({ page }) => {
+  await mountChart(page);
+  const chart = page.locator('#e2e-chart');
+  const frameH = async () => chart.locator('.lc-frame').evaluate((el) => el.getBoundingClientRect().height);
+  const before = await frameH();
+  await chart.getByRole('button', { name: 'Full screen' }).click();
+  await expect(chart).toHaveClass(/is-expanded/);
+  await expect.poll(frameH).toBeGreaterThan(before + 40);
+  // Every tool still works inside.
+  await chart.getByRole('button', { name: 'Candles' }).click();
+  await expect(chart.locator('.lc-candle').first()).toBeVisible();
+  await chart.getByRole('tab', { name: '6M' }).click();
+  await expect(chart.locator('.lc-svg')).toBeVisible();
+  const exit = chart.getByRole('button', { name: 'Exit full screen' });
+  await expect(exit).toHaveAttribute('aria-pressed', 'true');
+  await exit.click();
+  await expect(chart).not.toHaveClass(/is-expanded/);
+  await expect.poll(frameH).toBeLessThan(before + 5);
+  await expect(chart.getByRole('button', { name: 'Full screen' })).toBeFocused();
+  expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+});

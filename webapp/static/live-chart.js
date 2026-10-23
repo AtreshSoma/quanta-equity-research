@@ -768,6 +768,14 @@
     const zoomed = state.view && (state.view.i0 > 0 || state.view.i1 < data.points.length - 1);
     const count = [...prefs.studies].filter((k) => k !== 'vol' && !(k === 'vwap' && !intraday)).length;
     const open = state.tools.querySelector('.lc-studies') && state.tools.querySelector('.lc-studies').open;
+    // A redraw (a live refresh, a resize) rebuilds the toolbar; the control that
+    // had focus gets it back, so keyboard users are not thrown to the page.
+    const active = typeof document !== 'undefined' ? document.activeElement : null;
+    const focusKey = active && state.tools.contains(active)
+      ? ['data-lc-type', 'data-lc-study', 'data-lc-compare', 'data-lc-zoom', 'data-lc-expand']
+        .map((a) => (active.hasAttribute(a) ? `[${a}="${active.getAttribute(a)}"]` : null)).find(Boolean)
+        || (active.matches('.lc-studies > summary') ? '.lc-studies > summary' : null)
+      : null;
     state.tools.innerHTML = `
       <div class="lc-seg" role="group" aria-label="Chart type">
         <button type="button" class="lc-tool" data-lc-type="line" aria-pressed="${prefs.type === 'line'}"${prefs.compare && bench ? ' disabled' : ''}>Line</button>
@@ -789,7 +797,19 @@
         <button type="button" class="lc-tool" data-lc-zoom="in" aria-label="Zoom in" title="Zoom in (+, or Ctrl and scroll)">+</button>
         <button type="button" class="lc-tool" data-lc-zoom="out" aria-label="Zoom out" title="Zoom out (-)"${zoomed ? '' : ' disabled'}>&minus;</button>
         <button type="button" class="lc-tool" data-lc-zoom="reset" title="Show the whole range (0)"${zoomed ? '' : ' disabled'}>Reset</button>
-      </div>`;
+      </div>
+      <button type="button" class="lc-tool lc-expand" data-lc-expand aria-pressed="${Boolean(state.expanded)}"
+              aria-label="${state.expanded ? 'Exit full screen' : 'Full screen'}"
+              title="${state.expanded ? 'Exit full screen (Esc)' : 'Show the chart full screen'}">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${state.expanded
+          ? '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>'
+          : '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'}</svg>
+        <span>${state.expanded ? 'Exit full screen' : 'Full screen'}</span>
+      </button>`;
+    if (focusKey) {
+      const again = state.tools.querySelector(focusKey);
+      if (again && !again.disabled) again.focus();
+    }
   }
 
   // ------------------------------------------------------------ interaction
@@ -1015,7 +1035,7 @@
       ev.preventDefault();
       select(tabs[(next + tabs.length) % tabs.length].dataset.range, true);
     });
-    const commit = () => { savePrefs(opts.context, state.prefs); if (state.data) render(state); };
+    const commit = () => { savePrefs(opts.context, state.prefs); relayout(); };
     state.tools.addEventListener('click', (ev) => {
       const typeBtn = ev.target.closest('[data-lc-type]');
       if (typeBtn) { state.prefs.type = typeBtn.dataset.lcType; commit(); state.tools.querySelector(`[data-lc-type="${state.prefs.type}"]`).focus(); return; }
@@ -1037,6 +1057,90 @@
         const again = state.tools.querySelector(`[data-lc-zoom="${kind}"]`);
         if (again && !again.disabled) again.focus(); else { const svg = state.frame.querySelector('.lc-svg'); if (svg) svg.focus(); }
       }
+    });
+    // Full screen: the Fullscreen API on the chart itself, or a full-window
+    // layer where the browser refuses it. Every tool stays, and the plot grows
+    // to fill the height left by the head, the toolbar and any indicator panes.
+    const fsSupported = () => typeof host.requestFullscreen === 'function' && document.fullscreenEnabled !== false;
+    // The page may size the chart with an inline --lc-h: kept on entry, put back on exit.
+    let pageHeight = '';
+    const fit = () => {
+      if (!state.expanded) {
+        if (pageHeight) host.style.setProperty('--lc-h', pageHeight); else host.style.removeProperty('--lc-h');
+        return;
+      }
+      // Measured, not estimated: from the top of the plot to the bottom of the
+      // screen, less the indicator panes, the time axis, the notes under the
+      // chart, the status line and the chart's own bottom padding.
+      const panes = ['rsi', 'macd'].filter((k) => state.prefs.studies.has(k)).length;
+      const top = state.frame.getBoundingClientRect().top - host.getBoundingClientRect().top;
+      const notes = [...state.frame.querySelectorAll('.lc-offscale, .lc-upcoming')].reduce((n, el) => n + el.offsetHeight + 6, 0);
+      const status = state.status.hidden ? 0 : state.status.offsetHeight + 8;
+      const pad = parseFloat(getComputedStyle(host).paddingBottom) || 0;
+      const room = host.clientHeight || window.innerHeight;
+      const h = room - top - panes * PANE_PX - 22 - notes - status - pad - 4;
+      host.style.setProperty('--lc-h', `${Math.round(Math.max(240, h))}px`);
+    };
+    // Draw at the current height; in full screen, fit first, and once more if
+    // the drawing added or removed notes under the plot.
+    function relayout() {
+      if (!state.data) return;
+      if (state.expanded) fit();
+      readHeight();
+      render(state);
+      if (state.expanded) {
+        const was = state.lcH;
+        fit();
+        readHeight();
+        if (state.lcH !== was) render(state);
+      }
+    }
+    const redraw = () => {
+      relayout();
+      const btn = state.tools.querySelector('[data-lc-expand]');
+      if (btn) btn.focus();
+    };
+    const onKey = (ev) => { if (ev.key === 'Escape' && state.expanded && !host.classList.contains('is-fullscreen')) leave(); };
+    const onResize = () => { if (state.expanded) relayout(); };
+    async function enter() {
+      pageHeight = host.style.getPropertyValue('--lc-h');
+      state.expanded = true;
+      host.classList.add('is-expanded');
+      if (fsSupported()) {
+        try {
+          await host.requestFullscreen();
+          host.classList.add('is-fullscreen');
+        } catch (_) { host.classList.add('is-overlay'); }
+      } else {
+        host.classList.add('is-overlay');
+      }
+      if (host.classList.contains('is-overlay')) document.documentElement.classList.add('lc-locked');
+      document.addEventListener('keydown', onKey);
+      window.addEventListener('resize', onResize);
+      requestAnimationFrame(redraw);
+    }
+    function finish() {
+      state.expanded = false;
+      fit();          // puts back the height the page had set (or none)
+      host.classList.remove('is-expanded', 'is-fullscreen', 'is-overlay');
+      document.documentElement.classList.remove('lc-locked');
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+      requestAnimationFrame(redraw);
+    }
+    function leave() {
+      if (document.fullscreenElement === host && typeof document.exitFullscreen === 'function') {
+        document.exitFullscreen().catch(() => finish());   // fullscreenchange finishes the exit
+      } else {
+        finish();
+      }
+    }
+    // Esc in real full screen is handled by the browser: follow it.
+    const onFsChange = () => { if (state.expanded && host.classList.contains('is-fullscreen') && document.fullscreenElement !== host) finish(); };
+    document.addEventListener('fullscreenchange', onFsChange);
+    state.tools.addEventListener('click', (ev) => {
+      if (!ev.target.closest('[data-lc-expand]')) return;
+      if (state.expanded) leave(); else enter();
     });
     state.tools.addEventListener('change', (ev) => {
       const box = ev.target.closest('[data-lc-study]');
@@ -1168,8 +1272,7 @@
       } else {
         state.benchAligned = alignBenchmark(data.points, state.bench);
       }
-      readHeight();
-      render(state);
+      relayout();
       if (typeof opts.onData === 'function') opts.onData(data);
       schedule();
     }
@@ -1194,7 +1297,11 @@
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', onVisible);
         document.removeEventListener('pointerdown', onOutside);
+        document.removeEventListener('fullscreenchange', onFsChange);
+        document.removeEventListener('keydown', onKey);
+        document.documentElement.classList.remove('lc-locked');
       }
+      window.removeEventListener('resize', onResize);
       host._liveChart = null;
     };
     host._liveChart = state;

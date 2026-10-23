@@ -6056,10 +6056,13 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 2px; cur
 .lc-legend {
   position: absolute; top: 6px; left: 8px; right: 8px; display: flex; flex-direction: column; gap: 2px;
   font-family: var(--font-mono); font-size: var(--fs-2xs); font-variant-numeric: tabular-nums; color: var(--text-primary);
-  pointer-events: none; text-shadow: 0 0 3px var(--bg-elev-1), 0 0 3px var(--bg-elev-1);
+  pointer-events: none;
 }
-.lc-legend--pane { flex-direction: row; flex-wrap: wrap; gap: 2px 12px; }
-.lc-legend-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.lc-legend--pane { flex-direction: row; flex-wrap: wrap; gap: 2px 12px; right: auto; padding: 1px 5px; border-radius: 3px;
+  background: color-mix(in srgb, var(--bg-elev-1) 88%, transparent); }
+.lc-legend-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
+  width: fit-content; max-width: 100%; padding: 1px 5px; border-radius: 3px;
+  background: color-mix(in srgb, var(--bg-elev-1) 88%, transparent); }
 .lc-legend-k { margin-right: 3px; color: var(--text-muted); }
 .lc-legend-study { white-space: nowrap; }
 .lc-legend-study--1 { color: var(--series-1); }
@@ -6117,6 +6120,13 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 2px; cur
 .lc-swatch--3 { background: var(--series-3); }
 .lc-swatch--4 { background: var(--series-4); }
 .lc-zoom { margin-left: auto; }
+/* Full screen: the chart alone on the page, every tool kept. */
+.lc.is-expanded, #an-results .ts-chart.lc.is-expanded { box-sizing: border-box; width: 100vw; height: 100vh; max-width: none; margin: 0; padding: 16px 24px 12px;
+  border: 0; border-radius: 0; background: var(--bg-elev-1); overflow: auto; }
+.lc.is-overlay { position: fixed; inset: 0; z-index: 200; }
+html.lc-locked { overflow: hidden; }
+.lc-expand[aria-pressed="true"] { color: var(--primary); background: var(--primary-soft); }
+@media (max-width: 640px) { .lc-expand span { display: none; } .lc.is-expanded { padding: 12px; } }
 .lc-px.is-flash-up { animation: lc-flash-up 1.2s ease-out; }
 .lc-px.is-flash-down { animation: lc-flash-down 1.2s ease-out; }
 @keyframes lc-flash-up { from { color: var(--bull); } to { color: var(--text-primary); } }

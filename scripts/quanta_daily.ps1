@@ -126,7 +126,7 @@ if ((Invoke-Py @("-m", "tracking", "report")) -ne 0) { $status = 1 }
 
 # My list briefing: saved to logs/daily/briefing-<date>.md, emailed when SMTP is set.
 Step "briefing"
-if ((Invoke-Py @((Join-Path $Root "webappriefing.py"), "--email")) -ne 0) { $status = 1 }
+if ((Invoke-Py @((Join-Path $Root "webapp\briefing.py"), "--email")) -ne 0) { $status = 1 }
 
 # Export the hash-chained public record. Set QUANTA_PUBLISH_COMMIT=1 to also commit it,
 # so git timestamps each day's link (it is never pushed for you).

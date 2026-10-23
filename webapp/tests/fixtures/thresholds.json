@@ -515,7 +515,19 @@
   },
   "SECTOR_HEAT_FULL_PCT": 2.0,
   "SECTOR_WEIGHTS": {
-   "IN": {},
+   "IN": {
+    "^CNXAUTO": 7.5,
+    "^CNXENERGY": 17.9,
+    "^CNXFMCG": 6.0,
+    "^CNXINFRA": 24.8,
+    "^CNXIT": 8.2,
+    "^CNXMEDIA": 0.4,
+    "^CNXMETAL": 6.6,
+    "^CNXPHARMA": 6.4,
+    "^CNXPSUBANK": 5.7,
+    "^CNXREALTY": 1.8,
+    "^NSEBANK": 14.9
+   },
    "US": {
     "XLB": 2.0,
     "XLC": 9.5,

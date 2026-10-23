@@ -138,6 +138,12 @@
       </li>`).join('');
     const checker = d.checker || {};
     const every = checker.interval_seconds ? Math.round(checker.interval_seconds / 60) : 5;
+    // A refresh lands while the reader may be typing a ticker: keep what they
+    // typed, and the focus and caret, across the redraw.
+    const prevInput = panel.querySelector('#ml-add-input');
+    const typed = prevInput ? prevInput.value : '';
+    const hadFocus = prevInput && document.activeElement === prevInput;
+    const caret = hadFocus ? prevInput.selectionStart : null;
     panel.innerHTML = `
       ${d.inbox.length ? `<section class="ml-sec ml-sec--fired" aria-labelledby="ml-fired-h">
         <div class="ml-sec-head"><h2 class="ml-h" id="ml-fired-h">Fired alerts</h2><button type="button" class="ml-link" data-ml-dismiss-all>Dismiss all</button></div>
@@ -160,6 +166,12 @@
         ? `Checked every ${every} minute${every === 1 ? '' : 's'} while the market is open${checker.last_run ? `, last ${esc(when(checker.last_run))}` : ''}. A fired alert posts a desktop notification on this computer${d.email ? ' and an email' : ''} and waits here.`
         : 'The alert checker is not running on this server, so alerts are saved but not checked.'}
         ${checker.running && d.alerts.length ? '<button type="button" class="ml-link" data-ml-check>Check now</button>' : ''}</p>`;
+    const input = panel.querySelector('#ml-add-input');
+    if (input && typed) input.value = typed;
+    if (input && hadFocus) {
+      input.focus();
+      if (caret !== null) input.setSelectionRange(caret, caret);
+    }
   }
 
   function open() {

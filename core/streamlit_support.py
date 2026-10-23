@@ -711,7 +711,7 @@ def build_advisor_report(data: dict[str, Any]) -> dict[str, Any]:
 
     existing_holder_plan = [
         str(guidance.get("existing_holder") or "Review the position against your cost basis and risk tolerance."),
-        "Treat model support and stop levels as risk references—not automatic orders—because your cost basis, taxes, and portfolio concentration are unknown.",
+        "Treat model support and stop levels as risk references, not automatic orders, because your cost basis, taxes, and portfolio concentration are unknown.",
     ]
     if earnings_date:
         existing_holder_plan.append(f"Review position size and downside tolerance before {earnings_date} earnings.")

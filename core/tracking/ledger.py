@@ -697,7 +697,7 @@ def _group_stats(key: Dict[str, Any], members: List[Dict[str, Any]]) -> GroupSta
     elif t_stat is not None and t_stat >= 2.0:
         verdict = "Positive historical excess (t >= 2); exploratory, not a validated edge"
     elif t_stat is not None and t_stat <= -2.0:
-        verdict = "Significantly WORSE than the benchmark — the signal is inverted"
+        verdict = "Significantly WORSE than the benchmark: the signal is inverted"
     else:
         verdict = "No significant difference from the benchmark"
 

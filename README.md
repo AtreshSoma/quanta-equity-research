@@ -154,6 +154,11 @@ scripts\schedule_daily.ps1         # install;  -Status to check, -Remove to unin
 scripts\quanta_daily.ps1           # or run the job once by hand (-NoScan skips the scan)
 ```
 
+Each run also writes a briefing for My list to `logs/daily/briefing-<date>.md`: every saved name's
+close and change, QUANTA's last call on it and the move since, its alerts and how far away they are,
+fired alerts, and any earnings report due within two weeks. It is emailed too when SMTP is set in
+`.env` (`python webapp/briefing.py` makes one by hand).
+
 It runs as you while you are signed in, and a run missed while the PC was off starts when it is
 next available. It uses `QUANTA_PYTHON` from `.env` if set, otherwise the first Python that has
 pandas and yfinance installed.

@@ -4,7 +4,8 @@
 #   2. scan      run the short-term scanner; its calls enter the ledger, immutably
 #   3. alerts    report stops / targets touched by open calls (Windows notification)
 #   4. report    write the benchmarked track record to the log
-#   5. publish   export the tamper-evident record to track_record/ (optionally commit it)
+#   5. briefing  the My list briefing (logs/daily/briefing-<date>.md; emailed when SMTP is set)
+#   6. publish   export the tamper-evident record to track_record/ (optionally commit it)
 #
 # Run it by hand, or schedule it with scripts/schedule_daily.ps1.
 # Settings (environment or .env): QUANTA_DAILY_CAPITAL (2500), QUANTA_DAILY_SCAN
@@ -122,6 +123,10 @@ if ((Invoke-Py @("-m", "tracking", "alerts", "--notify")) -ne 0) { $status = 1 }
 
 Step "report"
 if ((Invoke-Py @("-m", "tracking", "report")) -ne 0) { $status = 1 }
+
+# My list briefing: saved to logs/daily/briefing-<date>.md, emailed when SMTP is set.
+Step "briefing"
+if ((Invoke-Py @((Join-Path $Root "webappriefing.py"), "--email")) -ne 0) { $status = 1 }
 
 # Export the hash-chained public record. Set QUANTA_PUBLISH_COMMIT=1 to also commit it,
 # so git timestamps each day's link (it is never pushed for you).

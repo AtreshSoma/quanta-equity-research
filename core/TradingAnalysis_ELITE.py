@@ -1803,6 +1803,14 @@ class APIClient:
     def __init__(self, config: Dict[str, str]):
         self.news_api_key = config.get('news_api_key') or os.getenv('NEWS_API_KEY', '')
         self.finnhub_key = config.get('finnhub_key') or os.getenv('FINNHUB_API_KEY', '')
+        # Several Finnhub keys (FINNHUB_API_KEYS, comma-separated) share the load:
+        # a request answered 429 is retried once with the next key.
+        self.finnhub_keys = [k.strip() for k in os.getenv('FINNHUB_API_KEYS', '').split(',') if k.strip()]
+        if self.finnhub_key and self.finnhub_key not in self.finnhub_keys:
+            self.finnhub_keys.insert(0, self.finnhub_key)
+        if not self.finnhub_key and self.finnhub_keys:
+            self.finnhub_key = self.finnhub_keys[0]
+        self._finnhub_ix = 0
         self.fmp_key = config.get('fmp_key') or os.getenv('FMP_API_KEY', '')
         self.polygon_key = config.get('polygon_key') or os.getenv('POLYGON_API_KEY', '')
         self.alpha_vantage_key = config.get('alpha_vantage_key') or os.getenv('ALPHA_VANTAGE_KEY', '')
@@ -1855,6 +1863,15 @@ class APIClient:
         with self.lock:
             self.rate_limiter[source].append(time.time())
     
+    def _finnhub_current(self) -> str:
+        with self.lock:
+            return self.finnhub_keys[self._finnhub_ix] if self.finnhub_keys else str(self.finnhub_key or "")
+
+    def _finnhub_rotate(self) -> str:
+        with self.lock:
+            self._finnhub_ix = (self._finnhub_ix + 1) % len(self.finnhub_keys)
+            return self.finnhub_keys[self._finnhub_ix]
+
     def fetch_json(self, url: str, params: Optional[Dict] = None, 
                    source: str = "generic", timeout: int = 15,
                    rate_limit: int = 60) -> Optional[Any]:
@@ -1868,10 +1885,14 @@ class APIClient:
             # Finnhub takes its key in a header: a key in the query string ends
             # up in proxy, server and exception logs with the URL.
             headers = None
-            if params and "finnhub.io" in url and "token" in params:
+            finnhub = bool(params and "finnhub.io" in url and "token" in params)
+            if finnhub:
                 params = {k: v for k, v in params.items() if k != "token"}
-                headers = {"X-Finnhub-Token": str(self.finnhub_key or "")}
+                headers = {"X-Finnhub-Token": self._finnhub_current()}
             response = self.session.get(url, params=params, headers=headers, timeout=timeout)
+            if finnhub and response.status_code == 429 and len(self.finnhub_keys) > 1:
+                headers = {"X-Finnhub-Token": self._finnhub_rotate()}
+                response = self.session.get(url, params=params, headers=headers, timeout=timeout)
             
             if response.status_code == 200:
                 return response.json()

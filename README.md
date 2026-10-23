@@ -667,6 +667,7 @@ Set these in your shell or in `.env` (copy `.env.example`). Every one is optiona
 | `QUANTA_TRACKING_DISABLED` | unset | `1` records no calls (every test run sets it) |
 | `QUANTA_PUBLISH_COMMIT` | unset | `1` commits the daily `track_record/` export |
 | `QUANTA_YF_INFO_TTL`, `QUANTA_YF_HIST_TTL` | 3600 s, 900 s | How long Yahoo info and history are cached |
+| `FINNHUB_API_KEYS` | none | Several Finnhub keys, comma-separated; a request answered 429 retries once with the next |
 | `QUANTA_YF_BURST` | `8` | Yahoo requests that may go at once after a quiet spell; the sustained rate stays one per 0.35 s |
 | `QUANTA_YF_STALE_GRACE` | 21600 s | How old a cached answer may be and still be served when a refresh fails |
 | `QUANTA_MYLIST_PATH` | `data/my_list.sqlite3` | My list and price alerts |

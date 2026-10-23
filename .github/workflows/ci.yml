@@ -11,7 +11,8 @@
 #               DataFrames and pickle is not a stable cross-version format.
 #   browser     ~3m, Playwright in Chromium (desktop and phone) on the specs that
 #               need no market data: the live chart's tools and My list (with
-#               mocked bars), the top bar at every width, and the Guide. The full
+#               mocked bars), WCAG 2.1 AA on the tear sheet and Evidence page,
+#               the top bar at every width, and the Guide. The full
 #               suite also reads live Yahoo data, so it stays a local run
 #               (`npm run test:e2e`).
 #
@@ -126,7 +127,7 @@ jobs:
         env:
           QUANTA_E2E_PYTHON: python
         run: >
-          npx playwright test tests/e2e/charts_mylist.spec.ts tests/e2e/topbar.spec.ts tests/e2e/guide.spec.ts
+          npx playwright test tests/e2e/charts_mylist.spec.ts tests/e2e/a11y_research_evidence.spec.ts tests/e2e/topbar.spec.ts tests/e2e/guide.spec.ts
           --project=desktop-dark --project=mobile
 
       - name: Keep the report on failure

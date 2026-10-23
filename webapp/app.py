@@ -177,25 +177,75 @@ try:
             now = time.monotonic()
             _yf_tokens = min(float(_YF_BURST), _yf_tokens + (now - _yf_refill_at) / interval)
             _yf_refill_at = now
+            wait = 0.0
             if _yf_tokens < 1.0:
                 wait = (1.0 - _yf_tokens) * interval
                 time.sleep(wait)
                 _yf_tokens = 1.0
                 _yf_refill_at = time.monotonic()
             _yf_tokens -= 1.0
+            return wait
 
     # The throttle spaces real HTTP requests: every Yahoo call goes through
     # YfData._make_request. It used to sit in Ticker.__init__, so building a
     # Ticker whose data was already cached still slept 350ms; a dashboard that
     # builds a few dozen Tickers spent most of its cold load asleep.
     _throttle_on_request = False
+    # What every Yahoo request did, for /api/health: a rolling record of when it
+    # ran, how long the request and the throttle wait took, and how it ended.
+    import collections as _collections
+    _yf_events = _collections.deque(maxlen=4000)
+    _yf_events_lock = threading.Lock()
+    _yf_totals = {"requests": 0, "errors": 0, "rate_limited": 0}
+
+    def _yf_record(ms: float, wait_ms: float, outcome: str) -> None:
+        with _yf_events_lock:
+            _yf_events.append((time.time(), ms, wait_ms, outcome))
+            _yf_totals["requests"] += 1
+            if outcome != "ok":
+                _yf_totals["errors" if outcome == "error" else "rate_limited"] += 1
+
+    def _yf_request_stats(window: float = 300.0) -> Dict[str, Any]:
+        """Yahoo traffic over the last ``window`` seconds, and since start."""
+        cutoff = time.time() - window
+        with _yf_events_lock:
+            recent = [e for e in _yf_events if e[0] >= cutoff]
+            totals = dict(_yf_totals)
+        lat = sorted(e[1] for e in recent)
+        pick = (lambda q: round(lat[min(len(lat) - 1, int(q * len(lat)))], 1)) if lat else (lambda q: None)
+        return {
+            "window_seconds": int(window),
+            "requests": len(recent),
+            "errors": sum(1 for e in recent if e[3] == "error"),
+            "rate_limited": sum(1 for e in recent if e[3] == "rate_limited"),
+            "latency_ms_p50": pick(0.5),
+            "latency_ms_p95": pick(0.95),
+            "throttle_wait_ms": round(sum(e[2] for e in recent), 1),
+            "since_start": totals,
+        }
+
     try:
         import yfinance.data as _yf_data
         _orig_make_request = _yf_data.YfData._make_request
 
         def _throttled_make_request(self, *args, **kwargs):
-            _throttled_yf()
-            return _orig_make_request(self, *args, **kwargs)
+            waited = _throttled_yf() or 0.0
+            started = time.monotonic()
+            outcome = "ok"
+            try:
+                resp = _orig_make_request(self, *args, **kwargs)
+                code = getattr(resp, "status_code", 200) or 200
+                if code == 429:
+                    outcome = "rate_limited"
+                elif code >= 400:
+                    outcome = "error"
+                return resp
+            except Exception as exc:
+                text = str(exc)
+                outcome = "rate_limited" if ("429" in text or "Too Many" in text or "Rate" in type(exc).__name__) else "error"
+                raise
+            finally:
+                _yf_record((time.monotonic() - started) * 1000.0, waited * 1000.0, outcome)
 
         _yf_data.YfData._make_request = _throttled_make_request
         _throttle_on_request = True
@@ -6174,6 +6224,7 @@ def _backend_health(probe: bool = True) -> Dict[str, Any]:
 
     return {
         "overall": overall,
+        "yahoo_requests": _yf_request_stats() if "_yf_request_stats" in globals() else None,
         "rate_limited": rate_limited,
         "provider_status": provider_status,
         "python_version": sys.version.split()[0],

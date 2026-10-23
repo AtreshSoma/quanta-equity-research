@@ -13614,6 +13614,8 @@ function fitChartToRail(container) {
   const chart = container.querySelector('#ts-chart');
   const partner = container.querySelector('.ts-glance > .ts-signals, .ts-glance > .section-card');
   if (!desk || !rail || !chart || typeof getComputedStyle !== 'function') return;
+  // A full-screen chart sizes itself (live-chart.js); the rail must not shrink it.
+  if (chart.classList.contains('is-expanded')) return;
   if (getComputedStyle(desk).display === 'grid') desk.style.setProperty('--ts-rail-h', `${Math.ceil(rail.getBoundingClientRect().height)}px`);
   const glance = chart.parentElement;
   const twoUp = glance && getComputedStyle(glance).gridTemplateColumns.trim().split(/\s+/).length > 1;

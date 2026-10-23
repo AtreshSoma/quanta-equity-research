@@ -933,6 +933,16 @@ def _resolve_account_context(payload: Dict[str, Any]) -> tuple:
     return min(value, MAX_ACCOUNT_SIZE), False
 
 
+def _account_note(account_size: float, assumed: bool, ticker: str = "", market: Optional[str] = None) -> str:
+    """The line under a tear sheet that names the account its sizes assume."""
+    india = str(market or "").upper() == "IN" or str(ticker or "").upper().endswith((".NS", ".BO"))
+    money = f"{'₹' if india else '$'}{account_size:,.0f}"
+    if assumed:
+        return (f"Sizing assumes a {money} account (default, not your declared mandate). "
+                "Set your capital in Picks and Research sizes against it.")
+    return f"Sized against a {money} account (your capital in Picks)."
+
+
 def _resolve_account_size(payload: Dict[str, Any]) -> float:
     """Account value to size against, from the request or the documented default."""
     return _resolve_account_context(payload)[0]
@@ -8495,8 +8505,7 @@ def _run_analysis(job_id: str, ticker: str, safe_mode: bool = False,
     if cached:
         cached["account_context"] = {
             "account_size": account_size, "assumed": bool(account_size_assumed),
-            "note": (f"Sizing assumes a ${account_size:,.0f} account (default)."
-                     if account_size_assumed else f"Sized against a ${account_size:,.0f} account."),
+            "note": _account_note(account_size, account_size_assumed, ticker, market),
         }
         cached["used_cached_data"] = bool(prefer_cache or cached.get("cache", {}).get("stale"))
         if cooldown:
@@ -8748,12 +8757,7 @@ def _run_analysis(job_id: str, ticker: str, safe_mode: bool = False,
                 analysis["account_context"] = {
                     "account_size": account_size,
                     "assumed": bool(account_size_assumed),
-                    "note": (
-                        f"Sizing assumes a ${account_size:,.0f} account "
-                        f"(default, not your declared mandate)."
-                        if account_size_assumed else
-                        f"Sized against a ${account_size:,.0f} account."
-                    ),
+                    "note": _account_note(account_size, account_size_assumed, ticker, market),
                 }
                 _provider_note_success()
                 # [F04] Fast-mode results are cached under their OWN mode key.

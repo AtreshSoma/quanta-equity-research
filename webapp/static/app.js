@@ -8385,6 +8385,31 @@ const SCAN_MARKET_EQUIV = {
    valid large US budget is never replaced by a default on the way back. */
 const picksBudgets = {};
 
+/* The reader's account size per market: the capital they last typed in Picks,
+   kept across visits. Research sizes positions against it (instead of a
+   100,000 placeholder). It changes only when the reader edits the field, never
+   when a saved scan puts its own settings back in the form. */
+const CAPITAL_KEY = 'quanta.capital';
+const accountCapital = (() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CAPITAL_KEY) || '{}');
+    return saved && typeof saved === 'object' ? saved : {};
+  } catch (_) { return {}; }
+})();
+function saveBudget(market, value) {
+  const m = market === 'IN' ? 'IN' : 'US';
+  const n = Number(value);
+  const min = thr(m === 'IN' ? 'CAPITAL.MIN_INDIA' : 'CAPITAL.MIN_US');
+  if (!Number.isFinite(n) || n < Number(min || 0)) return;
+  accountCapital[m] = n;
+  try { localStorage.setItem(CAPITAL_KEY, JSON.stringify(accountCapital)); } catch (_) { /* private mode */ }
+}
+/* The account Research sizes against: the capital set in Picks for that market. */
+function accountSizeFor(market) {
+  const n = Number(accountCapital[market === 'IN' ? 'IN' : 'US']);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /* [Scan filters] Units per market: cap in $ billions or Rs crore, traded value
    in $ millions or Rs crore, price in the market's currency. */
 const SCAN_FILTER_UNITS = {
@@ -8529,7 +8554,7 @@ function applyPicksMarketUI(market) {
     if (prev && prev !== m) {
       // Leaving a market: keep its budget, then restore this market's own.
       if (capInput.value !== '') picksBudgets[prev] = capInput.value;
-      capInput.value = String(picksBudgets[m] ?? fallback);
+      capInput.value = String(picksBudgets[m] ?? accountSizeFor(m) ?? fallback);
     } else if (Number(capInput.value || 0) < min) {
       capInput.value = String(fallback);
     }
@@ -11845,7 +11870,9 @@ async function runAnalysis(event, opts) {
     const res = await fetch('/api/analyze', {
       method: 'POST', headers: { ...QUANTA_POST_HEADERS, 'Content-Type': 'application/json' },
       // The market toggle routes a bare symbol (India: NSE, then BSE, then US).
-      body: JSON.stringify({ ticker, safe_mode: !!options.safeMode, prefer_cache: !!options.preferCache, fast_mode: fastMode, market: options.market || state.market }),
+      // Positions are sized against the capital set in Picks for this market, when there is one.
+      body: JSON.stringify({ ticker, safe_mode: !!options.safeMode, prefer_cache: !!options.preferCache, fast_mode: fastMode,
+        market: options.market || state.market, ...(accountSizeFor(options.market || state.market) ? { account_size: accountSizeFor(options.market || state.market) } : {}) }),
     });
     const payload = await res.json();
     if (!anCurrent()) return;
@@ -14133,6 +14160,7 @@ function bindEvents() {
 
   // The mandate hint states the sizing effect the option text no longer has room for.
   $('#sp-risk')?.addEventListener('change', applyMandateHint);
+  $('#sp-capital')?.addEventListener('change', (ev) => saveBudget($('#sp-market')?.value || state.market, ev.target.value));
   applyMandateHint();
 
   // Recent scans: a click opens a saved scan; the ages tick and the list is
@@ -14206,7 +14234,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('DOMContentLoaded', () => {
     applyThresholds(document);
     const cap = document.getElementById('sp-capital');
-    if (cap && !cap.value) cap.value = String(defaultCapital(state.market) ?? '');
+    if (cap && !cap.value) cap.value = String(accountSizeFor(state.market) ?? defaultCapital(state.market) ?? '');
     if (cap && !cap.min) cap.min = String(thr(state.market === 'IN' ? 'CAPITAL.MIN_INDIA' : 'CAPITAL.MIN_US') ?? '');
     bindEvents();
     syncTopbarHeight();
@@ -14232,6 +14260,7 @@ if (typeof module !== 'undefined' && module.exports) {
     // Discover (2026-10-20): odds, revisions, causes, the read and the status line.
     targetLagged, oddsCellHtml, revisionsCellHtml, sessionCellHtml, rvolCellHtml, discoverReadHtml, moverReason, bookIndex,
     renderDiscoverStatus, freshnessSource, marketTodayIso, exchangeDaysUntil, renderSecurityQueues, setupQualityForMover,
+    accountSizeFor, saveBudget,
     ideaDetailHtml, renderDiscoverPulse, discoverEnrichStore: _enrich, setIdeasView, openIdeaDrawer, closeIdeaDrawer, refreshIdeaDrawer, ideaCardHtml, moverCardHtml,
     earningsAhead, earningsScopeShort, indexName, factorWord, shownSymbol, earningsCalendarNote, companyName, growOnView, postureAge, postureAgeText, sessionDay, priceSession, volatilityLine, sectorTrendMap, ideaSectorTrend, engineHighImpactKeys,
     researchIndexGroups,

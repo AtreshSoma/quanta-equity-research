@@ -83,3 +83,29 @@ test('the Research chart goes truly full screen with all its tools, then fits ba
   await expect.poll(plotH).toBeLessThan(vh * 0.55);
   expect(before).toBeLessThan(vh * 0.55);
 });
+
+test('the capital set in Picks survives a reload and sizes Research', async ({ page }) => {
+  await page.goto('/#picks', { waitUntil: 'domcontentloaded' });
+  // On narrower screens the scan form sits behind "Edit scan setup".
+  const edit = page.getByRole('button', { name: 'Edit scan setup' });
+  if (await edit.isVisible()) await edit.click();
+  const cap = page.locator('#sp-capital');
+  await cap.fill('25000');
+  await cap.dispatchEvent('change');
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  // A saved scan may put its own capital back in the form; the account size stays the reader's.
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('quanta.capital') || '{}').US)).toBe(25000);
+  let body: any = null;
+  await page.route('**/api/analyze', async (route) => {
+    body = route.request().postDataJSON();
+    await route.fulfill({ status: 202, json: { job_id: 'e2e-cap', status: 'running' } });
+  });
+  await page.route('**/api/jobs/e2e-cap/stream', (route) => route.fulfill({
+    status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: `data: ${JSON.stringify({ status: 'complete' })}\n\n` }));
+  await page.route('**/api/jobs/e2e-cap', (route) => route.fulfill({ json: { status: 'complete', result: golden.result } }));
+  await page.route('**/api/chart?**', (route) => route.fulfill({ json: bars() }));
+  await page.goto('/#analyze');
+  await page.locator('#an-ticker').fill('AAPL');
+  await page.locator('#btn-analyze').click();
+  await expect.poll(() => body && body.account_size).toBe(25000);
+});

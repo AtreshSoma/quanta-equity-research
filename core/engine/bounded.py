@@ -7,9 +7,11 @@ owns: on timeout the child is killed and reaped before ``run`` returns, so no
 abandoned provider work overlaps the fallback.
 
 A target is named ``"module:function"`` and must be importable in the child.
-Its keyword arguments go to the child over a pipe; its return value (a price
-frame) comes back pickled in a file inside a fresh private temporary directory,
-so no other account can swap the file between write and read.
+Its keyword arguments go to the child as JSON over a pipe. Its return value
+comes back in a fresh private temporary directory: a DataFrame as Parquet,
+anything else as JSON. Neither format runs code when read, so a file swapped in
+by anyone else could at worst fail to parse (pickle, used before, could execute
+whatever it held).
 ``QUANTA_BULK_TARGET`` overrides the default bulk-download target only with the
 default itself or a test target (module ``_bounded_targets``, which the suite
 uses to refuse network access); any other value is ignored and logged, so an
@@ -17,9 +19,9 @@ environment variable cannot make the scan call arbitrary code.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
-import pickle
 import shutil
 import subprocess
 import sys
@@ -33,18 +35,26 @@ _TEST_TARGET_MODULE = "_bounded_targets"
 logger = logging.getLogger(__name__)
 
 _CHILD = (
-    "import pickle, sys\n"
-    "p = pickle.load(sys.stdin.buffer)\n"
+    "import json, sys\n"
+    "p = json.loads(sys.stdin.buffer.read().decode('utf-8'))\n"
     "sys.path[:0] = p['sys_path']\n"
     "sys.stdout = sys.stderr\n"
     "import importlib\n"
     "mod, fn = p['target'].split(':')\n"
+    "meta = {'ok': True, 'kind': 'json', 'value': None}\n"
     "try:\n"
-    "    out = {'ok': True, 'value': getattr(importlib.import_module(mod), fn)(**p['kwargs'])}\n"
+    "    value = getattr(importlib.import_module(mod), fn)(**p['kwargs'])\n"
+    "    if type(value).__name__ == 'DataFrame':\n"
+    "        value.to_parquet(p['frame'])\n"
+    "        meta['kind'] = 'frame'\n"
+    "        meta['index_dtype'] = str(value.index.dtype)\n"
+    "    else:\n"
+    "        json.dumps(value)\n"
+    "        meta['value'] = value\n"
     "except BaseException as exc:\n"
-    "    out = {'ok': False, 'error': f'{type(exc).__name__}: {exc}'[:300]}\n"
-    "with open(p['out'], 'wb') as fh:\n"
-    "    pickle.dump(out, fh, protocol=pickle.HIGHEST_PROTOCOL)\n"
+    "    meta = {'ok': False, 'error': f'{type(exc).__name__}: {exc}'[:300]}\n"
+    "with open(p['out'], 'w', encoding='utf-8') as fh:\n"
+    "    json.dump(meta, fh)\n"
 )
 
 
@@ -74,9 +84,10 @@ def run(target: str, kwargs: Dict[str, Any], budget: float,
     started = time.time()
     # mkdtemp makes the directory readable and writable by this account only.
     work_dir = tempfile.mkdtemp(prefix="quanta-bounded-")
-    out_path = os.path.join(work_dir, "result.pkl")
-    payload = pickle.dumps({"sys_path": list(sys.path), "target": target,
-                            "kwargs": kwargs, "out": out_path})
+    out_path = os.path.join(work_dir, "result.json")
+    frame_path = os.path.join(work_dir, "result.parquet")
+    payload = json.dumps({"sys_path": list(sys.path), "target": target, "kwargs": kwargs,
+                          "out": out_path, "frame": frame_path}).encode("utf-8")
     proc = subprocess.Popen([sys.executable, "-c", _CHILD], stdin=subprocess.PIPE,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
@@ -91,15 +102,22 @@ def run(target: str, kwargs: Dict[str, Any], budget: float,
             return Bounded("timeout", error=f"exceeded {budget:g}s", seconds=time.time() - started,
                            reaped=proc.poll() is not None)
         try:
-            with open(out_path, "rb") as fh:
-                out = pickle.load(fh)
-        except (OSError, EOFError, pickle.UnpicklingError) as exc:
+            with open(out_path, "r", encoding="utf-8") as fh:
+                out = json.load(fh)
+            value = out.get("value")
+            if out.get("ok") and out.get("kind") == "frame":
+                import pandas as pd
+                value = pd.read_parquet(frame_path)
+                # Parquet stores times in milliseconds; give back the unit sent.
+                if out.get("index_dtype") and str(value.index.dtype) != out["index_dtype"]:
+                    value.index = value.index.astype(out["index_dtype"])
+        except (OSError, ValueError, ImportError) as exc:
             return Bounded("error", error=f"no result from the provider process ({type(exc).__name__})",
                            seconds=time.time() - started)
         if not out.get("ok"):
             return Bounded("error", error=str(out.get("error") or "provider error"),
                            seconds=time.time() - started)
-        return Bounded("ok", value=out.get("value"), seconds=time.time() - started)
+        return Bounded("ok", value=value, seconds=time.time() - started)
     finally:
         if proc.poll() is None:
             proc.kill()

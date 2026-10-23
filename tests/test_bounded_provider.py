@@ -86,3 +86,18 @@ def test_only_test_targets_may_replace_the_bulk_download(monkeypatch):
     assert bounded.bulk_target() == "_bounded_targets:frame"
     monkeypatch.delenv("QUANTA_BULK_TARGET")
     assert bounded.bulk_target() == bounded.DEFAULT_BULK_TARGET
+
+
+def test_results_cross_without_pickle_and_arrive_intact():
+    import pandas as pd
+
+    import _bounded_targets as targets
+
+    res = bounded.run("_bounded_targets:frame", {"tickers": ["SYNA", "SYNB"]}, budget=60)
+    assert res.status == "ok"
+    pd.testing.assert_frame_equal(res.value, targets.frame(["SYNA", "SYNB"]), check_freq=False)
+    assert bounded.run("_bounded_targets:slow", {"seconds": 0.0}, budget=60).value is None
+    bad = bounded.run("_bounded_targets:boom", {}, budget=60)
+    assert bad.status == "error" and "429" in bad.error
+    src = (Path(bounded.__file__)).read_text(encoding="utf-8")
+    assert "pickle" not in src.replace("(pickle, used before", "")

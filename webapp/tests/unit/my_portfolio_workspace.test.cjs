@@ -459,12 +459,18 @@ test('News & Events: today and this week, each item says what, why, exposure and
   assert.match(words(xom), /Tentative date: the company has not confirmed it/);
 });
 
-test('alerts are the viewer’s conditions, separate from the calendar, with dismiss and snooze, and say where they appear', () => {
+test('alerts are the viewer’s conditions, separate from the calendar, with dismiss and snooze, and say where they appear', (t) => {
   loaded();
   const events = I.events;
   const rules = [{ id: 'r1', type: 'weight_above', value: 15 }, { id: 'r2', type: 'call_changed', value: 30 }, { id: 'r3', type: 'cash_below', value: 5 }];
-  const found = news.evaluateAlerts(pf, events, rules, Date.parse('2026-09-29T15:00:00Z'));
+  const fixtureNow = Date.parse('2026-09-29T15:00:00Z');
+  const found = news.evaluateAlerts(pf, events, rules, fixtureNow);
   assert.deepEqual(found.map((a) => a.title), ['NVDA is 35.0% of the account', 'AAPL is 15.1% of the account', 'XOM: Hold → Trim']);
+  // activeAlerts reads the clock; pin it to the fixture's day so the 30-day
+  // "call changed" window does not expire as the calendar moves on.
+  const realNow = Date.now;
+  Date.now = () => fixtureNow;
+  t.after(() => { Date.now = realNow; });
   ins.watch = { rules, dismissed: { [found[0].id]: Date.now() }, snoozed: { [found[1].id]: Date.now() + 864e5 } };
   assert.deepEqual(X.activeAlerts(pf).map((a) => a.title).filter((t) => !/XOM/.test(t) || true).slice(0, 1).length, 1);
   assert.ok(!X.activeAlerts(pf).some((a) => a.id === found[0].id || a.id === found[1].id));

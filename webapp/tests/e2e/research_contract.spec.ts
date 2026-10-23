@@ -89,6 +89,25 @@ async function run(page: Page, ticker: string, market: 'US' | 'IN', fast = true)
 }
 
 test('RC-DIAG new listing in India mode: too new to score, with the facts and the US listing named', async ({ page }) => {
+  // The job outcome is fixed rather than live: RVII listed on 2026-08-13, so by
+  // late October it had 50 sessions and the provider path stopped producing
+  // this state. The server-side diagnosis is tested in test_research_data_path.py;
+  // this test covers how the page shows it.
+  const detail = {
+    status: 'insufficient_data', category: 'insufficient_data', data_status: 'insufficient_history',
+    ticker: 'RVII', provider: 'yfinance', title: 'RVII is too new to score',
+    error_message: 'Only 31 daily bar(s) of history since 2026-08-13 for RVII; the model needs at least 50 to score trend, volatility and risk.',
+    suggested_action: 'Research becomes available after 19 more trading session(s). The facts above are what the provider has so far.',
+    retryable: false, attempts: 1, alternatives: [], can_switch_market: false,
+    facts: { requested_symbol: 'RVII', resolved_symbol: 'RVII', symbol_note: 'No NSE or BSE listing found for RVII; analysed the US listing.',
+      company_name: 'Robinhood Ventures Fund II', quote_type: 'EQUITY', exchange: 'NYQ', currency: 'USD', currency_symbol: '$',
+      last_price: 22.11, market_cap: 176880000, history_bars: 31, first_bar_date: '2026-08-13', last_bar_date: '2026-09-25' },
+  };
+  const job = { status: 'error', progress: 100, message: detail.title, error: detail.error_message, error_detail: detail };
+  await page.route('**/api/analyze', (route) => route.fulfill({ status: 202, json: { job_id: 'e2e-rvii', status: 'running' } }));
+  await page.route('**/api/jobs/e2e-rvii/stream', (route) => route.fulfill({
+    status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: `data: ${JSON.stringify(job)}\n\n` }));
+  await page.route('**/api/jobs/e2e-rvii', (route) => route.fulfill({ json: job }));
   await run(page, 'RVII', 'IN');
   const card = page.locator('#an-results [data-diagnostic="insufficient_data"]');
   await expect(card).toBeVisible();

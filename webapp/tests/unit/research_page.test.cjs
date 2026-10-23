@@ -190,3 +190,13 @@ test('a tear sheet that passes its data checks shows the engine’s new-money ca
   assert.match(nm.textContent, /Eligible/);
   assert.equal(root.querySelector('[data-sizing-withheld]'), null);
 });
+
+test('the capital set in Picks is kept per market and is what Research sizes against', () => {
+  assert.equal(app.accountSizeFor('US'), null, 'nothing saved: the server uses its placeholder and says so');
+  app.saveBudget('US', '25000');
+  app.saveBudget('IN', '500000');
+  assert.equal(app.accountSizeFor('US'), 25000);
+  assert.equal(app.accountSizeFor('IN'), 500000);
+  app.saveBudget('US', '5');                      // under CAPITAL.MIN_US: not an account
+  assert.equal(app.accountSizeFor('US'), 25000);
+});

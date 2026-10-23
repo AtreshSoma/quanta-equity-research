@@ -59,3 +59,26 @@ def test_search_rejects_unusable_queries_without_a_provider_call():
     for q in ("", "<img>", "x" * 41):
         resp = c.get("/api/symbol-search", query_string={"q": q})
         assert resp.status_code == 200 and resp.get_json()["results"] == [], q
+
+
+def test_the_account_note_names_the_real_account_in_its_currency():
+    assert webapp._account_note(25000, False, "AAPL", "US") == "Sized against a $25,000 account (your capital in Picks)."
+    assert webapp._account_note(500000, False, "TCS.NS", None).startswith("Sized against a ₹500,000 account")
+    note = webapp._account_note(100000, True, "AAPL", "US")
+    assert "default" in note and "Set your capital in Picks" in note
+
+
+def test_a_declared_account_size_reaches_the_tear_sheet_job(monkeypatch):
+    seen = {}
+
+    def fake_run(job_id, ticker, **kw):
+        seen.update(kw)
+
+    monkeypatch.setattr(webapp, "_run_analysis", fake_run)
+    monkeypatch.setattr(webapp.threading, "Thread", lambda target, args=(), kwargs=None, daemon=None, **_: type(
+        "T", (), {"start": lambda self: target(*args, **(kwargs or {}))})())
+    client = webapp.app.test_client()
+    res = client.post("/api/analyze", json={"ticker": "ZZTEST", "account_size": 25000, "market": "US"},
+                      headers={"X-QUANTA-Request": "1"})
+    assert res.status_code == 202
+    assert seen.get("account_size") == 25000 and seen.get("account_size_assumed") is False

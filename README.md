@@ -233,7 +233,7 @@ host), and has no build step.
 |---|---|
 | **Overview** | Market mood, a session quote board, a plain-English read of the day and an interactive price chart, for the US or India |
 | **Discover** | Ranked ideas and the names moving today, each labelled by the model's Decision, with filters for sector and near earnings |
-| **Research** | One-ticker tear sheet: decision and levels, live chart, colour-coded technical signals, valuation, peers and risks; searchable US and Indian listings. Save the name to My list or set a price alert at its stop, its target or your own price |
+| **Research** | One-ticker tear sheet: decision and levels, live chart, colour-coded technical signals, valuation, peers and risks; searchable US and Indian listings. Save the name to My list or set a price alert at its stop, its target or your own price. Positions are sized against the capital you last set in Picks for that market (kept in this browser), not a placeholder |
 | **Picks** | Runs a scan through the engine's gates and lists Buy / Accumulate / Watchlist calls sized to your capital, with the rules each name passed or failed |
 | **My Portfolio** | Read-only Robinhood holdings with guidance, intraday, what-if, an Activity ledger and a Review tab. Every performance chart is a replay of today's holdings, not the account's own return |
 | **Evidence** | Whether each model is validated out of sample, in plain language, and how published Decisions did |

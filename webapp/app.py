@@ -9269,26 +9269,14 @@ def _quick_quote(symbol: str) -> Optional[Dict[str, Any]]:
 
 
 def _last_recorded_call(symbol: str) -> Optional[Dict[str, Any]]:
-    """QUANTA's latest call on ``symbol`` in the track-record ledger, or None."""
+    """QUANTA's latest call on ``symbol`` in the track-record ledger, or None.
+
+    The same lookup the daily briefing uses (webapp/briefing.py)."""
     try:
-        from tracking.ledger import SignalLedger
-        rows = SignalLedger().rows(ticker=symbol)
+        from briefing import ledger_call
+        return ledger_call(symbol)
     except Exception:  # noqa: BLE001 - no ledger, no call to show
         return None
-    if not rows:
-        return None
-    last = rows[-1]
-    engine = {"elite": "Research", "elite_pro": "Picks", "shortterm": "Short-term scanner"}.get(
-        last.get("engine"), last.get("engine"))
-    return {
-        "engine": engine,
-        "label": last.get("label") or last.get("action"),
-        "as_of": last.get("as_of_date"),
-        "price": last.get("reference_price"),
-        "stop": last.get("stop_price"),
-        "target": last.get("target_price"),
-        "evidence": last.get("evidence_status"),
-    }
 
 
 _alert_worker = None

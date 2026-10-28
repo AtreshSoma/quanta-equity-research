@@ -646,6 +646,103 @@ def idea_read(sym: str, market: str, price: Any, target: Any, earnings_date: Any
     return out
 
 
+RELATIVE_WINDOWS = (("1M", 21), ("3M", 63), ("6M", 126), ("1Y", 252))
+
+
+def relative_rows(stock: List[Tuple[str, float]], fund: List[Tuple[str, float]]) -> List[Dict[str, Any]]:
+    """The stock's return against a fund's over the same sessions, per window,
+    in percent. Both series are [date, close]; only common dates count, and a
+    window without that many common sessions is left out, never estimated."""
+    f = dict(fund)
+    common = [(d, c, f[d]) for d, c in stock if d in f and c and f[d]]
+    rows = []
+    for label, n in RELATIVE_WINDOWS:
+        if len(common) <= n:
+            continue
+        (_, s0, f0), (_, s1, f1) = common[-1 - n], common[-1]
+        sp, fp = (s1 / s0 - 1) * 100, (f1 / f0 - 1) * 100
+        rows.append({"window": label, "stock_pct": round(sp, 2), "fund_pct": round(fp, 2), "excess_pct": round(sp - fp, 2)})
+    return rows
+
+
+def peer_fund(market: str, sector: Any, industry: Any) -> Tuple[Optional[str], Optional[str]]:
+    """The fund a name is compared with, and whether it matched the industry or the sector."""
+    ind = (M.INDUSTRY_FUND_BY_INDUSTRY.get(market) or {}).get(str(industry or ""))
+    if ind:
+        return ind, "industry"
+    sec = (M.SECTOR_FUND_BY_SECTOR.get(market) or {}).get(str(sector or ""))
+    return (sec, "sector") if sec else (None, None)
+
+
+def research_read(sym: str, market: str, price: Any, target: Any, horizon_days: Any = None,
+                  earnings_date: Any = None, sector: Any = None, industry: Any = None,
+                  now: Optional[datetime] = None) -> Dict[str, Any]:
+    """What the Research tear sheet adds after it renders: the option market's
+    odds of the horizon target, the move it prices through a report inside the
+    horizon (with past reactions), analyst revisions, and the name against its
+    industry or sector fund. Every figure is measured or None."""
+    now = now or datetime.now()
+    out: Dict[str, Any] = {"symbol": sym}
+    s, k = _num(price), _num(target)
+    sessions = int(_num(horizon_days) or _T.LEVELS.RESEARCH_HORIZON_DAYS)
+    cal_days = max(1, round(sessions * 365 / float(M.TRADING_DAYS_PER_YEAR)))
+    hist = _safe(lambda: _history(sym), f"history {sym}") or []
+    out["vol_1y"] = realized_vol([c for _, c in hist])
+
+    fund, basis = peer_fund(market, sector, industry)
+    if fund and hist:
+        fh = _safe(lambda: _history(fund), f"history {fund}") or []
+        rows = relative_rows([(d, c) for d, c in hist], [(d, c) for d, c in fh])
+        out["peer"] = {"fund": fund, "basis": basis, "rows": rows} if rows else None
+
+    ud = _safe(lambda: _revisions(sym), f"revisions {sym}")
+    if ud is not None:
+        out["revisions"] = revisions_summary([{**r, "when": _parse_when(r.get("when"))} for r in ud], now,
+                                             int(M.REVISION_WINDOW_DAYS))
+    eps = _safe(lambda: _eps_trend(sym), f"eps {sym}") or {}
+    cur, ago = eps.get("current"), eps.get(str(M.EPS_REVISION_WINDOW))
+    out["eps_revision_pct"] = round((cur / ago - 1) * 100, 2) if cur and ago and ago > 0 else None
+
+    rate, rate_src = risk_free(market)
+    tk = _yf().Ticker(sym) if market == "US" else None
+    ox = _safe(lambda: _options(sym, tk), f"options {sym}") if market == "US" else None
+    expiries = (ox or {}).get("expiries") or []
+    sigma, source, expiry = None, None, None
+    if s and k and expiries:
+        expiry = pick_expiry(expiries, now.date(), cal_days)
+        ch = _safe(lambda: _chain(sym, expiry, tk), f"chain {sym}") if expiry else None
+        if ch:
+            to_expiry = (datetime.strptime(expiry[:10], "%Y-%m-%d").date() - now.date()).days / 365.0
+            sigma = strike_iv(ch["calls"], ch["puts"], k, s, to_expiry, rate)
+            source = "options" if sigma else None
+    if sigma is None and out["vol_1y"]:
+        sigma, source, expiry = out["vol_1y"], "history", None
+    out["odds"] = ({"p": target_odds(s, k, sigma, rate, cal_days / 365.0), "sigma": sigma, "source": source,
+                    "expiry": expiry, "rate_source": rate_src, "horizon_days": cal_days} if sigma and s and k else None)
+
+    ed = None
+    try:
+        ed = datetime.strptime(str(earnings_date)[:10], "%Y-%m-%d").date() if earnings_date else None
+    except ValueError:
+        ed = None
+    if ed and 0 <= (ed - now.date()).days <= cal_days:
+        er: Dict[str, Any] = {"date": ed.isoformat(), "implied_move_pct": None, "expiry": None}
+        if s and expiries:
+            # The first expiry after the report day holds the report whatever its timing.
+            ex = pick_expiry(expiries, ed + timedelta(days=1))
+            ch = _safe(lambda: _chain(sym, ex, tk), f"chain {sym}") if ex else None
+            if ch:
+                er["implied_move_pct"] = implied_move(ch["calls"], ch["puts"], s)
+                er["expiry"] = ex
+        reps = _safe(lambda: _earnings_dates(sym), f"earnings dates {sym}") or []
+        reports = [(dt, rep) for dt, rep in ((_parse_when_local(w, market), r) for w, r in reps) if dt is not None]
+        moves = earnings_moves(reports, [(date.fromisoformat(d), c) for d, c in hist], market)
+        er["history"] = moves
+        er["avg_abs_move_pct"] = round(sum(abs(m["move_pct"]) for m in moves) / len(moves), 2) if moves else None
+        out["earnings"] = er
+    return out
+
+
 def _parse_when_local(text: Any, market: str) -> Optional[datetime]:
     try:
         w = datetime.fromisoformat(str(text))

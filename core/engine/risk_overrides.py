@@ -33,6 +33,36 @@ def measured_red_flags(inputs: DecisionInputs) -> List[str]:
     return flags
 
 
+def also_failing_gates(
+    inputs: DecisionInputs,
+    candidate: FinalAction,
+    resolved: FinalAction,
+    fired: List[str],
+    enforce_price_gates: bool = True,
+) -> List[Tuple[str, str]]:
+    """The reward/risk and score gates a buy candidate also fails.
+
+    :func:`apply_risk_override_details` stops testing a gate once an earlier
+    rule has taken the candidate out of the funded tiers, so a grade-F name
+    with a 1.7 reward/risk was told "risk grade D or better would change
+    this" when the reward/risk would still have kept it out. These are named
+    so every remedy shown is sufficient. They never change the action, and
+    the caller keeps them out of the override count behind the confidence tier.
+    """
+    if not (enforce_price_gates and candidate.allocates_new_capital) or resolved.allocates_new_capital:
+        return []
+    # Reward/risk only means something on a valid stop below and target above the entry.
+    if not inputs.is_valid or set(fired) & {"INVALID_INPUTS", "INVALID_PRICE", "INVALID_STOP", "INVALID_TARGET",
+                                            "STOP_ABOVE_ENTRY", "TARGET_BELOW_ENTRY"}:
+        return []
+    out: List[Tuple[str, str]] = []
+    if "LOW_REWARD_RISK" not in fired and inputs.risk_reward_ratio < inputs.min_rr_for_buy:
+        out.append(("LOW_REWARD_RISK", f"Also: R/R {inputs.risk_reward_ratio:.2f} below min {inputs.min_rr_for_buy:.2f}"))
+    if "LOW_SCORE" not in fired and inputs.composite_score < inputs.min_score_for_buy:
+        out.append(("LOW_SCORE", f"Also: score {inputs.composite_score:.0f} below min {inputs.min_score_for_buy:.0f}"))
+    return out
+
+
 def apply_risk_overrides(
     inputs: DecisionInputs,
     candidate: FinalAction,

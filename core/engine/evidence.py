@@ -56,7 +56,7 @@ ELITE_PRO = "elite_pro.composite"
 # A scanner call is funded only after the model named here confirms it (Picks
 # deep-confirm runs the Research engine and publishes its levels). While the
 # scanner's own composite has no test of its own, its calls carry the governing
-# model's result, so a Picks Buy shows "no edge found" when Research has none.
+# model's result, so a Picks Buy shows "Edge unproven" when Research has none.
 GOVERNED_BY: Dict[str, str] = {ELITE_PRO: ELITE}
 
 # Earlier versions of each live model, newest first. Their results are shown

@@ -332,6 +332,16 @@ class MARKET(_Group):
                "Energy": "^CNXENERGY", "Real Estate": "^CNXREALTY", "Communication Services": "^CNXMEDIA",
                "Industrials": "^CNXINFRA"},
     }
+    # Yahoo industry -> a fund closer to the business than its sector's, for the
+    # Research peer comparison (NVDA against semiconductors, not all of tech).
+    # An industry not listed falls back to SECTOR_FUND_BY_SECTOR.
+    INDUSTRY_FUND_BY_INDUSTRY = {
+        "US": {"Semiconductors": "SMH", "Semiconductor Equipment & Materials": "SMH",
+               "Software - Infrastructure": "IGV", "Software - Application": "IGV",
+               "Biotechnology": "XBI", "Banks - Regional": "KRE", "Oil & Gas E&P": "XOP",
+               "Aerospace & Defense": "ITA", "Gold": "GDX", "Residential Construction": "XHB"},
+        "IN": {},
+    }
     # Gross exposure bands (% of capital) for each Overview posture, and the caps
     # applied while confidence is low or data is stale. A Picks scan deploys no
     # more than the upper end of the band in force (owner decision 2026-10-19).

@@ -5100,6 +5100,12 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 2px; cur
 
 /* [Calls] Validation note beside the calls; the empty state; Method lists. */
 .pk-valid { font-size: var(--fs-2xs); font-weight: 600; color: var(--warn-bright); border: 1px solid var(--warn-line); border-radius: var(--r-xs); padding: 2px 8px; white-space: nowrap; }
+.pk-valid.model-flag {
+  display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px 1px 8px; border-color: var(--border-strong); border-radius: var(--r-pill);
+  background: transparent; color: var(--text-secondary); line-height: 1.5;
+}
+.pk-valid.model-flag::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
+@media (hover: hover) { .pk-valid.model-flag:hover { border-color: var(--warn-line); color: var(--text-primary); text-decoration: none; } }
 /* D1: the "Model not yet validated" flag sits beside every call and opens the evidence page. */
 .model-flag { display: inline-block; vertical-align: middle; text-decoration: none; line-height: 1.4; }
 .model-flag:focus-visible { text-decoration: underline; }
@@ -5907,8 +5913,10 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 2px; cur
   font-family: var(--font-sans); font-size: var(--fs-2xs); font-weight: 600; line-height: 1.3;
   letter-spacing: 0; text-transform: none; color: var(--text-secondary); box-shadow: none;
 }
-#an-results :is(.model-flag, .tag.warn, .gate-chip.partial, .gate-chip.fail, .risk-grade-chip.bear, .ds-stale) { border-color: var(--warn-line); color: var(--warn-bright); background: var(--warn-dim); }
-@media (hover: hover) { #an-results .model-flag:hover { text-decoration: underline; text-underline-offset: 2px; } }
+#an-results :is(.tag.warn, .gate-chip.partial, .gate-chip.fail, .risk-grade-chip.bear, .ds-stale) { border-color: var(--warn-line); color: var(--warn-bright); background: var(--warn-dim); }
+/* The model flag is information, not a blocker: secondary ink and an amber key. */
+#an-results .model-flag { gap: 6px; padding-left: 8px; }
+@media (hover: hover) { #an-results .model-flag:hover { border-color: var(--warn-line); color: var(--text-primary); text-decoration: none; } }
 
 /* No tracked capitals on the sheet: labels are sentence case at 12px. */
 #an-results :is(.qb-label, .rm-label, .insider-box .label, .validation-section > .section-kicker, .q-table thead th, .forecast-cell .label) {
@@ -6181,6 +6189,43 @@ html.lc-locked { overflow: hidden; }
 #an-results .dladder-now { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--text-primary); }
 #an-results .dladder-k { display: flex; justify-content: space-between; gap: 8px; margin-top: 5px; font-size: var(--fs-2xs); font-weight: 600; font-variant-numeric: tabular-nums; }
 #an-results .dladder-mid { color: var(--text-muted); font-weight: 500; }
+
+/* Notes under the ladder (levelNotesHtml): hurdles, hit rate, resistance, and
+   from the Research read the earnings move against the stop and the odds. */
+#an-results .dnotes { display: grid; gap: 6px; margin: 10px 0 0; padding: 8px 0 0; list-style: none; border-top: 1px solid var(--border-soft); font-size: var(--fs-xs); line-height: 1.45; color: var(--text-secondary); }
+#an-results .dnotes:empty { display: none; }
+#an-results .dnotes li { position: relative; padding-left: 12px; }
+#an-results .dnotes li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 5px; height: 5px; border-radius: 1px; background: var(--border-strong); }
+#an-results .dnotes li.warn { color: var(--text-primary); }
+#an-results .dnotes li.warn::before { background: var(--warn); }
+#an-results .dnotes b { font-weight: 600; color: var(--text-primary); }
+/* The call before this one, when it was different. */
+#an-results .decision-prev { margin: 4px 0 0; font-size: var(--fs-xs); color: var(--text-secondary); }
+#an-results .decision-prev a { color: var(--primary); }
+/* Call history: a changed call reads in ink with an amber key. */
+#an-results [data-call-history] tr.is-changed td:nth-child(2)::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 2px; background: var(--warn); vertical-align: 0; }
+#an-results [data-call-history] tr.is-changed td { color: var(--text-primary); font-weight: 600; }
+#an-results [data-call-history] td:first-child { white-space: nowrap; }
+
+/* Street and estimates: six cells on one ruled strip, label over figure. */
+#an-results .st-cells { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+#an-results .st-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 2px 14px; box-shadow: -1px 0 0 var(--border-soft); }
+#an-results .st-cell:first-child { padding-left: 0; box-shadow: none; }
+#an-results .st-k { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+#an-results .st-v { font-family: var(--font-mono); font-size: var(--fs-sm); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-primary); white-space: nowrap; }
+#an-results .st-v .is-word { font-family: var(--font-sans); }
+#an-results .st-s { font-size: var(--fs-2xs); color: var(--text-muted); }
+@container tsglance (max-width: 860px) {
+  #an-results .st-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 10px; }
+  #an-results .st-cell:nth-child(3n + 1) { padding-left: 0; box-shadow: none; }
+}
+@container tsglance (max-width: 480px) {
+  #an-results .st-cells { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #an-results .st-cell:nth-child(3n + 1) { padding-left: 14px; box-shadow: -1px 0 0 var(--border-soft); }
+  #an-results .st-cell:nth-child(2n + 1) { padding-left: 0; box-shadow: none; }
+}
+/* With the peer fund, the benchmark table drops its bars to fit six columns. */
+#an-results .ts-relative.has-peer .q-table :is(th, td) { padding-left: 8px; padding-right: 8px; }
 #an-results .dladder.is-muted :is(.dladder-risk, .dladder-reward) { background: var(--border-strong); }
 #an-results .dladder.is-muted .dladder-k > span { color: var(--text-muted); }
 
@@ -6254,13 +6299,23 @@ html.lc-locked { overflow: hidden; }
   .rs-kbd { display: none; }
 }
 
-/* At a glance: chart | signals, then session quote | scores. */
+/* At a glance (2026-10-23, owner: the chart was too compressed): the chart
+   across the reading column at its own height, then the signals beside the
+   scores over the benchmark table. The session quote opens Technicals. */
 #an-results .ts-glance { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); align-items: start; container: tsglance / inline-size; }
 #an-results .ts-glance > * { min-width: 0; margin: 0; }
 @container tsdesk (min-width: 900px) {
-  #an-results .ts-glance { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: stretch; }
+  #an-results .ts-glance { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; }
+  #an-results .ts-glance > .ts-chart { grid-column: 1 / -1; }
+  #an-results .ts-glance > .ts-signals { grid-column: 1; grid-row: 2 / span 2; }
+  #an-results .ts-glance > .ts-scores { grid-column: 2; grid-row: 2; }
+  #an-results .ts-glance > .ts-relative { grid-column: 2; grid-row: 3; }
+  #an-results .ts-glance > .ts-street { grid-column: 1 / -1; grid-row: 4; }
 }
-#an-results .ts-chart { --lc-h: 220px; }
+@container tsdesk (min-width: 1100px) {
+  #an-results .ts-chart { --lc-h: 380px; }
+  @media (min-height: 1000px) { #an-results .ts-chart { --lc-h: 440px; } }
+}
 #an-results .ts-glance > .ts-session { display: flex; flex-direction: column; }
 #an-results .ts-glance .ts-session .quote-board { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 #an-results .ts-glance .ts-session .ds-meters { grid-template-columns: minmax(0, 1fr); gap: 4px; }
@@ -6273,6 +6328,7 @@ html.lc-locked { overflow: hidden; }
 
 /* Signals: label, value, then the reading in one coloured word. */
 #an-results .ts-signals { display: flex; flex-direction: column; }
+#an-results .ts-signals > .sg-list { flex: 1 1 auto; align-content: space-between; }
 .sg-tally { display: flex; height: 6px; margin: -2px 0 6px; overflow: hidden; border-radius: 3px; background: var(--bg-elev-3); }
 .sg-tally > span { display: block; height: 100%; }
 .sg-tally-bull { background: var(--bull); }
@@ -6328,7 +6384,6 @@ html.lc-locked { overflow: hidden; }
 .sg-range-lo, .sg-range-hi { font-weight: 500; color: var(--text-secondary); }
 #an-results .ts-glance .ts-session .quote-board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 #an-results .ts-glance .ts-session .qb-ltp { grid-column: span 2; }
-#an-results .ts-glance > .ts-relative { grid-column: 1 / -1; }
 #an-results .ts-relative .q-table :is(th, td) { padding-top: 6px; padding-bottom: 6px; }
 .rp-diff { white-space: nowrap; }
 .rp-bar { display: inline-block; position: relative; width: 96px; height: 6px; margin-right: 10px; vertical-align: middle; border-radius: 3px; background: var(--bg-elev-3); }

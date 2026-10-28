@@ -512,7 +512,7 @@
           <td class="mono">${i + 1}</td>
           <td class="ticker">${esc(p.ticker || '')}</td>
           <td>${esc(p.sector || '')}</td>
-          <td><span class="qpro-conflict-tag ${sigCls}">${esc(sig || '--')}</span>${qual ? `<span class="qpro-qual" title="${esc(qual)}">${noEdge ? 'Tested: no edge found' : 'Model not yet validated'}</span>` : ''}</td>
+          <td><span class="qpro-conflict-tag ${sigCls}">${esc(sig || '--')}</span>${qual ? `<span class="qpro-qual" title="${esc(qual)}">${noEdge ? 'Edge unproven' : 'Model not yet validated'}</span>` : ''}</td>
           <td class="mono">${shares ? shares.toLocaleString() : dash}</td>
           <td class="mono">${entry ? fmtCur(entry, sym, 2) : dash}</td>
           <td class="mono">${value ? fmtCur(value, sym, 0) : dash}</td>

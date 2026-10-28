@@ -8129,6 +8129,48 @@ def chart_api():
     return jsonify({**payload, "cached": False})
 
 
+@app.route("/api/research/enrich")
+def research_enrich_api():
+    """What the Research tear sheet adds once it has rendered (discover_enrich.research_read):
+    option odds of the horizon target, the move options price through a report
+    inside the horizon, revisions and the name against its industry or sector
+    fund. Nonblocking, like Discover: `pending` is 1 until the read finishes."""
+    if _cross_site_read():
+        return jsonify({"error": "Cross-site request refused."}), 403
+    a = request.args
+    sym = (a.get("symbol") or "").strip().upper()
+    if not re.fullmatch(r"[A-Z0-9^.=&-]{1,32}", sym):
+        return jsonify({"error": "symbol is required"}), 400
+    market = _normalize_market(a.get("market"))
+    args = (sym, market, a.get("price"), a.get("target"), a.get("horizon"), a.get("earnings"),
+            a.get("sector"), a.get("industry"))
+    fut = _disc.submit("research|" + "|".join(str(x or "") for x in args),
+                       float(_T.MARKET.ENRICH_OPTIONS_CACHE_SECONDS), _disc.research_read, *args)
+    try:
+        wait = max(0.0, min(float(a.get("wait") or 0), 8.0))
+    except ValueError:
+        wait = 0.0
+    done, pending = _disc.collect({"r": fut}, wait)
+    return jsonify(_safe_serialize({"symbol": sym, "read": done.get("r"), "pending": len(pending), "as_of": _now_iso()}))
+
+
+@app.route("/api/research/history")
+def research_history_api():
+    """The Research calls recorded for one ticker (tracking.ledger), newest first."""
+    if _cross_site_read():
+        return jsonify({"error": "Cross-site request refused."}), 403
+    sym = (request.args.get("symbol") or "").strip().upper()
+    if not re.fullmatch(r"[A-Z0-9^.=&-]{1,32}", sym):
+        return jsonify({"error": "symbol is required"}), 400
+    from tracking.ledger import SignalLedger, call_history
+    try:
+        rows = SignalLedger().rows(engine="elite", ticker=sym)
+    except Exception as exc:  # noqa: BLE001 - the panel says the history is unavailable
+        logger.info("Call history for %s unavailable: %s", sym, type(exc).__name__)
+        return jsonify({"symbol": sym, "calls": None})
+    return jsonify(_safe_serialize({"symbol": sym, "calls": call_history(rows, int(_T.LEVELS.RESEARCH_HORIZON_DAYS))}))
+
+
 # Research search: listings matching a name or ticker, US and Indian exchanges
 # only (the two markets QUANTA analyses), stocks and ETFs only.
 SEARCH_EXCHANGES = {

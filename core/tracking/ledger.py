@@ -734,6 +734,33 @@ def yfinance_loader(ticker: str, start: _date, end: _date):
     return frame
 
 
+def call_history(rows: Iterable[Dict[str, Any]], horizon_days: int, limit: int = 8) -> List[Dict[str, Any]]:
+    """One recorded call per date, newest first: the row at ``horizon_days``
+    when that date recorded one, else its longest horizon. Each says whether
+    the call changed from the one recorded before it."""
+    by_date: Dict[str, Dict[str, Any]] = {}
+    for r in rows:
+        d = r.get("as_of_date")
+        if not d:
+            continue
+        keep = by_date.get(d)
+        h, kh = int(r.get("horizon_days") or 0), int((keep or {}).get("horizon_days") or 0)
+        if keep is None or (h == horizon_days) or (kh != horizon_days and h > kh):
+            by_date[d] = r
+    ordered = [by_date[d] for d in sorted(by_date)]
+    out: List[Dict[str, Any]] = []
+    prev = None
+    for r in ordered:
+        out.append({
+            "date": r["as_of_date"], "action": r.get("action"), "label": r.get("label"),
+            "stance": r.get("stance"), "score": _finite(r.get("score")),
+            "price": _finite(r.get("reference_price")), "target": _finite(r.get("target_price")),
+            "stop": _finite(r.get("stop_price")), "changed": prev is not None and r.get("action") != prev,
+        })
+        prev = r.get("action")
+    return list(reversed(out))[:limit]
+
+
 _DEFAULT: Optional[SignalLedger] = None
 _DEFAULT_LOCK = threading.Lock()
 

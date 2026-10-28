@@ -1,6 +1,6 @@
 {
   "account_size": 100000.0,
-  "recorded_at": "2026-08-27",
+  "recorded_at": "2026-10-23",
   "result": {
     "action_items": [
       "Do not open a new position while the blocking conditions remain",
@@ -9,82 +9,82 @@
     "action_plan_note": "These targets are for existing holders, not new entry recommendations.",
     "action_plan_title": "EXISTING HOLDER PROFIT PLAN",
     "adjustment_status": "split_dividend_adjusted",
-    "after_hours_change_pct": -0.006,
-    "after_hours_price": 83.47,
+    "after_hours_change_pct": 0.0,
+    "after_hours_price": 0.0,
     "analysis_timestamp": "<volatile>",
     "asset_type": "common_stock",
     "beginner_guidance": {
       "aggressive_buyer": "Do not add until the final decision changes",
       "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
-      "breakout_entry": 98.032,
+      "breakout_entry": 97.3003,
       "buy_now": "NO",
-      "candlestick_timing": "NO CLEAR EDGE",
-      "confidence": 46.1399,
+      "candlestick_timing": "WAIT",
+      "confidence": 42.1008,
       "data_quality": "WARN",
-      "entry_quality": "Weak",
+      "entry_quality": "Poor",
       "existing_holder": "Hold",
-      "existing_holder_stop": 79.6159,
-      "long_term_holder_stop": 79.6159,
+      "existing_holder_stop": 77.4151,
+      "long_term_holder_stop": 77.4151,
       "long_tf": "Review before adding",
       "main_reason": "Mixed signals; wait for a clearer setup.",
       "mid_tf": "Hold existing / wait",
       "new_buyer": "Wait; no new position",
-      "pullback_basis": "",
-      "pullback_entry": 0.0,
+      "pullback_basis": "support zone",
+      "pullback_entry": 80.75,
       "pullback_is_deep": false,
-      "pullback_stop": 0.0,
+      "pullback_stop": 79.2185,
       "recommendation_label": "WATCHLIST",
       "risk_conflict_warning": "",
       "risk_grade": "B",
       "rr_label": "Unfavorable",
       "short_tf": "Wait",
       "signal": "HOLD",
-      "tactical_stop": 81.8055,
-      "tactical_stop_basis": "~1x ATR",
+      "tactical_stop": 80.3462,
+      "tactical_stop_basis": "below recent swing low",
       "volume_requirement": ">= 1.5x avg on entry day",
       "warnings": [
-        "Valuation target 83.34 is at or below the entry reference 83.47: no long reward, so R:R is 0 by definition."
+        "Valuation target 81.45 is at or below the entry reference 81.68: no long reward, so R:R is 0 by definition."
       ]
     },
     "business_summary": "NextEra Energy, Inc., through its subsidiaries, generates, stores, transmits, distributes, and sells electric power to retail and wholesale customers in North America. It operates through Florida Power & Light Company (FPL) and NEER segments. The company generates electricity from wind, solar, nuclear, natural gas, and other clean energy assets. It also invests in generation, storage, transmission, and distribution facilities; owns, develops, constructs, manages, and operates generation facilities, including renewables, nuclear and natural gas, and battery storage facilities in the wholesale energy market in the United States and Canada, as well as electric and gas transmission assets, and natural gas pipelines; provides full energy and capacity requirement services; markets and trades in energy-related commodities; and participates in the production of natural gas, natural gas liquids, and oil. As of December 31, 2025, the company had approximately 35,963 megawatts of net generating capacity; approximately 93,000 circuit miles of transmission and distribution lines; and 932 substations. It serves approximately 12 million people through approximately 6 million customer accounts on the east and lower west coasts of Florida. The company was formerly known as FPL Group, Inc. and changed its name to NextEra Energy, Inc. in 2010. NextEra Energy, Inc. was founded in 1925 and is headquartered in Juno Beach, Florida.",
     "catalysts": {
-      "catalyst_score": 3,
-      "days_to_earnings": 61,
-      "dividend_yield": 0.0298,
-      "earnings_date": "2026-10-27",
-      "ex_dividend_date": "2026-08-27",
+      "catalyst_score": 0,
+      "days_to_earnings": -2,
+      "dividend_yield": 0.0305,
+      "earnings_date": "2026-10-21",
+      "ex_dividend_date": "2026-11-26",
       "last_earnings_result": "Unknown",
       "last_earnings_surprise_pct": 0.0,
       "near_term_catalyst": false
     },
     "company_name": "NextEra Energy, Inc.",
     "confidence_level": "LOW",
-    "confidence_score": 46.1399,
+    "confidence_score": 42.1008,
     "conviction_label": "LOW-CONVICTION",
     "country": "United States",
     "currency": "USD",
     "currency_symbol": "$",
-    "current_price": 83.475,
+    "current_price": 81.675,
     "data_provider": "yfinance",
     "data_quality_status": "ok",
-    "day_change": -0.745,
-    "day_change_pct": -0.8846,
+    "day_change": -0.225,
+    "day_change_pct": -0.2747,
     "decision": {
       "action": "WATCHLIST",
       "as_of": "<volatile>",
       "blockers": [
         {
-          "category": "score",
-          "code": "HOLD_NOT_OWNED",
-          "remedy": "Overall score reaching 55 or higher",
-          "text": "Overall score is in the neutral band (45\u201355)"
+          "category": "valuation",
+          "code": "TARGET_BELOW_ENTRY",
+          "remedy": "A valuation target above the entry price",
+          "text": "12-month valuation target is at or below the entry"
         }
       ],
       "blocking": [
-        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+        "Target 81.45 <= entry 81.68 \u2192 WATCHLIST"
       ],
       "blocking_codes": [
-        "HOLD_NOT_OWNED"
+        "TARGET_BELOW_ENTRY"
       ],
       "caveat": "",
       "conflicts": [],
@@ -167,15 +167,15 @@
         "tested_through": "2026-10-21"
       },
       "factor_scores": {
-        "fundamental": 68,
+        "fundamental": 63,
         "quality": 59.2593,
-        "sentiment": 60,
-        "technical": 32,
+        "sentiment": 50,
+        "technical": 69,
         "valuation": 20.0
       },
       "freshness": {
         "lag_sessions": 0,
-        "last_bar": "2026-08-27",
+        "last_bar": "2026-10-23",
         "notes": [],
         "status": "fresh"
       },
@@ -192,32 +192,45 @@
       "invalidation": [],
       "label": "WATCHLIST",
       "levels": {
-        "entry": 83.475,
-        "reference_price": 83.475,
+        "entry": 81.675,
+        "reference_price": 81.675,
         "reward_risk": 0.0,
-        "stop": 79.6159,
-        "target": 83.3374,
+        "rr_hurdles": {
+          "funding": {
+            "clear_entry": 49.51,
+            "min": 1.8,
+            "passes": false
+          },
+          "research": {
+            "clear_entry": 54.63,
+            "min": 1.5,
+            "passes": false
+          }
+        },
+        "stop": 77.4151,
+        "target": 81.454,
         "target_basis": "63-session target, pro-rated from the 12-month valuation target",
         "target_horizon_days": 63,
-        "valuation_target": 82.9244,
+        "valuation_target": 80.7909,
         "valuation_target_horizon_days": 252
       },
-      "model_stance": "NEUTRAL",
+      "model_stance": "BULLISH",
       "new_money": "WATCH",
       "primary_blocker": {
-        "category": "score",
-        "code": "HOLD_NOT_OWNED",
-        "remedy": "Overall score reaching 55 or higher",
-        "text": "Overall score is in the neutral band (45\u201355)"
+        "category": "valuation",
+        "code": "TARGET_BELOW_ENTRY",
+        "remedy": "A valuation target above the entry price",
+        "text": "12-month valuation target is at or below the entry"
       },
       "qualifier": "",
       "reasons": [
-        "Composite score 46.1 \u2192 candidate HOLD_EXISTING",
-        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+        "Composite score 57.1 \u2192 candidate ACCUMULATE",
+        "Target 81.45 <= entry 81.68 \u2192 WATCHLIST"
       ],
       "red_flags": [
         "TARGET_BELOW_ENTRY",
-        "DCF_OVERVALUATION"
+        "DCF_OVERVALUATION",
+        "BEARISH_REVERSAL"
       ],
       "risk_grade": "B",
       "risk_grade_drivers": [
@@ -228,13 +241,13 @@
           "points": 1
         },
         {
-          "detail": "0.15 vs its benchmark (points above 1.2 / 1.5)",
+          "detail": "0.11 vs its benchmark (points above 1.2 / 1.5)",
           "factor": "beta",
           "label": "Beta",
           "points": 0
         },
         {
-          "detail": "-24% peak to trough (points beyond -25% / -40%)",
+          "detail": "-22% peak to trough (points beyond -25% / -40%)",
           "factor": "drawdown",
           "label": "Max drawdown",
           "points": 0
@@ -252,19 +265,19 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 499,
+      "risk_grade_lookback_days": 500,
       "risk_metrics": {
-        "beta": 0.152013,
-        "risk_score": 50,
-        "volatility": 0.253056
+        "beta": 0.109399,
+        "risk_score": 35,
+        "volatility": 0.252958
       },
       "risks": [],
       "scenarios": [
         {
           "method": "range of analyst consensus, intrinsic value (lowest)",
           "name": "low_method",
-          "price": 57.1503,
-          "return_pct": -31.536,
+          "price": 57.8107,
+          "return_pct": -29.2186,
           "source_ids": [
             "analyst_consensus",
             "intrinsic_value"
@@ -273,8 +286,8 @@
         {
           "method": "weighted blend of analyst consensus, intrinsic value",
           "name": "weighted",
-          "price": 82.9244,
-          "return_pct": -0.659574,
+          "price": 80.7909,
+          "return_pct": -1.08252,
           "source_ids": [
             "analyst_consensus",
             "intrinsic_value"
@@ -283,8 +296,8 @@
         {
           "method": "range of analyst consensus, intrinsic value (highest)",
           "name": "high_method",
-          "price": 98.3889,
-          "return_pct": 17.8663,
+          "price": 94.579,
+          "return_pct": 15.7991,
           "source_ids": [
             "analyst_consensus",
             "intrinsic_value"
@@ -292,7 +305,7 @@
         }
       ],
       "schema_version": 1,
-      "score": 46.1399,
+      "score": 57.1008,
       "score_basis": "Research composite (alpha factors only), 0-100",
       "sizing": {
         "dollar_risk": 0,
@@ -380,26 +393,26 @@
     "expense_ratio": 0.0,
     "fast_mode": false,
     "final_action": "WATCHLIST",
-    "first_bar_date": "2024-08-28",
+    "first_bar_date": "2024-10-23",
     "fundamental": {
-      "altman_z_score": 1.1634,
+      "altman_z_score": 1.1518,
       "altman_z_status": "ok",
       "altman_z_variant": "public",
-      "current_ratio": 0.534,
-      "debt_to_equity": 1.6168,
-      "dividend_yield": 0.0298,
-      "eps_growth_yoy": 53.1,
-      "ev_ebitda": 20.149,
-      "fcf_yield": -10.2034,
-      "forward_pe": 19.0208,
-      "free_cash_flow": -17766900000.0,
-      "gross_margin": 61.024,
+      "current_ratio": 0.529,
+      "debt_to_equity": 1.5325,
+      "dividend_yield": 0.0305,
+      "eps_growth_yoy": 93.2,
+      "ev_ebitda": 21.862,
+      "fcf_yield": -12.3827,
+      "forward_pe": 18.6545,
+      "free_cash_flow": -21211300000.0,
+      "gross_margin": 60.173,
       "is_etf": false,
-      "net_margin": 32.401,
-      "operating_margin": 31.524,
-      "pb_ratio": 3.0479,
-      "pe_ratio": 18.7584,
-      "peg_ratio": 0.3533,
+      "net_margin": 40.371,
+      "operating_margin": 33.004,
+      "pb_ratio": 2.7855,
+      "pe_ratio": 14.7162,
+      "peg_ratio": 0.1579,
       "piotroski_components_available": 9,
       "piotroski_f_score": 7,
       "quality_score": 59.2593,
@@ -410,13 +423,13 @@
         "revenue_growth": true,
         "roe": true
       },
-      "revenue_growth_yoy": 12.4,
-      "roa": 2.443,
-      "roe": 11.677,
-      "roic": 7.06
+      "revenue_growth_yoy": 1.6,
+      "roa": 2.407,
+      "roe": 14.064,
+      "roic": 8.2355
     },
     "has_existing_position": false,
-    "history_bars": 501,
+    "history_bars": 502,
     "industry": "Utilities - Regulated Electric",
     "insider": {
       "context_missing": false,
@@ -434,62 +447,63 @@
     "is_high_volatility": false,
     "is_invalid": false,
     "key_insights": [
-      "\u23f8\ufe0f HOLD signal with 46% confidence",
-      "\u26a0\ufe0f Death Cross detected - bearish long-term signal",
+      "\u23f8\ufe0f HOLD signal with 42% confidence",
+      "\ud83d\udd34 Candlestick: Bearish Harami (Bearish, medium reliability)",
       "\u2b50 High Piotroski F-Score (7/9) - strong fundamentals",
-      "\u26a0\ufe0f DCF suggests 26% overvaluation"
+      "\u26a0\ufe0f DCF suggests 33% overvaluation",
+      "\ud83d\udcf0 No direct company headlines found; peer/macro sentiment is not treated as company evidence"
     ],
-    "last_bar_date": "2026-08-27",
-    "market_cap": 174127000000.0,
+    "last_bar_date": "2026-10-23",
+    "market_cap": 171297000000.0,
     "market_intel": {
-      "analyst_count": 18,
+      "analyst_count": 19,
       "analyst_rating": "BUY",
       "buy_ratings": 0,
       "hold_ratings": 0,
-      "implied_upside": 17.8663,
-      "next_earnings_date": "2026-10-27",
+      "implied_upside": 15.7991,
+      "next_earnings_date": "Unknown",
       "sell_ratings": 0,
-      "target_high": 114.0,
-      "target_low": 55.0,
-      "target_mean": 98.3889,
-      "target_median": 100.5
+      "target_high": 110.0,
+      "target_low": 56.0,
+      "target_mean": 94.579,
+      "target_median": 100.0
     },
-    "market_regime": "SIDEWAYS",
-    "market_state": "POST",
+    "market_regime": "BULL_TRENDING",
+    "market_state": "REGULAR",
     "market_timestamp": "<volatile>",
     "mc_model_note": "",
     "model_action": "WATCHLIST",
     "monte_carlo": {
       "days_simulated": 30,
-      "expected_return": 0.5004,
+      "expected_return": 1.3402,
       "expected_return_basis": "mean",
-      "mean_price": 83.8927,
-      "median_price": 83.664,
-      "percentile_25": 78.9203,
-      "percentile_5": 73.1088,
-      "percentile_75": 88.5766,
-      "percentile_95": 96.1413,
-      "probability_10pct_gain": 0.1297,
-      "probability_10pct_loss": 0.1043,
+      "mean_price": 82.7696,
+      "median_price": 82.5379,
+      "percentile_25": 77.8923,
+      "percentile_5": 71.1268,
+      "percentile_75": 87.3338,
+      "percentile_95": 95.319,
+      "probability_10pct_gain": 0.1593,
+      "probability_10pct_loss": 0.0973,
       "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only: not the chance of touching a target, and not target-vs-stop.",
-      "probability_profit": 0.5077,
+      "probability_profit": 0.543,
       "simulations_run": 3000,
-      "var_95": -12.4184
+      "var_95": -12.9149
     },
     "net_assets": 0.0,
     "peer_comparison": {
-      "overall_assessment": "Bottom Quartile - Underperforming",
-      "pb_sector_avg": 1.9838,
-      "pb_stock": 3.0479,
-      "pb_vs_sector": 53.6373,
-      "pe_sector_avg": 20.5024,
-      "pe_stock": 18.7584,
-      "pe_vs_sector": -8.5064,
+      "overall_assessment": "Above Average",
+      "pb_sector_avg": 2.0081,
+      "pb_stock": 2.7855,
+      "pb_vs_sector": 38.7135,
+      "pe_sector_avg": 20.671,
+      "pe_stock": 14.7162,
+      "pe_vs_sector": -28.8074,
       "roe_sector_avg": 9.7371,
-      "roe_stock": 11.677,
-      "roe_vs_sector": 19.9225,
+      "roe_stock": 14.064,
+      "roe_vs_sector": 44.4369,
       "sector": "Utilities",
-      "sector_rank": 8,
+      "sector_rank": 3,
       "sector_total": 9
     },
     "portfolio_outlook": {
@@ -518,42 +532,42 @@
     },
     "pre_market_change_pct": 0.0,
     "pre_market_price": 0.0,
-    "previous_close": 84.22,
+    "previous_close": 81.9,
     "quote_type": "EQUITY",
     "recommendation_caveat": "",
     "recommendation_label": "WATCHLIST",
     "recommendation_qualifier": "",
-    "recommendation_text": "WATCHLIST - No new position | Confidence: 46% | Score: 46/100 | Risk: B",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 42% | Score: 57/100 | Risk: B",
     "relative_performance": {
       "basis": "total return, dividend-adjusted closes",
       "benchmark": "SPY",
       "rows": [
         {
-          "benchmark_pct": 5.71,
-          "excess_pct": -11.35,
+          "benchmark_pct": -0.63,
+          "excess_pct": 8.64,
           "sessions": 21,
-          "stock_pct": -5.64,
+          "stock_pct": 8.01,
           "window": "1M"
         },
         {
-          "benchmark_pct": 2.45,
-          "excess_pct": -6.08,
+          "benchmark_pct": 3.41,
+          "excess_pct": -10.77,
           "sessions": 63,
-          "stock_pct": -3.63,
+          "stock_pct": -7.36,
           "window": "3M"
         },
         {
-          "benchmark_pct": 12.46,
-          "excess_pct": -20.43,
+          "benchmark_pct": 7.32,
+          "excess_pct": -20.32,
           "sessions": 126,
-          "stock_pct": -7.97,
+          "stock_pct": -13.0,
           "window": "6M"
         },
         {
-          "benchmark_pct": null,
-          "excess_pct": null,
+          "benchmark_pct": 15.39,
+          "excess_pct": -13.96,
           "sessions": 252,
-          "stock_pct": 14.77,
+          "stock_pct": 1.43,
           "window": "1Y"
         }
       ]
@@ -561,12 +575,12 @@
     "requested_symbol": "NEE",
     "retrieval_timestamp": "<volatile>",
     "risk": {
-      "annualized_volatility": 0.2531,
-      "beta": 0.152,
+      "annualized_volatility": 0.253,
+      "beta": 0.1094,
       "beta_benchmark": "SPY",
-      "beta_observations": 249,
+      "beta_observations": 250,
       "beta_status": "measured",
-      "cvar_95": -0.0381,
+      "cvar_95": -0.0376,
       "grade_drivers": [
         {
           "detail": "25% annualised (points above 25% / 35% / 50%)",
@@ -575,13 +589,13 @@
           "points": 1
         },
         {
-          "detail": "0.15 vs its benchmark (points above 1.2 / 1.5)",
+          "detail": "0.11 vs its benchmark (points above 1.2 / 1.5)",
           "factor": "beta",
           "label": "Beta",
           "points": 0
         },
         {
-          "detail": "-24% peak to trough (points beyond -25% / -40%)",
+          "detail": "-22% peak to trough (points beyond -25% / -40%)",
           "factor": "drawdown",
           "label": "Max drawdown",
           "points": 0
@@ -600,100 +614,77 @@
         }
       ],
       "liquidity_score": 10.0,
-      "max_drawdown": -0.2383,
+      "max_drawdown": -0.2173,
       "overall_risk_score": 5,
       "risk_grade": "B",
       "risk_points": 5,
-      "sharpe_ratio": 0.1818,
-      "sortino_ratio": 0.2524,
+      "sharpe_ratio": -0.007,
+      "sortino_ratio": -0.0097,
       "var_95_daily": -0.0242
     },
     "risk_warnings": [],
     "scores": {
       "component_details": {},
-      "composite_score": 46.1399,
-      "data_quality_note": "HIGH - All data sources available",
-      "fundamental_score": 68,
+      "composite_score": 57.1008,
+      "data_quality_note": "MODERATE - Some data sources missing",
+      "fundamental_score": 63,
       "quality_score": 59.2593,
-      "risk_score": 50,
+      "risk_score": 35,
       "score_confidence_margin": 0.0,
-      "sentiment_score": 60,
-      "technical_score": 32,
+      "sentiment_score": 50,
+      "technical_score": 69,
       "valuation_score": 20.0,
       "weights": {
-        "fundamental": 0.2778,
-        "quality": 0.1111,
-        "sentiment": 0.1111,
-        "technical": 0.3333,
-        "valuation": 0.1667
+        "fundamental": 0.2222,
+        "quality": 0.0889,
+        "sentiment": 0.1667,
+        "technical": 0.3889,
+        "valuation": 0.1333
       }
     },
     "sector": "Utilities",
     "sentiment": {
-      "key_headline_sources": [
-        "Zacks",
-        "Zacks",
-        "Zacks",
-        "Motley Fool",
-        "Trefis"
-      ],
-      "key_headlines": [
-        "VST Stock Underperforms Industry in the Past 6 Months: Buy or Hold?",
-        "NextEra Outperforms Industry in a Year: Should You Buy the Stock?",
-        "OKLO's Aurora Reactor: New Design, Proven Nuclear Principles",
-        "2 Dividend Stocks Compounding Quietly While Oil Headlines Distract Everyone",
-        "PG&E Stock Runs On A Legislative Calendar, Not The Market's"
-      ],
+      "key_headline_sources": [],
+      "key_headlines": [],
       "last_news_timestamp": "<volatile>",
-      "measured": true,
-      "negative_articles": 1,
+      "measured": false,
+      "negative_articles": 0,
       "news_relevance": {
-        "direct_count": 4,
-        "direct_headlines": [
-          "NextEra Outperforms Industry in a Year: Should You Buy the Stock?",
-          "NextEra Energy (NEE) Could Be 10% Undervalued After Merger Scrutiny Intensifies",
-          "NextEra Energy (NEE) Faces Maryland Challenge In Federal Merger Review",
-          "Gemini AI Stock Portfolio\u2019s New Addition: NextEra Energy (NEE)"
-        ],
-        "direct_sentiment_label": "POSITIVE",
-        "direct_sentiment_score": 0.855,
-        "has_direct_news": true,
-        "macro_count": 6,
-        "macro_headlines": [
-          "VST Stock Underperforms Industry in the Past 6 Months: Buy or Hold?",
-          "OKLO's Aurora Reactor: New Design, Proven Nuclear Principles",
-          "2 Dividend Stocks Compounding Quietly While Oil Headlines Distract Everyone",
-          "PG&E Stock Runs On A Legislative Calendar, Not The Market's",
-          "Can Customer Growth Support Alliant Energy's Long-Term Growth?"
-        ],
+        "direct_count": 0,
+        "direct_headlines": [],
+        "direct_sentiment_label": "NEUTRAL",
+        "direct_sentiment_score": 0.0,
+        "has_direct_news": false,
+        "macro_count": 0,
+        "macro_headlines": [],
         "peer_count": 0,
         "peer_headlines": [],
         "peer_sentiment_score": 0.0,
-        "weighted_sentiment_label": "POSITIVE",
-        "weighted_sentiment_score": 0.855
+        "weighted_sentiment_label": "NEUTRAL",
+        "weighted_sentiment_score": 0.0
       },
-      "news_volume": 10,
-      "positive_articles": 7,
-      "sentiment_label": "POSITIVE",
-      "sentiment_score": 0.5174,
-      "sentiment_trend": "DETERIORATING",
+      "news_volume": 0,
+      "positive_articles": 0,
+      "sentiment_label": "NEUTRAL",
+      "sentiment_score": 0.0,
+      "sentiment_trend": "STABLE",
       "sources_attempted": 5,
       "sources_succeeded": 1,
-      "status": "PARTIAL"
+      "status": "NO_NEWS"
     },
     "signal": "HOLD",
     "signal_explanation": {
-      "composite_score": 46.1399,
-      "overrides_triggered": [],
-      "primary_reason": "Composite score 46 in HOLD range",
+      "composite_score": 57.1008,
+      "overrides_triggered": [
+        "Base target -1.1% below current price \u2192 HOLD"
+      ],
+      "primary_reason": "Base target -1.1% below current price \u2192 HOLD",
       "risk_factors": [
-        "Technical score 32 (bearish)",
-        "3 bearish confirmations",
-        "Monte Carlo tail shape is unfavorable (6.1% 75th-percentile upside vs 12.4% 5th-percentile downside); diagnostic only"
+        "Risk grade B: volatility 25% annualised, tail risk 60/100 from skew and fat tails"
       ],
       "supporting_factors": [
-        "Fundamental score 68 (strong)",
-        "Sentiment score 60 (positive)"
+        "Technical score 69 (bullish)",
+        "Fundamental score 63 (strong)"
       ]
     },
     "sizing_basis": "none",
@@ -786,104 +777,103 @@
     "stance": "NEUTRAL",
     "symbol_note": "",
     "technical": {
-      "adx": 16.0698,
-      "atr": 1.4033,
-      "atr_percent": 1.6811,
-      "bollinger_signal": "NEUTRAL",
-      "candlestick_bias": "NEUTRAL",
+      "adx": 27.7851,
+      "atr": 1.549,
+      "atr_percent": 1.8966,
+      "bollinger_signal": "OVERBOUGHT",
+      "candlestick_bias": "BEARISH",
       "candlestick_patterns": [
         {
-          "bias": "NEUTRAL",
-          "context": "Market indecision - watch next bar",
-          "name": "Doji",
-          "reliability": "LOW",
-          "strength": 1,
-          "type": "INDECISION"
+          "bias": "BEARISH",
+          "context": "Uptrend losing momentum",
+          "name": "Bearish Harami",
+          "reliability": "MEDIUM",
+          "strength": 2,
+          "type": "REVERSAL"
         }
       ],
-      "candlestick_score": 50.0,
-      "death_cross": true,
+      "candlestick_score": 41.2,
+      "death_cross": false,
       "golden_cross": false,
-      "macd_signal": "BEARISH",
-      "momentum_score": 49.5378,
-      "prior_trend": "DOWN",
-      "resistance_level": 87.52,
-      "rsi": 32.8893,
+      "macd_signal": "BULLISH",
+      "momentum_score": 53.6029,
+      "prior_trend": "UP",
+      "resistance_level": 84.38,
+      "rsi": 61.1346,
       "squeeze_detected": false,
-      "support_level": 0.0,
-      "trend_direction": "SIDEWAYS",
-      "trend_score": 33.3333,
-      "trend_strength": "WEAK",
+      "support_level": 80.75,
+      "trend_direction": "UP",
+      "trend_score": 53.3817,
+      "trend_strength": "MODERATE",
       "unmeasured": [],
-      "volatility_score": 50,
-      "volume_ratio": 0.5367,
+      "volatility_score": 60,
+      "volume_ratio": 1.3557,
       "volume_ratio_basis": "last completed session (today's is still trading)",
       "week_52_basis": "provider-reported traded range",
       "week_52_high": 98.75,
-      "week_52_low": 69.24
+      "week_52_low": 74.41
     },
     "thesis": {
       "bear_case": [
-        "Elevated leverage at 1.6x D/E",
+        "Elevated leverage at 1.5x D/E",
         "Valuation stretched - significantly overvalued",
-        "DCF suggests 25.8% overvaluation"
+        "DCF suggests 32.5% overvaluation"
       ],
       "bull_case": [
-        "Growing revenues at 12.4% YoY",
-        "Positive news sentiment supporting price action"
+        "Strong uptrend with momentum confirmation"
       ],
       "catalysts": [
-        "Analyst target implies 17.9% upside"
+        "Analyst target implies 15.8% upside"
       ],
       "risks": [],
-      "summary": "NextEra Energy, Inc. (NEE) should be held at current levels with a 46% confidence score. Composite score of 46/100."
+      "summary": "NextEra Energy, Inc. (NEE) should be held at current levels with a 42% confidence score. Composite score of 57/100."
     },
     "ticker": "NEE",
     "trade_setup": {
-      "entry_price": 83.475,
+      "entry_price": 81.675,
       "entry_type": "REFERENCE",
       "has_long_reward": false,
       "is_actionable_entry": false,
       "levels_available": true,
       "risk_reward_ratio": 0.0,
-      "setup_basis": "spot (reference only, not an order); stop 2.75xATR below entry; 12-month valuation target $82.92 (-1%) is at or below spot: no long reward; stop shown for holders only",
-      "stop_loss": 79.6159,
+      "setup_basis": "spot (reference only, not an order); stop 2.75xATR below entry; 12-month valuation target $80.79 (-1%) is at or below spot: no long reward; stop shown for holders only",
+      "stop_loss": 77.4151,
       "target_aggressive": 0.0,
-      "target_base": 82.9244,
+      "target_base": 80.7909,
       "target_conservative": 0.0,
       "time_horizon": "POSITION",
       "trailing_stop": 0.0,
-      "trailing_stop_pct": 3.4,
+      "trailing_stop_pct": 3.8,
       "win_probability": 0.0
     },
     "valuation": {
-      "dcf_fair_value": 61.9344,
+      "dcf_fair_value": 55.1104,
       "dcf_method": "eps_fallback",
       "dcf_status": "measured",
-      "dcf_upside": -25.8049,
+      "dcf_upside": -32.5248,
       "fair_value_sources": [
         "graham",
         "dcf"
       ],
-      "graham_number": 52.3662,
+      "graham_number": 60.511,
       "graham_status": "measured",
-      "target_aggressive": 98.3889,
-      "target_agreement_pct": 47.0,
-      "target_base": 82.9244,
+      "target_aggressive": 94.579,
+      "target_agreement_pct": 51.7,
+      "target_base": 80.7909,
       "target_components": [
         {
           "source": "analyst_consensus",
-          "value": 98.3889,
+          "value": 94.579,
           "weight": 0.625
         },
         {
           "source": "intrinsic_value",
-          "value": 57.1503,
+          "value": 57.8107,
           "weight": 0.375
         }
       ],
-      "target_confidence": 47.0,
-      "target_conservative": 57.1503,
+      "target_confidence": 51.7,
+      "target_conservative": 57.8107,
       "target_probability": 0.0,
       "target_source_count": 2,
       "target_sources": [

@@ -695,7 +695,7 @@
               <div class="hw-stamp">
                 <p class="hw-stamp-k">Decision</p>
                 <p class="hw-stamp-v">Buy</p>
-                <p class="hw-stamp-s">25 shares <span class="hw-tag">Tested: no edge found</span></p>
+                <p class="hw-stamp-s">25 shares <span class="hw-tag">Edge unproven</span></p>
               </div>
             </div>
             <figcaption class="hw-inst-cap" id="hw-inst-cap">An example call laid out the way a tear sheet shows it. The size uses the Picks arithmetic for a $25,000 account on the Balanced mandate.</figcaption>
@@ -884,7 +884,7 @@
                   </g>
                   <g id="rl-utag" class="rl-o">
                     <rect x="782" y="522" width="236" height="36" rx="18" fill="#3a2e0e" stroke="#fbbf24" stroke-opacity="0.7"/>
-                    <text x="900" y="546" class="rl-tagt" text-anchor="middle">Tested: no edge found</text>
+                    <text x="900" y="546" class="rl-tagt" text-anchor="middle">Edge unproven</text>
                   </g>
                 </g>
 
@@ -1450,7 +1450,7 @@
                 <li><b>Read the reasons, not only the call.</b><span>The Decision comes with why it was made, the main risk and the rule that held it back, if any.</span></li>
                 <li><b>Treat it as research, not an instruction.</b><span>QUANTA does not know your goals or taxes. Check every price with your broker before you act.</span></li>
                 <li><b>Size from the stop.</b><span>A share count is a risk budget for the loss you accept, not a forecast of the gain.</span></li>
-                <li><b>Watch the tag.</b><span>"Tested: no edge found" means the model was tested on past data and showed no reliable edge. "Model not yet validated" means it has not passed its tests yet.</span></li>
+                <li><b>Watch the tag.</b><span>"Edge unproven" means the model was tested on past data and its edge did not clear the significance bar. "Model not yet validated" means it has not passed its tests yet.</span></li>
               </ul>
             </div>
             <div class="hw-ledger-wrap">
@@ -1475,7 +1475,7 @@
                 <ul>
                   <li><span class="hw-tag">Model not yet validated</span><span>Not yet tested on past data</span></li>
                   <li><span class="hw-tag">Partly tested model</span><span>Only parts of it have been tested</span></li>
-                  <li><span class="hw-tag">Tested: no edge found</span><span>Tested, and no reliable edge was found</span></li>
+                  <li><span class="hw-tag">Edge unproven</span><span>Tested, and its edge did not clear the significance bar</span></li>
                   <li><span class="hw-tag">Validation out of date</span><span>Its last passing test has expired</span></li>
                 </ul>
               </div>
@@ -1522,7 +1522,7 @@
             <details><summary>Does QUANTA cost anything?</summary><p>No. QUANTA is free, open-source software under the MIT License. It runs on your computer with free public data; keys for other data providers are optional.</p></details>
             <details><summary>Why is a stock that Research rates a Buy missing from Picks?</summary><p>Picks is stricter. A scan also needs reward/risk of <span data-threshold="RR.SCANNER_MIN" data-threshold-fmt="rr"></span> (Research needs <span data-threshold="RR.RESEARCH_MIN" data-threshold-fmt="rr"></span>), a risk grade of A to C, a score above the scan's floor, enough conviction, a return that covers costs, room in its sector, and a second full Research check.</p></details>
             <details><summary>Why does My Portfolio say Do Not Add to a stock that Research likes?</summary><p>Because of the account, not the stock. New money stops when one stock reaches <span data-threshold="PORTFOLIO.MAX_SINGLE_POSITION" data-threshold-fmt="pct"></span> of the account, when its sector or a group of holdings that move together reaches <span data-threshold="PORTFOLIO.MAX_SECTOR" data-threshold-fmt="pct"></span>, or when an earnings report is due within <span data-threshold="PORTFOLIO.EARNINGS_WINDOW_DAYS" data-threshold-fmt="int"></span> days. The view on the stock stays the same.</p></details>
-            <details><summary>What does "Model not yet validated" mean?</summary><p>The scoring model behind the call hasn't yet passed tests on past data. "Tested: no edge found" goes further: the model was tested and showed no reliable edge. Treat either kind of call as a research idea, and position sizes as a risk budget, not a prediction.</p></details>
+            <details><summary>What does "Model not yet validated" mean?</summary><p>The scoring model behind the call hasn't yet passed tests on past data. "Edge unproven" goes further: the model was tested and its edge did not clear the significance bar. Treat either kind of call as a research idea, and position sizes as a risk budget, not a prediction.</p></details>
             <details><summary>How does it decide how many shares to buy?</summary><p>From the loss at the stop: <span data-threshold="SIZING.TARGET_RISK_PER_TRADE" data-threshold-fmt="pct"></span> of capital (<span data-threshold="SIZING.TARGET_RISK_STRONG_BUY" data-threshold-fmt="pct"></span> for a Strong Buy), scaled by the call and the score, divided by the distance to the stop. Limits then trim it: at most <span data-threshold="SIZING.MAX_POSITION_PCT" data-threshold-fmt="pct"></span> in one stock, the risk grade, and the mandate, which funds <span data-threshold="SIZING.MANDATE_SCALE.conservative" data-threshold-fmt="pct"></span> for Conservative. Shares are whole, with a minimum trade of <span data-threshold="SIZING.MIN_POSITION_PCT" data-threshold-fmt="pct"></span> of capital, at least <span data-threshold="SIZING.MIN_POSITION_FLOOR" data-threshold-fmt="money"></span> and at most <span data-threshold="SIZING.MIN_POSITION_SIZE" data-threshold-fmt="money"></span>.</p></details>
             <details><summary>Which markets and assets does it cover?</summary><p>US stocks and ETFs, and Indian stocks on the NSE (add .NS) or BSE (add .BO) in Research. Scans cover ready-made US and NSE universes, or up to <span data-threshold="CAPITAL.MAX_CUSTOM_TICKERS" data-threshold-fmt="int"></span> tickers of your own. My Portfolio analyses stocks and ETFs, not options or crypto.</p></details>
             <details><summary>What doesn't QUANTA do?</summary><p>It places no orders and sends nothing off this computer except the requests for market data (and an alert email, only if you configure one). It has no report downloads or side-by-side stock comparison. Picks can copy its picks as a TradingView watchlist, and a scan's error log can be downloaded.</p></details>

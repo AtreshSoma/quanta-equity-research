@@ -48,6 +48,24 @@ def rr_triggers(entry: float, stop: float, target: float, cost_frac: float, min_
     return {"min_rr": float(min_rr), "target_needed": target_needed, "entry_needed": entry_needed}
 
 
+def research_rr_clear_entry(valuation_target: float, horizon_frac: float, stop_distance: float,
+                            cost_frac: float, min_rr: float) -> Optional[float]:
+    """The highest spot at which a Research Decision's net R:R reaches ``min_rr``.
+
+    Unlike :func:`rr_triggers`, the Research levels move with the entry: the
+    stop sits ``stop_distance`` (an ATR multiple) below it and the horizon
+    target is the entry plus ``horizon_frac`` of the gap to the valuation
+    target. Solving ``net_rr(p, p - d, p + f (V - p), k) = m`` for ``p`` gives
+    ``p = (f V - m d) / (f + k (1 + m))``. None when no positive price clears it.
+    """
+    f, k, m, d, v = float(horizon_frac), float(cost_frac), float(min_rr), float(stop_distance), float(valuation_target)
+    denom = f + k * (1.0 + m)
+    if f <= 0 or d <= 0 or v <= 0 or denom <= 0:
+        return None
+    p = (f * v - m * d) / denom
+    return p if p > 0 else None
+
+
 def publish_levels(source: str, entry: float, stop: float, target: float, rr: float,
                    atr: Optional[float], cost_frac: float, horizon_days: Optional[int],
                    target_basis: str, label: Optional[str] = None,

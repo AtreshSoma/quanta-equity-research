@@ -58,7 +58,8 @@ for (const [ticker, fast] of [['NVDA', false], ['HD', false], ['SPY', true], ['J
     if (d.levels.target) {
       expect(d.levels.target_horizon_days).toBe(d.horizon.trading_days);
       await expect(levels).toContainText(`${Math.round(d.levels.target_horizon_days / 21)}-month target`);
-      if (d.levels.valuation_target) await expect(levels).toContainText('12-month valuation target');
+      // Named for its source: "Street target" when the analysts' mean is its only input (2026-10-23).
+      if (d.levels.valuation_target) await expect(levels).toContainText(/12-month (valuation|Street) target/);
     } else {
       await expect(levels).toContainText('none published by this Decision');
     }

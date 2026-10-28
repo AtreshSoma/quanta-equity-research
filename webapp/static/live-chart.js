@@ -5,8 +5,10 @@
  * is HTML positioned by percentage, so type never scales with the chart.
  *
  * Axes are exact: the 1D time axis spans the exchange's whole trading day
- * (pre-market start to post-market end, from the provider's session times) and
- * is labelled in the exchange's time zone; longer ranges place bars by trading
+ * (pre-market start to post-market end, from the provider's session times;
+ * the close until after hours begins), with each extended hour drawn at
+ * EXT_WEIGHT of a regular hour's width, and is labelled in the exchange's
+ * time zone; longer ranges place bars by trading
  * session and label the first bar of each day, month or year. Price ticks are
  * round numbers that cover every plotted value and reference line.
  *
@@ -38,6 +40,7 @@
   const REFRESH_MS = { '1d': 20000, '5d': 60000 };
   const LIVE_PATCH_MS = 60000;
   const PANE_PX = 96;       // CSS height of an RSI or MACD pane
+  const EXT_WEIGHT = 0.35;  // width of an extended-hours hour, in regular hours
   const MIN_VIEW = 12;      // fewest bars a zoom can show
   const INTERVAL_MS = { '1m': 60000, '5m': 300000, '30m': 1800000 };
 
@@ -59,6 +62,10 @@
     default: { type: 'line', studies: ['vol'] },
   };
 
+  // An average counts bars, so on anything but daily bars it names the bar:
+  // "SMA 200" on one-minute bars is 200 minutes, not the 200-day line.
+  const BAR_WORDS = { '1m': '1-min', '5m': '5-min', '15m': '15-min', '30m': '30-min', '60m': 'hourly', '1h': 'hourly', '1wk': 'weekly', '1mo': 'monthly' };
+  const studyLabel = (label, interval) => (BAR_WORDS[interval] ? `${label} (${BAR_WORDS[interval]})` : label);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const finite = (v) => typeof v === 'number' && Number.isFinite(v);
   const CURRENCY = { USD: '$', INR: '₹', EUR: '€', GBP: '£', JPY: '¥' };
@@ -250,6 +257,34 @@
     };
   }
 
+  // An intraday time axis from lo to hi. Pre-market and after hours are thin
+  // trading: an hour of either takes EXT_WEIGHT of the width of a regular-session
+  // hour (``reg``), so the session the Decision is priced on gets most of the plot.
+  function timeScale(lo, hi, reg, z) {
+    const span = (a, b) => {
+      if (!reg) return b - a;
+      const inReg = Math.max(0, Math.min(b, reg[1]) - Math.max(a, reg[0]));
+      return inReg + EXT_WEIGHT * (b - a - inReg);
+    };
+    const total = span(lo, hi) || 1;
+    const x = (t) => (span(lo, Math.max(lo, Math.min(t, hi))) / total) * W;
+    const inExt = (t) => Boolean(reg) && (t < reg[0] || t >= reg[1]);
+    const ticks = [];
+    const hourMs = 3600000;
+    const spanH = total / hourMs;
+    const every = spanH > 12 ? 2 : spanH > 1.5 ? 1 : 0;
+    // Step by quarter hours so a zone offset by 30 or 45 minutes still lands on
+    // its own whole hours. A zoomed-in hour or less is labelled every 15 minutes.
+    // The narrower extended hours are labelled half as often.
+    const q = hourMs / 4;
+    for (let t = Math.ceil(lo / q) * q; t <= hi; t += q) {
+      const p = z.get(t);
+      const step = inExt(t) ? Math.max(2, every * 2) : every;
+      if (every === 0 ? true : (p.min === 0 && p.h % step === 0)) ticks.push({ x: x(t), label: every === 0 ? z.time(t).replace(/\s\S+$/, '') : z.hour(t) });
+    }
+    return { x, ticks };
+  }
+
   // X positions and the tick labels for one payload.
   function xModel(data, z) {
     const pts = data.points;
@@ -259,9 +294,13 @@
       const s0 = (sess.pre && sess.pre[0]) || (sess.regular && sess.regular[0]) || pts[0][0];
       let trimmed = false;
       let s1 = (sess.post && sess.post[1]) || (sess.regular && sess.regular[1]) || pts[n - 1][0];
+      const closeT = sess.regular && sess.regular[1];
+      // Before the close, the axis ends at the close: an after-hours stretch
+      // with no bars yet would hold the right of the plot empty.
+      const now = finite(data.retrieved_at) ? data.retrieved_at : Date.now();
+      if (closeT && sess.post && now < closeT && pts[n - 1][0] <= closeT) { s1 = closeT; trimmed = true; }
       // After the close, a post-market that never moved is a flat line across
       // a quarter of the chart: the axis ends at the last move instead.
-      const closeT = sess.regular && sess.regular[1];
       if (closeT && sess.post && pts[n - 1][0] > closeT) {
         let lastMove = 0;
         for (let i = 1; i < n; i += 1) if (pts[i][1] !== pts[i - 1][1]) lastMove = i;
@@ -270,19 +309,8 @@
       }
       const lo = Math.min(s0, pts[0][0]);
       const hi = trimmed ? Math.max(s1, lo + 1) : Math.max(s1, pts[n - 1][0], lo + 1);
-      const x = (t) => ((t - lo) / (hi - lo)) * W;
-      const ticks = [];
-      const hourMs = 3600000;
-      const spanH = (hi - lo) / hourMs;
-      const every = spanH > 12 ? 2 : spanH > 1.5 ? 1 : 0;
-      // Step by quarter hours so a zone offset by 30 or 45 minutes still lands on
-      // its own whole hours. A zoomed-in hour or less is labelled every 15 minutes.
-      const q = hourMs / 4;
-      for (let t = Math.ceil(lo / q) * q; t <= hi; t += q) {
-        const p = z.get(t);
-        if (every === 0 ? true : (p.min === 0 && p.h % every === 0)) ticks.push({ x: x(t), label: every === 0 ? z.time(t).replace(/\s\S+$/, '') : z.hour(t) });
-      }
-      return { x: (i) => x(Math.min(pts[i][0], hi)), xt: x, ticks, ext: [sess.pre, sess.post].filter(Boolean).map(([a, b]) => [x(Math.max(a, lo)), x(Math.min(b, hi))]).filter(([a, b]) => b > a) };
+      const sc = timeScale(lo, hi, sess.regular, z);
+      return { x: (i) => sc.x(Math.min(pts[i][0], hi)), xt: sc.x, ticks: sc.ticks, ext: [sess.pre, sess.post].filter(Boolean).map(([a, b]) => [sc.x(Math.max(a, lo)), sc.x(Math.min(b, hi))]).filter(([a, b]) => b > a) };
     }
     const x = (i) => (n === 1 ? W / 2 : (i / (n - 1)) * W);
     const key = {
@@ -442,7 +470,7 @@
     const overlays = [];
     if (!compare) {
       [['sma20', 1], ['sma50', 2], ['sma200', 3], ['ema21', 4]].forEach(([k, tone]) => {
-        if (on(k)) overlays.push({ key: k, label: STUDIES.find((s) => s.key === k).label, tone, values: series[k] });
+        if (on(k)) overlays.push({ key: k, label: studyLabel(STUDIES.find((s) => s.key === k).label, data.interval), tone, values: series[k] });
       });
       if (on('vwap') && series.vwap) overlays.push({ key: 'vwap', label: 'VWAP', tone: 4, values: series.vwap, dashed: true });
     }
@@ -474,15 +502,15 @@
     const pctOf = (v) => `${((v / totalH) * 100).toFixed(3)}%`;
     const xm = xModel(zoomed ? { ...data, points: pts, session: is1d ? (data.session || {}) : {} } : { ...data, points: pts }, z);
     if (zoomed && is1d) {
-      // A zoomed 1D window spans its own bars, not the whole trading day.
+      // A zoomed 1D window spans its own bars, not the whole trading day, on
+      // the same compressed extended-hours scale.
       const lo = pts[0][0];
       const hi = Math.max(pts[n - 1][0], lo + 60000);
-      const x = (t) => ((t - lo) / (hi - lo)) * W;
-      const zx = xModel({ ...data, points: pts, session: {} }, z);
-      xm.x = (i) => x(pts[i][0]);
-      xm.ticks = zx.ticks;
+      const sc = timeScale(lo, hi, (data.session || {}).regular, z);
+      xm.x = (i) => sc.x(pts[i][0]);
+      xm.ticks = sc.ticks;
       xm.ext = (data.session ? [data.session.pre, data.session.post] : []).filter(Boolean)
-        .map(([a, b]) => [x(Math.max(a, lo)), x(Math.min(b, hi))]).filter(([a, b]) => b > a);
+        .map(([a, b]) => [sc.x(Math.max(a, lo)), sc.x(Math.min(b, hi))]).filter(([a, b]) => b > a);
     }
     // As many time labels as the plot's real width holds, about one per 72px.
     const plotPx = Math.max(160, (state.host.clientWidth || 600) - 70);
@@ -687,7 +715,8 @@
         .map(([k, v]) => `<span class="lc-legend-k">${k}</span>${fmtNum(finite(v) ? v : p[1], d)}`).join(' ');
       parts.push(ohlc);
       if (finite(chg)) parts.push(`<span class="${chg >= 0 ? 'bull' : 'bear'}">${fmtSigned(chg, d)} (${fmtSigned((chg / prev) * 100)}%)</span>`);
-      if (!narrow && m.hasVol && finite(p[2])) parts.push(`<span class="lc-legend-k">Vol</span>${fmtVol(p[2])}${m.unusual && m.unusual.has(idx) ? ' <span class="lc-legend-warn">unusual print, left out of VWAP</span>' : ''}`);
+      // A bar still forming can report no volume yet: that is not a zero-volume print.
+      if (!narrow && m.hasVol && finite(p[2]) && p[2] > 0) parts.push(`<span class="lc-legend-k">Vol</span>${fmtVol(p[2])}${m.unusual && m.unusual.has(idx) ? ' <span class="lc-legend-warn">unusual print, left out of VWAP</span>' : ''}`);
     }
     const studies = m.overlays.map((o) => (finite(o.values[idx]) ? `<span class="lc-legend-study lc-legend-study--${o.tone}">${esc(o.label)} ${fmtNum(o.values[idx], d)}</span>` : ''))
       .concat(m.bbOn && finite(m.series.bbUpper[idx]) ? [`<span class="lc-legend-study lc-legend-study--1">BB ${fmtNum(m.series.bbUpper[idx], d)} / ${fmtNum(m.series.bbLower[idx], d)}</span>`] : [])
@@ -991,7 +1020,9 @@
     if (!host) return null;
     if (host._liveChart) host._liveChart.destroy();
     const opts = { context: 'default', showQuote: true, levels: [], events: [], ...options };
-    const saved = store.get(`quanta_chart_range_${opts.context}`);
+    // A page can version its key (opts.rangeKey) to move every reader to a new default once.
+    const rangeKey = opts.rangeKey || `quanta_chart_range_${opts.context}`;
+    const saved = store.get(rangeKey);
     const state = {
       host, opts, uid: Math.random().toString(36).slice(2, 8),
       range: RANGES.some(([k]) => k === saved) ? saved : (opts.range || '1d'),
@@ -1022,7 +1053,7 @@
     const tabs = Array.from(host.querySelectorAll('.lc-range'));
     const select = (k, focus) => {
       state.range = k;
-      store.set(`quanta_chart_range_${opts.context}`, k);
+      store.set(rangeKey, k);
       tabs.forEach((t) => { const on = t.dataset.range === k; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; if (on && focus) t.focus(); });
       state.view = null;
       load();
@@ -1186,6 +1217,8 @@
         try {
           const res = await fetch(`/api/chart?symbol=${encodeURIComponent(state.symbol)}&range=1d`);
           const quote = await res.json();
+          // The page can follow the live quote (Research keeps its band price on it).
+          if (quote && quote.available && typeof opts.onQuote === 'function') opts.onQuote(quote);
           if (quote && quote.available && state.data && state.data.range === d.range && state.data.symbol === quote.symbol) {
             const before = state.data.points[state.data.points.length - 1][1];
             if (patchLastBar(state.data, quote)) {
@@ -1310,7 +1343,7 @@
   }
 
   const indicators = { sma, ema, bollinger, rsi, macd, vwap, volumeOutliers };
-  const api = { mount, niceStep, yModel, xModel, zoned, RANGES, STUDIES, isLevel, isInverse, benchmarkFor, indicators, computeSeries, alignBenchmark, patchLastBar };
+  const api = { mount, niceStep, yModel, xModel, timeScale, studyLabel, zoned, RANGES, STUDIES, isLevel, isInverse, benchmarkFor, indicators, computeSeries, alignBenchmark, patchLastBar };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window.QuantaLiveChart = api;
 }(typeof window !== 'undefined' ? window : globalThis));

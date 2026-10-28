@@ -24,6 +24,20 @@ test('the 1D axis spans the whole session, pre-market start to post-market end',
   assert.equal(xm.ext.length, 2, 'pre- and post-market are shaded');
 });
 
+test('mid-session, the 1D axis ends at the close and the regular session takes most of the width', () => {
+  const pre0 = Date.parse('2026-10-09T08:00:00Z'); // 4:00 AM New York
+  const open = Date.parse('2026-10-09T13:30:00Z');
+  const close = Date.parse('2026-10-09T20:00:00Z');
+  const data = { range: '1d', retrieved_at: Date.parse('2026-10-09T15:00:00Z'),
+    points: [[Date.parse('2026-10-09T09:00:00Z'), 1, 0], [Date.parse('2026-10-09T14:59:00Z'), 2, 0]],
+    session: { pre: [pre0, open], regular: [open, close], post: [close, Date.parse('2026-10-10T00:00:00Z')] } };
+  const xm = lc.xModel(data, lc.zoned('America/New_York'));
+  assert.equal(Math.round(xm.xt(pre0)), 0);
+  assert.equal(Math.round(xm.xt(close)), 1000, 'no empty after-hours stretch before the close');
+  assert.ok(xm.xt(close) - xm.xt(open) > 0.75 * 1000, 'the regular session holds over three quarters of the plot');
+  assert.equal(xm.ext.length, 1, 'only the pre-market is shaded');
+});
+
 test('hour labels land on local whole hours in a zone offset by half an hour', () => {
   const t0 = Date.parse('2026-10-09T03:45:00Z'); // 9:15 AM India
   const t1 = Date.parse('2026-10-09T10:00:00Z'); // 3:30 PM India

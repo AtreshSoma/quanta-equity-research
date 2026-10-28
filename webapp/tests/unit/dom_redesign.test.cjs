@@ -85,11 +85,13 @@ test('Deep-Dive reads Summary → Decision detail → Business → … → Evide
   // Technicals (Research layout 2026-10-09: intended change). Without the live
   // chart module the same slot holds the static chart.
   assert.match(document.querySelector('#an-results #ts-chart').textContent, /Price chart/);
-  // The at-a-glance grid beside the Decision holds the technical signals, the
-  // session quote, the scores and performance vs the benchmark (2026-10-09:
-  // intended change; Technicals keeps the candlestick detail).
+  // The at-a-glance grid beside the Decision holds the chart, the technical
+  // signals, the scores and performance vs the benchmark; the session quote
+  // opens Technicals (2026-10-23, owner: the chart spans the column, so the
+  // quote it duplicated moved: intended change).
   const glance = document.querySelector('#an-results .ts-glance');
-  for (const sel of ['[data-signals]', '[data-session]', '.ts-scores']) assert.ok(glance.querySelector(sel), `${sel} missing from the glance grid`);
+  for (const sel of ['#ts-chart', '[data-signals]', '.ts-scores']) assert.ok(glance.querySelector(sel), `${sel} missing from the glance grid`);
+  assert.equal(glance.querySelector('[data-session]'), null, 'the session quote left the glance grid');
   // The duplicate Executive Summary is folded into the Decision block.
   assert.ok(!inChapter('decision').some((k) => k.startsWith('Executive Summary')));
 
@@ -105,9 +107,9 @@ test('Deep-Dive reads Summary → Decision detail → Business → … → Evide
   // The summary precedes everything; the session quote board opens Technicals.
   const hero = document.querySelector('#an-results .decision-hero');
   assert.ok(hero, 'hero missing');
-  const session = document.querySelector('#an-results .ts-glance [data-session]');
-  assert.ok(session && session.querySelector('.quote-board'), 'session quote board missing from the glance grid');
-  assert.ok(session.querySelector('.range-meter'), 'range meter missing from the glance grid');
+  const session = document.querySelector('#an-results #ts-technicals [data-session]');
+  assert.ok(session && session.querySelector('.quote-board'), 'session quote board missing from Technicals');
+  assert.ok(session.querySelector('.range-meter'), 'range meter missing from Technicals');
   // Validation/audit content lives at the end, not above the verdict.
   const validation = document.querySelector('#an-validation');
   assert.ok(validation, 'validation section missing');

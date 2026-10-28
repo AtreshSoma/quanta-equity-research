@@ -114,7 +114,7 @@
     return need ? String(ev.status || '').toUpperCase() === need : !!ev.permits_recommendation;
   };
   const modelFlag = (ev) => (!ev || evidenceValidated(ev) ? ''
-    : `<a class="pk-valid model-flag hp-model-flag" href="#track" data-view-link="track" data-model-flag title="${esc(`Model evidence: ${ev.text || 'not validated out of sample'}. Open the evidence page.`)}">${String(ev.status || '').toUpperCase() === 'NO_EDGE' ? 'Tested: no edge found' : 'Model not yet validated'}</a>`);
+    : `<a class="pk-valid model-flag hp-model-flag" href="#track" data-view-link="track" data-model-flag title="${esc(`Model evidence: ${ev.text || 'not validated out of sample'}. Open the evidence page.`)}">${String(ev.status || '').toUpperCase() === 'NO_EDGE' ? 'Edge unproven' : 'Model not yet validated'}</a>`);
   const actionChip = (a, ev, g) => `<span class="hp-action hp-action--${ACTION_TONE[a] || 'muted'}">${esc(actionLabel(a, g))}</span>${ev && a !== 'Unavailable' ? modelFlag(ev) : ''}`;
   const stanceChip = (s) => `<span class="hp-stance hp-stance--${STANCE_TONE[s] || 'muted'}">${esc(s)}</span>`;
 

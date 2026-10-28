@@ -263,14 +263,15 @@ function evidenceValidated(ev) {
   const need = String(thr('LADDER.STRONG_BUY_EVIDENCE') || '').toUpperCase();
   return !!need && status === need;
 }
-// [PURE] The flag's words: a model that was tested and showed no edge says so;
-// anything else short of validated is "not yet validated".
+// [PURE] The flag's words: a model that was tested and did not show a
+// significant edge is "Edge unproven"; anything else short of validated is
+// "not yet validated".
 // The not-advice line that sits beside every call (Picks report, Research decision).
 const NOT_ADVICE_HTML = '<p class="q-note not-advice" data-not-advice>Model output for research, not personal investment advice. Check every price with your broker before you place an order.</p>';
 
 function modelFlagWords(ev) {
   const status = String((ev && typeof ev === 'object' ? ev.status : ev) || '').toUpperCase();
-  return status === 'NO_EDGE' ? 'Tested: no edge found' : 'Model not yet validated';
+  return status === 'NO_EDGE' ? 'Edge unproven' : 'Model not yet validated';
 }
 // The flag every call carries until its model is validated: Picks, Research and
 // My Portfolio show the same words and link to the evidence page.
@@ -536,7 +537,7 @@ const ACTION_MEANING = {
 const actionKey = (a) => String(a || '').toUpperCase().replace(/[\s-]+/g, '_');
 // The model's track record in words a reader does not need a glossary for.
 const EVIDENCE_PLAIN = {
-  VALIDATED: 'Proven on past data', PARTIAL: 'Partly tested', NO_EDGE: 'Tested: no edge found',
+  VALIDATED: 'Proven on past data', PARTIAL: 'Partly tested', NO_EDGE: 'Tested, edge unproven',
   UNTESTED: 'Not yet tested', STALE: 'Test out of date',
 };
 const evidencePlain = (ev) => {
@@ -560,9 +561,15 @@ const exchangeName = (code) => (code && code !== 'UNKNOWN' ? (EXCHANGE_NAMES[Str
 function decisionContract(decision) {
   if (!decision || !decision.new_money) return null;
   const pick = (table, key) => table[String(key || '').toUpperCase()] || [titleLabel(key || ''), ''];
-  const [stanceText, stanceTone] = pick(STANCE_WORD, decision.model_stance);
+  let [stanceText, stanceTone] = pick(STANCE_WORD, decision.model_stance);
   const [newMoneyText, newMoneyTone] = pick(NEW_MONEY_WORD, decision.new_money);
-  const [holderText, holderTone] = pick(HOLDER_WORD, decision.holder_action);
+  let [holderText, holderTone] = pick(HOLDER_WORD, decision.holder_action);
+  const score = Number(decision.score);
+  // A bullish score still in the Accumulate band is a mild one, not a buy band.
+  if (String(decision.model_stance).toUpperCase() === 'BULLISH' && Number.isFinite(score) && score < Number(thr('band:BUY'))) stanceText = 'Bullish score (mild)';
+  // A trim on a score above the Reduce band comes from the risk grade alone: say so.
+  const codes = new Set([...(decision.blocking_codes || []), ...(decision.blockers || []).map((b) => b && b.code)]);
+  if (String(decision.holder_action).toUpperCase() === 'TRIM' && codes.has('RISK_GRADE_F') && !(score < Number(thr('band:HOLD')))) holderText = 'Trim into strength (risk grade F)';
   return {
     stanceText, stanceTone, newMoneyText, newMoneyTone, holderText, holderTone,
     holdingsKnown: !!decision.holdings_known,
@@ -1409,7 +1416,7 @@ function renderGuideEvidence(data) {
   const model = !engines.length
     ? 'No model has an evidence record yet.'
     : !validated.length
-      ? 'No QUANTA model is proven yet, so every Buy and Accumulate call carries a flag: <span class="hw-tag">Tested: no edge found</span> where its model was tested and showed no edge, <span class="hw-tag">Model not yet validated</span> otherwise.'
+      ? 'No QUANTA model is proven yet, so every Buy and Accumulate call carries a flag: <span class="hw-tag">Edge unproven</span> where its model was tested and its edge did not clear the significance bar, <span class="hw-tag">Model not yet validated</span> otherwise.'
       : validated.length === engines.length
         ? 'Every QUANTA model shown in the track record is validated on past data.'
         : `${escapeHtml(validated.map((e) => e.label || e.engine).join(', '))} ${validated.length === 1 ? 'is' : 'are'} validated; the other models are not.`;
@@ -11933,15 +11940,17 @@ function recommendationLabel(data) {
 
 // Factor scores are on a 0-100 scale. The label and its reading share a line;
 // the fill beneath is the same reading drawn, with no second colour.
-function scoreBar(label, value) {
-  const has = value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+// `notMeasured` names why a score is a placeholder: the row then reads "n/m"
+// (with that reason as its tooltip) instead of printing the placeholder.
+function scoreBar(label, value, notMeasured = '') {
+  const has = !notMeasured && value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
   const n = has ? Number(value) : 0;
   const fill = Math.max(0, Math.min(100, n));
   return `
-    <div class="score-row${has ? '' : ' is-na'}">
+    <div class="score-row${has ? '' : ' is-na'}"${notMeasured ? ` title="${escapeHtml(notMeasured)}" data-not-measured` : ''}>
       <div class="label">${escapeHtml(label)}</div>
-      <div class="score-value">${has ? fmtNumber(n, 1) : '--'}</div>
-      <div class="score-track" role="img" aria-label="${escapeHtml(label)} ${has ? fmtNumber(n, 1) : 'not available'} of 100"><div class="score-fill" data-fill="${fill}" style="width:${fill}%"></div></div>
+      <div class="score-value">${has ? fmtNumber(n, 1) : (notMeasured ? 'n/m' : '--')}</div>
+      <div class="score-track" role="img" aria-label="${escapeHtml(label)} ${has ? fmtNumber(n, 1) : (notMeasured ? 'not measured' : 'not available')} of 100"><div class="score-fill" data-fill="${fill}" style="width:${fill}%"></div></div>
     </div>`;
 }
 
@@ -12405,13 +12414,13 @@ function assetTypeMeta(data) {
   const isHighVol = !!data.is_high_volatility;
   const LABELS = {
     common_stock: 'Common Stock', etf: 'ETF / Fund', adr: 'ADR',
-    financial: 'Financial', high_volatility: 'High Volatility', invalid: 'Invalid',
+    financial: 'Financial', high_volatility: 'Volatile stock', invalid: 'Invalid',
   };
   const primaryLabel = LABELS[assetType] || 'Common Stock';
   const chips = [{ label: primaryLabel, kind: 'asset' }];
   if (isAdr && assetType !== 'adr') chips.push({ label: 'ADR', kind: 'adr' });
   if (isFinancial && assetType !== 'financial') chips.push({ label: 'Financial', kind: 'financial' });
-  if (isHighVol) chips.push({ label: 'High Volatility', kind: 'highvol' });
+  if (isHighVol) chips.push({ label: 'Volatile stock', kind: 'highvol' });
 
   let caveat = '';
   if (isEtf) {
@@ -12953,22 +12962,12 @@ function renderAnalysis(data) {
         </dl>
       </article>` : '';
 
-  // Stock versus its own market's benchmark over the same sessions.
-  const rel = data.relative_performance || {};
-  const relRows = Array.isArray(rel.rows) ? rel.rows.filter((r) => r.stock_pct != null) : [];
-  const relMax = Math.max(1, ...relRows.map((r) => Math.abs(Number(r.excess_pct) || 0)));
-  const relBar = (x) => (x == null || !Number.isFinite(Number(x)) ? '' : `<span class="rp-bar" aria-hidden="true"><span class="rp-bar-fill ${Number(x) >= 0 ? 'is-up' : 'is-down'}" style="width:${((Math.abs(Number(x)) / relMax) * 50).toFixed(1)}%"></span></span>`);
-  const relativeCard = relRows.length ? `
-      <article class="section-card ts-relative" data-relative-performance>
-        <h3 class="section-kicker">Performance vs ${escapeHtml(rel.benchmark || 'benchmark')} <span class="section-kicker-tail">${escapeHtml(rel.basis || '')}</span></h3>
-        <div class="q-tablewrap" tabindex="0" role="region" aria-label="Relative performance">
-          <table class="q-table"><thead><tr><th>Window</th><th class="num">${escapeHtml(data.ticker || 'Stock')}</th><th class="num">${escapeHtml(rel.benchmark || 'Benchmark')}</th><th class="num">Difference</th></tr></thead>
-          <tbody>${relRows.map((r) => `<tr><td>${escapeHtml(r.window)}</td><td class="num ${directionClass(r.stock_pct)}">${fmtPct(r.stock_pct, 1, false)}</td><td class="num">${r.benchmark_pct != null ? fmtPct(r.benchmark_pct, 1, false) : '<span class="q-na">n/a</span>'}</td><td class="num rp-diff ${r.excess_pct != null ? directionClass(r.excess_pct) : ''}">${relBar(r.excess_pct)}${r.excess_pct != null ? `${r.excess_pct >= 0 ? '+' : ''}${fmtNumber(r.excess_pct, 1)} pts` : '<span class="q-na">n/a</span>'}</td></tr>`).join('')}</tbody></table>
-        </div>
-      </article>` : '';
+  // Stock versus its own market's benchmark; the peer fund joins when the Research read arrives.
+  const relativeCard = relativeCardHtml(data.relative_performance, data.ticker, null);
 
   // How the 12-month target is built: each method, its weight, its upside.
   const comps = Array.isArray(valuation.target_components) ? valuation.target_components : [];
+  const streetOnlyTarget = comps.length === 1 && comps[0].source === 'analyst_consensus';
   const COMPONENT_NAME = {
     analyst_consensus: `Analyst consensus${Number(mi.analyst_count) ? ` (${Number(mi.analyst_count)} analysts)` : ''}`,
     dcf: 'DCF intrinsic value',
@@ -13163,12 +13162,12 @@ function renderAnalysis(data) {
 
   const scoresCard = `
       <article class="section-card ts-scores">
-        <h3 class="section-kicker">Multi-factor scores <span class="section-kicker-tail">quantitative signals · 0–100 · ranking inputs${ev.permits_recommendation ? '' : ', not validated'}</span></h3>
+        <h3 class="section-kicker">Multi-factor scores <span class="section-kicker-tail">0–100 ranking inputs${ev.permits_recommendation ? '' : ', not validated'}</span></h3>
         <div class="score-grid score-strip">
           ${scoreBar('Composite', scores.composite_score).replace('class="score-row', 'class="score-row is-lead')}
           ${scoreBar('Technical', scores.technical_score)}
           ${scoreBar('Fundamental', scores.fundamental_score)}
-          ${scoreBar('Valuation', scores.valuation_score)}
+          ${scoreBar('Valuation', scores.valuation_score, valuation.valuation_label === 'UNAVAILABLE' ? 'No DCF or valuation multiple was measured; the composite carries a neutral 50 in its place' : '')}
           ${scoreBar('Quality', scores.quality_score)}
           ${scoreBar('Sentiment', scores.sentiment_score)}
           ${scoreBar('Risk', scores.risk_score)}
@@ -13275,7 +13274,8 @@ function renderAnalysis(data) {
                  data-price="${escapeHtml(String(isPositive(currentPrice) ? currentPrice : ''))}"
                  data-stop="${escapeHtml(String(isPositive(heroStop) ? heroStop : ''))}"
                  data-target="${escapeHtml(String(isPositive(heroTarget) ? heroTarget : ''))}"
-                 data-target-label="${escapeHtml(isPositive(heroTarget) && targetMonths ? `${targetMonths}-month target` : 'Target')}"></div>
+                 data-target-label="${escapeHtml(isPositive(heroTarget) && targetMonths ? `${targetMonths}-month target` : 'Target')}"
+                 data-buy-zone="${escapeHtml(String(buyZonePrice(levels) || ''))}"></div>
           </div>
         </div>
 
@@ -13286,6 +13286,7 @@ function renderAnalysis(data) {
             ${decision || heroQualifier ? modelFlagHtml(ev) : ''}
             ${dqGate.failed ? '<span class="provisional-badge">Provisional: data quality failed</span>' : ''}
             ${heroMeaning ? `<p class="decision-meaning">${escapeHtml(heroMeaning)}</p>` : ''}
+            <p class="decision-prev" data-call-prev hidden></p>
             ${heroTiming ? `<p class="decision-timing ${heroTiming.tone}" data-entry-timing>${escapeHtml(heroTiming.text)}</p>` : ''}
           </div>
           ${railFactsHtml}
@@ -13313,10 +13314,11 @@ function renderAnalysis(data) {
               isPositive(heroTarget) && heroUp != null ? `<span class="${dqGate.failed ? 'muted' : directionClass(heroUp)}">${fmtPct(heroUp, 1, false)}</span>` : (decision ? 'none published by this Decision' : ''))}
             ${level('Reward / risk', escapeHtml(sharedRRLabel), '', /^\d/.test(sharedRRLabel) ? `to the ${targetMonths ? `${targetMonths}-month ` : ''}target, after costs` : '')}
             ${whyItems.some((x) => /\d\/100\b/.test(plainReason(stripEmoji(String(x))))) ? '' : level('Composite', `${composite}${dqGate.failed ? ' (preliminary)' : ''}`, dqGate.failed ? 'muted' : '')}
-            ${valuationTarget ? level(`${valuationMonths}-month valuation target`, fmtPrice(valuationTarget, sym), 'muted',
-              `<span class="${directionClass(upsidePct(valuationTarget, currentPrice))}">${fmtPct(upsidePct(valuationTarget, currentPrice), 1, false)}</span><span class="dlevel-note">context, not the R/R target</span>`) : ''}
+            ${valuationTarget ? level(`${valuationMonths}-month ${streetOnlyTarget ? 'Street target' : 'valuation target'}`, fmtPrice(valuationTarget, sym), 'muted',
+              `<span class="${directionClass(upsidePct(valuationTarget, currentPrice))}">${fmtPct(upsidePct(valuationTarget, currentPrice), 1, false)}</span><span class="dlevel-note">${streetOnlyTarget ? `analysts’ mean${Number(mi.analyst_count) ? ` (${Number(mi.analyst_count)})` : ''}, no QUANTA valuation` : 'context, not the R/R target'}</span>`) : ''}
             </div>
             ${levelLadderHtml(heroStop, heroEntry, heroTarget, currentPrice, sym, dqGate.failed)}
+            ${dqGate.failed ? '' : levelNotesHtml({ levels, entry: heroEntry, target: heroTarget, rr: effectiveRR, technical, sym })}
           </section>
 
             ${decision && decision.caveat ? `<p class="decision-caveat">${escapeHtml(decision.caveat)}</p>` : ''}
@@ -13329,9 +13331,9 @@ function renderAnalysis(data) {
       <div class="ts-glance">
         <section class="ts-chart" id="ts-chart" aria-label="${escapeHtml(data.ticker || '')} price chart" data-symbol="${escapeHtml(String(data.ticker || '').toUpperCase())}"></section>
         ${technicalSignalsHtml(technical, currentPrice, sym) || technicalCard}
-        ${sessionTile}
         ${scoresCard}
         ${relativeCard}
+        ${streetStripHtml(data, undefined)}
       </div>
       <nav class="ts-nav" aria-label="Tear sheet sections">
         <a class="ts-nav-id" href="#ts-snapshot" data-ts-jump="snapshot"><span class="ts-nav-tk">${escapeHtml(data.ticker || '')}</span><span class="ts-nav-call ${heroTone}">${escapeHtml(preciseLabel)}</span><span class="ts-nav-px">${escapeHtml(fmtPrice(currentPrice, sym))}</span><span class="sr-only"> Decision summary</span></a>
@@ -13339,7 +13341,7 @@ function renderAnalysis(data) {
       </nav>
 
       <div class="ts-panels">
-      ${panel('decision', TS_SECTIONS.decision, chapter('decision', 'Decision', 'Authoritative', (engineBlockers ? '' : whyNotBuyHtml(finalActionInfo, validationSummary, { omitHeadline: primaryBlocker ? primaryBlocker.text : '', primaryCode: primaryBlocker ? primaryBlocker.code || '' : '' }))
+      ${panel('decision', TS_SECTIONS.decision, chapter('decision', 'Decision', 'Authoritative', '<article class="section-card ts-span" data-call-history hidden></article>' + (engineBlockers ? '' : whyNotBuyHtml(finalActionInfo, validationSummary, { omitHeadline: primaryBlocker ? primaryBlocker.text : '', primaryCode: primaryBlocker ? primaryBlocker.code || '' : '' }))
         + invalidationCard
         + renderActionOrHolderPlan(data, { sym, currentPrice, baseTgt, bearTgt, bullTgt, stopL, entryP, sharedRRLabel, railEntry: heroEntry, railStop: heroStop, sizingHtml, held: !!data.has_existing_position })
         + guidance))}
@@ -13350,7 +13352,7 @@ function renderAnalysis(data) {
       ${panel('technicals', TS_SECTIONS.technicals, chapter('technicals', 'Technicals', 'Facts & signals',
         // The price history is the live chart beside the Decision; this panel
         // holds the session and the technical readings.
-        (renderCandlestickPanel(data, { compositeScore: scores.composite_score }) || sectionUnavailableCard('Candlestick patterns', 'No candlestick patterns or candlestick bias returned.'))))}
+        sessionTile + (renderCandlestickPanel(data, { compositeScore: scores.composite_score }) || sectionUnavailableCard('Candlestick patterns', 'No candlestick patterns or candlestick bias returned.'))))}
       ${panel('risks', TS_SECTIONS.risks, chapter('risks', 'Risks', 'Facts & interpretation', riskCard)
         + chapter('catalysts', 'Catalysts', 'Facts', newsCard))}
       ${panel('evidence', TS_SECTIONS.evidence, chapter('evidence', 'Evidence', 'Validation', modelEvidenceCard + `
@@ -13385,13 +13387,22 @@ function renderAnalysis(data) {
     const earnRaw = String(catalysts.earnings_date || mi.next_earnings_date || '').slice(0, 10);
     const earnT = /^\d{4}-\d{2}-\d{2}$/.test(earnRaw) ? Date.parse(`${earnRaw}T12:00:00Z`) : NaN;
     const chartEvents = Number.isFinite(earnT) ? [{ t: earnT, kind: 'earnings', label: 'Earnings report' }] : [];
-    window.QuantaLiveChart.mount(chartHost, { symbol: chartHost.dataset.symbol, context: 'research', showQuote: false, levels: chartLevels, events: chartEvents });
+    window.QuantaLiveChart.mount(chartHost, { symbol: chartHost.dataset.symbol, context: 'research', range: '6mo', rangeKey: 'quanta_chart_range_research_v2', showQuote: false, levels: chartLevels, events: chartEvents,
+      onData: (d) => syncLivePrice(container, d, { ticker: chartHost.dataset.symbol, analysisPrice: currentPrice, sym }),
+      onQuote: (q) => syncLivePrice(container, q, { ticker: chartHost.dataset.symbol, analysisPrice: currentPrice, sym }) });
   } else if (chartHost) {
     chartHost.innerHTML = renderPriceChartCard(data.price_chart, { ticker: data.ticker, currentPrice, sym, vbWidth: 720, vbHeight: 300,
       target: isPositive(heroTarget) ? heroTarget : (decision ? null : baseTgt),
       targetLabel: isPositive(heroTarget) && targetMonths ? `${targetMonths}-month target` : 'Target',
       stop: isPositive(heroStop) ? heroStop : (decision ? null : stopL) });
     wirePriceChart(container);
+  }
+  // Call history and the Research read (odds, earnings move, revisions, peer fund).
+  if (decision && typeof fetch === 'function') {
+    loadResearchExtras(container, data, {
+      sym, target: isPositive(heroTarget) ? Number(heroTarget) : null, entry: Number(heroEntry), stop: Number(heroStop),
+      horizonDays: levels.target_horizon_days, earnings: String(catalysts.earnings_date || mi.next_earnings_date || '').slice(0, 10),
+    });
   }
   // The request bar's progress is for the run, not a permanent fixture.
   setTimeout(() => { $('#an-progress')?.classList.add('hidden'); }, 300);
@@ -13418,6 +13429,178 @@ function renderAnalysis(data) {
     }
     buildTearSheetNav(container);
   });
+}
+
+// Stock versus its own market's benchmark over the same sessions and, once the
+// Research read arrives, versus its industry or sector fund (peer.rows: the
+// fund's return per window). Differences are the stock's own return minus each.
+function relativeCardHtml(rel, ticker, peer) {
+  const rows = Array.isArray(rel && rel.rows) ? rel.rows.filter((r) => r.stock_pct != null) : [];
+  if (!rows.length) return '';
+  const fundBy = {};
+  ((peer && peer.rows) || []).forEach((r) => { fundBy[r.window] = r.fund_pct; });
+  const hasPeer = Object.keys(fundBy).length > 0;
+  const bench = rel.benchmark || 'Benchmark';
+  const pts = (x) => (x == null || !Number.isFinite(Number(x)) ? '<span class="q-na">n/a</span>' : `${Number(x) >= 0 ? '+' : ''}${fmtNumber(x, 1)} pts`);
+  const relMax = Math.max(1, ...rows.map((r) => Math.abs(Number(r.excess_pct) || 0)));
+  const relBar = (x) => (hasPeer || x == null || !Number.isFinite(Number(x)) ? '' : `<span class="rp-bar" aria-hidden="true"><span class="rp-bar-fill ${Number(x) >= 0 ? 'is-up' : 'is-down'}" style="width:${((Math.abs(Number(x)) / relMax) * 50).toFixed(1)}%"></span></span>`);
+  const pct = (x) => (x != null && Number.isFinite(Number(x)) ? fmtPct(x, 1, false) : '<span class="q-na">n/a</span>');
+  const vsFund = (r) => (fundBy[r.window] != null ? Number(r.stock_pct) - Number(fundBy[r.window]) : null);
+  const tail = hasPeer
+    ? `total return; ${escapeHtml(peer.fund)} is its ${peer.basis === 'industry' ? 'industry' : 'sector'} fund`
+    : escapeHtml(rel.basis || '');
+  return `
+      <article class="section-card ts-relative${hasPeer ? ' has-peer' : ''}" data-relative-performance>
+        <h3 class="section-kicker">Performance vs ${escapeHtml(bench)}${hasPeer ? ` and ${escapeHtml(peer.fund)}` : ''} <span class="section-kicker-tail">${tail}</span></h3>
+        <div class="q-tablewrap" tabindex="0" role="region" aria-label="Relative performance">
+          <table class="q-table"><thead><tr><th>Window</th><th class="num">${escapeHtml(ticker || 'Stock')}</th><th class="num">${escapeHtml(bench)}</th>${hasPeer ? `<th class="num">${escapeHtml(peer.fund)}</th>` : ''}<th class="num">${hasPeer ? `vs ${escapeHtml(bench)}` : 'Difference'}</th>${hasPeer ? `<th class="num">vs ${escapeHtml(peer.fund)}</th>` : ''}</tr></thead>
+          <tbody>${rows.map((r) => `<tr><td>${escapeHtml(r.window)}</td><td class="num ${directionClass(r.stock_pct)}">${fmtPct(r.stock_pct, 1, false)}</td><td class="num">${pct(r.benchmark_pct)}</td>${hasPeer ? `<td class="num">${pct(fundBy[r.window])}</td>` : ''}<td class="num rp-diff ${r.excess_pct != null ? directionClass(r.excess_pct) : ''}">${relBar(r.excess_pct)}${pts(r.excess_pct)}</td>${hasPeer ? `<td class="num rp-diff ${vsFund(r) != null ? directionClass(vsFund(r)) : ''}">${pts(vsFund(r))}</td>` : ''}</tr>`).join('')}</tbody></table>
+        </div>
+      </article>`;
+}
+
+// The Street and the estimates in one ruled strip under the at-a-glance grid:
+// rating, mean target, target revisions, the EPS estimate's drift and the
+// multiples. Revisions and the EPS drift arrive with the Research read.
+function streetStripHtml(data, read) {
+  const mi = data.market_intel || {};
+  const f = data.fundamental || {};
+  const sym = data.currency_symbol || '$';
+  const price = Number(data.current_price);
+  const n = Number(mi.analyst_count) || 0;
+  const tgt = firstUsable(mi.target_mean);
+  const up = upsidePct(tgt, price);
+  const rev = read && read.revisions;
+  const eps = read ? read.eps_revision_pct : undefined;
+  const reading = '<span class="q-na">Reading</span>';
+  const cell = (k, v, sub = '', title = '') => `<div class="st-cell"${title ? ` title="${escapeHtml(title)}"` : ''}><span class="st-k">${escapeHtml(k)}</span><span class="st-v">${v}</span>${sub ? `<span class="st-s">${sub}</span>` : ''}</div>`;
+  const cells = [
+    cell('Street rating', mi.analyst_rating && n ? `<span class="is-word">${escapeHtml(titleLabel(mi.analyst_rating))}</span>` : '<span class="q-na">Not reported</span>', n ? `${n} analysts` : ''),
+    cell('Mean target', isPositive(tgt) ? escapeHtml(fmtPrice(tgt, sym)) : '<span class="q-na">Not reported</span>', up != null ? `<span class="${directionClass(up)}">${fmtPct(up, 1, false)}</span>` : ''),
+    cell(`Target changes, ${Number(thr('MARKET.REVISION_WINDOW_DAYS'))}d`, read === undefined ? reading
+      : (rev ? `<span class="bull">${rev.raises} up</span> / <span class="${rev.cuts > rev.raises ? 'warn' : ''}">${rev.cuts} down</span>` : '<span class="q-na">Not reported</span>'),
+      rev && rev.firms ? `${rev.firms} firms acted` : '', 'Analyst price-target raises against cuts, each firm counted once'),
+    cell('EPS estimate, 30d', read === undefined ? reading : (eps != null ? `<span class="${directionClass(eps)}">${fmtPct(eps, 2, false)}</span>` : '<span class="q-na">Not reported</span>'),
+      'this year’s consensus', 'Change in the consensus EPS estimate for the current fiscal year over 30 days'),
+    cell('Forward P/E', escapeHtml(fmtMultiple(f.forward_pe, 1)), isPositive(f.pe_ratio) ? `trailing ${escapeHtml(fmtMultiple(f.pe_ratio, 1))}` : ''),
+    cell('PEG', escapeHtml(fmtMultiple(f.peg_ratio, 2)), 'P/E over growth'),
+  ];
+  return `
+      <article class="section-card ts-street" data-street aria-labelledby="ts-street-h">
+        <h3 class="section-kicker" id="ts-street-h">Street and estimates <span class="section-kicker-tail">third-party opinion, not QUANTA’s</span></h3>
+        <div class="st-cells">${cells.join('')}</div>
+      </article>`;
+}
+
+// Notes under the risk/reward ladder that turn the levels into a plan: the
+// reward/risk hurdles and where they clear, the hit rate the levels need, and
+// resistance in the way. Each figure comes from the Decision or the payload.
+function levelNotesHtml({ levels, entry, target, rr, technical, sym }) {
+  const items = [];
+  const hurdles = (levels && levels.rr_hurdles) || {};
+  const rrText = (v) => `${fmtNumber(v, 2)}:1`;
+  const research = hurdles.research;
+  const funding = hurdles.funding;
+  if (research && !research.passes) {
+    items.push(`<li class="warn" data-hurdle="research">The Research call needs ${rrText(research.min)}${research.clear_entry ? `: reached at or below <b class="mono">${escapeHtml(fmtPrice(research.clear_entry, sym))}</b>` : ''}.</li>`);
+  } else if (funding && !funding.passes) {
+    items.push(`<li class="warn" data-hurdle="funding">Picks funds at ${rrText(funding.min)} reward/risk${funding.clear_entry ? `: reached at or below <b class="mono">${escapeHtml(fmtPrice(funding.clear_entry, sym))}</b>, with the stop and target re-set from that price` : ''}.</li>`);
+  }
+  if (Number(rr) > 0) {
+    items.push(`<li data-breakeven>Break-even hit rate <b class="mono">${Math.round(100 / (1 + Number(rr)))}%</b>: the share of trades like this that must reach the target before the stop.</li>`);
+  }
+  const res = Number(technical && technical.resistance_level);
+  if (res > 0 && Number(entry) > 0 && Number(target) > 0 && res > Number(entry) && res < Number(target)) {
+    items.push(`<li data-hurdle-resistance>Resistance at <b class="mono">${escapeHtml(fmtPrice(res, sym))}</b> sits between the entry and the target.</li>`);
+  }
+  return `<ul class="dnotes" data-level-notes>${items.join('')}</ul>`;
+}
+
+// "2026-11-17" -> "Nov 17, 2026", as the chart writes dates.
+const isoDay = (iso) => (/^\d{4}-\d{2}-\d{2}/.test(String(iso || ''))
+  ? new Date(`${String(iso).slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  : String(iso || ''));
+
+// The price at which the binding reward/risk hurdle clears, for the buy-zone alert.
+function buyZonePrice(levels) {
+  const h = (levels && levels.rr_hurdles) || {};
+  const row = (h.research && !h.research.passes) ? h.research : ((h.funding && !h.funding.passes) ? h.funding : null);
+  return row && isPositive(row.clear_entry) ? Number(row.clear_entry) : null;
+}
+
+// The calls recorded for this ticker (tracking ledger), newest first.
+function callHistoryHtml(calls, sym) {
+  if (!Array.isArray(calls) || !calls.length) return '';
+  const rows = calls.map((c) => `<tr${c.changed ? ' class="is-changed"' : ''}><td>${escapeHtml(isoDay(c.date))}</td><td>${escapeHtml(actionWord(c.action))}</td><td>${escapeHtml(titleLabel(String(c.stance || '').toLowerCase()))}</td><td class="num">${c.score != null ? fmtNumber(c.score, 1) : '<span class="q-na">--</span>'}</td><td class="num">${c.price != null ? escapeHtml(fmtPrice(c.price, sym)) : '--'}</td><td class="num">${c.target != null ? escapeHtml(fmtPrice(c.target, sym)) : '<span class="q-na">none</span>'}</td><td class="num">${c.stop != null ? escapeHtml(fmtPrice(c.stop, sym)) : '<span class="q-na">none</span>'}</td></tr>`).join('');
+  return `
+        <h3 class="section-kicker">Call history <span class="section-kicker-tail">the Decisions QUANTA recorded for this ticker; a changed call is marked</span></h3>
+        <div class="q-tablewrap" tabindex="0" role="region" aria-label="Call history">
+          <table class="q-table"><thead><tr><th>Date</th><th>Call</th><th>Stance</th><th class="num">Score</th><th class="num">Price</th><th class="num">Target</th><th class="num">Stop</th></tr></thead><tbody>${rows}</tbody></table>
+        </div>`;
+}
+
+// After the tear sheet renders: the recorded call history and the Research read
+// (odds, the earnings move against the stop, revisions, the peer fund). Each
+// fills its own slot; a failure leaves the slot as it was.
+function loadResearchExtras(container, data, ctx) {
+  const ticker = String(data.ticker || '').toUpperCase();
+  const still = () => container.isConnected && state.analysis === data;
+  const sym = ctx.sym;
+  fetch(`/api/research/history?symbol=${encodeURIComponent(ticker)}`).then((r) => r.json()).then((j) => {
+    if (!still()) return;
+    const calls = (j && j.calls) || [];
+    const asOf = String((data.decision && data.decision.as_of) || '');
+    const before = calls.filter((c) => c.date < asOf);
+    const prev = before[0];
+    const slot = container.querySelector('[data-call-prev]');
+    if (slot && prev && actionKey(prev.action) !== actionKey((data.decision || {}).action)) {
+      slot.innerHTML = `Was <b>${escapeHtml(actionWord(prev.action))}</b> on ${escapeHtml(isoDay(prev.date))}${prev.score != null ? ` (score ${fmtNumber(prev.score, 1)})` : ''}. <a href="#ts-decision" data-ts-jump="decision">Call history</a>`;
+      slot.hidden = false;
+    }
+    const card = container.querySelector('[data-call-history]');
+    const html = callHistoryHtml(calls, sym);
+    if (card && html) { card.innerHTML = html; card.hidden = false; }
+  }).catch(() => {});
+
+  const q = new URLSearchParams({
+    symbol: ticker, market: state.market === 'IN' ? 'IN' : 'US', price: String(data.current_price || ''),
+    target: String(ctx.target || ''), horizon: String(ctx.horizonDays || ''), earnings: ctx.earnings || '',
+    sector: data.sector || '', industry: data.industry || '', wait: '6',
+  });
+  let tries = 0;
+  const poll = () => fetch(`/api/research/enrich?${q}`).then((r) => r.json()).then((j) => {
+    if (!still()) return;
+    if (j && j.pending && tries++ < 4) { setTimeout(poll, 1500); return; }
+    const read = (j && j.read) || null;
+    applyResearchRead(container, data, read, ctx);
+  }).catch(() => { if (still()) applyResearchRead(container, data, null, ctx); });
+  poll();
+}
+
+function applyResearchRead(container, data, read, ctx) {
+  const sym = ctx.sym;
+  const street = container.querySelector('[data-street]');
+  if (street) street.outerHTML = streetStripHtml(data, read || null);
+  if (!read) return;
+  if (read.peer && read.peer.rows && read.peer.rows.length) {
+    const rel = container.querySelector('[data-relative-performance]');
+    const html = relativeCardHtml(data.relative_performance, data.ticker, read.peer);
+    if (rel && html) rel.outerHTML = html;
+  }
+  const notes = container.querySelector('[data-level-notes]');
+  if (!notes) return;
+  notes.querySelectorAll('[data-live]').forEach((el) => el.remove());
+  const add = (html) => notes.insertAdjacentHTML('beforeend', html);
+  const er = read.earnings;
+  const stopPct = isPositive(ctx.entry) && isPositive(ctx.stop) ? ((ctx.entry - ctx.stop) / ctx.entry) * 100 : null;
+  if (er && er.implied_move_pct != null) {
+    const wide = stopPct != null && Number(er.implied_move_pct) >= stopPct;
+    add(`<li class="${wide ? 'warn' : ''}" data-live data-earnings-move>Earnings on ${escapeHtml(isoDay(er.date))} fall inside the horizon: options price a <b class="mono">±${fmtNumber(er.implied_move_pct, 1)}%</b> move through ${escapeHtml(isoDay(er.expiry))}${stopPct != null ? `; the stop is ${fmtNumber(stopPct, 1)}% away${wide ? ', inside that move, so a gap can open through it' : ''}` : ''}.${er.avg_abs_move_pct != null ? ` Past reports moved it ${fmtNumber(er.avg_abs_move_pct, 1)}% on average.` : ''}</li>`);
+  }
+  const o = read.odds;
+  if (o && o.p != null && isPositive(ctx.target)) {
+    add(`<li data-live data-target-odds title="Risk-neutral: the option market's pricing at ${fmtNumber(Number(o.sigma) * 100, 0)}% volatility, not a forecast">Odds of <b class="mono">${escapeHtml(fmtPrice(ctx.target, sym))}</b> or higher in ${Number(o.horizon_days)} days: <b class="mono">${Math.round(Number(o.p) * 100)}%</b>, ${o.source === 'options' ? 'from option prices' : 'from price history'}.</li>`);
+  }
 }
 
 // Technical readings as signals: each row names the reading, its value and
@@ -13647,29 +13830,40 @@ function balanceDecisionBand(band) {
   band.classList.toggle('is-levels-wide', wideSlack < narrowSlack);
 }
 
-// The chart shares its row with the Signals card: its plot height is set so the
-// two tiles end level (bounded so the chart stays a compact, half-size view).
-// The rail height feeds the sticky offset of the Decision column.
-function fitChartToRail(container) {
+// The rail height feeds the sticky offset of the Decision column. The chart
+// spans the reading column at its own height (--lc-h in quanta.css).
+function measureRail(container) {
   const desk = container.querySelector('.ts-desk');
   const rail = container.querySelector('.ts-rail');
-  const chart = container.querySelector('#ts-chart');
-  const partner = container.querySelector('.ts-glance > .ts-signals, .ts-glance > .section-card');
-  if (!desk || !rail || !chart || typeof getComputedStyle !== 'function') return;
-  // A full-screen chart sizes itself (live-chart.js); the rail must not shrink it.
-  if (chart.classList.contains('is-expanded')) return;
+  if (!desk || !rail || typeof getComputedStyle !== 'function') return;
   if (getComputedStyle(desk).display === 'grid') desk.style.setProperty('--ts-rail-h', `${Math.ceil(rail.getBoundingClientRect().height)}px`);
-  const glance = chart.parentElement;
-  const twoUp = glance && getComputedStyle(glance).gridTemplateColumns.trim().split(/\s+/).length > 1;
-  const plot = chart.querySelector('.lc-plot');
-  if (!twoUp || !partner || !plot) { chart.style.removeProperty('--lc-h'); return; }
-  const now = plot.getBoundingClientRect().height;
-  // The partner's own content height, not its stretched row height.
-  const pr = partner.getBoundingClientRect();
-  const last = partner.lastElementChild;
-  const natural = last ? last.getBoundingClientRect().bottom - pr.top + (parseFloat(getComputedStyle(partner).paddingBottom) || 0) + 1 : pr.height;
-  const want = Math.round(Math.max(160, Math.min(320, now + natural - chart.getBoundingClientRect().height)));
-  if (Math.abs(want - now) > 2) chart.style.setProperty('--lc-h', `${want}px`);
+}
+
+// One price on the page: once the live chart has a quote newer than the
+// analysis, the rail and the section bar show it. The Decision's levels stay
+// measured from the analysis price, which the price's tooltip names.
+function syncLivePrice(container, d, { ticker, analysisPrice, sym }) {
+  if (!d || String(d.symbol || '').toUpperCase() !== String(ticker || '').toUpperCase()) return;
+  const px = Number(d.regular_price);
+  // Daily bars carry no previous close: it is the session before the last bar.
+  const pts = Array.isArray(d.points) ? d.points : [];
+  const prev = Number(d.previous_close) || (d.interval === '1d' && pts.length > 1 ? Number(pts[pts.length - 2][1]) : NaN);
+  if (!(px > 0) || !(prev > 0)) return;
+  const pct = ((px - prev) / prev) * 100;
+  const val = container.querySelector('.decision-price-value');
+  const chg = container.querySelector('.decision-price-change');
+  const nav = container.querySelector('.ts-nav-px');
+  if (val) {
+    val.textContent = fmtPrice(px, sym);
+    val.title = isPositive(analysisPrice) && Math.abs(px - analysisPrice) >= 0.005
+      ? `Live price. The Decision and its levels were computed at ${fmtPrice(analysisPrice, sym)}.`
+      : 'Live price';
+  }
+  if (chg) {
+    chg.textContent = `${fmtPct(pct, 2, false)} today`;
+    chg.className = `decision-price-change ${directionClass(pct)}`;
+  }
+  if (nav) nav.textContent = fmtPrice(px, sym);
 }
 
 // Two lists side by side in one tile (supporting factors against key risks)
@@ -13699,7 +13893,7 @@ function watchTearSheetLayout(container) {
   const sync = () => {
     frame = 0;
     balanceDecisionBand(rail);
-    fitChartToRail(container);
+    measureRail(container);
     stackUnevenLists(container);
     fitChapterPairs(container.querySelector('.ts-panel:not([hidden])'));
   };
@@ -14390,6 +14584,12 @@ if (typeof module !== 'undefined' && module.exports) {
     scanLimit,
     evidenceValidated,
     modelFlagHtml,
+    relativeCardHtml,
+    levelNotesHtml,
+    streetStripHtml,
+    callHistoryHtml,
+    buyZonePrice,
+    decisionContract,
     modelFlagWords,
     savedMarket,
     defaultCapital,

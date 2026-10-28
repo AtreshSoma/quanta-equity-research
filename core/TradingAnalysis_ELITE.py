@@ -3313,6 +3313,7 @@ class RiskAnalyzer:
         self._spy_returns_cache: Optional[pd.Series] = None
         self._spy_returns_cache_ts: float = 0.0
         self._benchmark_returns_cache: Dict[str, Tuple[pd.Series, float]] = {}
+        self._benchmark_long_cache: Dict[str, Tuple[pd.Series, float]] = {}
 
     @staticmethod
     def _sanitize_returns(returns: pd.Series, ticker: str = "") -> pd.Series:
@@ -3371,6 +3372,30 @@ class RiskAnalyzer:
         history = yf.Ticker(symbol).history(period="1y", auto_adjust=True)
         returns = self._sanitize_returns(history["Close"].pct_change().dropna(), symbol)
         self._benchmark_returns_cache[symbol] = (returns, now)
+        return returns
+
+    def _get_benchmark_returns_long(self, ticker: str) -> pd.Series:
+        """Two years of benchmark returns, for the relative-performance windows.
+
+        A period="1y" fetch (what beta and the risk grade read) begins a
+        session or two after the 1Y window's start session, so that window
+        printed n/a for the benchmark on every name. Cached for half an hour;
+        when the fetch fails the one-year series stands in.
+        """
+        symbol = self._benchmark_symbol(ticker)
+        now = time.time()
+        cached = self._benchmark_long_cache.get(symbol)
+        if cached is not None and now - cached[1] < 1800:
+            return cached[0]
+        try:
+            closes = yf.Ticker(symbol).history(period="2y", auto_adjust=True)["Close"]
+            returns = self._sanitize_returns(closes.pct_change().dropna(), symbol)
+        except Exception as exc:  # noqa: BLE001 - the one-year series stands in
+            logger.debug(f"{symbol}: two-year benchmark unavailable: {exc}")
+            returns = pd.Series(dtype=float)
+        if len(returns) < 2:
+            return self._get_benchmark_returns(ticker)
+        self._benchmark_long_cache[symbol] = (returns, now)
         return returns
 
     @staticmethod
@@ -7552,6 +7577,29 @@ def _decision_conflicts(result: "AnalysisResult", stance: str) -> List[str]:
     return out
 
 
+def _rr_hurdles(result: "AnalysisResult", setup: Any, valuation_target: Optional[float]) -> Dict[str, Dict[str, Any]]:
+    """The Research hurdle and the funding hurdle Picks applies to these levels,
+    each with whether the net R:R passes and, if not, the highest spot that
+    clears it with the stop and target re-derived from that spot."""
+    from engine.levels import research_rr_clear_entry
+    rr = getattr(setup, "risk_reward_ratio", None)
+    entry = float(getattr(setup, "entry_price", 0) or 0)
+    stop = float(getattr(setup, "stop_loss", 0) or 0)
+    if rr is None or not valuation_target or not (entry > stop > 0):
+        return {}
+    frac = float(getattr(setup, "horizon_days", 0) or 0) / float(getattr(setup, "valuation_horizon_days", 0) or 1)
+    cost = TradeSetupGenerator.round_trip_cost_pct(result.ticker) / 100
+    out: Dict[str, Dict[str, Any]] = {}
+    for name, floor in (("research", float(_T.RR.RESEARCH_MIN)),
+                        ("funding", max(float(_T.RR.SCANNER_MIN), float(_T.RR.RESEARCH_MIN)))):
+        row: Dict[str, Any] = {"min": floor, "passes": float(rr) >= floor}
+        if not row["passes"]:
+            p = research_rr_clear_entry(valuation_target, frac, entry - stop, cost, floor)
+            row["clear_entry"] = round(p, 2) if p else None
+        out[name] = row
+    return out
+
+
 def decision_for_analysis(result: "AnalysisResult"):
     """Build the one published deep-analysis decision from the resolved action."""
     from engine.decision import Decision, POSITION, SourceRef, assess_price_freshness
@@ -7602,6 +7650,7 @@ def decision_for_analysis(result: "AnalysisResult"):
     scenarios = _valuation_scenarios(result)
     has_target = bool(getattr(setup, "horizon_target", 0) or 0)
     valuation_target = float(getattr(setup, "target_base", 0) or 0) or None
+    rr_hurdles = _rr_hurdles(result, setup, valuation_target) if has_target else {}
     decision = Decision(
         ticker=result.ticker, engine="elite", horizon=POSITION,
         action=action, evidence=get_evidence(ELITE),
@@ -7641,6 +7690,7 @@ def decision_for_analysis(result: "AnalysisResult"):
         target_horizon_days=(POSITION.trading_days if has_target else None),
         valuation_target=valuation_target,
         valuation_target_horizon_days=(_T.LEVELS.VALUATION_HORIZON_DAYS if valuation_target else None),
+        rr_hurdles=rr_hurdles,
         reasons=list(result.final_action_reasons),
         blocking=blocking,
         blocking_codes=blocking_codes,
@@ -8410,7 +8460,7 @@ class QuantaEliteAnalyzer:
             # estimate already fetched; no extra provider call).
             try:
                 from engine.relative_performance import relative_performance
-                _bench = self.risk_analyzer._get_benchmark_returns(ticker)
+                _bench = self.risk_analyzer._get_benchmark_returns_long(ticker)
                 result.relative_performance = relative_performance(
                     data['Close'], _bench, self.risk_analyzer._benchmark_symbol(ticker))
             except Exception as _rpe:  # noqa: BLE001

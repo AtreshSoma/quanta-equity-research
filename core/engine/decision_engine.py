@@ -17,7 +17,7 @@ from typing import Optional
 
 from .blockers import action_contract
 from .evidence import stance_for
-from .risk_overrides import apply_risk_override_details, measured_red_flags
+from .risk_overrides import also_failing_gates, apply_risk_override_details, measured_red_flags
 from .score_bands import SCORE_BANDS
 from .types import ConfidenceTier, DecisionInputs, DecisionResult, FinalAction
 
@@ -108,6 +108,11 @@ def resolve_final_action(
 
     overrides = [text for _code, text in details]
     override_codes = [code for code, _text in details]
+    # Gates the buy candidate also fails after an earlier rule took it out of
+    # the funded tiers: listed as blockers so every remedy shown is sufficient,
+    # never counted as overrides (the confidence tier and reasons are unchanged).
+    also = also_failing_gates(inputs, candidate, resolved, override_codes, enforce_price_gates)
+    override_codes += [code for code, _text in also]
     if starting_candidate is not None:
         reasons = [f"Reconciling against {starting_candidate.value} (this engine's own price levels/score not applied)"]
     else:

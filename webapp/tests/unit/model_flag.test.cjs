@@ -35,7 +35,7 @@ test('the validated status comes from config, and anything else is flagged', () 
     assert.ok(a, 'flag shown');
     // A model tested with no edge says so; anything else is "not yet validated".
     const noEdge = String((ev && ev.status) || '') === 'NO_EDGE';
-    assert.equal(a.textContent, noEdge ? 'Tested: no edge found' : 'Model not yet validated');
+    assert.equal(a.textContent, noEdge ? 'Edge unproven' : 'Model not yet validated');
     assert.equal(a.getAttribute('href'), '#track');
     assert.equal(a.dataset.viewLink, 'track');
   }
@@ -72,7 +72,7 @@ test('the Research rail, Overview brief and Pro watchlist use the same flag, not
   const pro = fs.readFileSync(path.join(root, 'static', 'elite-pro.js'), 'utf8');
   assert.match(appJs, /\$\{decision \|\| heroQualifier \? modelFlagHtml\(ev\) : ''\}/);
   assert.match(appJs, /am\.qualifier \? modelFlagHtml\(/);
-  assert.match(pro, /class="qpro-qual"[^>]*>\$\{noEdge \? 'Tested: no edge found' : 'Model not yet validated'\}</);
+  assert.match(pro, /class="qpro-qual"[^>]*>\$\{noEdge \? 'Edge unproven' : 'Model not yet validated'\}</);
   for (const f of ['templates/index.html', 'static/app.js', 'static/my-portfolio.js', 'static/mp-overview.js']) {
     assert.doesNotMatch(fs.readFileSync(path.join(root, f), 'utf8'), /Unproven model/, f);
   }

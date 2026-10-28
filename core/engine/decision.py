@@ -163,6 +163,10 @@ class Decision:
     # (context only: reward/risk is never measured to it).
     valuation_target: Optional[float] = None
     valuation_target_horizon_days: Optional[int] = None
+    # The reward/risk hurdles these levels face: the Research call's own and the
+    # funding hurdle Picks applies to them, each with whether it passes and, if
+    # not, the highest spot that clears it (engine.levels.research_rr_clear_entry).
+    rr_hurdles: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
     # Explanation
     reasons: List[str] = field(default_factory=list)
@@ -260,6 +264,7 @@ class Decision:
                 "target_horizon_days": self.target_horizon_days,
                 "valuation_target": self.valuation_target,
                 "valuation_target_horizon_days": self.valuation_target_horizon_days,
+                "rr_hurdles": {k: dict(v) for k, v in self.rr_hurdles.items()},
             },
             "scenarios": [asdict(s) for s in self.scenarios],
             "reasons": list(self.reasons),

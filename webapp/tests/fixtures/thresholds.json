@@ -359,6 +359,21 @@
   "INDIA_VIX_ELEVATED": 20.0,
   "INDIA_VIX_EXTREME": 28.0,
   "INDIA_VIX_STRESS": 24.0,
+  "INDUSTRY_FUND_BY_INDUSTRY": {
+   "IN": {},
+   "US": {
+    "Aerospace & Defense": "ITA",
+    "Banks - Regional": "KRE",
+    "Biotechnology": "XBI",
+    "Gold": "GDX",
+    "Oil & Gas E&P": "XOP",
+    "Residential Construction": "XHB",
+    "Semiconductor Equipment & Materials": "SMH",
+    "Semiconductors": "SMH",
+    "Software - Application": "IGV",
+    "Software - Infrastructure": "IGV"
+   }
+  },
   "LEGACY_TONE_NET_SUM": 2,
   "LEGACY_TONE_TREND_PCT": 0.5,
   "MOMENTUM_DOWN_PCT": -6.0,

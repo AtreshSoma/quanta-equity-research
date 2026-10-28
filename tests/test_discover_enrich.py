@@ -136,6 +136,13 @@ def test_implied_move_and_strike_iv():
     assert D.strike_iv(bad, puts, 130, 100, 0.25, 0.04) == D.solve_iv(4.1, 100, 100, 0.25, 0.04, True), \
         "a strike without a two-sided quote falls back to the money"
     assert D.strike_iv([{"strike": 130, "bid": 0, "ask": 0}], puts, 130, 100, 0.25) is None
+    # CDNS, Oct 2026: the strike nearest the target had no market and a placeholder
+    # IV inside the sane band (0.0625), which priced the odds at 0%.
+    dead = [{"strike": 400, "bid": 27, "ask": 31.5, "impliedVolatility": 0.4989}, {"strike": 410, "bid": 0, "ask": 0, "impliedVolatility": 0.0625},
+            {"strike": 420, "bid": 22.5, "ask": 27, "impliedVolatility": 0.4958}]
+    want = D.solve_iv(29.25, 312.37, 400, 1.0, 0.04, True)
+    assert want is not None and D.strike_iv(dead, puts, 406.24, 312.37, 1.0, 0.04) == want, \
+        "a strike with no bid and ask is skipped, not read"
 
 
 def test_solve_iv_inverts_black_scholes_and_refuses_impossible_prices():

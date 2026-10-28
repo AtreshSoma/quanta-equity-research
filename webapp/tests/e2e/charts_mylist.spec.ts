@@ -76,8 +76,13 @@ test('My list: the bell adds a name, holds an alert, and closes with Escape', as
   await expect(panel).toBeVisible();
   const sym = `Z${Date.now() % 100000}`;
   await panel.locator('#ml-add-input').fill(sym);
+  // A poll can complete between typing and submitting; retain the draft and focus.
+  await page.evaluate(async () => { await (window as any).QuantaMyList.refresh(); });
+  await expect(panel.locator('#ml-add-input')).toHaveValue(sym);
+  await expect(panel.locator('#ml-add-input')).toBeFocused();
   await panel.getByRole('button', { name: 'Add' }).click();
   await expect(panel.locator(`[data-ml-open="${sym}"]`)).toBeVisible();
+  await expect(panel.locator('#ml-add-input')).toHaveValue('');
   await page.evaluate(async (s) => {
     await fetch('/api/alerts', { method: 'POST', headers: { 'X-QUANTA-Request': '1', 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbol: s, direction: 'below', level: 5, label: 'Stop' }) });

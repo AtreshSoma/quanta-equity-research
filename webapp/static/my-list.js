@@ -236,7 +236,10 @@
       if (await act('POST', '/api/my-list', { symbol: sym }, status)) {
         refreshQuotes();
         const again = document.getElementById('ml-add-input');
-        if (again) again.focus();
+        if (again) {
+          if (again.value.trim().toUpperCase() === sym) again.value = '';
+          again.focus();
+        }
       }
     });
     document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && state.open) close(true); });

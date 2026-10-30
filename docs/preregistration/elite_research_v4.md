@@ -7,7 +7,7 @@ and the shadow `elite.research.v3`. Neither is changed by it.
 
 ## 1. Hypothesis
 
-The Picks review of 29 October 2026 (kept outside the repository)
+The Picks review of 29 October 2026 (kept outside the repository, because it quotes a live scan)
 found three defects in how the Research model turns its analysis into a call:
 
 1. **The reward/risk hurdle is structurally out of reach.** The horizon target is

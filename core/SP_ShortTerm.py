@@ -841,7 +841,9 @@ def configure_provider_logging() -> None:
     classifier = _ProviderLogClassifier()
     classifier.setLevel(logging.WARNING)
     try:
-        file_handler = logging.FileHandler('apex_trading.log')
+        # The fixed log location, never the process's working directory (that left a stray
+        # apex_trading.log in the repo root whenever the server was started from there).
+        file_handler = logging.FileHandler(_LOG_FILE)
         file_handler.setFormatter(
             logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         )

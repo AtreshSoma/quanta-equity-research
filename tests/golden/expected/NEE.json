@@ -16,10 +16,10 @@
     "beginner_guidance": {
       "aggressive_buyer": "Do not add until the final decision changes",
       "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
-      "breakout_entry": 97.3003,
+      "breakout_entry": 84.38,
       "buy_now": "NO",
       "candlestick_timing": "WAIT",
-      "confidence": 42.1008,
+      "confidence": 40.1564,
       "data_quality": "WARN",
       "entry_quality": "Poor",
       "existing_holder": "Hold",
@@ -49,17 +49,19 @@
     "business_summary": "NextEra Energy, Inc., through its subsidiaries, generates, stores, transmits, distributes, and sells electric power to retail and wholesale customers in North America. It operates through Florida Power & Light Company (FPL) and NEER segments. The company generates electricity from wind, solar, nuclear, natural gas, and other clean energy assets. It also invests in generation, storage, transmission, and distribution facilities; owns, develops, constructs, manages, and operates generation facilities, including renewables, nuclear and natural gas, and battery storage facilities in the wholesale energy market in the United States and Canada, as well as electric and gas transmission assets, and natural gas pipelines; provides full energy and capacity requirement services; markets and trades in energy-related commodities; and participates in the production of natural gas, natural gas liquids, and oil. As of December 31, 2025, the company had approximately 35,963 megawatts of net generating capacity; approximately 93,000 circuit miles of transmission and distribution lines; and 932 substations. It serves approximately 12 million people through approximately 6 million customer accounts on the east and lower west coasts of Florida. The company was formerly known as FPL Group, Inc. and changed its name to NextEra Energy, Inc. in 2010. NextEra Energy, Inc. was founded in 1925 and is headquartered in Juno Beach, Florida.",
     "catalysts": {
       "catalyst_score": 0,
-      "days_to_earnings": -2,
+      "days_to_earnings": -1,
       "dividend_yield": 0.0305,
-      "earnings_date": "2026-10-21",
+      "earnings_date": "Unknown",
       "ex_dividend_date": "2026-11-26",
+      "last_earnings_date": "Unknown",
       "last_earnings_result": "Unknown",
       "last_earnings_surprise_pct": 0.0,
-      "near_term_catalyst": false
+      "near_term_catalyst": false,
+      "sessions_since_last_earnings": null
     },
     "company_name": "NextEra Energy, Inc.",
     "confidence_level": "LOW",
-    "confidence_score": 42.1008,
+    "confidence_score": 40.1564,
     "conviction_label": "LOW-CONVICTION",
     "country": "United States",
     "currency": "USD",
@@ -121,6 +123,7 @@
         "lineage": [
           {
             "change": "risk leg removed from the ranking composite",
+            "relation": "earlier",
             "status": "UNTESTED",
             "status_text": "Never validated",
             "strategy": "elite.alpha_only.v1",
@@ -129,11 +132,22 @@
           },
           {
             "change": "original composite",
+            "relation": "earlier",
             "status": "NO_EDGE",
             "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
             "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
+          },
+          {
+            "change": "pre-registered 2026-10-29; running in shadow",
+            "doc": "docs/preregistration/elite_research_v3.md",
+            "relation": "successor",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.research.v3",
+            "summary": "Never tested.",
+            "tested_through": null
           }
         ],
         "metrics": {
@@ -170,7 +184,7 @@
         "fundamental": 63,
         "quality": 59.2593,
         "sentiment": 50,
-        "technical": 69,
+        "technical": 64,
         "valuation": 20.0
       },
       "freshness": {
@@ -197,12 +211,14 @@
         "reward_risk": 0.0,
         "rr_hurdles": {
           "funding": {
-            "clear_entry": 49.51,
+            "clear_entry": 49.5,
+            "clear_entry_basis": "spot",
             "min": 1.8,
             "passes": false
           },
           "research": {
             "clear_entry": 54.63,
+            "clear_entry_basis": "spot",
             "min": 1.5,
             "passes": false
           }
@@ -224,7 +240,7 @@
       },
       "qualifier": "",
       "reasons": [
-        "Composite score 57.1 \u2192 candidate ACCUMULATE",
+        "Composite score 55.2 \u2192 candidate ACCUMULATE",
         "Target 81.45 <= entry 81.68 \u2192 WATCHLIST"
       ],
       "red_flags": [
@@ -265,11 +281,11 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 500,
+      "risk_grade_lookback_days": 501,
       "risk_metrics": {
-        "beta": 0.109399,
+        "beta": 0.109827,
         "risk_score": 35,
-        "volatility": 0.252958
+        "volatility": 0.252714
       },
       "risks": [],
       "scenarios": [
@@ -305,8 +321,92 @@
         }
       ],
       "schema_version": 1,
-      "score": 57.1008,
+      "score": 55.1564,
       "score_basis": "Research composite (alpha factors only), 0-100",
+      "shadow_model": {
+        "band_action": "ACCUMULATE",
+        "key": "elite.research.v3",
+        "note": "Pre-registered shadow model, scored from the same components. Not used for this call: no evidence gate, level, hurdle or override applies to it.",
+        "score": 56.38,
+        "status": "UNTESTED",
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.4,
+          "quality": 0.3,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
+      "shadow_v4": {
+        "band_action": "WATCHLIST",
+        "ev_gate": {
+          "ev_r": null,
+          "expected_return": null,
+          "inputs": null,
+          "p_neither": null,
+          "p_stop": null,
+          "p_target": null,
+          "passes": false,
+          "reason": "levels must satisfy stop < entry < target",
+          "risk": null
+        },
+        "key": "elite.research.v4",
+        "legs": {
+          "fundamental": 63,
+          "quality": 59.26,
+          "revisions": 53.0,
+          "sentiment": 50,
+          "technical": 64,
+          "valuation": 48.65
+        },
+        "note": "Pre-registered shadow model v4 (docs/preregistration/elite_research_v4.md): revisions leg, sector-aware valuation and an expected-value gate. Not used for this call.",
+        "score": 57.99,
+        "score_band": "ACCUMULATE",
+        "status": "UNTESTED",
+        "target": {
+          "components": [
+            {
+              "source": "analyst",
+              "value": 94.579,
+              "weight": 0.625
+            },
+            {
+              "source": "intrinsic",
+              "value": 57.8107,
+              "weight": 0.375
+            }
+          ],
+          "intrinsic": {
+            "components": [
+              {
+                "source": "dcf",
+                "value": 55.1104,
+                "weight": 0.5
+              },
+              {
+                "source": "graham",
+                "value": 60.511,
+                "weight": 0.5
+              }
+            ],
+            "method": "dcf+graham",
+            "note": "",
+            "value": 57.8107
+          },
+          "upside_pct": -1.08,
+          "value": 80.79
+        },
+        "version": "v4",
+        "weights": {
+          "fundamental": 0.32,
+          "quality": 0.24,
+          "revisions": 0.2,
+          "sentiment": 0.08,
+          "technical": 0.08,
+          "valuation": 0.08
+        }
+      },
       "sizing": {
         "dollar_risk": 0,
         "portfolio_weight": 0,
@@ -344,6 +444,7 @@
       "lineage": [
         {
           "change": "risk leg removed from the ranking composite",
+          "relation": "earlier",
           "status": "UNTESTED",
           "status_text": "Never validated",
           "strategy": "elite.alpha_only.v1",
@@ -352,11 +453,22 @@
         },
         {
           "change": "original composite",
+          "relation": "earlier",
           "status": "NO_EDGE",
           "status_text": "Tested out of sample: no demonstrated edge",
           "strategy": "elite.composite",
           "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
           "tested_through": "2026-08-25"
+        },
+        {
+          "change": "pre-registered 2026-10-29; running in shadow",
+          "doc": "docs/preregistration/elite_research_v3.md",
+          "relation": "successor",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.research.v3",
+          "summary": "Never tested.",
+          "tested_through": null
         }
       ],
       "metrics": {
@@ -412,7 +524,8 @@
       "operating_margin": 33.004,
       "pb_ratio": 2.7855,
       "pe_ratio": 14.7162,
-      "peg_ratio": 0.1579,
+      "peg_ratio": 1.5549,
+      "peg_source": "provider",
       "piotroski_components_available": 9,
       "piotroski_f_score": 7,
       "quality_score": 59.2593,
@@ -447,7 +560,7 @@
     "is_high_volatility": false,
     "is_invalid": false,
     "key_insights": [
-      "\u23f8\ufe0f HOLD signal with 42% confidence",
+      "\u23f8\ufe0f HOLD signal with 40% confidence",
       "\ud83d\udd34 Candlestick: Bearish Harami (Bearish, medium reliability)",
       "\u2b50 High Piotroski F-Score (7/9) - strong fundamentals",
       "\u26a0\ufe0f DCF suggests 33% overvaluation",
@@ -475,20 +588,20 @@
     "model_action": "WATCHLIST",
     "monte_carlo": {
       "days_simulated": 30,
-      "expected_return": 1.3402,
+      "expected_return": 1.3401,
       "expected_return_basis": "mean",
-      "mean_price": 82.7696,
-      "median_price": 82.5379,
-      "percentile_25": 77.8923,
-      "percentile_5": 71.1268,
-      "percentile_75": 87.3338,
-      "percentile_95": 95.319,
+      "mean_price": 82.7695,
+      "median_price": 82.5385,
+      "percentile_25": 77.8966,
+      "percentile_5": 71.136,
+      "percentile_75": 87.3294,
+      "percentile_95": 95.3059,
       "probability_10pct_gain": 0.1593,
-      "probability_10pct_loss": 0.0973,
+      "probability_10pct_loss": 0.097,
       "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only: not the chance of touching a target, and not target-vs-stop.",
       "probability_profit": 0.543,
       "simulations_run": 3000,
-      "var_95": -12.9149
+      "var_95": -12.9036
     },
     "net_assets": 0.0,
     "peer_comparison": {
@@ -496,12 +609,12 @@
       "pb_sector_avg": 2.0081,
       "pb_stock": 2.7855,
       "pb_vs_sector": 38.7135,
-      "pe_sector_avg": 20.671,
+      "pe_sector_avg": 21.56,
       "pe_stock": 14.7162,
-      "pe_vs_sector": -28.8074,
-      "roe_sector_avg": 9.7371,
+      "pe_vs_sector": -31.7429,
+      "roe_sector_avg": 9.8885,
       "roe_stock": 14.064,
-      "roe_vs_sector": 44.4369,
+      "roe_vs_sector": 42.2258,
       "sector": "Utilities",
       "sector_rank": 3,
       "sector_total": 9
@@ -537,36 +650,44 @@
     "recommendation_caveat": "",
     "recommendation_label": "WATCHLIST",
     "recommendation_qualifier": "",
-    "recommendation_text": "WATCHLIST - No new position | Confidence: 42% | Score: 57/100 | Risk: B",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 40% | Score: 55/100 | Risk: B",
     "relative_performance": {
       "basis": "total return, dividend-adjusted closes",
       "benchmark": "SPY",
       "rows": [
         {
           "benchmark_pct": -0.63,
+          "end_date": "2026-10-23",
           "excess_pct": 8.64,
           "sessions": 21,
+          "start_date": "2026-09-24",
           "stock_pct": 8.01,
           "window": "1M"
         },
         {
           "benchmark_pct": 3.41,
+          "end_date": "2026-10-23",
           "excess_pct": -10.77,
           "sessions": 63,
+          "start_date": "2026-07-27",
           "stock_pct": -7.36,
           "window": "3M"
         },
         {
           "benchmark_pct": 7.32,
+          "end_date": "2026-10-23",
           "excess_pct": -20.32,
           "sessions": 126,
+          "start_date": "2026-04-24",
           "stock_pct": -13.0,
           "window": "6M"
         },
         {
           "benchmark_pct": 15.39,
+          "end_date": "2026-10-23",
           "excess_pct": -13.96,
           "sessions": 252,
+          "start_date": "2025-10-22",
           "stock_pct": 1.43,
           "window": "1Y"
         }
@@ -575,12 +696,12 @@
     "requested_symbol": "NEE",
     "retrieval_timestamp": "<volatile>",
     "risk": {
-      "annualized_volatility": 0.253,
-      "beta": 0.1094,
+      "annualized_volatility": 0.2527,
+      "beta": 0.1098,
       "beta_benchmark": "SPY",
-      "beta_observations": 250,
+      "beta_observations": 251,
       "beta_status": "measured",
-      "cvar_95": -0.0376,
+      "cvar_95": -0.0371,
       "grade_drivers": [
         {
           "detail": "25% annualised (points above 25% / 35% / 50%)",
@@ -618,23 +739,45 @@
       "overall_risk_score": 5,
       "risk_grade": "B",
       "risk_points": 5,
-      "sharpe_ratio": -0.007,
-      "sortino_ratio": -0.0097,
+      "sharpe_ratio": -0.0128,
+      "sortino_ratio": -0.0178,
       "var_95_daily": -0.0242
     },
     "risk_warnings": [],
     "scores": {
       "component_details": {},
-      "composite_score": 57.1008,
+      "composite_score": 55.1564,
       "data_quality_note": "MODERATE - Some data sources missing",
       "fundamental_score": 63,
+      "neutral_filled": [
+        "sentiment"
+      ],
       "quality_score": 59.2593,
       "risk_score": 35,
       "score_confidence_margin": 0.0,
       "sentiment_score": 50,
-      "technical_score": 69,
+      "shadow_model": {
+        "band_action": "ACCUMULATE",
+        "score": 56.38,
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.4,
+          "quality": 0.3,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
+      "technical_score": 64,
       "valuation_score": 20.0,
       "weights": {
+        "fundamental": 0.2222,
+        "quality": 0.0889,
+        "sentiment": 0.1667,
+        "technical": 0.3889,
+        "valuation": 0.1333
+      },
+      "weights_used": {
         "fundamental": 0.2222,
         "quality": 0.0889,
         "sentiment": 0.1667,
@@ -674,7 +817,7 @@
     },
     "signal": "HOLD",
     "signal_explanation": {
-      "composite_score": 57.1008,
+      "composite_score": 55.1564,
       "overrides_triggered": [
         "Base target -1.1% below current price \u2192 HOLD"
       ],
@@ -683,7 +826,7 @@
         "Risk grade B: volatility 25% annualised, tail risk 60/100 from skew and fat tails"
       ],
       "supporting_factors": [
-        "Technical score 69 (bullish)",
+        "Technical score 64 (bullish)",
         "Fundamental score 63 (strong)"
       ]
     },
@@ -795,6 +938,11 @@
       "candlestick_score": 41.2,
       "death_cross": false,
       "golden_cross": false,
+      "indicator_basis": {
+        "live_bar_excluded": false,
+        "reason": "newest bar is a completed, settled session",
+        "scored_through": "2026-10-23"
+      },
       "macd_signal": "BULLISH",
       "momentum_score": 53.6029,
       "prior_trend": "UP",
@@ -807,8 +955,8 @@
       "trend_strength": "MODERATE",
       "unmeasured": [],
       "volatility_score": 60,
-      "volume_ratio": 1.3557,
-      "volume_ratio_basis": "last completed session (today's is still trading)",
+      "volume_ratio": 0.4054,
+      "volume_ratio_basis": "latest session",
       "week_52_basis": "provider-reported traded range",
       "week_52_high": 98.75,
       "week_52_low": 74.41
@@ -826,7 +974,7 @@
         "Analyst target implies 15.8% upside"
       ],
       "risks": [],
-      "summary": "NextEra Energy, Inc. (NEE) should be held at current levels with a 42% confidence score. Composite score of 57/100."
+      "summary": "NextEra Energy, Inc. (NEE) should be held at current levels with a 40% confidence score. Composite score of 55/100."
     },
     "ticker": "NEE",
     "trade_setup": {
@@ -844,6 +992,8 @@
       "time_horizon": "POSITION",
       "trailing_stop": 0.0,
       "trailing_stop_pct": 3.8,
+      "vol_scenario": {},
+      "vol_scenario_caveat": "",
       "win_probability": 0.0
     },
     "valuation": {

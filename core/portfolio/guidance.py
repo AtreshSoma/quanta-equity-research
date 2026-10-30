@@ -502,7 +502,7 @@ def reward_risk_text(d: Dict[str, Any]) -> str:
     horizon = lv.get("target_horizon_days") or _T.LEVELS.RESEARCH_HORIZON_DAYS
     full = lv.get("valuation_target_horizon_days") or _T.LEVELS.VALUATION_HORIZON_DAYS
     need = _T.RR.RESEARCH_MIN * (px - stop) / px * (full / float(horizon))
-    text = (f"Reward/risk {rr:.2f}:1 to the {horizon}-session target, under the {_T.fmt_rr(_T.RR.RESEARCH_MIN)} "
+    text = (f"Reward/risk {_T.floor_rr(rr):.2f}:1 to the {horizon}-session target, under the {_T.fmt_rr(_T.RR.RESEARCH_MIN)} "
             f"minimum: passing needs about {need:.0%} of 12-month upside")
     if isinstance(vt, (int, float)) and vt > 0:
         text += f", and QUANTA's 12-month target is {vt / px - 1:+.0%}"

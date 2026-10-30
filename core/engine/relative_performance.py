@@ -35,9 +35,14 @@ def relative_performance(closes: pd.Series, benchmark_returns: Optional[pd.Serie
     rows: List[Dict[str, Any]] = []
     for label, sessions in WINDOWS:
         row: Dict[str, Any] = {"window": label, "sessions": sessions,
-                               "stock_pct": None, "benchmark_pct": None, "excess_pct": None}
+                               "stock_pct": None, "benchmark_pct": None, "excess_pct": None,
+                               "start_date": None, "end_date": None}
         if len(stock) > sessions:
             end, start = stock.index[-1], stock.index[-1 - sessions]
+            # The base bar's date is the window's start: a window that straddles an
+            # earnings gap reads very differently from the one that starts after it.
+            row["start_date"] = pd.Timestamp(start).date().isoformat()
+            row["end_date"] = pd.Timestamp(end).date().isoformat()
             row["stock_pct"] = round(float(stock.iloc[-1] / stock.iloc[-1 - sessions] - 1) * 100, 2)
             if bench_level is not None:
                 common = bench_level.loc[(bench_level.index >= start) & (bench_level.index <= end)]

@@ -16,7 +16,7 @@
     "beginner_guidance": {
       "aggressive_buyer": "Do not add until the final decision changes",
       "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
-      "breakout_entry": 781.62,
+      "breakout_entry": 772.113,
       "buy_now": "NO",
       "candlestick_timing": "WAIT / NO CLEAR EDGE",
       "confidence": 47.2727,
@@ -51,9 +51,11 @@
       "dividend_yield": 0.0099,
       "earnings_date": "Unknown",
       "ex_dividend_date": "Unknown",
+      "last_earnings_date": "Unknown",
       "last_earnings_result": "Unknown",
       "last_earnings_surprise_pct": 0.0,
-      "near_term_catalyst": false
+      "near_term_catalyst": false,
+      "sessions_since_last_earnings": null
     },
     "company_name": "State Street SPDR S&P 500 ETF T",
     "confidence_level": "LOW",
@@ -119,6 +121,7 @@
         "lineage": [
           {
             "change": "risk leg removed from the ranking composite",
+            "relation": "earlier",
             "status": "UNTESTED",
             "status_text": "Never validated",
             "strategy": "elite.alpha_only.v1",
@@ -127,11 +130,22 @@
           },
           {
             "change": "original composite",
+            "relation": "earlier",
             "status": "NO_EDGE",
             "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
             "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
+          },
+          {
+            "change": "pre-registered 2026-10-29; running in shadow",
+            "doc": "docs/preregistration/elite_research_v3.md",
+            "relation": "successor",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.research.v3",
+            "summary": "Never tested.",
+            "tested_through": null
           }
         ],
         "metrics": {
@@ -246,17 +260,68 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 500,
+      "risk_grade_lookback_days": 501,
       "risk_metrics": {
         "beta": 1.0,
         "risk_score": 60,
-        "volatility": 0.165528
+        "volatility": 0.165374
       },
       "risks": [],
       "scenarios": [],
       "schema_version": 1,
       "score": 47.2727,
       "score_basis": "Research composite (alpha factors only), 0-100",
+      "shadow_model": {
+        "band_action": "HOLD",
+        "key": "elite.research.v3",
+        "note": "Pre-registered shadow model, scored from the same components. Not used for this call: no evidence gate, level, hurdle or override applies to it.",
+        "score": 50.0,
+        "status": "UNTESTED",
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.0,
+          "quality": 0.0,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
+      "shadow_v4": {
+        "band_action": "HOLD",
+        "ev_gate": {
+          "passes": false,
+          "reason": "no 12-month target"
+        },
+        "key": "elite.research.v4",
+        "legs": {
+          "fundamental": 50.0,
+          "quality": 50.0,
+          "revisions": null,
+          "sentiment": 50,
+          "technical": 40,
+          "valuation": null
+        },
+        "note": "Pre-registered shadow model v4 (docs/preregistration/elite_research_v4.md): revisions leg, sector-aware valuation and an expected-value gate. Not used for this call.",
+        "score": 45.0,
+        "score_band": "HOLD",
+        "status": "UNTESTED",
+        "target": {
+          "components": [],
+          "intrinsic": {
+            "components": [],
+            "method": "unavailable",
+            "note": "No usable inputs for this business type.",
+            "value": null
+          },
+          "upside_pct": null,
+          "value": null
+        },
+        "version": "v4",
+        "weights": {
+          "sentiment": 0.5,
+          "technical": 0.5
+        }
+      },
       "sizing": {
         "dollar_risk": 0,
         "portfolio_weight": 0,
@@ -294,6 +359,7 @@
       "lineage": [
         {
           "change": "risk leg removed from the ranking composite",
+          "relation": "earlier",
           "status": "UNTESTED",
           "status_text": "Never validated",
           "strategy": "elite.alpha_only.v1",
@@ -302,11 +368,22 @@
         },
         {
           "change": "original composite",
+          "relation": "earlier",
           "status": "NO_EDGE",
           "status_text": "Tested out of sample: no demonstrated edge",
           "strategy": "elite.composite",
           "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
           "tested_through": "2026-08-25"
+        },
+        {
+          "change": "pre-registered 2026-10-29; running in shadow",
+          "doc": "docs/preregistration/elite_research_v3.md",
+          "relation": "successor",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.research.v3",
+          "summary": "Never tested.",
+          "tested_through": null
         }
       ],
       "metrics": {
@@ -362,7 +439,8 @@
       "operating_margin": 0.0,
       "pb_ratio": 0.0,
       "pe_ratio": 24.2036,
-      "peg_ratio": 0.0,
+      "peg_ratio": null,
+      "peg_source": null,
       "piotroski_components_available": 0,
       "piotroski_f_score": null,
       "quality_score": 50.0,
@@ -417,20 +495,20 @@
     "model_action": "WATCHLIST",
     "monte_carlo": {
       "days_simulated": 30,
-      "expected_return": 1.9343,
+      "expected_return": 1.9174,
       "expected_return_basis": "mean",
-      "mean_price": 777.091,
-      "median_price": 774.772,
-      "percentile_25": 747.693,
-      "percentile_5": 708.774,
-      "percentile_75": 805.134,
-      "percentile_95": 851.957,
-      "probability_10pct_gain": 0.0817,
+      "mean_price": 776.962,
+      "median_price": 774.647,
+      "percentile_25": 747.597,
+      "percentile_5": 708.718,
+      "percentile_75": 804.975,
+      "percentile_95": 851.744,
+      "probability_10pct_gain": 0.081,
       "probability_10pct_loss": 0.0153,
       "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only: not the chance of touching a target, and not target-vs-stop.",
-      "probability_profit": 0.6187,
+      "probability_profit": 0.618,
       "simulations_run": 3000,
-      "var_95": -7.0272
+      "var_95": -7.0345
     },
     "net_assets": 809216000000.0,
     "peer_comparison": {
@@ -488,6 +566,7 @@
         "lineage": [
           {
             "change": "risk leg removed from the ranking composite",
+            "relation": "earlier",
             "status": "UNTESTED",
             "status_text": "Never validated",
             "strategy": "elite.alpha_only.v1",
@@ -496,11 +575,22 @@
           },
           {
             "change": "original composite",
+            "relation": "earlier",
             "status": "NO_EDGE",
             "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
             "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
+          },
+          {
+            "change": "pre-registered 2026-10-29; running in shadow",
+            "doc": "docs/preregistration/elite_research_v3.md",
+            "relation": "successor",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.research.v3",
+            "summary": "Never tested.",
+            "tested_through": null
           }
         ],
         "metrics": {
@@ -615,17 +705,68 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 500,
+      "risk_grade_lookback_days": 501,
       "risk_metrics": {
         "beta": 1.0,
         "risk_score": 60,
-        "volatility": 0.165528
+        "volatility": 0.165374
       },
       "risks": [],
       "scenarios": [],
       "schema_version": 1,
       "score": 47.2727,
       "score_basis": "Research composite (alpha factors only), 0-100",
+      "shadow_model": {
+        "band_action": "HOLD",
+        "key": "elite.research.v3",
+        "note": "Pre-registered shadow model, scored from the same components. Not used for this call: no evidence gate, level, hurdle or override applies to it.",
+        "score": 50.0,
+        "status": "UNTESTED",
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.0,
+          "quality": 0.0,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
+      "shadow_v4": {
+        "band_action": "HOLD",
+        "ev_gate": {
+          "passes": false,
+          "reason": "no 12-month target"
+        },
+        "key": "elite.research.v4",
+        "legs": {
+          "fundamental": 50.0,
+          "quality": 50.0,
+          "revisions": null,
+          "sentiment": 50,
+          "technical": 40,
+          "valuation": null
+        },
+        "note": "Pre-registered shadow model v4 (docs/preregistration/elite_research_v4.md): revisions leg, sector-aware valuation and an expected-value gate. Not used for this call.",
+        "score": 45.0,
+        "score_band": "HOLD",
+        "status": "UNTESTED",
+        "target": {
+          "components": [],
+          "intrinsic": {
+            "components": [],
+            "method": "unavailable",
+            "note": "No usable inputs for this business type.",
+            "value": null
+          },
+          "upside_pct": null,
+          "value": null
+        },
+        "version": "v4",
+        "weights": {
+          "sentiment": 0.5,
+          "technical": 0.5
+        }
+      },
       "sizing": {
         "dollar_risk": 0,
         "portfolio_weight": 0,
@@ -687,29 +828,37 @@
       "rows": [
         {
           "benchmark_pct": -0.63,
+          "end_date": "2026-10-23",
           "excess_pct": 0.0,
           "sessions": 21,
+          "start_date": "2026-09-24",
           "stock_pct": -0.63,
           "window": "1M"
         },
         {
           "benchmark_pct": 3.4,
+          "end_date": "2026-10-23",
           "excess_pct": 0.0,
           "sessions": 63,
+          "start_date": "2026-07-27",
           "stock_pct": 3.4,
           "window": "3M"
         },
         {
           "benchmark_pct": 7.32,
+          "end_date": "2026-10-23",
           "excess_pct": 0.0,
           "sessions": 126,
+          "start_date": "2026-04-24",
           "stock_pct": 7.32,
           "window": "6M"
         },
         {
           "benchmark_pct": 15.39,
+          "end_date": "2026-10-23",
           "excess_pct": 0.0,
           "sessions": 252,
+          "start_date": "2025-10-22",
           "stock_pct": 15.39,
           "window": "1Y"
         }
@@ -718,12 +867,12 @@
     "requested_symbol": "SPY",
     "retrieval_timestamp": "<volatile>",
     "risk": {
-      "annualized_volatility": 0.1655,
+      "annualized_volatility": 0.1654,
       "beta": 1.0,
       "beta_benchmark": "SPY",
-      "beta_observations": 250,
+      "beta_observations": 251,
       "beta_status": "measured",
-      "cvar_95": -0.0233,
+      "cvar_95": -0.023,
       "grade_drivers": [
         {
           "detail": "17% annualised (points above 25% / 35% / 50%)",
@@ -761,8 +910,8 @@
       "overall_risk_score": 4,
       "risk_grade": "B",
       "risk_points": 4,
-      "sharpe_ratio": 0.7292,
-      "sortino_ratio": 1.079,
+      "sharpe_ratio": 0.7215,
+      "sortino_ratio": 1.0675,
       "var_95_daily": -0.0153
     },
     "risk_warnings": [],
@@ -771,13 +920,35 @@
       "composite_score": 47.2727,
       "data_quality_note": "LOW - Limited data sources",
       "fundamental_score": 50.0,
+      "neutral_filled": [
+        "sentiment"
+      ],
       "quality_score": 50.0,
       "risk_score": 60,
       "score_confidence_margin": 0.0,
       "sentiment_score": 50,
+      "shadow_model": {
+        "band_action": "HOLD",
+        "score": 50.0,
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.0,
+          "quality": 0.0,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
       "technical_score": 40,
       "valuation_score": 60.0,
       "weights": {
+        "fundamental": 0.0,
+        "quality": 0.0,
+        "sentiment": 0.1111,
+        "technical": 0.3333,
+        "valuation": 0.1667
+      },
+      "weights_used": {
         "fundamental": 0.0,
         "quality": 0.0,
         "sentiment": 0.1111,
@@ -922,6 +1093,11 @@
       "candlestick_score": 50.0,
       "death_cross": false,
       "golden_cross": false,
+      "indicator_basis": {
+        "live_bar_excluded": false,
+        "reason": "newest bar is a completed, settled session",
+        "scored_through": "2026-10-23"
+      },
       "macd_signal": "BEARISH",
       "momentum_score": 44.5516,
       "prior_trend": "SIDEWAYS",
@@ -934,8 +1110,8 @@
       "trend_strength": "WEAK",
       "unmeasured": [],
       "volatility_score": 70,
-      "volume_ratio": 1.3261,
-      "volume_ratio_basis": "last completed session (today's is still trading)",
+      "volume_ratio": 0.3841,
+      "volume_ratio_basis": "latest session",
       "week_52_basis": "provider-reported traded range",
       "week_52_high": 781.62,
       "week_52_low": 629.28
@@ -963,6 +1139,8 @@
       "time_horizon": "POSITION",
       "trailing_stop": 0.0,
       "trailing_stop_pct": 1.9,
+      "vol_scenario": {},
+      "vol_scenario_caveat": "",
       "win_probability": 0.0
     },
     "valuation": {

@@ -32,9 +32,16 @@ from engine import corporate_events as ce  # noqa: E402
 from engine import thresholds as T  # noqa: E402
 from engine.market_calendar import last_completed_session  # noqa: E402
 
-# Anchored to the last completed session: a fixed end date ages past the
-# engine's freshness gate and every name is then rejected as stale data.
-_IDX = pd.bdate_range(end=last_completed_session().isoformat(), periods=520)
+# Anchored to the last SETTLED session: a fixed end date ages past the engine's
+# freshness gate, and a bar dated today inside the post-close settle window
+# (16:00 to 16:20 New York) is dropped by the engine as unsettled, leaving no data.
+def _settled_session(now=None):
+    from datetime import datetime, timedelta, timezone
+    now = now or datetime.now(timezone.utc)
+    return last_completed_session(now - timedelta(minutes=T.RESEARCH.BAR_SETTLE_MINUTES))
+
+
+_IDX = pd.bdate_range(end=_settled_session().isoformat(), periods=520)
 
 
 def _frame(i, scale=1.0, volume=2_000_000.0, rows=520):

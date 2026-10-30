@@ -1,0 +1,195 @@
+/* Material filings card on the Research page. Uses the design tokens in quanta.css only. */
+
+#material-filings {
+  margin-top: 18px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-lg);
+  background: var(--bg-elev-1);
+  padding: 14px 18px 16px;
+}
+
+.mf-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-bottom: 10px;
+}
+
+.mf-title-h {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.mf-sub {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.mf-count,
+.mf-note,
+.mf-nolink,
+.mf-react {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: 6px 0;
+}
+
+.mf-empty,
+.mf-loading {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  margin: 6px 0;
+}
+
+.mf-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.mf-event {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 10px;
+}
+
+.mf-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.mf-date {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mf-form {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.mf-items {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.mf-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  font-size: var(--fs-sm);
+}
+
+.mf-code {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mf-title {
+  color: var(--text-secondary);
+}
+
+.mf-why {
+  flex-basis: 100%;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.mf-study {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.mf-study--few {
+  color: var(--text-muted);
+}
+
+.mf-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: var(--fs-xs);
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.mf-link:focus-visible,
+.mf-retry:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+.mf-notcovered,
+.mf-error {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  margin: 6px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-elev-2);
+}
+
+.mf-error {
+  color: var(--bear-bright);
+  border-color: var(--bear-line);
+  background: var(--bear-dim);
+}
+
+.mf-fix {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.mf-tag {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-right: 6px;
+}
+
+.mf-retry {
+  margin-top: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-pill);
+  background: var(--bg-elev-3);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mf-body .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.mf-live { margin: 6px 0 0; font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.5; }

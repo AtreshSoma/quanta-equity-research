@@ -189,3 +189,41 @@ def infer_mean(x: Sequence[float], lags: Optional[int] = None, block: Optional[i
     t = newey_west_t(a, lags)
     return MeanInference(len(a), float(a.mean()), t, two_sided_p(t),
                          block_bootstrap_ci(a, block=block, seed=seed))
+
+
+def wilson_interval(k: int, n: int, z: float = 1.96) -> Optional[tuple]:
+    """Wilson score interval for a proportion ``k`` successes out of ``n``.
+
+    Unlike the Wald interval it stays inside [0, 1] and is sane for small ``n``
+    or rates near 0/1, which is exactly where hit-rate tables live. Returns
+    (lo, hi) as fractions, or None when ``n`` is 0.
+    """
+    if n is None or n <= 0:
+        return None
+    k = min(max(int(k), 0), int(n))
+    p = k / n
+    z2 = z * z
+    denom = 1.0 + z2 / n
+    centre = (p + z2 / (2.0 * n)) / denom
+    half = z * math.sqrt(p * (1.0 - p) / n + z2 / (4.0 * n * n)) / denom
+    return max(0.0, centre - half), min(1.0, centre + half)
+
+
+def benjamini_hochberg_adjusted(pvals: Sequence[Optional[float]]) -> List[Optional[float]]:
+    """BH step-up adjusted p-values (q-values); None stays None.
+
+    adj_(i) = min over j>=i of p_(j) * m / j, capped at 1, so that rejecting
+    every hypothesis with adj <= q controls the false-discovery rate at q.
+    """
+    present = [(i, p) for i, p in enumerate(pvals) if p is not None and math.isfinite(p)]
+    out: List[Optional[float]] = [None] * len(pvals)
+    m = len(present)
+    if not m:
+        return out
+    ranked = sorted(present, key=lambda ip: ip[1])
+    running = 1.0
+    for k in range(m, 0, -1):
+        i, p = ranked[k - 1]
+        running = min(running, p * m / k)
+        out[i] = float(min(1.0, running))
+    return out

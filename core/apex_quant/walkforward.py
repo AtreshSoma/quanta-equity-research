@@ -20,13 +20,14 @@ so the concatenated OOS curve is honestly out-of-sample.
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import numpy as np
 import pandas as pd
 
-from . import baselines, indicators, metrics
+from . import baselines, indicators, metrics, stats, trials
 from .costs import CostModel
 from .data_provider import DataProvider, DataQualityError
 from .simulator import SimConfig, SimResult, simulate
@@ -58,15 +59,73 @@ class WalkForwardResult:
     param_stability: Dict[str, List[float]] = field(default_factory=dict)
     validation_inputs: Dict[str, Any] = field(default_factory=dict)
     coverage_complete: bool = False
+    # Concatenated OOS daily returns keyed "strategy", "spy", "random_entry",
+    # "random_exit". The statistical gate needs them; a result built without
+    # them cannot pass (no evidence, no claim).
+    oos_daily: Dict[str, pd.Series] = field(default_factory=dict)
+    # Distinct variants ever tried for this strategy (persisted counter).
+    n_trials: int = 1
+    # Strategy's Sharpe percentile among random-entry Sharpes (random_seeds>1).
+    random_entry_percentile: Optional[float] = None
+    random_entry_sharpes: List[float] = field(default_factory=list)
+
+    # Minimum deflated-Sharpe probability when more than one trial was run.
+    DSR_MIN = 0.95
+
+    def gate_details(self) -> Dict[str, Any]:
+        """Why the gate passes or fails: point estimates plus statistical evidence.
+
+        ``lb_vs_spy`` / ``lb_vs_random_entry`` are the lower ends of a 95%
+        circular block-bootstrap interval of the mean daily return difference
+        (strategy minus comparator) on aligned dates; they must exceed 0.
+        ``dsr`` is the deflated Sharpe probability, required (>= 0.95) only
+        when ``n_trials`` > 1.
+        """
+        cached = self.__dict__.get("_gate_cache")
+        if cached is not None:
+            return cached
+        s = self.strategy.sharpe
+        point = {
+            "sharpe_gt_spy": bool(s > self.spy.sharpe),
+            "sharpe_gt_random_entry": bool(s > self.random_entry.sharpe),
+            "sharpe_gt_random_exit": bool(s > self.random_exit.sharpe),
+            "expectancy_positive": bool(self.strategy.expectancy_pct > 0.0),
+        }
+
+        def lower_bound(other: str) -> Optional[float]:
+            a, b = self.oos_daily.get("strategy"), self.oos_daily.get(other)
+            if a is None or b is None or len(a) == 0 or len(b) == 0:
+                return None
+            joined = pd.concat([a, b], axis=1, join="inner").dropna()
+            if len(joined) < 5:
+                return None
+            ci = stats.block_bootstrap_ci((joined.iloc[:, 0] - joined.iloc[:, 1]).to_numpy())
+            return None if ci is None else float(ci[0])
+
+        lb_spy = lower_bound("spy")
+        lb_re = lower_bound("random_entry")
+        dsr = None
+        strat = self.oos_daily.get("strategy")
+        if self.n_trials > 1 and strat is not None:
+            dsr = stats.deflated_sharpe(strat.to_numpy(), self.n_trials)
+        stat_ok = {
+            "lb_vs_spy_positive": lb_spy is not None and lb_spy > 0.0,
+            "lb_vs_random_entry_positive": lb_re is not None and lb_re > 0.0,
+            "dsr_ok": True if self.n_trials <= 1 else (dsr is not None and dsr >= self.DSR_MIN),
+        }
+        details = {
+            **point, **stat_ok,
+            "lb_vs_spy": lb_spy, "lb_vs_random_entry": lb_re,
+            "dsr": dsr, "n_trials": int(self.n_trials),
+            "random_entry_percentile": self.random_entry_percentile,
+            "passed": all(point.values()) and all(stat_ok.values()),
+        }
+        self.__dict__["_gate_cache"] = details
+        return details
 
     def beats_benchmarks(self) -> bool:
-        s = self.strategy.sharpe
-        return (
-            s > self.spy.sharpe
-            and s > self.random_entry.sharpe
-            and s > self.random_exit.sharpe
-            and self.strategy.expectancy_pct > 0.0
-        )
+        """Point-estimate conditions AND statistical evidence (see gate_details)."""
+        return bool(self.gate_details()["passed"])
 
 
 def _filter_window(signals: List[Signal], start, end) -> List[Signal]:
@@ -102,6 +161,10 @@ def run_walk_forward(
     signal_fn: Optional[Callable[..., List[Signal]]] = None,
     feature_fn: Optional[Callable[[pd.DataFrame, str], pd.DataFrame]] = None,
     stability_keys: Optional[Sequence[str]] = None,
+    # --- multiple-testing bookkeeping / baselines -----------------------
+    strategy_key: Optional[str] = None,
+    trials_path: Any = None,
+    random_seeds: int = 1,
 ) -> WalkForwardResult:
     cfg = cfg or SimConfig()
     grid_fn = param_grid if param_grid is not None else StrategyParams.grid()
@@ -209,11 +272,13 @@ def run_walk_forward(
     spy_daily = spy_daily_full.loc[
         (spy_daily_full.index >= oos_start) & (spy_daily_full.index < oos_end)
     ]
-    spy_trades = list(spy_daily.values)  # for trade-stat fields (approx)
+    # Buy-and-hold has no discrete trades; its daily returns are not trade
+    # returns, so trade-level fields are reported as not applicable.
 
     # --- baselines over the same OOS windows ------------------------------
     re_daily_parts, re_trades = [], []
     rx_daily_parts, rx_trades = [], []
+    extra_re_daily: Dict[int, List[pd.Series]] = {j: [] for j in range(1, max(1, int(random_seeds)))}
     for k, f in enumerate(folds):
         test_cal = master_index[
             (master_index >= f.test_start) & (master_index < f.test_end)
@@ -230,6 +295,16 @@ def run_walk_forward(
         re_daily_parts.append(re_res.daily_returns)
         re_trades.extend(re_res.trade_returns)
 
+        # Extra seeds (only when random_seeds > 1) feed the percentile; the
+        # primary seed above is unchanged so default results are identical.
+        for j in extra_re_daily:
+            xs = baselines.random_entry_signals(
+                real_test, feats_by_ticker, f.chosen_params, seed=seed + k + 1000 * j,
+                start=f.test_start, end=f.test_end,
+            )
+            xs = _filter_window(xs, f.test_start, f.test_end)
+            extra_re_daily[j].append(simulate(data, xs, test_cal, cost_model, cfg).daily_returns)
+
         rx_sigs = baselines.random_exit_signals(real_test, seed=seed + k)
         rx_res = simulate(data, rx_sigs, test_cal, cost_model, cfg)
         rx_daily_parts.append(rx_res.daily_returns)
@@ -239,7 +314,7 @@ def run_walk_forward(
     rx_daily = pd.concat(rx_daily_parts) if rx_daily_parts else pd.Series(dtype=float)
 
     strat_report = metrics.equity_metrics(strat_daily, strat_trades, turnover, spy_daily)
-    spy_report = metrics.equity_metrics(spy_daily, spy_trades, 1.0, spy_daily)
+    spy_report = metrics.equity_metrics(spy_daily, None, 1.0, spy_daily)
     re_report = metrics.equity_metrics(re_daily, re_trades, turnover, spy_daily)
     rx_report = metrics.equity_metrics(rx_daily, rx_trades, turnover, spy_daily)
 
@@ -247,6 +322,22 @@ def run_walk_forward(
         key: [getattr(f.chosen_params, key, float("nan")) for f in folds]
         for key in stability_fields
     }
+
+    # Register this grid as trials and read back the cumulative distinct count.
+    key = strategy_key or f"{make_signals.__module__}.{make_signals.__qualname__}"
+    n_trials = trials.register_trials(
+        key, [json.dumps(asdict(p), sort_keys=True, default=str) for p in grid],
+        path=trials_path,
+    )
+
+    re_sharpes = [float(re_report.sharpe)]
+    for parts in extra_re_daily.values():
+        d = pd.concat(parts)
+        sd = d.std(ddof=0)
+        re_sharpes.append(float(d.mean() / sd * np.sqrt(metrics.TRADING_DAYS)) if sd > 0 else 0.0)
+    re_pct = None
+    if len(re_sharpes) > 1:
+        re_pct = float(np.mean([r < strat_report.sharpe for r in re_sharpes]) * 100.0)
 
     data_hash = provider.run_data_hash() if hasattr(provider, "run_data_hash") else "n/a"
 
@@ -261,6 +352,11 @@ def run_walk_forward(
         data_hash=data_hash,
         param_stability=stability,
         coverage_complete=set(data) == set(tickers),
+        oos_daily={"strategy": strat_daily, "spy": spy_daily,
+                   "random_entry": re_daily, "random_exit": rx_daily},
+        n_trials=n_trials,
+        random_entry_percentile=re_pct,
+        random_entry_sharpes=re_sharpes if len(re_sharpes) > 1 else [],
         validation_inputs={
             "params": {
                 "grid": [asdict(p) for p in grid],

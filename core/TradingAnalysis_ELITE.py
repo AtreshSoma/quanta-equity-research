@@ -52,6 +52,10 @@ if str(_SCRIPT_DIR_FOR_ENGINE) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR_FOR_ENGINE))
 # [F9] Every decision threshold is read from engine/thresholds.py.
 from engine import thresholds as _T  # noqa: E402
+from engine import bars as _bars  # noqa: E402
+from engine.levels import breakout_entry  # noqa: E402
+from engine import market_calendar as _mkt  # noqa: E402
+from engine.costs import round_trip_cost_frac  # noqa: E402
 try:
     from engine import (
         FinalAction,
@@ -68,21 +72,15 @@ try:
     from engine.data_status import DataStatus
     from engine.consistency_validator import TickerView
     HAS_DECISION_CORE = True
-except ImportError:
-    HAS_DECISION_CORE = False
-    FinalAction = None  # type: ignore
-
-    class DataStatus:  # type: ignore
-        """Fallback mirror of engine.data_status.DataStatus when engine missing."""
-        OK = "ok"
-        INVALID_TICKER = "invalid_ticker"
-        INSUFFICIENT_HISTORY = "insufficient_history"
-        PROVIDER_RATE_LIMITED = "provider_rate_limited"
-        PROVIDER_DATA_UNAVAILABLE = "provider_data_unavailable"
-        STALE_DATA = "stale_data"
-        DEEP_CONFIRMATION_FAILED = "deep_confirmation_failed"
-        NOT_INDEPENDENTLY_CONFIRMED = "not_independently_confirmed"
-        UNSUPPORTED_INSTRUMENT = "unsupported_instrument"
+except ImportError as _core_exc:
+    # Audit: core/engine ships with the repo. A missing core used to flip
+    # HAS_DECISION_CORE to False and silently change decisions (no validation,
+    # no resolve_final_action). Fail loudly instead.
+    raise ImportError(
+        "QUANTA decision core (core/engine) failed to import: "
+        f"{_core_exc}. core/engine is part of the repository; refusing to run "
+        "with silently different decision logic."
+    ) from _core_exc
 
 # [MCP] `--mcp` runs mcp_server/quanta_mcp_server.py; only availability is checked here.
 import importlib.util as _importlib_util
@@ -107,6 +105,9 @@ def _import_optional(*module_candidates: str):
             continue
     return None
 
+
+# Estimate revisions (Zacks-style breadth, trend, surprise): the v4 shadow leg.
+_revision_module = _import_optional("earnings_revision_scoring", "modules.earnings_revision_scoring")
 
 # [POLYGON.IO] Import HybridDataProvider for institutional-grade data
 _polygon_module = _import_optional("polygon_provider", "modules.polygon_provider")
@@ -218,34 +219,20 @@ def _listing_market(ticker: str = "", index: Any = None) -> str:
 
 
 def _last_bar_is_live(data: Any, ticker: str = "", now: Any = None) -> bool:
-    """True when the newest daily bar is today's still-forming session.
+    """True when the newest daily bar is still forming or not yet settled.
 
-    US: the bar is dated after engine.market_calendar.last_completed_session.
-    India: the bar is dated today (IST) and the NSE close has not passed. A
-    holiday needs no calendar here: no session means no bar dated today.
+    Thin wrapper over ``engine.bars.last_bar_is_live``, the one definition every
+    engine shares (US and India session close, early closes, settle window).
     """
-    try:
-        if data is None or len(data) == 0:
-            return False
-        last = pd.Timestamp(data.index[-1])
-    except (TypeError, ValueError, IndexError, AttributeError):
-        return False
-    from engine.market_calendar import last_completed_session, now_new_york
-    if _listing_market(ticker, data.index) == "IN":
-        current = now_new_york(now).astimezone(_IST)
-        bar_day = last.tz_convert(_IST).date() if last.tzinfo is not None else last.date()
-        close_h, close_m = _T.RESEARCH.INDIA_SESSION_CLOSE_IST
-        return bar_day == current.date() and (current.hour, current.minute) < (close_h, close_m)
-    bar_day = (last.tz_convert("America/New_York").date() if last.tzinfo is not None
-               else last.date())
-    return bar_day > last_completed_session(now)
+    return _bars.last_bar_is_live(data, ticker, now)
 
 
 def _completed_bars(data: Any, ticker: str = "", now: Any = None) -> Any:
-    """``data`` without today's still-forming bar (unchanged after the close)."""
-    if _last_bar_is_live(data, ticker, now):
-        return data.iloc[:-1]
-    return data
+    """``data`` without the newest bar while it is forming or settling.
+
+    Thin wrapper over ``engine.bars.scoring_bars``; unchanged after the bar settles.
+    """
+    return _bars.scoring_bars(data, ticker, now)[0]
 
 
 class Config:
@@ -322,6 +309,15 @@ class Config:
         "HIGH_VOL": {"technical": .3125, "fundamental": .275, "valuation": .1875,
                      "quality": .125, "sentiment": .1},
     }
+    # elite.research.v3, pre-registered 2026-10-29 (docs/preregistration/
+    # elite_research_v3.md). One table in every regime. Rule, verbatim from that
+    # document: "Legs whose measured IC was positive at both the 21-day and the
+    # 63-day horizon in the 2026-10-22 point-in-time test share 70% of the weight
+    # in proportion to their 63-day IC (fundamental 0.061, quality 0.046). Every
+    # other leg keeps a 10% floor, so no input is discarded." Do not tune these
+    # numbers: a change is a new version.
+    RESEARCH_V3_WEIGHTS = {"technical": 0.10, "fundamental": 0.40, "valuation": 0.10,
+                           "quality": 0.30, "sentiment": 0.10}
 
     # Twelve-month target blend; absent sources are renormalized.
     BLEND_WEIGHT_ANALYST = 0.50
@@ -554,6 +550,14 @@ class TechnicalIndicators:
     # JSON publishes null (the FundamentalData.reported pattern).
     unmeasured: List[str] = field(default_factory=list)
 
+    # Which bars the scoring indicators were read from (engine.bars.scoring_bars):
+    # scored_through, live_bar_excluded and a plain-English reason. The UI uses it
+    # to say "indicators as of <date> close". Empty when no analysis ran.
+    indicator_basis: Dict[str, Any] = field(default_factory=dict)
+    # Today's excluded live bar, informational (engine.bars.live_preview). Empty
+    # when every bar was scored, so the payload omits it on settled replays.
+    live_preview: Dict[str, Any] = field(default_factory=dict)
+
     def has(self, name: str) -> bool:
         """True when ``name`` was computed from the bars."""
         return name not in self.unmeasured
@@ -569,7 +573,8 @@ class FundamentalData:
     # Valuation Ratios
     pe_ratio: float = 0.0
     forward_pe: float = 0.0
-    pe_to_growth: float = 0.0  # PEG
+    pe_to_growth: float = 0.0  # PEG (0.0 = not available; see peg_source)
+    peg_source: Optional[str] = None  # "provider" | "computed" | None
     pb_ratio: float = 0.0
     ps_ratio: float = 0.0
     pcf_ratio: float = 0.0  # Price to Cash Flow
@@ -873,6 +878,9 @@ class MarketIntelligence:
     # Revisions
     eps_revision_trend: str = "STABLE"
     revenue_revision_trend: str = "STABLE"
+    # The estimate-revision read (modules/earnings_revision_scoring). Read by the
+    # v4 shadow model only; no live score, level or gate uses it.
+    revision: Dict[str, Any] = field(default_factory=dict)
     
     # Sector/Industry
     sector_performance_30d: float = 0.0
@@ -891,6 +899,8 @@ class CatalystData:
     
     # Last Earnings Results (NEW)
     last_earnings_date: str = "Unknown"
+    # Trading sessions from the last report to today (1 = reported yesterday). None when unknown.
+    sessions_since_last_earnings: Optional[int] = None
     last_earnings_eps_actual: float = 0.0
     last_earnings_eps_estimate: float = 0.0
     last_earnings_surprise_pct: float = 0.0
@@ -1148,6 +1158,12 @@ class TradeSetup:
         "No calibrated win rate is claimed. Use the confidence tier."
     )
 
+    # Informational cross-check of the horizon target against realised
+    # volatility (see TradeSetupGenerator._vol_scenario). It never gates the
+    # action, score, levels or R/R. Empty when volatility or a target is absent.
+    vol_scenario: Dict[str, Any] = field(default_factory=dict)
+    vol_scenario_caveat: str = ""
+
     # Timing
     time_horizon: str = "SWING"
     estimated_days: int = 30
@@ -1176,7 +1192,17 @@ class ScoreBreakdown:
     
     # Weights used
     weights: Dict[str, float] = field(default_factory=dict)
-    
+    # The Research model version not live, scored from the same components
+    # (TradingAnalysis_ELITE._shadow_model). Empty when it could not be scored.
+    shadow_model: Dict[str, Any] = field(default_factory=dict)
+    # Legs whose score is a neutral 50 placeholder, not a measurement. The
+    # composite still counts them (model policy), so the page must say so:
+    # "valuation" when no fair value was measured, "sentiment" when no news
+    # article was scored (its 50 is the base, moved only by insider activity).
+    neutral_filled: List[str] = field(default_factory=list)
+    # This call's regime weights by leg, rounded (the same figures as ``weights``).
+    weights_used: Dict[str, float] = field(default_factory=dict)
+
     # Component details
     component_details: Dict[str, str] = field(default_factory=dict)
 
@@ -1471,6 +1497,84 @@ def safe_get(dictionary: Dict, key: str, default: Any = 0.0, multiplier: float =
         return float(value) * multiplier if isinstance(value, (int, float)) else value
     except Exception:
         return default
+
+
+# A forward EPS growth estimate outside this band does not produce a PEG.
+PEG_FORWARD_GROWTH_BAND = (0.0, 0.50)
+
+
+def _peg_ratio(info: Dict, forward_pe: float) -> Tuple[float, Optional[str]]:
+    """The PEG ratio and where it came from: ``(value, "provider" | "computed")``,
+    or ``(0.0, None)`` when neither is sound.
+
+    The provider's own PEG (trailing, then the forward-looking one) is used
+    when it is a finite positive number. It is never recomputed from the
+    trailing EPS-growth field: that field is a single quarter's year-on-year
+    change, which for a one-off jump (GOOGL 294%) turns a 14x P/E into a PEG
+    of 0.05. Failing a provider figure, PEG is the forward P/E over the
+    forward EPS growth in percent, and only when that growth is in a sane
+    band (0 to 50%). Otherwise there is no PEG, and the page says so.
+    """
+    for key in ("trailingPegRatio", "pegRatio"):
+        value = info.get(key)
+        if isinstance(value, (int, float)) and math.isfinite(value) and value > 0:
+            return float(value), "provider"
+    trailing_eps = info.get("trailingEps")
+    forward_eps = info.get("forwardEps")
+    if (isinstance(trailing_eps, (int, float)) and isinstance(forward_eps, (int, float))
+            and math.isfinite(trailing_eps) and math.isfinite(forward_eps)
+            and trailing_eps > 0 and forward_pe and math.isfinite(forward_pe) and forward_pe > 0):
+        growth = forward_eps / trailing_eps - 1.0
+        lo, hi = PEG_FORWARD_GROWTH_BAND
+        if lo < growth <= hi:
+            return float(forward_pe) / (growth * 100.0), "computed"
+    return 0.0, None
+
+
+# yfinance's earnings-dates table (Ticker.get_earnings_dates), cached per symbol.
+# One request serves the next report date and the last one. A calendar date that
+# has passed is not a next date: a report made yesterday is still in the calendar.
+EARNINGS_TABLE_TTL_SECONDS = 6 * 3600
+_EARNINGS_TABLE_CACHE: Dict[str, Tuple[float, List[date]]] = {}
+_EARNINGS_TABLE_LOCK = threading.Lock()
+
+
+def _earnings_table(stock: Any, symbol: str = "") -> List[date]:
+    """Report dates the provider lists (past and scheduled), oldest first; [] if unavailable."""
+    key = symbol.strip().upper() if isinstance(symbol, str) and symbol.strip() else None
+    now = time.time()
+    if key:
+        with _EARNINGS_TABLE_LOCK:
+            hit = _EARNINGS_TABLE_CACHE.get(key)
+        if hit and now - hit[0] < EARNINGS_TABLE_TTL_SECONDS:
+            return list(hit[1])
+    days: List[date] = []
+    try:
+        df = stock.get_earnings_dates(limit=12)
+        if isinstance(df, pd.DataFrame) and not df.empty:
+            for when in df.index:
+                if isinstance(when, (datetime, pd.Timestamp)):
+                    days.append(when.date())
+                elif isinstance(when, date):
+                    days.append(when)
+    except Exception as exc:
+        logger.debug(f"Earnings dates unavailable for {key or '?'}: {exc}")
+        days = []
+    days = sorted(set(days))
+    if key:
+        with _EARNINGS_TABLE_LOCK:
+            _EARNINGS_TABLE_CACHE[key] = (now, list(days))
+    return days
+
+
+def _earnings_schedule(stock: Any, today: date, symbol: str = "") -> Tuple[Optional[date], Optional[date]]:
+    """``(next, last)``: the first report date on or after ``today`` and the latest
+    one before it, from the provider's table. Either is None when not listed.
+    ``symbol`` keys the cache; without it the table is read each time."""
+    days = _earnings_table(stock, symbol)
+    upcoming = [d for d in days if d >= today]
+    past = [d for d in days if d < today]
+    return (upcoming[0] if upcoming else None), (past[-1] if past else None)
 
 
 def _reported(info: Dict, *keys: str) -> bool:
@@ -1978,12 +2082,16 @@ class TechnicalAnalyzer:
     def __init__(self):
         self.min_data_points = Config.MIN_DATA_POINTS
     
-    def analyze(self, data: pd.DataFrame, now: Any = None) -> TechnicalIndicators:
+    def analyze(self, data: pd.DataFrame, now: Any = None, ticker: str = "") -> TechnicalIndicators:
         """Perform comprehensive technical analysis.
 
-        Price indicators read the live bar (they are current readings). The
-        relative-volume ratio does not: see ``_calculate_volume``. ``now`` is
-        for tests; the market is read from the bar index's timezone.
+        Every SCORING input is read from the last completed, settled session
+        (``engine.bars.scoring_bars``): RSI, MACD, moving averages, ADX, bands,
+        volume, patterns, swing levels and the 52-week range. Otherwise the same
+        ticker scores differently at 10:00, 14:00 and after the close. Only
+        ``current_price`` is live: a live price is compared with those completed
+        levels, as a reading of where the price stands now. ``now`` is for tests;
+        ``ticker`` picks the India or US session (the bar index zone is the fallback).
         """
         result = TechnicalIndicators()
         
@@ -1993,13 +2101,33 @@ class TechnicalAnalyzer:
             result.mark_unmeasured("adx")
             return result
         
+        scored, basis = _bars.scoring_bars(data, ticker, now)
+        result.indicator_basis = dict(basis)
+        # Informational only: what today's excluded bar does to the readings. Never scored.
+        result.live_preview = _bars.live_preview(data, basis)
+
         try:
-            close = data['Close'].dropna()
-            high = data['High'].dropna()
-            low = data['Low'].dropna()
-            volume = data['Volume'].dropna() if 'Volume' in data.columns else pd.Series([1e6] * len(close))
-            
-            current_price = float(close.iloc[-1])
+            # Audit: H/L/C are aligned on ONE index (a row missing any of the
+            # three is dropped from all three). Independent dropna() calls left
+            # series of different lengths whose positions no longer matched.
+            # The live price is the newest close of the full frame.
+            current_price = float(data[['High', 'Low', 'Close']].dropna()['Close'].iloc[-1])
+            # Every scoring series below is the completed-bar frame.
+            ohlc = scored[['High', 'Low', 'Close']].dropna()
+            close = ohlc['Close']
+            high = ohlc['High']
+            low = ohlc['Low']
+            # Audit: missing volume used to be invented as 1e6 per session, which
+            # fed OBV/MFI/VWAP and the volume ratio with fabricated data. It is
+            # now None and the volume-derived readings are marked unmeasured.
+            volume = None
+            if 'Volume' in data.columns:
+                vol = data['Volume'].reindex(ohlc.index)
+                if vol.notna().any():
+                    volume = vol.fillna(0.0)
+            if volume is None:
+                for _name in ("volume", "obv", "mfi", "vwap"):
+                    result.mark_unmeasured(_name)
             
             # Momentum Indicators
             result = self._calculate_momentum(close, high, low, result)
@@ -2014,14 +2142,19 @@ class TechnicalAnalyzer:
             result = self._calculate_volatility(close, high, low, current_price, result)
             
             # Volume Indicators
-            result = self._calculate_volume(close, high, low, volume, current_price, result,
-                                            live_bar=_last_bar_is_live(data, "", now))
+            if volume is not None:
+                result = self._calculate_volume(close, high, low, volume, current_price, result,
+                                                live_bar=basis["live_bar_excluded"])
             
             # Ichimoku Cloud
             result = self._calculate_ichimoku(close, high, low, current_price, result)
             
             # Support/Resistance
-            result = self._calculate_support_resistance(data, current_price, result)
+            # Pivots come from the full frame's previous bar, which is a completed
+            # session in every state (see _calculate_support_resistance); the swing
+            # levels read the completed frame.
+            result = self._calculate_support_resistance(data, current_price, result,
+                                                        score_data=scored)
             
             # Market Structure
             result = self._analyze_market_structure(close, high, low, result)
@@ -2030,7 +2163,7 @@ class TechnicalAnalyzer:
             result = self._calculate_52week_range(close, current_price, result, high=high, low=low)
 
             # Candlestick Patterns (must run before composite so score can use it)
-            result = self._detect_candlestick_patterns(data, result)
+            result = self._detect_candlestick_patterns(scored, result)
 
             # Composite Scores
             result = self._calculate_composite_scores(result)
@@ -2058,17 +2191,28 @@ class TechnicalAnalyzer:
             result.rsi_divergence = self._detect_rsi_divergence(close, rsi_indicator.rsi())
             
             # Stochastic
+            # Audit: a NaN keeps the neutral placeholder (50 / -50 / 0) but is
+            # now marked unmeasured so display and any vote can exclude it.
             stoch = StochasticOscillator(high, low, close)
-            result.stochastic_k = float(stoch.stoch().iloc[-1]) if not np.isnan(stoch.stoch().iloc[-1]) else 50.0
-            result.stochastic_d = float(stoch.stoch_signal().iloc[-1]) if not np.isnan(stoch.stoch_signal().iloc[-1]) else 50.0
+            _k, _d = stoch.stoch().iloc[-1], stoch.stoch_signal().iloc[-1]
+            result.stochastic_k = float(_k) if not np.isnan(_k) else 50.0
+            result.stochastic_d = float(_d) if not np.isnan(_d) else 50.0
+            if np.isnan(_k) or np.isnan(_d):
+                result.mark_unmeasured("stochastic")
             
             # Williams %R
             williams = WilliamsRIndicator(high, low, close)
-            result.williams_r = float(williams.williams_r().iloc[-1]) if not np.isnan(williams.williams_r().iloc[-1]) else -50.0
+            _w = williams.williams_r().iloc[-1]
+            result.williams_r = float(_w) if not np.isnan(_w) else -50.0
+            if np.isnan(_w):
+                result.mark_unmeasured("williams_r")
             
             # CCI
             cci = CCIIndicator(high, low, close)
-            result.cci = float(cci.cci().iloc[-1]) if not np.isnan(cci.cci().iloc[-1]) else 0.0
+            _c = cci.cci().iloc[-1]
+            result.cci = float(_c) if not np.isnan(_c) else 0.0
+            if np.isnan(_c):
+                result.mark_unmeasured("cci")
             
         except Exception as e:
             logger.debug(f"Momentum calculation error: {e}")
@@ -2237,9 +2381,15 @@ class TechnicalAnalyzer:
             result.bollinger_middle = float(bb.bollinger_mavg().iloc[-1]) if not np.isnan(bb.bollinger_mavg().iloc[-1]) else current_price
             result.bollinger_lower = float(bb.bollinger_lband().iloc[-1]) if not np.isnan(bb.bollinger_lband().iloc[-1]) else current_price * 0.98
             result.bollinger_width = safe_divide(result.bollinger_upper - result.bollinger_lower, result.bollinger_middle, 0.04) * 100
+            # Audit: placeholder bands (price*1.02 / 0.98) are not a reading.
+            bb_measured = not np.isnan(bb.bollinger_hband().iloc[-1])
+            if not bb_measured:
+                result.mark_unmeasured("bollinger")
             
             # Bollinger Signal
-            if current_price > result.bollinger_upper:
+            if not bb_measured:
+                result.bollinger_signal = "NEUTRAL"
+            elif current_price > result.bollinger_upper:
                 result.bollinger_signal = "OVERBOUGHT"
             elif current_price < result.bollinger_lower:
                 result.bollinger_signal = "OVERSOLD"
@@ -2252,7 +2402,7 @@ class TechnicalAnalyzer:
             result.keltner_lower = float(keltner.keltner_channel_lband().iloc[-1]) if not np.isnan(keltner.keltner_channel_lband().iloc[-1]) else current_price * 0.98
             
             # Squeeze Detection (BB inside Keltner)
-            if result.bollinger_upper < result.keltner_upper and result.bollinger_lower > result.keltner_lower:
+            if bb_measured and result.bollinger_upper < result.keltner_upper and result.bollinger_lower > result.keltner_lower:
                 result.squeeze_detected = True
             
             # Volatility Regime
@@ -2284,15 +2434,15 @@ class TechnicalAnalyzer:
                          live_bar: bool = False) -> TechnicalIndicators:
         """Calculate volume indicators.
 
-        ``live_bar``: the newest bar is today's still-forming session. Its
-        partial volume against full-day averages reads as a collapse at 10 AM
-        ("0.20x"), so the ratio then compares the last COMPLETED session with
-        the 20 completed sessions before it (no intraday pro-rating, which
-        would assume a flat volume curve).
+        ``volume`` is already the completed-bar series (see ``analyze``). ``live_bar``
+        says the newest session was excluded because it is still forming or settling.
+        A partial session's volume against full-day averages reads as a collapse at
+        10 AM ("0.20x"), so the ratio is the last COMPLETED session against the 20
+        before it. No intraday pro-rating: that would assume a flat volume curve.
         """
         try:
             # Volume SMA and Ratio
-            ratio_volume = volume.iloc[:-1] if live_bar else volume
+            ratio_volume = volume
             if len(ratio_volume) >= 20:
                 result.volume_sma = float(ratio_volume.rolling(20).mean().iloc[-1])
                 current_vol = float(ratio_volume.iloc[-1])
@@ -2361,8 +2511,16 @@ class TechnicalAnalyzer:
         return result
     
     def _calculate_support_resistance(self, data: pd.DataFrame, current_price: float,
-                                      result: TechnicalIndicators) -> TechnicalIndicators:
-        """Calculate support and resistance levels"""
+                                      result: TechnicalIndicators,
+                                      score_data: Optional[pd.DataFrame] = None) -> TechnicalIndicators:
+        """Calculate support and resistance levels.
+
+        Pivots use ``data.iloc[-2]``: when the newest bar is live that is the last
+        completed session; when it has settled, it is the session before today.
+        Both match the pre-existing values, so pivots need no completed-bar frame.
+        Swing levels read ``score_data`` (completed bars). Both are compared with the
+        live ``current_price``, as a level, not as a score input.
+        """
         try:
             high = data['High']
             low = data['Low']
@@ -2380,8 +2538,8 @@ class TechnicalAnalyzer:
                 result.s1 = 2 * result.pivot_point - prev_high
                 result.s2 = result.pivot_point - (prev_high - prev_low)
             
-            # Dynamic Support/Resistance from recent price action
-            recent_data = data.tail(60)
+            # Dynamic Support/Resistance from recent price action (completed bars)
+            recent_data = (score_data if score_data is not None else data).tail(60)
             
             # Find swing highs and lows
             swing_highs = []
@@ -2878,7 +3036,7 @@ class TechnicalAnalyzer:
                 breakout_factors += 0.2
             if result.has("adx") and 20 < result.adx < 30:   # not the 25.0 placeholder
                 breakout_factors += 0.2
-            if abs(result.bollinger_width) < 3:  # Tight BB
+            if result.has("bollinger") and abs(result.bollinger_width) < 3:  # Tight BB
                 breakout_factors += 0.15
             
             result.breakout_probability = min(0.9, 0.3 + breakout_factors)
@@ -3053,10 +3211,7 @@ class FundamentalAnalyzer:
         result.ev_revenue = safe_get(info, 'enterpriseToRevenue', 0)
         
         # PEG Ratio
-        eps_growth = safe_get(info, 'earningsGrowth', 0) * 100
-        if result.pe_ratio > 0 and eps_growth > 0:
-            result.pe_to_growth = result.pe_ratio / eps_growth
-        
+        result.pe_to_growth, result.peg_source = _peg_ratio(info, result.forward_pe)
         return result
     
     def _calculate_profitability(self, info: Dict, result: FundamentalData) -> FundamentalData:
@@ -3440,7 +3595,7 @@ class RiskAnalyzer:
             result = self._calculate_beta(returns, result, ticker)
             
             # Return Metrics
-            result = self._calculate_return_metrics(returns, result)
+            result = self._calculate_return_metrics(returns, result, ticker)
             
             # Drawdown Analysis
             result = self._calculate_drawdown(data, result)
@@ -3524,12 +3679,21 @@ class RiskAnalyzer:
         
         return result
     
-    def _calculate_return_metrics(self, returns: pd.Series, result: RiskMetrics) -> RiskMetrics:
-        """Calculate risk-adjusted return metrics"""
+    def _calculate_return_metrics(self, returns: pd.Series, result: RiskMetrics,
+                                  ticker: str = "") -> RiskMetrics:
+        """Calculate risk-adjusted return metrics.
+
+        Audit: the Sharpe/Sortino hurdle is the listing market's risk-free rate.
+        A rupee return measured against a 4.5% dollar rate overstated India's
+        Sharpe by roughly two points of excess return.
+        """
         mean_return = returns.mean() * 252
         result.expected_return = mean_return
         
-        risk_free_rate = Config.RISK_FREE_RATE
+        if _listing_market(ticker) == "IN":
+            risk_free_rate = _T.UNIVERSE.RISK_FREE_RATE_INDIA
+        else:
+            risk_free_rate = Config.RISK_FREE_RATE
         excess_return = mean_return - risk_free_rate
         
         # Sharpe Ratio
@@ -4225,6 +4389,30 @@ class MarketIntelligenceAnalyzer:
             if current_price > 0 and result.target_mean > 0:
                 result.implied_upside = ((result.target_mean - current_price) / current_price) * 100
             
+            # The Buy / Hold / Sell split, when Finnhub supplied none (no key): Yahoo's
+            # current-month recommendation counts. Shown to the reader; no score reads it.
+            if result.buy_ratings + result.hold_ratings + result.sell_ratings == 0:
+                try:
+                    recs = getattr(stock, 'recommendations', None)
+                    if isinstance(recs, pd.DataFrame) and not recs.empty:
+                        row = recs.iloc[0]
+                        if 'period' in recs.columns:
+                            now_rows = recs[recs['period'] == '0m']
+                            row = now_rows.iloc[0] if not now_rows.empty else row
+                        n = lambda k: int(float(row.get(k, 0) or 0))  # noqa: E731
+                        result.buy_ratings = n('strongBuy') + n('buy')
+                        result.hold_ratings = n('hold')
+                        result.sell_ratings = n('sell') + n('strongSell')
+                except Exception as exc:  # noqa: BLE001 - optional evidence
+                    logger.debug(f"{ticker}: recommendation counts unavailable - {exc}")
+
+            # Estimate revisions, for the v4 shadow model only (never a live input).
+            if _revision_module is not None:
+                try:
+                    result.revision = dict(_revision_module.compute_earnings_revision_signal(stock, info, ticker) or {})
+                except Exception as exc:  # noqa: BLE001 - optional evidence
+                    logger.debug(f"{ticker}: estimate revisions unavailable - {exc}")
+
             # Analyst recommendation
             if result.analyst_rating in ("", "HOLD"):
                 rec = str(info.get('recommendationKey') or '').upper()
@@ -4249,7 +4437,12 @@ class MarketIntelligenceAnalyzer:
                     elif isinstance(ed, date):
                         if ed > date.today():
                             result.next_earnings_date = ed.isoformat()
-                
+                # A calendar date already passed leaves it Unknown; the provider's next listed date fills it.
+                if result.next_earnings_date == "Unknown":
+                    next_day, _last = _earnings_schedule(stock, date.today(), ticker)
+                    if next_day is not None:
+                        result.next_earnings_date = next_day.isoformat()
+
                 result.earnings_estimate = calendar.get('Earnings Average', 0) or 0
                 result.revenue_estimate = calendar.get('Revenue Average', 0) or 0
             
@@ -4588,7 +4781,7 @@ class CatalystAnalyzer:
             info = stock.info or {}
             
             # === SOURCE 1: yfinance Calendar (Earnings & Dividends) ===
-            result = self._analyze_calendar(stock, result, today)
+            result = self._analyze_calendar(stock, result, today, ticker)
             
             # === SOURCE 2: News Headlines (All Other Catalysts) ===
             result = self._analyze_news_headlines(stock, ticker, result)
@@ -4605,35 +4798,46 @@ class CatalystAnalyzer:
         
         return result
     
-    def _analyze_calendar(self, stock, result: CatalystData, today) -> CatalystData:
+    def _analyze_calendar(self, stock, result: CatalystData, today, ticker: str = "") -> CatalystData:
         """Analyze yfinance calendar for earnings and dividends."""
         try:
             calendar = getattr(stock, 'calendar', None)
             info = stock.info or {}
-            
+
+            # Earnings: the calendar's date while it is still ahead; once it has
+            # passed, the provider's next listed date (or Unknown, never a past date).
+            cal_day: Optional[date] = None
+            if isinstance(calendar, dict) and calendar.get('Earnings Date'):
+                ed = calendar.get('Earnings Date')
+                ed = ed[0] if isinstance(ed, list) and ed else ed
+                if isinstance(ed, (datetime, pd.Timestamp)):
+                    cal_day = ed.date()
+                elif isinstance(ed, date):
+                    cal_day = ed
+            # The provider's table (cached) gives the last report even when the calendar
+            # has already rolled forward to the next one, which it can do right after a report.
+            next_day, last_day = _earnings_schedule(stock, today, ticker)
+            if cal_day is not None and cal_day >= today:
+                next_day = cal_day
+            elif cal_day is not None:
+                result.is_past_earnings = True
+            if next_day is not None:
+                result.earnings_date = next_day.isoformat()
+                result.days_to_earnings = (next_day - today).days
+            if last_day is not None:
+                result.last_earnings_date = last_day.isoformat()
+                between = (_mkt.india_trading_days_between if _mkt.listing_market(ticker) == "IN"
+                           else _mkt.trading_days_between)
+                result.sessions_since_last_earnings = between(last_day, today)
+
+            if 0 <= result.days_to_earnings <= 14:
+                result.upcoming_events.append(f"📅 Earnings in {result.days_to_earnings} days")
+                result.near_term_catalyst = True
+                if result.catalyst_type == "UNKNOWN":
+                    result.catalyst_type = "EARNINGS"
+                result.catalyst_score += 8
+
             if isinstance(calendar, dict):
-                # Earnings date
-                earnings_date = calendar.get('Earnings Date')
-                if earnings_date:
-                    if isinstance(earnings_date, list) and earnings_date:
-                        ed = earnings_date[0]
-                    else:
-                        ed = earnings_date
-                    
-                    if isinstance(ed, (datetime, pd.Timestamp)):
-                        result.earnings_date = ed.strftime('%Y-%m-%d')
-                        result.days_to_earnings = (ed.date() - today).days
-                    elif isinstance(ed, date):
-                        result.earnings_date = ed.isoformat()
-                        result.days_to_earnings = (ed - today).days
-                    
-                    if 0 <= result.days_to_earnings <= 14:
-                        result.upcoming_events.append(f"📅 Earnings in {result.days_to_earnings} days")
-                        result.near_term_catalyst = True
-                        if result.catalyst_type == "UNKNOWN":
-                            result.catalyst_type = "EARNINGS"
-                        result.catalyst_score += 8
-                
                 # Dividend date
                 ex_div = calendar.get('Ex-Dividend Date')
                 if ex_div:
@@ -4859,7 +5063,7 @@ class ValuationAnalyzer:
             result.dcf_status = "not_applicable"
             result.dcf_method = "not_applicable_financial"
         else:
-            result = self._calculate_dcf(fundamental, risk, current_price, result, analyst_target)
+            result = self._calculate_dcf(fundamental, risk, current_price, result, analyst_target, ticker)
         
         # Graham Number
         result = self._calculate_graham(fundamental, current_price, result)
@@ -4914,8 +5118,8 @@ class ValuationAnalyzer:
     
     def _calculate_dcf(self, fundamental: FundamentalData, risk: RiskMetrics,
                        current_price: float, result: ValuationMetrics,
-                       analyst_target: float = 0.0) -> ValuationMetrics:
-        """Calculate DCF fair value"""
+                       analyst_target: float = 0.0, ticker: str = "") -> ValuationMetrics:
+        """Calculate DCF fair value (market-aware discount rate for .NS/.BO)"""
         try:
             # Base cash flow with growth stock detection
             fcf = fundamental.fcf_per_share
@@ -4960,9 +5164,15 @@ class ValuationAnalyzer:
                 growth_rate = max(growth_rate, 0.15)  # Floor at 15% for high-growth
             
             # Discount rate (WACC proxy)
-            risk_free = Config.RISK_FREE_RATE
+            # Audit: an Indian DCF discounted at the US 4.5% + 5.5% ERP understates
+            # the rate rupee cash flows must clear; use the India rf and ERP.
+            if _listing_market(ticker) == "IN":
+                risk_free = _T.UNIVERSE.RISK_FREE_RATE_INDIA
+                equity_risk_premium = _T.EQUITY_RISK_PREMIUM_INDIA
+            else:
+                risk_free = Config.RISK_FREE_RATE
+                equity_risk_premium = Config.MARKET_RISK_PREMIUM
             beta = max(0.8, min(2.0, risk.beta if risk.beta_status == "measured" else 1.0))
-            equity_risk_premium = Config.MARKET_RISK_PREMIUM
             discount_rate = risk_free + beta * equity_risk_premium
             
             # Terminal growth — sector-adjusted for more realistic DCF
@@ -5484,14 +5694,17 @@ class PeerAnalyzer:
                     # For ranking
                     all_stocks.append((peer, metrics))
             
-            # Calculate sector averages
+            # Sector reference values. Audit: P/E and ROE use the MEDIAN, not
+            # the mean -- one peer at P/E 190 or ROE 400% (tiny equity base)
+            # dragged the mean and with it every "vs sector" premium. (The
+            # *_sector_avg field names are kept for downstream consumers.)
             if peer_pes:
-                result.pe_sector_avg = sum(peer_pes) / len(peer_pes)
+                result.pe_sector_avg = float(np.median(peer_pes))
                 if result.pe_stock > 0 and result.pe_sector_avg > 0:
                     result.pe_vs_sector = ((result.pe_stock - result.pe_sector_avg) / result.pe_sector_avg) * 100
             
             if peer_roes:
-                result.roe_sector_avg = sum(peer_roes) / len(peer_roes)
+                result.roe_sector_avg = float(np.median(peer_roes))
                 if result.roe_stock > 0 and result.roe_sector_avg > 0:
                     result.roe_vs_sector = ((result.roe_stock - result.roe_sector_avg) / result.roe_sector_avg) * 100
             
@@ -5748,6 +5961,12 @@ class SignalGenerator:
         else:
             data_note = "LOW - Limited data sources"
 
+        neutral_filled: List[str] = []
+        if getattr(valuation, 'valuation_status', '') == "unavailable":
+            neutral_filled.append("valuation")
+        if not getattr(sentiment, 'measured', False):
+            neutral_filled.append("sentiment")
+
         breakdown = ScoreBreakdown(
             technical_score=scores['technical'],
             fundamental_score=scores['fundamental'],
@@ -5757,7 +5976,11 @@ class SignalGenerator:
             risk_score=scores['risk'],
             composite_score=composite,
             data_quality_note=data_note,
-            weights=weights
+            weights=weights,
+            shadow_model=self._shadow_model(
+                scores, regime, bool(getattr(fundamental, 'is_etf', False))),
+            neutral_filled=neutral_filled,
+            weights_used={k: round(float(v), 4) for k, v in weights.items()},
         )
         
         return signal, confidence, breakdown, explanation
@@ -5777,8 +6000,19 @@ class SignalGenerator:
         return count
 
     def _get_regime_weights(self, regime: MarketRegime) -> Dict[str, float]:
-        """Return normalized alpha weights; risk is assessed separately."""
-        if regime is None or regime == MarketRegime.SIDEWAYS:
+        """Return normalized alpha weights of the live Research model; risk is assessed separately."""
+        return self._model_weights(regime, _T.RESEARCH.MODEL_VERSION)
+
+    def _model_weights(self, regime: MarketRegime, version: str) -> Dict[str, float]:
+        """Normalized alpha weights of one Research model version.
+
+        v3 is one fixed table in every regime. v2 reads the regime tables, as it
+        always has. Kept apart from _get_regime_weights so the shadow model can
+        be scored with the other version's weights without changing the live one.
+        """
+        if version == "v3":
+            raw = Config.RESEARCH_V3_WEIGHTS
+        elif regime is None or regime == MarketRegime.SIDEWAYS:
             raw = Config.REGIME_WEIGHTS['SIDEWAYS']
         elif regime in [MarketRegime.BULL_TRENDING, MarketRegime.BULL_VOLATILE]:
             raw = Config.REGIME_WEIGHTS['BULL']
@@ -5790,7 +6024,29 @@ class SignalGenerator:
             raw = Config.REGIME_WEIGHTS['SIDEWAYS']
         total = sum(raw.values())
         return {key: value / total for key, value in raw.items()}
-    
+
+    def _shadow_model(self, scores: Dict[str, float], regime: MarketRegime,
+                      is_etf: bool) -> Dict[str, Any]:
+        """The Research model version that is NOT live, scored from the same components.
+
+        Published beside the live call so the other version accumulates a
+        prospective record. No gate, level or hurdle applies to it, and it never
+        changes the live action, score or levels. Any failure yields no shadow
+        rather than an error in the live call.
+        """
+        try:
+            from engine.score_bands import band_for
+            version = "v2" if _T.RESEARCH.MODEL_VERSION == "v3" else "v3"
+            weights = self._model_weights(regime, version)
+            if is_etf:
+                weights = dict(weights, fundamental=0.0, quality=0.0)
+            score = self._calculate_composite(scores, weights)
+            return {"version": version, "score": round(score, 2), "band_action": band_for(score),
+                    "weights": {k: round(v, 4) for k, v in weights.items()}}
+        except Exception as exc:  # noqa: BLE001 - the live call must not depend on the shadow
+            logger.warning("shadow Research model not scored: %s", exc)
+            return {}
+
     def _count_confirmations(self, technical: TechnicalIndicators,
                               fundamental: FundamentalData,
                               sentiment: SentimentData) -> Tuple[int, int]:
@@ -6294,8 +6550,20 @@ class PortfolioExposureManager:
             return {'portfolio_var': 0, 'diversification_benefit': 0, 'undiversified_var': 0}
         
         n = len(positions)
-        weights = np.array([p.get('weight', 1/n) for p in positions])
-        vols = np.array([p.get('daily_volatility', 0.02) for p in positions])
+        # Audit: a position without a measured volatility used to be assumed to
+        # have 2% daily vol (and a missing weight an equal share), producing a
+        # VaR that looked measured. Not measured -> None values and an explicit
+        # status; a caller must show that as a caveat, never as a pass.
+        _vol_raw = [p.get('daily_volatility') for p in positions]
+        _w_raw = [p.get('weight') for p in positions]
+        if any(v is None or not np.isfinite(v) or v <= 0 for v in _vol_raw)                 or any(w is None or not np.isfinite(w) for w in _w_raw):
+            return {'portfolio_var': None, 'undiversified_var': None,
+                    'diversification_benefit': None, 'diversification_ratio': None,
+                    'var_status': 'not_measured',
+                    'var_note': "Portfolio VaR not measured: a position is missing its "
+                                "weight or measured daily volatility."}
+        weights = np.array(_w_raw, dtype=float)
+        vols = np.array(_vol_raw, dtype=float)
         
         # Undiversified VaR (assumes perfect correlation)
         undiversified_var = abs(norm.ppf(1 - confidence)) * np.sum(weights * vols)
@@ -6325,7 +6593,8 @@ class PortfolioExposureManager:
             'portfolio_var': portfolio_var,
             'undiversified_var': undiversified_var,
             'diversification_benefit': diversification_benefit,
-            'diversification_ratio': diversification_benefit / undiversified_var if undiversified_var > 0 else 0
+            'diversification_ratio': diversification_benefit / undiversified_var if undiversified_var > 0 else 0,
+            'var_status': 'measured',
         }
     
     def _count_correlated_positions(self, ticker: str, existing_tickers: List[str]) -> int:
@@ -6588,10 +6857,8 @@ class TradeSetupGenerator:
         stamp duty, exchange and SEBI fees, GST; see
         thresholds.COSTS.INDIA_STATUTORY_COST_PER_SIDE).
         """
-        pct = (cls.SPREAD_BPS + cls.SLIPPAGE_BPS * 2) / 10000 * 100
-        if _listing_market(ticker) == "IN":
-            pct += 2 * _T.LEVELS.RESEARCH_INDIA_STATUTORY_PER_SIDE * 100
-        return pct
+        # One definition shared with Plan Check and the Plan Simulator (engine/costs.py).
+        return round_trip_cost_frac(ticker) * 100
     
     # Signals for which a long position is either being opened or already held.
     # Both need levels: an entry needs a stop, and so does a holding.
@@ -6599,6 +6866,57 @@ class TradeSetupGenerator:
                     Signal.HOLD, Signal.NO_POSITION)
     _ENTRY_STANCE = (Signal.STRONG_BUY, Signal.BUY, Signal.ACCUMULATE)
     _EXIT_STANCE = (Signal.SELL, Signal.STRONG_SELL, Signal.REDUCE)
+
+    # A horizon target needing more than this many 1-sigma moves is a stretch.
+    VOL_SCENARIO_STRETCH_SIGMA = 1.5
+
+    @classmethod
+    def _vol_scenario(cls, setup: 'TradeSetup', risk: 'RiskMetrics',
+                      valuation: Optional['ValuationMetrics']) -> Tuple[Dict[str, Any], str]:
+        """Informational: where the horizon target sits in realised-vol terms.
+
+        The horizon target is the 12-month blended target pro-rated by time
+        (entry + 63/252 of the way), and ~half of that 12-month target is the
+        analyst consensus -- a view that has no link to this stock's volatility.
+        Here: the +1 sigma price over the horizon, entry * exp(sigma_d * sqrt(N)),
+        the target's distance in sigma units, and the analyst share of the
+        12-month target. Returns ``(fields, caveat)``; the caveat is empty
+        unless the target needs more than ``VOL_SCENARIO_STRETCH_SIGMA``.
+        Nothing here feeds the action, score, levels or reward/risk.
+        """
+        try:
+            entry = float(setup.entry_price or 0.0)
+            target = float(setup.horizon_target or 0.0)
+            sigma_d = float(getattr(risk, 'daily_volatility', 0.0) or 0.0)
+            n = int(setup.horizon_days or 0)
+            if (entry <= 0 or target <= entry or sigma_d <= 0 or n <= 0
+                    or not setup.has_long_reward or not np.isfinite(sigma_d)):
+                return {}, ""
+            sigma_h = sigma_d * np.sqrt(n)
+            plus_1 = entry * float(np.exp(sigma_h))
+            sigmas = float(np.log(target / entry) / sigma_h)
+            analyst_w = 0.0
+            for comp in (getattr(valuation, 'target_components', None) or []):
+                if comp.get('source') == "analyst_consensus":
+                    analyst_w = float(comp.get('weight', 0.0) or 0.0)
+            fields = {
+                "horizon_sessions": n,
+                "daily_sigma": round(sigma_d, 5),
+                "plus_1sigma_price": round(plus_1, 4),
+                "target_sigma": round(sigmas, 2),
+                "analyst_weight": round(analyst_w, 4),
+            }
+            caveat = ""
+            if sigmas > cls.VOL_SCENARIO_STRETCH_SIGMA:
+                caveat = (
+                    f"The {n}-session target needs a {sigmas:.1f}-sigma move at this stock's "
+                    f"realised volatility (+1 sigma is {plus_1:,.2f}), and "
+                    f"{analyst_w * 100:.0f}% of the 12-month target is analyst consensus: "
+                    f"treat the target as a stretch, not an expectation."
+                )
+            return fields, caveat
+        except Exception:
+            return {}, ""
 
     def generate(self, current_price: float, signal: Signal,
                  technical: TechnicalIndicators, risk: RiskMetrics,
@@ -6764,6 +7082,8 @@ class TradeSetupGenerator:
 
         result.levels_available = True
         result.setup_basis = f"{entry_basis}; stop {stop_basis}; {target_basis}"
+        result.vol_scenario, result.vol_scenario_caveat = self._vol_scenario(
+            result, risk, valuation)
 
         # ── Risk / reward, net of round-trip execution cost ───────────────
         # [T12 FIX] `reward_amount = abs(target_base - entry_price)` was
@@ -7579,13 +7899,20 @@ def _decision_conflicts(result: "AnalysisResult", stance: str) -> List[str]:
 
 def _rr_hurdles(result: "AnalysisResult", setup: Any, valuation_target: Optional[float]) -> Dict[str, Dict[str, Any]]:
     """The Research hurdle and the funding hurdle Picks applies to these levels,
-    each with whether the net R:R passes and, if not, the highest spot that
-    clears it with the stop and target re-derived from that spot."""
-    from engine.levels import research_rr_clear_entry
+    each with whether the net R:R passes and, if not, the highest SPOT that
+    clears it with the stop and target re-derived from that spot.
+
+    The solver works in entries (the setup's entry can sit at a premium to
+    spot), so its answer is converted to spot by the setup's own entry-to-spot
+    ratio. Without the conversion a reader who compares it to spot sees a
+    price that is already reached and still fails the hurdle.
+    """
+    from engine.levels import entry_to_spot, research_rr_clear_entry
     rr = getattr(setup, "risk_reward_ratio", None)
     entry = float(getattr(setup, "entry_price", 0) or 0)
     stop = float(getattr(setup, "stop_loss", 0) or 0)
-    if rr is None or not valuation_target or not (entry > stop > 0):
+    spot = float(getattr(result, "current_price", 0) or 0)
+    if rr is None or not valuation_target or not (entry > stop > 0) or spot <= 0:
         return {}
     frac = float(getattr(setup, "horizon_days", 0) or 0) / float(getattr(setup, "valuation_horizon_days", 0) or 1)
     cost = TradeSetupGenerator.round_trip_cost_pct(result.ticker) / 100
@@ -7595,15 +7922,91 @@ def _rr_hurdles(result: "AnalysisResult", setup: Any, valuation_target: Optional
         row: Dict[str, Any] = {"min": floor, "passes": float(rr) >= floor}
         if not row["passes"]:
             p = research_rr_clear_entry(valuation_target, frac, entry - stop, cost, floor)
-            row["clear_entry"] = round(p, 2) if p else None
+            spot_p = entry_to_spot(p, entry, spot) if p else None
+            # Floored to the cent: a spot at the printed price must clear the hurdle.
+            row["clear_entry"] = math.floor(round(spot_p, 9) * 100) / 100 if spot_p else None
+            row["clear_entry_basis"] = "spot" if spot_p else None
         out[name] = row
     return out
+
+
+SHADOW_NOTE = ("Pre-registered shadow model, scored from the same components. Not used for this "
+               "call: no evidence gate, level, hurdle or override applies to it.")
+
+
+def shadow_payload(result: "AnalysisResult") -> Optional[Dict[str, Any]]:
+    """The shadow Research model's call, as published beside the live one.
+
+    Its status comes from the evidence registry like any key's (untested
+    versions fail closed). Its score is the composite of the same components
+    under the other version's weights, banded with SCORE_BANDS, unguarded.
+    """
+    from engine.evidence import RESEARCH_KEYS, get_evidence
+    shadow = (getattr(result.scores, "shadow_model", None) or {}) if result.scores else {}
+    version = shadow.get("version")
+    if version not in RESEARCH_KEYS or shadow.get("score") is None:
+        return None
+    key = RESEARCH_KEYS[version]
+    return {
+        "key": key,
+        "version": version,
+        "score": shadow["score"],
+        "band_action": shadow.get("band_action"),
+        "weights": dict(shadow.get("weights") or {}),
+        "status": get_evidence(key).status.value,
+        "note": SHADOW_NOTE,
+    }
+
+
+SHADOW_V4_NOTE = ("Pre-registered shadow model v4 (docs/preregistration/elite_research_v4.md): "
+                  "revisions leg, sector-aware valuation and an expected-value gate. Not used for this call.")
+
+
+def shadow_v4_payload(result: "AnalysisResult") -> Optional[Dict[str, Any]]:
+    """The v4 shadow call, from the finished analysis; None when it cannot be scored.
+
+    Reads only what the live analysis already measured (plus the revision read
+    stored on the market intelligence), and never writes back to it.
+    """
+    try:
+        from engine import research_v4
+        from engine.evidence import ELITE_V4, get_evidence
+        sc, fd, mi = result.scores, result.fundamental, result.market_intel
+        ts, ti, val = result.trade_setup, result.technical, result.valuation
+        price = float(getattr(result, "current_price", 0) or 0)
+        # Only an analysis the live model scored: default legs of 50 are not a read.
+        if sc is None or fd is None or price <= 0 or not getattr(sc, "weights_used", None):
+            return None
+        legs = {"technical": sc.technical_score, "fundamental": sc.fundamental_score,
+                "quality": sc.quality_score, "sentiment": sc.sentiment_score}
+        info = {"bookValue": fd.book_value_per_share, "returnOnEquity": (fd.roe or 0.0) / 100.0,
+                "priceToBook": fd.pb_ratio, "trailingEps": fd.eps_ttm, "freeCashflow": fd.free_cash_flow,
+                "sharesOutstanding": fd.shares_outstanding, "sector": getattr(result, "sector", "") or "",
+                "industry": getattr(result, "industry", "") or str(getattr(fd, "_industry", "") or "")}
+        dcf = (float(val.dcf_fair_value) if val is not None and getattr(val, "dcf_status", "") == "measured"
+               and float(getattr(val, "dcf_fair_value", 0) or 0) > 0 else None)
+        out = research_v4.assess(
+            legs=legs, revision=getattr(mi, "revision", None) if mi is not None else None, info=info,
+            price=price, dcf_value=dcf,
+            consensus_mean=(float(mi.target_mean) if mi is not None and mi.target_mean > 0 else None),
+            analyst_count=int(getattr(mi, "analyst_count", 0) or 0) if mi is not None else 0,
+            entry=float(getattr(ts, "entry_price", 0) or 0) if ts is not None else 0.0,
+            stop=float(getattr(ts, "stop_loss", 0) or 0) if ts is not None else 0.0,
+            atr=float(getattr(ti, "atr", 0) or 0) if ti is not None else 0.0,
+            cost_frac=TradeSetupGenerator.round_trip_cost_pct(result.ticker) / 100,
+            is_fund=bool(getattr(fd, "is_etf", False)))
+        if out.get("score") is None:
+            return None
+        return dict(out, key=ELITE_V4, status=get_evidence(ELITE_V4).status.value, note=SHADOW_V4_NOTE)
+    except Exception as exc:  # noqa: BLE001 - the live call must not depend on the shadow
+        logger.warning("v4 shadow model not scored for %s: %s", getattr(result, "ticker", "?"), exc)
+        return None
 
 
 def decision_for_analysis(result: "AnalysisResult"):
     """Build the one published deep-analysis decision from the resolved action."""
     from engine.decision import Decision, POSITION, SourceRef, assess_price_freshness
-    from engine.evidence import ELITE, get_evidence
+    from engine.evidence import get_evidence, live_research_key
 
     try:
         action = FinalAction(result.final_action)
@@ -7653,7 +8056,7 @@ def decision_for_analysis(result: "AnalysisResult"):
     rr_hurdles = _rr_hurdles(result, setup, valuation_target) if has_target else {}
     decision = Decision(
         ticker=result.ticker, engine="elite", horizon=POSITION,
-        action=action, evidence=get_evidence(ELITE),
+        action=action, evidence=get_evidence(live_research_key()),
         as_of=as_of.isoformat() if as_of else None,
         score=getattr(scores, "composite_score", None),
         score_basis="Research composite (alpha factors only), 0-100",
@@ -7683,7 +8086,10 @@ def decision_for_analysis(result: "AnalysisResult"):
         entry=(getattr(setup, "entry_price", None) or None),
         stop=(getattr(setup, "stop_loss", None) or None),
         target=(getattr(setup, "horizon_target", None) if has_target else None),
-        reward_risk=getattr(setup, "risk_reward_ratio", None),
+        # Floored to the printed precision, so the published figure is the one the page
+        # and the reason text quote (never 0.82 beside a text that reads 0.81).
+        reward_risk=(_T.floor_rr(getattr(setup, "risk_reward_ratio", 0.0) or 0.0)
+                     if getattr(setup, "risk_reward_ratio", None) is not None else None),
         scenarios=scenarios,
         target_basis=(f"{POSITION.trading_days}-session target, pro-rated from the 12-month valuation target"
                       if has_target else ""),
@@ -7729,6 +8135,9 @@ def decision_for_analysis(result: "AnalysisResult"):
     # Decision itself, not left for the reader to find further down (JPM
     # replay: ACCUMULATE beside "Significantly overvalued").
     decision.conflicts = _decision_conflicts(result, decision.stance)
+    # Informational only: read after every live field above is final.
+    decision.shadow_model = shadow_payload(result)
+    decision.shadow_v4 = shadow_v4_payload(result)
 
     # Per-reader meaning, from the final action, the score band and the codes.
     from engine.blockers import action_contract, blocker_info, dedupe
@@ -7834,9 +8243,9 @@ def _fold_strong_buy(result: "AnalysisResult", sizer: Any, account_size: float) 
     """
     if str(result.final_action or "") != FinalAction.STRONG_BUY.value or not HAS_DECISION_CORE:
         return
-    from engine.evidence import ELITE, get_evidence
+    from engine.evidence import get_evidence, live_research_key
     from engine.thresholds import LADDER
-    if str(get_evidence(ELITE).status.value).upper() == LADDER.STRONG_BUY_EVIDENCE:
+    if str(get_evidence(live_research_key()).status.value).upper() == LADDER.STRONG_BUY_EVIDENCE:
         return
     result.final_action = FinalAction.BUY.value
     result.final_action_codes = list(result.final_action_codes or []) + ["STRONG_BUY_FOLDED"]
@@ -7860,7 +8269,7 @@ def record_authoritative_signal(result: "AnalysisResult", ledger=None) -> int:
     outcome resolution to the ledger CLI, which fetches each exact exit bar.
     """
     from engine.market_calendar import last_completed_session
-    from tracking.ledger import default_ledger, record_decisions
+    from tracking.ledger import default_ledger, record_decisions, record_shadow_calls
 
     if os.environ.get("QUANTA_TRACKING_DISABLED") == "1":
         return 0
@@ -7891,7 +8300,16 @@ def record_authoritative_signal(result: "AnalysisResult", ledger=None) -> int:
             decision,
             horizon=Horizon(f"{days}d", days, f"{days} trading sessions"),
         ) for days in (5, 10, 30, 63)]
-        return record_decisions(decisions, context=context, ledger=ledger)
+        recorded = record_decisions(decisions, context=context, ledger=ledger)
+        # The other model version's call, at the same horizons, under its own
+        # engine: its record accumulates from today and is never pooled with
+        # the live engine's. The return value stays the live count.
+        for shadow in (decision.shadow_model, getattr(decision, "shadow_v4", None)):
+            if shadow:
+                record_shadow_calls(decision, shadow,
+                                    horizons=[d.horizon.trading_days for d in decisions],
+                                    context=context, ledger=ledger)
+        return recorded
     except Exception as exc:
         logger.warning("Signal ledger could not record %s: %s", result.ticker, exc)
         return 0
@@ -9379,7 +9797,7 @@ class QuantaEliteAnalyzer:
             executor = ThreadPoolExecutor(max_workers=4 if include_insider else 3)
             try:
                 futures = {
-                    'technical': executor.submit(self.technical_analyzer.analyze, data),
+                    'technical': executor.submit(self.technical_analyzer.analyze, data, ticker=ticker),
                     'risk': executor.submit(self.risk_analyzer.analyze, data, ticker),
                     'fundamental': executor.submit(self.fundamental_analyzer.analyze, ticker),
                 }
@@ -9419,7 +9837,7 @@ class QuantaEliteAnalyzer:
             executor = ThreadPoolExecutor(max_workers=8)
             try:
                 futures = {
-                    'technical': executor.submit(self.technical_analyzer.analyze, data),
+                    'technical': executor.submit(self.technical_analyzer.analyze, data, ticker=ticker),
                     'fundamental': executor.submit(self.fundamental_analyzer.analyze, ticker),
                     'risk': executor.submit(self.risk_analyzer.analyze, data, ticker),
                     'sentiment': executor.submit(self.sentiment_analyzer.analyze, ticker),
@@ -9623,6 +10041,11 @@ class QuantaEliteAnalyzer:
         
         if result.risk and result.risk.liquidity_score < 4:
             warnings.append("⚠️ LOW LIQUIDITY: May impact execution")
+
+        # Informational volatility cross-check of the horizon target (no gating).
+        _vs_caveat = getattr(getattr(result, 'trade_setup', None), 'vol_scenario_caveat', "")
+        if _vs_caveat:
+            warnings.append(f"⚠️ STRETCH TARGET: {_vs_caveat}")
         
         return warnings[:5]
     
@@ -10367,7 +10790,7 @@ def display_position_deep_dive(result: 'AnalysisResult', sym: str = "$") -> None
     print(f"  Target 1    {sym}{pt1:<10.2f} ({pt1_pct:+.1f}%)            Target 2    {sym}{pt2:.2f} ({pt2_pct:+.1f}%)")
     # [T6 FIX] Was "Win Prob 50%" — an uncalibrated figure printed as a
     # probability. The tier is what the engine can actually support.
-    print(f"  Risk/Reward {rr:.2f}:1                           Confidence  {_lv['confidence_tier']}")
+    print(f"  Risk/Reward {_T.floor_rr(rr):.2f}:1                           Confidence  {_lv['confidence_tier']}")
     
     # Thesis
     thesis_text = ""
@@ -10451,7 +10874,7 @@ def display_decision_snapshot(result: 'AnalysisResult', sym: str = "$") -> None:
             "",
             f"To target   {upside:+.1f}%   (T2 {sym}{lv['t2']:,.2f})"
             + (f"   ·   analyst {analyst_upside:+.0f}%" if analyst_upside else ""),
-            f"To stop     {downside:+.1f}%   ({sym}{lv['stop']:,.2f})   ·   R:R {lv['rr']:.2f}:1",
+            f"To stop     {downside:+.1f}%   ({sym}{lv['stop']:,.2f})   ·   R:R {_T.floor_rr(lv['rr']):.2f}:1",
             f"Horizon     {lv['horizon_days']} days   ·   review {lv['review_date']}",
         ]
     else:
@@ -10554,7 +10977,7 @@ def display_what_to_do(result: 'AnalysisResult', sym: str = "$") -> None:
         framing['one_liner'],
         "",
         f"Conviction {conv_label} ({confidence:.0f}%)   ·   Risk grade {risk_grade}"
-        + (f"   ·   R:R {lv['rr']:.2f}:1" if lv['available'] else ""),
+        + (f"   ·   R:R {_T.floor_rr(lv['rr']):.2f}:1" if lv['available'] else ""),
     ])
 
     # ── Levels ────────────────────────────────────────────────────────────
@@ -10593,7 +11016,7 @@ def display_what_to_do(result: 'AnalysisResult', sym: str = "$") -> None:
                   f"← at or below spot: no long reward")
             print(f"  Targets        none — the valuation does not support a long here")
         _rule()
-        print(f"  R:R {lv['rr']:.2f}:1   ·   confidence tier {lv['confidence_tier']}   ·   "
+        print(f"  R:R {_T.floor_rr(lv['rr']):.2f}:1   ·   confidence tier {lv['confidence_tier']}   ·   "
               f"horizon {lv['horizon_days']}d, review {lv['review_date']}")
         print(f"  Basis: {lv['basis']}")
 
@@ -11051,7 +11474,7 @@ def display_reconciled_recommendation(result: 'AnalysisResult', sym: str = "$") 
         print(f"  Target 2 (T2):  {sym}{t2:,.2f}  ({((t2 - entry_price) / entry_price) * 100:+.1f}%)  │  Take 33% profit")
         print(f"  Target 3 (T3):  {sym}{t3:,.2f}  ({((t3 - entry_price) / entry_price) * 100:+.1f}%)  │  Final exit")
         print(f"  {'─'*72}")
-        print(f"  Risk/Reward:    {rr:.2f}:1       Confidence tier: {_lv['confidence_tier']}")
+        print(f"  Risk/Reward:    {_T.floor_rr(rr):.2f}:1       Confidence tier: {_lv['confidence_tier']}")
         
     elif signal == Signal.ACCUMULATE:
         print(f"\n  ┌────────────────────────────────────────────────────────────────────────┐")
@@ -11994,8 +12417,11 @@ def _sanitize_thesis_text(text, result: 'AnalysisResult'):
             return s
         out = s
         for ph in bad_phrases:
-            out = out.replace(ph, "").replace("  ", " ")
-        return out
+            out = out.replace(ph, "")
+        # A removed phrase can leave a double space, and a source name can carry
+        # one already ("iShares 20+ Year Treasury Bond  (TLT)"). Every run of
+        # spaces collapses, whether or not a phrase was removed; newlines stay.
+        return re.sub(r" {2,}", " ", out)
 
     # InvestmentThesis object: scrub each text field, return same object
     if isinstance(text, InvestmentThesis):
@@ -12288,7 +12714,7 @@ def display_analysis(result: 'AnalysisResult', detailed: bool = True):
     _rec_label = _contextual_recommendation_label(signal_display, _conv, risk_grade, g["buy_now"])
 
     # Entry / stop levels (reused by Action Plan below)
-    _break_lvl = t_cs.week_52_high if t_cs.week_52_high > result.current_price else 0.0
+    _break_lvl = breakout_entry(result.current_price, t_cs.week_52_high, t_cs.resistance_level, t_cs.atr)
     # Realistic pullback entry: nearest support below price (20/50-day MA, VWAP,
     # swing support). Flagged "deep pullback only" when >25% below current.
     _pull_lvl = g["pullback_entry"]
@@ -13591,7 +14017,7 @@ def classify_asset_type(
 
 def _mcp_result_to_dict(result: AnalysisResult) -> Dict[str, Any]:
     """Convert a full AnalysisResult to a serializable dictionary."""
-    from engine.evidence import ELITE, get_evidence
+    from engine.evidence import get_evidence, live_research_key
 
     d = {}
     decision = decision_for_analysis(result)
@@ -13599,7 +14025,7 @@ def _mcp_result_to_dict(result: AnalysisResult) -> Dict[str, Any]:
     d['decision'] = decision_data
     if getattr(result, 'portfolio_fund_decision', None) is not None:
         d['portfolio_fund_decision'] = result.portfolio_fund_decision
-    evidence = decision.evidence if decision else get_evidence(ELITE)
+    evidence = decision.evidence if decision else get_evidence(live_research_key())
     d['evidence'] = evidence.to_dict()
 
     # Basic info
@@ -13705,7 +14131,11 @@ def _mcp_result_to_dict(result: AnalysisResult) -> Dict[str, Any]:
             'momentum_score': _mcp_safe_serialize(t.momentum_score),
             'trend_score': _mcp_safe_serialize(t.trend_score),
             'volatility_score': _mcp_safe_serialize(t.volatility_score),
+            # Which bars the scores were read from (and why today's may be excluded).
+            'indicator_basis': dict(t.indicator_basis or {}),
         }
+        if t.live_preview:
+            d['technical']['live_preview'] = dict(t.live_preview)
 
     # Fundamental summary
     if result.fundamental:
@@ -13713,7 +14143,9 @@ def _mcp_result_to_dict(result: AnalysisResult) -> Dict[str, Any]:
         d['fundamental'] = {
             'pe_ratio': _mcp_safe_serialize(f.pe_ratio),
             'forward_pe': _mcp_safe_serialize(f.forward_pe),
-            'peg_ratio': _mcp_safe_serialize(f.pe_to_growth),
+            # None (not 0) when there is no sound PEG: the page shows n/m.
+            'peg_ratio': (_mcp_safe_serialize(f.pe_to_growth) if f.pe_to_growth > 0 else None),
+            'peg_source': f.peg_source,
             'pb_ratio': _mcp_safe_serialize(f.pb_ratio),
             'ev_ebitda': _mcp_safe_serialize(f.ev_ebitda),
             'roe': (_mcp_safe_serialize(f.roe) if f.has('roe') else None),
@@ -13872,6 +14304,8 @@ def _mcp_result_to_dict(result: AnalysisResult) -> Dict[str, Any]:
             'is_actionable_entry': bool(getattr(ts, 'is_actionable_entry', False)),
             'entry_type': getattr(ts, 'entry_type', ''),
             'setup_basis': getattr(ts, 'setup_basis', ''),
+            'vol_scenario': dict(getattr(ts, 'vol_scenario', {}) or {}),
+            'vol_scenario_caveat': getattr(ts, 'vol_scenario_caveat', ''),
             'trailing_stop': _mcp_safe_serialize(getattr(ts, 'trailing_stop', 0.0)),
             'trailing_stop_pct': _mcp_safe_serialize(getattr(ts, 'trailing_stop_pct', 0.0)),
         }
@@ -13955,6 +14389,8 @@ def _mcp_result_to_dict(result: AnalysisResult) -> Dict[str, Any]:
         d['catalysts'] = {
             'earnings_date': cat.earnings_date,
             'days_to_earnings': cat.days_to_earnings,
+            'last_earnings_date': cat.last_earnings_date,
+            'sessions_since_last_earnings': cat.sessions_since_last_earnings,
             'last_earnings_result': cat.last_earnings_result,
             'last_earnings_surprise_pct': _mcp_safe_serialize(cat.last_earnings_surprise_pct),
             'ex_dividend_date': cat.ex_dividend_date,
@@ -14077,7 +14513,8 @@ def _mcp_result_to_dict(result: AnalysisResult) -> Dict[str, Any]:
         g = _bg_early
         g['rr_label'] = rr_label
 
-        break_lvl = float(t.week_52_high) if t and t.week_52_high and t.week_52_high > cp else 0.0
+        # Offered only for the nearest overhead level within a few ATRs (see levels.breakout_entry).
+        break_lvl = breakout_entry(cp, t.week_52_high, t.resistance_level, t.atr) if t else 0.0
         # Realistic pullback + tactical stop come straight from the guidance helper.
         pull_lvl = float(g.get('pullback_entry') or 0.0)
         pull_stop = float(g.get('pullback_stop') or 0.0)
@@ -14278,7 +14715,7 @@ def _mcp_format_analysis_text(d: Dict[str, Any]) -> str:
             lines.append(f"- **Target (Conservative):** {sym}{t_cons:,.2f}")
             lines.append(f"- **Target (Base):** {sym}{t_base:,.2f}")
             lines.append(f"- **Target (Aggressive):** {sym}{t_aggr:,.2f}")
-            lines.append(f"- **Risk/Reward:** {ts.get('risk_reward_ratio', 0):.2f}:1")
+            lines.append(f"- **Risk/Reward:** {_T.floor_rr(ts.get('risk_reward_ratio', 0)):.2f}:1")
             # [T6 FIX] Was "**Win Probability:** {win_probability:.0%}". Now
             # that no calibrated win rate is claimed the field is always 0.0,
             # so printing it would render "0%" — worse than omitting it.

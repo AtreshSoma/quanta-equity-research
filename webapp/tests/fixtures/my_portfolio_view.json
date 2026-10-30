@@ -276,6 +276,39 @@
     "earnings_window_days": 7,
     "stop_risk_budget": 0.06,
     "min_add_value": 50.0
+   },
+   "tail_risk": {
+    "confidence": 0.95,
+    "horizon_days": 1,
+    "days": 250,
+    "coverage": 1.0,
+    "var_pct": 0.021800869612147965,
+    "cvar_pct": 0.02682466052026298,
+    "var_value": 1764.257174232686,
+    "cvar_value": 2170.8124772628016,
+    "worst_window": {
+     "sessions": 21,
+     "return": -0.1416915271460886,
+     "value": -11466.528525824366,
+     "end": "239"
+    },
+    "scenarios": [
+     {
+      "market_move": -0.1,
+      "book_pct": -0.12955331297304476,
+      "value": -9756.660000000002,
+      "account_pct": -0.10771793852676208
+     },
+     {
+      "market_move": -0.2,
+      "book_pct": -0.2591066259460895,
+      "value": -19513.320000000003,
+      "account_pct": -0.21543587705352416
+     }
+    ],
+    "scenario_coverage": 0.9306032671823641,
+    "reason": null,
+    "method": "Historical simulation: today's weights applied to past daily returns (inner-joined dates); cash at zero. Beta scenarios use value-weighted beta. Not a forecast."
    }
   },
   "groups": [

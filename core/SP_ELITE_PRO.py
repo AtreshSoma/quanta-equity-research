@@ -117,31 +117,17 @@ try:
         backtest_disclaimer,
     )
     from engine.data_status import DataStatus, is_data_failure, is_true_invalid
+    from engine import indicators as _shared_indicators
     HAS_DECISION_CORE = True
-except ImportError:
-    HAS_DECISION_CORE = False
-    FinalAction = None  # type: ignore
-
-    class DataStatus:  # type: ignore
-        """Fallback mirror of engine.data_status.DataStatus when engine missing."""
-        OK = "ok"
-        INVALID_TICKER = "invalid_ticker"
-        INSUFFICIENT_HISTORY = "insufficient_history"
-        PROVIDER_RATE_LIMITED = "provider_rate_limited"
-        PROVIDER_DATA_UNAVAILABLE = "provider_data_unavailable"
-        DEEP_CONFIRMATION_FAILED = "deep_confirmation_failed"
-        NOT_INDEPENDENTLY_CONFIRMED = "not_independently_confirmed"
-
-    _DATA_FAILURE = {
-        "insufficient_history", "provider_rate_limited", "provider_data_unavailable",
-        "deep_confirmation_failed", "not_independently_confirmed",
-    }
-
-    def is_data_failure(status):  # type: ignore
-        return str(status or "").strip().lower() in _DATA_FAILURE
-
-    def is_true_invalid(status):  # type: ignore
-        return str(status or "").strip().lower() == "invalid_ticker"
+except ImportError as _core_exc:
+    # Audit: core/engine ships with the repo. A missing core used to flip
+    # HAS_DECISION_CORE to False and silently change decisions (no validation,
+    # no resolve_final_action). Fail loudly instead.
+    raise ImportError(
+        "QUANTA decision core (core/engine) failed to import: "
+        f"{_core_exc}. core/engine is part of the repository; refusing to run "
+        "with silently different decision logic."
+    ) from _core_exc
 
 try:
     from tabulate import tabulate
@@ -190,7 +176,10 @@ else:
     HAS_PORTFOLIO_RISK = False
     class PortfolioRiskManager:
         def check_position_limits(self, pos, existing): return True, ""
-        def calculate_portfolio_var(self, *args, **kwargs): return 0.0
+        def calculate_portfolio_var(self, *args, **kwargs):
+            # Audit: the stub returned 0.0, which a caller reads as "zero risk".
+            # None means "not measured"; callers must treat it as a caveat.
+            return None
 
 # [EPS REVISIONS] Zacks-style earnings-estimate-revision factor
 _revision_module = _import_optional("earnings_revision_scoring", "modules.earnings_revision_scoring")
@@ -987,25 +976,23 @@ class DataValidator:
     @staticmethod
     def completed_daily_history(hist: pd.DataFrame, market: str = "US",
                                 now: Optional[pd.Timestamp] = None) -> pd.DataFrame:
-        """Exclude the still-forming daily candle before strict validation."""
+        """Exclude the still-forming or unsettled daily candle before strict validation.
+
+        The rule lives in ``engine.bars``: the newest bar is dropped while its session
+        is trading or within the settle window after the close. A naive ``now`` is
+        read on the market's own clock, as this method always did.
+        """
         if hist is None or hist.empty:
             return hist
+        from engine.bars import scoring_bars
         zone = 'Asia/Kolkata' if market == 'IN' else 'America/New_York'
-        # datetime.now, not pd.Timestamp.now: the same clock, and one a test can pin.
-        current = pd.Timestamp(datetime.now(timezone.utc)).tz_convert(zone) if now is None else pd.Timestamp(now)
-        current = current.tz_localize(zone) if current.tzinfo is None else current.tz_convert(zone)
-        from engine.market_calendar import SESSION_CLOSE
-        close_h, close_m = (_T.RESEARCH.INDIA_SESSION_CLOSE_IST if market == 'IN'
-                            else (SESSION_CLOSE.hour, SESSION_CLOSE.minute))
-        close_minutes = int(close_h) * 60 + int(close_m)
-        if current.hour * 60 + current.minute >= close_minutes:
-            return hist
-        dates = pd.DatetimeIndex(hist.index)
-        if dates.tz is not None:
-            dates = dates.tz_convert(zone)
-        keep = dates.date != current.date()
-        return hist.loc[keep].copy() if not keep.all() else hist
-    
+        pinned = None
+        if now is not None:
+            pinned = pd.Timestamp(now)
+            pinned = pinned.tz_localize(zone) if pinned.tzinfo is None else pinned
+        frame, _basis = scoring_bars(hist, now=pinned, market='IN' if market == 'IN' else 'US')
+        return frame
+
     @staticmethod
     def sessions_behind(last_bar: pd.Timestamp, market: str = "US") -> int:
         """Completed sessions after ``last_bar`` up to the last completed session.
@@ -4698,39 +4685,12 @@ class TechnicalAnalysisEngine:
                 logger.debug(f"ADX: Insufficient data ({len(hist)} < 150), missing")
                 return float('nan')
                 
-            high = hist['High']
-            low = hist['Low']
-            close = hist['Close']
-
-            up_move = high.diff()
-            down_move = -low.diff()
-
-            # [W3 FIX] Wilder's directional movement is MUTUALLY EXCLUSIVE:
-            # only the larger of the two moves counts on any given bar. The
-            # old code merely clipped negatives, so on an outside bar (higher
-            # high AND lower low) both +DM and -DM stayed positive, inflating
-            # both DI legs and corrupting DX/ADX. ADX feeds technical_score,
-            # momentum_score and trend_strength, so the error propagated into
-            # one of the most heavily weighted inputs in the model.
-            plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
-            minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
-
-            tr = pd.concat([
-                high - low,
-                abs(high - close.shift()),
-                abs(low - close.shift())
-            ], axis=1).max(axis=1)
-
-            # Wilder's Smoothing: EMA with alpha = 1/period
-            alpha = 1.0 / period
-            atr = tr.ewm(alpha=alpha, min_periods=period, adjust=False).mean()
-
-            plus_di = 100 * (plus_dm.ewm(alpha=alpha, min_periods=period, adjust=False).mean() / atr)
-            minus_di = 100 * (minus_dm.ewm(alpha=alpha, min_periods=period, adjust=False).mean() / atr)
-
-            dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di + 1e-10)
-            adx = dx.ewm(alpha=alpha, min_periods=period, adjust=False).mean()
-
+            # Audit: the Wilder maths now lives in engine.indicators (one
+            # reference shared with the parity tests). Output is identical to
+            # the previous inline code within 1e-9 (tests/test_indicator_parity.py);
+            # the 150-bar gate above stays PRO's own policy.
+            adx, _plus_di, _minus_di = _shared_indicators.adx(
+                hist['High'], hist['Low'], hist['Close'], period)
             return float(adx.iloc[-1]) if not adx.empty else float('nan')
         except Exception:
             return float('nan')
@@ -8609,7 +8569,10 @@ class QuantaEliteTradingSystem:
                 next_earnings = None if fund_hint else _extract_next_earnings_date(stock.calendar)
                 if next_earnings is not None:
                     calendar_known = True
-                    days_to_earnings = (next_earnings.date() - datetime.now().date()).days
+                    # Counted on the listing's exchange calendar day, not this machine's clock.
+                    from engine import market_calendar as _mc
+                    _today = (_mc.now_india() if _mc.listing_market(ticker) == "IN" else _mc.now_new_york()).date()
+                    days_to_earnings = (next_earnings.date() - _today).days
                     earnings_size_multiplier = earnings_size_multiplier_for(days_to_earnings)
                     if earnings_size_multiplier < 1.0:
                         earnings_note = f"earnings in {days_to_earnings}d"
@@ -9654,7 +9617,7 @@ class QuantaEliteTradingSystem:
 
             # A deep-dive may inspect a symbol during the earnings blackout,
             # but it must never turn that research view into a new-money order.
-            if research_mode and 0 <= days_to_earnings <= 14:
+            if research_mode and 0 <= days_to_earnings <= _T.SIZING.EARNINGS_NO_NEW_MONEY_DAYS:
                 earnings_reason = (
                     f"Earnings in {days_to_earnings} days: research only; "
                     "wait until the event risk clears before opening a position."
@@ -12293,6 +12256,17 @@ class QuantaEliteTradingSystem:
             ev = checks.get(r.ticker) or ce._unavailable(f"no result for {r.ticker}")
             r.event_check = ev.to_dict()
             if ev.status == "clear":
+                # The scan's earnings rule is the deep dive's: no new money while a
+                # report is this close. Held at Watch and shown, like an event hold.
+                dte = getattr(r, 'days_to_earnings', None)
+                if isinstance(dte, (int, float)) and 0 <= dte <= _T.SIZING.EARNINGS_NO_NEW_MONEY_DAYS:
+                    apply_allocation(r, 0.0, self.capital)
+                    r.final_action = FinalAction.WATCHLIST.value
+                    r.final_action_reasons = list(r.final_action_reasons or []) + [
+                        f"Earnings in {int(dte)} days: wait until the report is out before opening a position."]
+                    self._event_watch.append(r)
+                    logger.info(f"Earnings window: {r.ticker} held at Watch (earnings in {int(dte)} days)")
+                    continue
                 kept.append(r)
                 continue
             if ev.blocks_new_money_outright:
@@ -12774,6 +12748,7 @@ class QuantaEliteTradingSystem:
                             portfolio_std_pct = float(np.sqrt(np.dot(w_frac, np.dot(cov, w_frac))))
                             portfolio_var_dollars = total_dollars * 2.33 * portfolio_std_pct
 
+                var_measured = portfolio_var_dollars > 0
                 if portfolio_var_dollars <= 0:
                     indiv_vars = []
                     for r in projected_positions:
@@ -12790,6 +12765,18 @@ class QuantaEliteTradingSystem:
 
                     if indiv_vars:
                         portfolio_var_dollars = float(np.sqrt(np.sum(np.square(indiv_vars))))
+                        var_measured = portfolio_var_dollars > 0
+
+                if not var_measured:
+                    # Audit: no history to measure VaR is "not measured", not
+                    # zero risk. The cap cannot be tested, so it is not claimed
+                    # as passed: the skip is logged visibly and tallied.
+                    logger.warning(
+                        f"Portfolio VaR NOT MEASURED for {candidate.ticker} (no usable return "
+                        f"history); VaR cap not verified"
+                    )
+                    self._var_unmeasured = list(getattr(self, '_var_unmeasured', [])) + [candidate.ticker]
+                    return True
 
                 portfolio_var_pct = portfolio_var_dollars / self.capital if self.capital > 0 else 1.0
                 passes = portfolio_var_pct <= TradingConfig.MAX_PORTFOLIO_RISK
@@ -12800,7 +12787,8 @@ class QuantaEliteTradingSystem:
                     )
                 return passes
             except Exception as e:
-                logger.debug(f"Portfolio VaR check failed for {candidate.ticker}: {e}")
+                logger.warning(f"Portfolio VaR NOT MEASURED for {candidate.ticker}: {e}")
+                self._var_unmeasured = list(getattr(self, '_var_unmeasured', [])) + [candidate.ticker]
                 return True
 
         def _passes_portfolio_stop_risk(candidate: StockAnalysis, candidate_allocation: float,
@@ -13149,10 +13137,19 @@ class QuantaEliteTradingSystem:
         # and names skipped only because a now-withdrawn pick occupied their
         # sector / correlation slot were never reconsidered. Rebuild the book
         # from the picks still carrying capital and backfill from the ranked
-        # qualified list (bounded: two rounds, each deep-confirmed).
+        # qualified list, each round deep-confirmed. A name turned down only
+        # because of what the book held then (correlation, sector, capital,
+        # issuer, stop risk, VaR) is retried against the rebuilt book, so its
+        # reason never names a pick that was withdrawn. Rounds stop when one adds
+        # nothing; each adds at least one name, so the pool size bounds them.
         all_records = list(getattr(self, '_deep_confirm_records', []) or [])
         considered = {r.ticker for r in final}
-        for _round in range(2):
+        _book_dependent = frozenset(_T.BOOK.BOOK_DEPENDENT_SKIPS)
+        for _round in range(len(qualified_results) + 1):
+            skips_now = getattr(self, '_selection_skips', None) or {}
+            considered = {t for t in considered
+                          if (skips_now.get(t) or {}).get("reason") not in _book_dependent
+                          or any(r.ticker == t for r in final)}
             funded = [r for r in final if float(getattr(r, 'allocation', 0.0) or 0.0) > 0]
             withdrawn = [r for r in final if r not in funded]
             if not withdrawn or len(funded) >= max_positions:
@@ -13197,6 +13194,27 @@ class QuantaEliteTradingSystem:
             # Withdrawn picks stay published (at $0, as watchlist context).
             final = funded + added + withdrawn
         self._deep_confirm_records = all_records
+        # A buy-tier name a selection limit left out of the book is still shown
+        # as a call, so it gets the Research check too (rank order, capped):
+        # the page then shows Research's verdict and levels, never the scanner's
+        # unchecked ones. Not funded and not a ledger call; the table reads it.
+        self._unpublished_checked = {}
+        if getattr(self, '_deep_confirm_enabled', True):
+            in_final = {r.ticker for r in final}
+            leftovers = [r for r in qualified_results if r.ticker not in in_final
+                         and str(getattr(r, 'final_action', '') or '').upper() in ("STRONG_BUY", "BUY", "ACCUMULATE")]
+            leftovers = leftovers[:int(_T.BOOK.RESEARCH_CHECK_UNPUBLISHED_MAX)]
+            if leftovers:
+                checked = self._deep_confirm_final_picks(leftovers)
+                for rec in checked:
+                    # A downgrade replaces the Decision. An agreeing verdict keeps
+                    # it: re-deciding at $0 would read "no position remains", and
+                    # capital fit never changes the call.
+                    if str(getattr(rec, 'final_action', '') or '').upper() not in ("STRONG_BUY", "BUY", "ACCUMULATE"):
+                        rec.decision = decision_for_scan_result(rec).to_dict()
+                    apply_allocation(rec, 0.0, self.capital)   # never funded: no provisional size survives
+                    self._unpublished_checked[rec.ticker] = rec
+                self._deep_confirm_records = all_records
         # [F1] Names held out of funding by the event gate are published at $0
         # with the reason, after the funded and withdrawn rows.
         final = final + [r for r in getattr(self, '_event_watch', []) if r not in final]

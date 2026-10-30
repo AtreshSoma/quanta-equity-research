@@ -17,7 +17,7 @@
     "beginner_guidance": {
       "aggressive_buyer": "Do not add until the final decision changes",
       "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
-      "breakout_entry": 351.73,
+      "breakout_entry": 348.15,
       "buy_now": "NO",
       "candlestick_timing": "HOLD WITH STOP",
       "confidence": 43.6626,
@@ -55,9 +55,11 @@
       "dividend_yield": 0.0031,
       "earnings_date": "2026-11-02",
       "ex_dividend_date": "Unknown",
+      "last_earnings_date": "Unknown",
       "last_earnings_result": "Unknown",
       "last_earnings_surprise_pct": 0.0,
-      "near_term_catalyst": true
+      "near_term_catalyst": true,
+      "sessions_since_last_earnings": null
     },
     "company_name": "Apple Inc.",
     "confidence_level": "LOW",
@@ -123,6 +125,7 @@
         "lineage": [
           {
             "change": "risk leg removed from the ranking composite",
+            "relation": "earlier",
             "status": "UNTESTED",
             "status_text": "Never validated",
             "strategy": "elite.alpha_only.v1",
@@ -131,11 +134,22 @@
           },
           {
             "change": "original composite",
+            "relation": "earlier",
             "status": "NO_EDGE",
             "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
             "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
+          },
+          {
+            "change": "pre-registered 2026-10-29; running in shadow",
+            "doc": "docs/preregistration/elite_research_v3.md",
+            "relation": "successor",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.research.v3",
+            "summary": "Never tested.",
+            "tested_through": null
           }
         ],
         "metrics": {
@@ -200,11 +214,13 @@
         "rr_hurdles": {
           "funding": {
             "clear_entry": 108.33,
+            "clear_entry_basis": "spot",
             "min": 1.8,
             "passes": false
           },
           "research": {
             "clear_entry": 137.77,
+            "clear_entry_basis": "spot",
             "min": 1.5,
             "passes": false
           }
@@ -267,11 +283,11 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 500,
+      "risk_grade_lookback_days": 501,
       "risk_metrics": {
-        "beta": 0.578244,
+        "beta": 0.578677,
         "risk_score": 30,
-        "volatility": 0.286883
+        "volatility": 0.286609
       },
       "risks": [],
       "scenarios": [
@@ -309,6 +325,85 @@
       "schema_version": 1,
       "score": 58.6626,
       "score_basis": "Research composite (alpha factors only), 0-100",
+      "shadow_model": {
+        "band_action": "BUY",
+        "key": "elite.research.v3",
+        "note": "Pre-registered shadow model, scored from the same components. Not used for this call: no evidence gate, level, hurdle or override applies to it.",
+        "score": 69.09,
+        "status": "UNTESTED",
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.4,
+          "quality": 0.3,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
+      "shadow_v4": {
+        "band_action": "WATCHLIST",
+        "ev_gate": {
+          "ev_r": null,
+          "expected_return": null,
+          "inputs": null,
+          "p_neither": null,
+          "p_stop": null,
+          "p_target": null,
+          "passes": false,
+          "reason": "levels must satisfy stop < entry < target",
+          "risk": null
+        },
+        "key": "elite.research.v4",
+        "legs": {
+          "fundamental": 78,
+          "quality": 87.96,
+          "revisions": 53.9,
+          "sentiment": 35,
+          "technical": 60,
+          "valuation": 28.45
+        },
+        "note": "Pre-registered shadow model v4 (docs/preregistration/elite_research_v4.md): revisions leg, sector-aware valuation and an expected-value gate. Not used for this call.",
+        "score": 66.73,
+        "score_band": "BUY",
+        "status": "UNTESTED",
+        "target": {
+          "components": [
+            {
+              "source": "analyst",
+              "value": 328.35,
+              "weight": 0.625
+            },
+            {
+              "source": "intrinsic",
+              "value": 219.11,
+              "weight": 0.375
+            }
+          ],
+          "intrinsic": {
+            "components": [
+              {
+                "source": "dcf",
+                "value": 219.11,
+                "weight": 1.0
+              }
+            ],
+            "method": "dcf",
+            "note": "",
+            "value": 219.11
+          },
+          "upside_pct": -17.24,
+          "value": 287.39
+        },
+        "version": "v4",
+        "weights": {
+          "fundamental": 0.32,
+          "quality": 0.24,
+          "revisions": 0.2,
+          "sentiment": 0.08,
+          "technical": 0.08,
+          "valuation": 0.08
+        }
+      },
       "sizing": {
         "dollar_risk": 0,
         "portfolio_weight": 0,
@@ -346,6 +441,7 @@
       "lineage": [
         {
           "change": "risk leg removed from the ranking composite",
+          "relation": "earlier",
           "status": "UNTESTED",
           "status_text": "Never validated",
           "strategy": "elite.alpha_only.v1",
@@ -354,11 +450,22 @@
         },
         {
           "change": "original composite",
+          "relation": "earlier",
           "status": "NO_EDGE",
           "status_text": "Tested out of sample: no demonstrated edge",
           "strategy": "elite.composite",
           "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
           "tested_through": "2026-08-25"
+        },
+        {
+          "change": "pre-registered 2026-10-29; running in shadow",
+          "doc": "docs/preregistration/elite_research_v3.md",
+          "relation": "successor",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.research.v3",
+          "summary": "Never tested.",
+          "tested_through": null
         }
       ],
       "metrics": {
@@ -414,7 +521,8 @@
       "operating_margin": 32.623,
       "pb_ratio": 47.1787,
       "pe_ratio": 39.8205,
-      "peg_ratio": 1.3875,
+      "peg_ratio": 2.706,
+      "peg_source": "provider",
       "piotroski_components_available": 9,
       "piotroski_f_score": 8,
       "quality_score": 87.963,
@@ -483,20 +591,20 @@
     "model_action": "WATCHLIST",
     "monte_carlo": {
       "days_simulated": 30,
-      "expected_return": 0.4203,
+      "expected_return": 0.4288,
       "expected_return_basis": "mean",
-      "mean_price": 348.694,
-      "median_price": 346.975,
-      "percentile_25": 320.114,
-      "percentile_5": 282.949,
-      "percentile_75": 374.725,
-      "percentile_95": 419.091,
+      "mean_price": 348.724,
+      "median_price": 347.011,
+      "percentile_25": 320.182,
+      "percentile_5": 282.985,
+      "percentile_75": 374.706,
+      "percentile_95": 418.991,
       "probability_10pct_gain": 0.2013,
       "probability_10pct_loss": 0.1847,
       "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only: not the chance of touching a target, and not target-vs-stop.",
-      "probability_profit": 0.497,
+      "probability_profit": 0.4983,
       "simulations_run": 3000,
-      "var_95": -18.5136
+      "var_95": -18.5034
     },
     "net_assets": 0.0,
     "peer_comparison": {
@@ -504,12 +612,12 @@
       "pb_sector_avg": 10.5892,
       "pb_stock": 47.1787,
       "pb_vs_sector": 345.536,
-      "pe_sector_avg": 41.1761,
+      "pe_sector_avg": 26.8205,
       "pe_stock": 39.8205,
-      "pe_vs_sector": -3.2922,
-      "roe_sector_avg": 46.8809,
+      "pe_vs_sector": 48.4706,
+      "roe_sector_avg": 41.192,
       "roe_stock": 148.751,
-      "roe_vs_sector": 217.296,
+      "roe_vs_sector": 261.116,
       "sector": "Technology",
       "sector_rank": 3,
       "sector_total": 9
@@ -552,29 +660,37 @@
       "rows": [
         {
           "benchmark_pct": -0.63,
+          "end_date": "2026-10-23",
           "excess_pct": 4.0,
           "sessions": 21,
+          "start_date": "2026-09-24",
           "stock_pct": 3.37,
           "window": "1M"
         },
         {
           "benchmark_pct": 3.4,
+          "end_date": "2026-10-23",
           "excess_pct": -0.25,
           "sessions": 63,
+          "start_date": "2026-07-27",
           "stock_pct": 3.15,
           "window": "3M"
         },
         {
           "benchmark_pct": 7.32,
+          "end_date": "2026-10-23",
           "excess_pct": 21.01,
           "sessions": 126,
+          "start_date": "2026-04-24",
           "stock_pct": 28.33,
           "window": "6M"
         },
         {
           "benchmark_pct": 15.39,
+          "end_date": "2026-10-23",
           "excess_pct": 19.46,
           "sessions": 252,
+          "start_date": "2025-10-22",
           "stock_pct": 34.85,
           "window": "1Y"
         }
@@ -583,12 +699,12 @@
     "requested_symbol": "AAPL",
     "retrieval_timestamp": "<volatile>",
     "risk": {
-      "annualized_volatility": 0.2869,
-      "beta": 0.5782,
+      "annualized_volatility": 0.2866,
+      "beta": 0.5787,
       "beta_benchmark": "SPY",
-      "beta_observations": 250,
+      "beta_observations": 251,
       "beta_status": "measured",
-      "cvar_95": -0.0423,
+      "cvar_95": -0.0417,
       "grade_drivers": [
         {
           "detail": "29% annualised (points above 25% / 35% / 50%)",
@@ -626,8 +742,8 @@
       "overall_risk_score": 6,
       "risk_grade": "C",
       "risk_points": 6,
-      "sharpe_ratio": 0.7232,
-      "sortino_ratio": 1.0662,
+      "sharpe_ratio": 0.7172,
+      "sortino_ratio": 1.0573,
       "var_95_daily": -0.0266
     },
     "risk_warnings": [],
@@ -636,13 +752,35 @@
       "composite_score": 58.6626,
       "data_quality_note": "HIGH - All data sources available",
       "fundamental_score": 78,
+      "neutral_filled": [
+        "sentiment"
+      ],
       "quality_score": 87.963,
       "risk_score": 30,
       "score_confidence_margin": 0.0,
       "sentiment_score": 35,
+      "shadow_model": {
+        "band_action": "BUY",
+        "score": 69.09,
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.4,
+          "quality": 0.3,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
       "technical_score": 60,
       "valuation_score": 20.0,
       "weights": {
+        "fundamental": 0.2778,
+        "quality": 0.1111,
+        "sentiment": 0.1111,
+        "technical": 0.3333,
+        "valuation": 0.1667
+      },
+      "weights_used": {
         "fundamental": 0.2778,
         "quality": 0.1111,
         "sentiment": 0.1111,
@@ -796,6 +934,11 @@
       "candlestick_score": 50.0,
       "death_cross": false,
       "golden_cross": false,
+      "indicator_basis": {
+        "live_bar_excluded": false,
+        "reason": "newest bar is a completed, settled session",
+        "scored_through": "2026-10-23"
+      },
       "macd_signal": "BULLISH",
       "momentum_score": 52.9122,
       "prior_trend": "UP",
@@ -808,8 +951,8 @@
       "trend_strength": "MODERATE",
       "unmeasured": [],
       "volatility_score": 70,
-      "volume_ratio": 1.2286,
-      "volume_ratio_basis": "last completed session (today's is still trading)",
+      "volume_ratio": 0.5063,
+      "volume_ratio_basis": "latest session",
       "week_52_basis": "provider-reported traded range",
       "week_52_high": 351.73,
       "week_52_low": 243.42
@@ -847,6 +990,8 @@
       "time_horizon": "POSITION",
       "trailing_stop": 0.0,
       "trailing_stop_pct": 3.7,
+      "vol_scenario": {},
+      "vol_scenario_caveat": "",
       "win_probability": 0.0
     },
     "valuation": {

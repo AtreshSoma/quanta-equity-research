@@ -29,6 +29,9 @@ ENGINE_SOURCES: Dict[str, Tuple[str, ...]] = {
     "shortterm": ("SP_ShortTerm.py",),
     "elite": ("TradingAnalysis_ELITE.py",),
     "elite_pro": ("SP_ELITE_PRO.py", "TradingAnalysis_ELITE.py"),
+    # Shadow calls (ledger.record_shadow_calls) come from the same module.
+    "elite_v2_shadow": ("TradingAnalysis_ELITE.py",),
+    "elite_v3_shadow": ("TradingAnalysis_ELITE.py",),
 }
 # Data that changes what a call says without any code changing.
 SHARED_DATA = ("apex_quant/_reports/evidence_registry.json",)

@@ -17,7 +17,7 @@
     "beginner_guidance": {
       "aggressive_buyer": "Do not add until the final decision changes",
       "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
-      "breakout_entry": 22.69,
+      "breakout_entry": 0.0,
       "buy_now": "NO",
       "candlestick_timing": "AVOID",
       "confidence": 30.0,
@@ -52,9 +52,11 @@
       "dividend_yield": 0.0,
       "earnings_date": "2026-10-29",
       "ex_dividend_date": "Unknown",
+      "last_earnings_date": "Unknown",
       "last_earnings_result": "Unknown",
       "last_earnings_surprise_pct": 0.0,
-      "near_term_catalyst": true
+      "near_term_catalyst": true,
+      "sessions_since_last_earnings": null
     },
     "company_name": "Rivian Automotive, Inc.",
     "confidence_level": "VERY_LOW",
@@ -120,6 +122,7 @@
         "lineage": [
           {
             "change": "risk leg removed from the ranking composite",
+            "relation": "earlier",
             "status": "UNTESTED",
             "status_text": "Never validated",
             "strategy": "elite.alpha_only.v1",
@@ -128,11 +131,22 @@
           },
           {
             "change": "original composite",
+            "relation": "earlier",
             "status": "NO_EDGE",
             "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
             "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
+          },
+          {
+            "change": "pre-registered 2026-10-29; running in shadow",
+            "doc": "docs/preregistration/elite_research_v3.md",
+            "relation": "successor",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.research.v3",
+            "summary": "Never tested.",
+            "tested_through": null
           }
         ],
         "metrics": {
@@ -230,7 +244,7 @@
           "points": 2
         },
         {
-          "detail": "-46% peak to trough (points beyond -25% / -40%)",
+          "detail": "-47% peak to trough (points beyond -25% / -40%)",
           "factor": "drawdown",
           "label": "Max drawdown",
           "points": 2
@@ -248,11 +262,11 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 500,
+      "risk_grade_lookback_days": 501,
       "risk_metrics": {
-        "beta": 2.1265,
+        "beta": 2.12661,
         "risk_score": 20,
-        "volatility": 0.664198
+        "volatility": 0.663551
       },
       "risks": [],
       "scenarios": [
@@ -269,6 +283,67 @@
       "schema_version": 1,
       "score": 33.2031,
       "score_basis": "Research composite (alpha factors only), 0-100",
+      "shadow_model": {
+        "band_action": "SELL",
+        "key": "elite.research.v3",
+        "note": "Pre-registered shadow model, scored from the same components. Not used for this call: no evidence gate, level, hurdle or override applies to it.",
+        "score": 33.88,
+        "status": "UNTESTED",
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.4,
+          "quality": 0.3,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
+      "shadow_v4": {
+        "band_action": "REDUCE",
+        "ev_gate": {
+          "passes": false,
+          "reason": "no stop to measure risk against"
+        },
+        "key": "elite.research.v4",
+        "legs": {
+          "fundamental": 35,
+          "quality": 26.25,
+          "revisions": 57.5,
+          "sentiment": 50,
+          "technical": 20,
+          "valuation": 100.0
+        },
+        "note": "Pre-registered shadow model v4 (docs/preregistration/elite_research_v4.md): revisions leg, sector-aware valuation and an expected-value gate. Not used for this call.",
+        "score": 42.6,
+        "score_band": "REDUCE",
+        "status": "UNTESTED",
+        "target": {
+          "components": [
+            {
+              "source": "analyst",
+              "value": 19.0,
+              "weight": 1.0
+            }
+          ],
+          "intrinsic": {
+            "components": [],
+            "method": "unavailable",
+            "note": "No usable inputs for this business type.",
+            "value": null
+          },
+          "upside_pct": 58.44,
+          "value": 19.0
+        },
+        "version": "v4",
+        "weights": {
+          "fundamental": 0.32,
+          "quality": 0.24,
+          "revisions": 0.2,
+          "sentiment": 0.08,
+          "technical": 0.08,
+          "valuation": 0.08
+        }
+      },
       "sizing": {
         "dollar_risk": 0,
         "portfolio_weight": 0,
@@ -306,6 +381,7 @@
       "lineage": [
         {
           "change": "risk leg removed from the ranking composite",
+          "relation": "earlier",
           "status": "UNTESTED",
           "status_text": "Never validated",
           "strategy": "elite.alpha_only.v1",
@@ -314,11 +390,22 @@
         },
         {
           "change": "original composite",
+          "relation": "earlier",
           "status": "NO_EDGE",
           "status_text": "Tested out of sample: no demonstrated edge",
           "strategy": "elite.composite",
           "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
           "tested_through": "2026-08-25"
+        },
+        {
+          "change": "pre-registered 2026-10-29; running in shadow",
+          "doc": "docs/preregistration/elite_research_v3.md",
+          "relation": "successor",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.research.v3",
+          "summary": "Never tested.",
+          "tested_through": null
         }
       ],
       "metrics": {
@@ -374,7 +461,8 @@
       "operating_margin": -50.422,
       "pb_ratio": 3.1995,
       "pe_ratio": 0,
-      "peg_ratio": 0.0,
+      "peg_ratio": null,
+      "peg_source": null,
       "piotroski_components_available": 8,
       "piotroski_f_score": 3,
       "quality_score": 26.25,
@@ -440,20 +528,20 @@
     "model_action": "AVOID",
     "monte_carlo": {
       "days_simulated": 30,
-      "expected_return": 2.5963,
+      "expected_return": 2.5198,
       "expected_return_basis": "mean",
-      "mean_price": 12.3033,
-      "median_price": 11.9305,
-      "percentile_25": 9.8271,
-      "percentile_5": 7.5199,
-      "percentile_75": 14.226,
-      "percentile_95": 18.5316,
-      "probability_10pct_gain": 0.344,
-      "probability_10pct_loss": 0.3647,
+      "mean_price": 12.2942,
+      "median_price": 11.8482,
+      "percentile_25": 9.8279,
+      "percentile_5": 7.516,
+      "percentile_75": 14.2933,
+      "percentile_95": 18.6663,
+      "probability_10pct_gain": 0.35,
+      "probability_10pct_loss": 0.3707,
       "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only: not the chance of touching a target, and not target-vs-stop.",
-      "probability_profit": 0.4927,
+      "probability_profit": 0.4797,
       "simulations_run": 3000,
-      "var_95": -37.2923
+      "var_95": -37.3248
     },
     "net_assets": 0.0,
     "peer_comparison": {
@@ -509,29 +597,37 @@
       "rows": [
         {
           "benchmark_pct": -0.62,
+          "end_date": "2026-10-23",
           "excess_pct": -20.95,
           "sessions": 21,
+          "start_date": "2026-09-24",
           "stock_pct": -21.57,
           "window": "1M"
         },
         {
           "benchmark_pct": 3.41,
+          "end_date": "2026-10-23",
           "excess_pct": -30.64,
           "sessions": 63,
+          "start_date": "2026-07-27",
           "stock_pct": -27.23,
           "window": "3M"
         },
         {
           "benchmark_pct": 7.33,
+          "end_date": "2026-10-23",
           "excess_pct": -34.74,
           "sessions": 126,
+          "start_date": "2026-04-24",
           "stock_pct": -27.41,
           "window": "6M"
         },
         {
           "benchmark_pct": 15.4,
+          "end_date": "2026-10-23",
           "excess_pct": -22.58,
           "sessions": 252,
+          "start_date": "2025-10-22",
           "stock_pct": -7.18,
           "window": "1Y"
         }
@@ -540,12 +636,12 @@
     "requested_symbol": "RIVN",
     "retrieval_timestamp": "<volatile>",
     "risk": {
-      "annualized_volatility": 0.6642,
-      "beta": 2.1265,
+      "annualized_volatility": 0.6636,
+      "beta": 2.1266,
       "beta_benchmark": "SPY",
-      "beta_observations": 250,
+      "beta_observations": 251,
       "beta_status": "measured",
-      "cvar_95": -0.0811,
+      "cvar_95": -0.08,
       "grade_drivers": [
         {
           "detail": "66% annualised (points above 25% / 35% / 50%)",
@@ -560,7 +656,7 @@
           "points": 2
         },
         {
-          "detail": "-46% peak to trough (points beyond -25% / -40%)",
+          "detail": "-47% peak to trough (points beyond -25% / -40%)",
           "factor": "drawdown",
           "label": "Max drawdown",
           "points": 2
@@ -579,17 +675,17 @@
         }
       ],
       "liquidity_score": 10.0,
-      "max_drawdown": -0.4628,
+      "max_drawdown": -0.4658,
       "overall_risk_score": 10,
       "risk_grade": "F",
       "risk_points": 10,
-      "sharpe_ratio": 0.3844,
-      "sortino_ratio": 0.6231,
-      "var_95_daily": -0.0523
+      "sharpe_ratio": 0.3796,
+      "sortino_ratio": 0.6153,
+      "var_95_daily": -0.0522
     },
     "risk_warnings": [
       "\u26a0\ufe0f HIGH VOLATILITY: 66% annual vol",
-      "\u26a0\ufe0f SEVERE DRAWDOWN HISTORY: -46%",
+      "\u26a0\ufe0f SEVERE DRAWDOWN HISTORY: -47%",
       "\ud83d\udea8 HIGH RISK SCORE: 10/10",
       "\ud83d\udcc5 EARNINGS IMMINENT: 6 days away"
     ],
@@ -598,13 +694,36 @@
       "composite_score": 33.2031,
       "data_quality_note": "MODERATE - Some data sources missing",
       "fundamental_score": 35,
+      "neutral_filled": [
+        "valuation",
+        "sentiment"
+      ],
       "quality_score": 26.25,
       "risk_score": 20,
       "score_confidence_margin": 0.0,
       "sentiment_score": 50,
+      "shadow_model": {
+        "band_action": "SELL",
+        "score": 33.88,
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.4,
+          "quality": 0.3,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
       "technical_score": 20,
       "valuation_score": 50.0,
       "weights": {
+        "fundamental": 0.3125,
+        "quality": 0.1625,
+        "sentiment": 0.0625,
+        "technical": 0.275,
+        "valuation": 0.1875
+      },
+      "weights_used": {
         "fundamental": 0.3125,
         "quality": 0.1625,
         "sentiment": 0.0625,
@@ -649,9 +768,8 @@
       "primary_reason": "Composite score 33 triggers SELL",
       "risk_factors": [
         "Technical score 20 (bearish)",
-        "Risk grade F: volatility 66% annualised, beta 2.13 vs its benchmark, max drawdown -46% peak to trough",
-        "3 bearish confirmations",
-        "Monte Carlo tail shape is unfavorable (18.6% 75th-percentile upside vs 37.3% 5th-percentile downside); diagnostic only"
+        "Risk grade F: volatility 66% annualised, beta 2.13 vs its benchmark, max drawdown -47% peak to trough",
+        "3 bearish confirmations"
       ],
       "supporting_factors": []
     },
@@ -763,6 +881,11 @@
       "candlestick_score": 70.0,
       "death_cross": false,
       "golden_cross": false,
+      "indicator_basis": {
+        "live_bar_excluded": false,
+        "reason": "newest bar is a completed, settled session",
+        "scored_through": "2026-10-23"
+      },
       "macd_signal": "BEARISH",
       "momentum_score": 67.8015,
       "prior_trend": "DOWN",
@@ -775,15 +898,15 @@
       "trend_strength": "VERY_STRONG",
       "unmeasured": [],
       "volatility_score": 50,
-      "volume_ratio": 1.0367,
-      "volume_ratio_basis": "last completed session (today's is still trading)",
+      "volume_ratio": 0.5164,
+      "volume_ratio_basis": "latest session",
       "week_52_basis": "provider-reported traded range",
       "week_52_high": 22.69,
       "week_52_low": 11.6
     },
     "thesis": {
       "bear_case": [
-        "History of significant drawdowns (-46.3%)",
+        "History of significant drawdowns (-46.6%)",
         "High volatility (66.4%) increases risk"
       ],
       "bull_case": [
@@ -795,7 +918,7 @@
       ],
       "risks": [
         "\u26a0\ufe0f HIGH VOLATILITY: 66% annual vol",
-        "\u26a0\ufe0f SEVERE DRAWDOWN HISTORY: -46%",
+        "\u26a0\ufe0f SEVERE DRAWDOWN HISTORY: -47%",
         "\ud83d\udea8 HIGH RISK SCORE: 10/10"
       ],
       "summary": "Rivian Automotive, Inc. (RIVN) should be sold to manage risk with a 30% confidence score. Composite score of 33/100."
@@ -816,6 +939,8 @@
       "time_horizon": "SWING",
       "trailing_stop": 0.0,
       "trailing_stop_pct": 0.0,
+      "vol_scenario": {},
+      "vol_scenario_caveat": "",
       "win_probability": 0.0
     },
     "valuation": {

@@ -85,6 +85,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 from engine.thresholds import SHORTTERM as _ST, alias as _alias  # noqa: E402
+from engine import bars as _bars  # noqa: E402
 
 
 class Config:
@@ -318,7 +319,11 @@ from engine.decision import (  # noqa: E402
     assess_price_freshness,
 )
 from engine.evidence import SHORTTERM, get_evidence  # noqa: E402
-from engine.types import FinalAction  # noqa: E402
+from engine.types import DecisionInputs, FinalAction  # noqa: E402
+from engine.decision_engine import resolve_final_action  # noqa: E402
+from engine.ladder import LadderInputs, decide as _ladder_decide  # noqa: E402
+from engine.blockers import action_contract, blocker_info
+from engine.evidence import stance_for  # noqa: E402
 from tracking.ledger import record_decisions  # noqa: E402
 from engine.market_calendar import (  # noqa: E402,F401
     _HOLIDAY_CACHE,
@@ -1247,6 +1252,11 @@ class TradingSetup:
     # label every surface shows (CANDIDATE unless the strategy is validated).
     label: str = ""
     decision: Optional[Dict] = None
+    # Shared risk grade (engine.risk_grade.grade_from_history) measured from the
+    # daily bars this scan already fetched. "" = not measured (too little history).
+    risk_grade: str = ""
+    risk_grade_drivers: List[Dict] = field(default_factory=list)
+    risk_grade_lookback_days: int = 0
 
     def to_dict(self) -> Dict:
         """Convert to dictionary"""
@@ -1254,20 +1264,80 @@ class TradingSetup:
                 for k, v in self.__dict__.items()}
 
 
+_ACTION_RANK = {
+    FinalAction.STRONG_BUY: 5, FinalAction.BUY: 4, FinalAction.ACCUMULATE: 3,
+    FinalAction.HOLD_EXISTING: 2, FinalAction.WATCHLIST: 1, FinalAction.AVOID: 0,
+    FinalAction.INVALID: -1,
+}
+
+
+def _ratchet_with_shared_resolver(setup: "TradingSetup", candidate: FinalAction,
+                                  evidence_status: str):
+    """Run the short-term call through the shared resolver and ladder.
+
+    The short-term signal is the CANDIDATE (its own 80/70/60 bands and its own
+    score stay authoritative); the shared rules may only keep it or move it
+    DOWN, never up. Gates applied: risk grade F/D, reward/risk against
+    ``SHORTTERM.MIN_RISK_REWARD``, score floor ``SHORTTERM.MIN_SCORE``, analyst
+    consensus downside, stop/target sanity, and the STRONG_BUY -> BUY fold until
+    the model's evidence is validated. Unmeasured here (no data in the scan's
+    hot loop, so they never block): corporate-event check, insider selling,
+    DCF overvaluation, bearish reversal, buy-now timing.
+
+    Returns (action, blocking_codes, reasons).
+    """
+    entry = _num(getattr(setup, 'execution_entry', 0.0)) or _num(getattr(setup, 'current_price', 0.0))
+    analyst_down = None
+    target_px = _num(getattr(setup, 'analyst_target', 0.0))
+    if target_px > 0 and entry > 0 and target_px < entry:
+        analyst_down = (entry - target_px) / entry * 100.0
+    inputs = DecisionInputs(
+        ticker=setup.ticker,
+        composite_score=_num(setup.overall_score),
+        risk_grade=getattr(setup, "risk_grade", "") or "",      # unmeasured -> neutral 'C', no block
+        risk_reward_ratio=_num(setup.risk_reward_ratio),
+        current_price=entry,
+        stop_loss=_num(setup.stop_loss),
+        target_price=_num(setup.primary_target),
+        min_score_for_buy=float(_ST.MIN_SCORE),
+        min_rr_for_buy=float(_ST.MIN_RISK_REWARD),
+        analyst_downside_pct=analyst_down,
+    )
+    res = resolve_final_action(inputs, starting_candidate=candidate)
+    action = res.final_action
+    codes = list(res.override_codes)
+    reasons = list(res.overrides_applied)
+    lad = _ladder_decide(LadderInputs(action, inputs.composite_score, getattr(setup, "risk_grade", "") or "",
+                                      codes, evidence_status, None))
+    action, codes, reasons = lad.action, list(lad.codes), reasons + list(lad.reasons)
+    if _ACTION_RANK.get(action, 1) > _ACTION_RANK.get(candidate, 1):
+        # Ratchet: the shared rules can never promote a short-term call.
+        action = candidate
+    return action, codes, reasons
+
+
 def decision_for_setup(setup: TradingSetup) -> Decision:
-    """Capture the final, post-peer-scoring and post-funding short-term call."""
+    """Capture the final, post-peer-scoring and post-funding short-term call.
+
+    The call is routed through the shared resolver and ladder as a conservatism
+    ratchet (see :func:`_ratchet_with_shared_resolver`).
+    """
     try:
         action = FinalAction(str(setup.signal).upper())
     except ValueError:
         action = FinalAction.WATCHLIST
     if action.allocates_new_capital and not (setup.is_funded and setup.shares > 0):
         action = FinalAction.WATCHLIST
+    evidence = get_evidence(SHORTTERM)
+    signal_action = action
+    action, gate_codes, gate_reasons = _ratchet_with_shared_resolver(
+        setup, action, str(evidence.status.value))
     days = max(1, int(setup.expected_hold_days or SWING.trading_days))
     price_date = _date.fromisoformat(setup.price_as_of) if setup.price_as_of else None
     decision = Decision(
         ticker=setup.ticker, engine="shortterm",
         horizon=Horizon("shortterm", days, f"{days} trading sessions"),
-        action=action, evidence=get_evidence(SHORTTERM),
+        action=action, evidence=evidence,
         as_of=setup.price_as_of or None, score=setup.overall_score,
         factor_scores={
             "technical": setup.technical_score,
@@ -1290,12 +1360,31 @@ def decision_for_setup(setup: TradingSetup) -> Decision:
         sources=[SourceRef("px", "price", setup.price_source or "unknown",
                            as_of=setup.price_as_of)],
         freshness=assess_price_freshness(price_date, ticker=setup.ticker),
+        risk_grade=getattr(setup, 'risk_grade', ''),
+        risk_grade_drivers=list(getattr(setup, 'risk_grade_drivers', None) or []),
+        risk_grade_lookback_days=int(getattr(setup, 'risk_grade_lookback_days', 0) or 0),
     )
     if not setup.info_missing:
         decision.sources.append(SourceRef("info", "fundamentals", "yfinance"))
-    if action is FinalAction.WATCHLIST and setup.signal in {
+    if signal_action is FinalAction.WATCHLIST and setup.signal in {
             "STRONG_BUY", "BUY", "ACCUMULATE"}:
         decision.blocking.append("Setup passed model screens but has no fundable position.")
+    if action is not signal_action:
+        decision.reasons = list(decision.reasons) + [
+            f"Shared decision rules took the short-term {signal_action.value} to {action.value}"
+        ] + gate_reasons
+        decision.blocking.extend(t for t in gate_reasons if t not in decision.blocking)
+    # Same blocker/contract fields Research and Picks publish, so the UI's
+    # "Main blocker" and "Would change with" read short-term calls too.
+    decision.blocking_codes = gate_codes
+    decision.blockers = [blocker_info(c) for c in gate_codes]
+    # The score is on the short-term scale, so the stance comes from the call itself.
+    contract = action_contract(action, None, gate_codes, holdings_known=False)
+    decision.model_stance = stance_for(signal_action)
+    decision.new_money = contract["new_money"]
+    decision.holder_action = contract["holder_action"]
+    decision.holdings_known = contract["holdings_known"]
+    decision.primary_blocker = contract["primary_blocker"]
     return decision
 
 
@@ -1685,6 +1774,21 @@ class EnhancedMarketData:
 
 class AdvancedTechnicalAnalyzer:
     """Enhanced technical analysis with pattern recognition"""
+
+    @staticmethod
+    def raw_volume_ratio(hist: pd.DataFrame) -> float:
+        """Newest bar's volume over its 20-bar average, live or not.
+
+        Same formula as ``calculate_comprehensive_indicators`` (volume / (20-bar
+        average + 1)). The liquidity gate and the displayed raw ratio read it, so
+        they keep seeing the newest bar. The scoring indicators do not.
+        """
+        try:
+            vol = pd.to_numeric(hist['Volume'], errors='coerce')
+            avg = vol.rolling(window=20, min_periods=20).mean().iloc[-1]
+            return _num(vol.iloc[-1] / (avg + 1), 1.0)
+        except Exception:  # noqa: BLE001 - a missing bar reads as neutral, as before
+            return 1.0
 
     @staticmethod
     def calculate_comprehensive_indicators(hist: pd.DataFrame) -> Dict:
@@ -2270,7 +2374,37 @@ class StrategicStockAnalyzer:
         except Exception as exc:
             logger.debug(f"SPY context fetch failed: {_brief(exc, 120)}")
         self._load_spy_benchmark(spy_hist)
+        # Daily SPY returns for the shared risk grade's beta; from the frame
+        # already downloaded above, no extra request.
+        self.benchmark_returns = None
+        try:
+            if spy_hist is not None and len(spy_hist) > 30:
+                self.benchmark_returns = pd.to_numeric(
+                    spy_hist['Close'], errors='coerce').pct_change(fill_method=None).dropna()
+        except Exception as exc:  # noqa: BLE001 - beta is then left unmeasured
+            logger.debug(f"SPY returns unavailable for beta: {_brief(exc, 120)}")
         self.market_regime = self._detect_market_regime(spy_hist)
+
+    def _attach_risk_grade(self, setup: "TradingSetup", hist: pd.DataFrame) -> None:
+        """Measure the shared A-F risk grade from bars already in hand.
+
+        Pure computation. The scan fetches one year, shorter than the two-year
+        window Research uses, so the grade is measured on what is there and its
+        lookback is recorded. Fewer than ``RISK_GRADE.MIN_RETURNS`` returns
+        leaves it unmeasured (empty), which never blocks a call.
+        """
+        from engine.risk_grade import grade_from_history
+        try:
+            g = grade_from_history(
+                hist['Close'], hist['Volume'] if 'Volume' in hist.columns else None,
+                getattr(self, 'benchmark_returns', None))
+        except Exception as exc:  # noqa: BLE001 - unmeasured, not blocked
+            logger.debug(f"{setup.ticker}: risk grade not measured: {_brief(exc, 120)}")
+            return
+        if g.get("grade"):
+            setup.risk_grade = str(g["grade"])
+            setup.risk_grade_drivers = list(g.get("drivers") or [])
+            setup.risk_grade_lookback_days = int(g.get("lookback_days") or 0)
 
     def _load_spy_benchmark(self, spy_hist: Optional[pd.DataFrame] = None) -> None:
         """Compute SPY's ~3-month return for relative-strength scoring.
@@ -2539,8 +2673,13 @@ class StrategicStockAnalyzer:
 
         return universe_list
 
-    def analyze_stock(self, ticker: str) -> Optional[TradingSetup]:
-        """Comprehensive stock analysis with strategic setup"""
+    def analyze_stock(self, ticker: str, now: Optional[datetime] = None) -> Optional[TradingSetup]:
+        """Comprehensive stock analysis with strategic setup.
+
+        Scoring inputs (indicators, patterns, gap, volume profile, risk grade) read
+        the last completed, settled session. The live price, levels, the liquidity
+        gate and the raw volume ratio keep reading the newest bar. ``now`` is for tests.
+        """
         try:
             # Fetch data
             stock = yf.Ticker(ticker)
@@ -2576,6 +2715,10 @@ class StrategicStockAnalyzer:
 
             current_price = hist['Close'].iloc[-1]
 
+            # Scoring inputs read the last completed, settled session (engine.bars).
+            # Today's still-forming bar is excluded from every score, not from the price.
+            score_hist, bars_basis = _bars.scoring_bars(hist, ticker, now)
+
             # Records WHY a name is dropped so the scan can present an honest
             # rejection funnel — a bare "0 candidates" is otherwise a mystery
             # and looks like a bug when it is really the market state + filters.
@@ -2607,7 +2750,10 @@ class StrategicStockAnalyzer:
                 return reject("low_dollar_volume")
 
             # === CALCULATE INDICATORS (CPU only, no network) ===
-            indicators = self.tech_analyzer.calculate_comprehensive_indicators(hist)
+            indicators = self.tech_analyzer.calculate_comprehensive_indicators(score_hist)
+            if indicators:
+                indicators['current_price'] = float(current_price)
+                indicators['Volume_Ratio'] = self.tech_analyzer.raw_volume_ratio(hist)
 
             if not indicators:
                 return reject("indicator_calc_failed")
@@ -2637,7 +2783,7 @@ class StrategicStockAnalyzer:
             # only the score input is locked to completed-bar history.
             try:
                 vol_series = hist['Volume']
-                if not bar_complete and len(vol_series) >= 22:
+                if bars_basis['live_bar_excluded'] and len(vol_series) >= 22:
                     prior_vol = float(vol_series.iloc[-2])
                     prior_avg = float(vol_series.iloc[-22:-2].mean())
                     prior_ratio = prior_vol / prior_avg if prior_avg > 0 else 1.0
@@ -2659,7 +2805,7 @@ class StrategicStockAnalyzer:
             risk_metrics = self.tech_analyzer.calculate_risk_metrics(returns, prices)
 
             # === PATTERN DETECTION ===
-            patterns = self.tech_analyzer.detect_patterns(hist, indicators)
+            patterns = self.tech_analyzer.detect_patterns(score_hist, indicators)
 
             # Hard-block known-bearish setups before further scoring
             HARD_BLOCK_PATTERNS = {'Death Cross', 'Death Cross (Recent)'}
@@ -2667,7 +2813,7 @@ class StrategicStockAnalyzer:
                 return reject("bearish_pattern_block")
 
             # Volume profile (Point of Control)
-            vp = self.tech_analyzer.calculate_volume_profile(hist, current_price)
+            vp = self.tech_analyzer.calculate_volume_profile(score_hist, current_price)
             poc_price = vp['point_of_control']
             if abs(vp.get('poc_distance_pct', 0)) > 5:
                 logger.debug(
@@ -2677,7 +2823,7 @@ class StrategicStockAnalyzer:
 
             # Gap detection (uses session-adjusted volume so an early-session
             # gap-up with light raw volume still qualifies if pacing is heavy).
-            gap_info = self.tech_analyzer.detect_gap(hist)
+            gap_info = self.tech_analyzer.detect_gap(score_hist)
             if gap_info['gap_type'] == 'gap_up' and scoring_volume_ratio(indicators) > 1.5:
                 patterns.append("Gap Up + Volume")
             elif gap_info['gap_type'] == 'gap_down':
@@ -3043,6 +3189,8 @@ class StrategicStockAnalyzer:
             self._finalize_share_accounting(
                 setup, position_info.get('intended_allocation', position_info['allocation_usd'])
             )
+
+            self._attach_risk_grade(setup, score_hist)
 
             self.diagnostics.record(ticker, Outcome.ACTIVE)
             return setup
@@ -4233,6 +4381,16 @@ class StrategicStockAnalyzer:
         # immutable ledger row.
         decisions = [decision_for_setup(s) for s in opportunities]
         for setup, decision in zip(opportunities, decisions):
+            if setup.is_funded and not decision.action.allocates_new_capital:
+                # A shared rule withdrew the call: the position is not funded.
+                setup.shares = 0
+                setup.is_funded = False
+                setup.moved_to_watchlist = True
+                setup.executable_allocation_usd = setup.allocation_usd = 0.0
+                setup.allocation_pct = setup.risk_amount = setup.risk_pct = 0.0
+                setup.reward_amount = 0.0
+                pb = decision.primary_blocker or {}
+                setup.watchlist_reason = str(pb.get("text") or "shared decision rules")
             setup.decision = decision.to_dict()
             setup.label = decision.label
         record_decisions(decisions, context={"scan_type": scan_type})

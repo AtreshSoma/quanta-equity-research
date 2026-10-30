@@ -79,6 +79,8 @@ def write_artifact(result: WalkForwardResult, path: Path) -> Path:
         "execution_semantics": EXECUTION_SEMANTICS_VERSION,
         "strategy_identity": strategy_identity(**identity),
         "n_folds": len(result.folds),
+        # Why the gate passed or failed (bootstrap lower bounds, DSR, trials).
+        "gate": result.gate_details(),
         "strategy": result.strategy.to_dict(),
         "spy": result.spy.to_dict(),
         "random_entry": result.random_entry.to_dict(),
@@ -175,6 +177,16 @@ def confidence_statement(result: WalkForwardResult) -> str:
         f"  Beta {('%.2f' % s.beta) if s.beta is not None else 'n/a'}",
         "",
     ]
+    g = result.gate_details()
+    fmt = lambda v: "n/a" if v is None else f"{v:+.5f}"
+    lines.append(
+        f"  Gate evidence: 95% lower bound of mean daily excess vs SPY {fmt(g['lb_vs_spy'])}, "
+        f"vs random-entry {fmt(g['lb_vs_random_entry'])} (each must be > 0); "
+        f"deflated Sharpe {('n/a' if g['dsr'] is None else '%.2f' % g['dsr'])} "
+        f"over {g['n_trials']} trial(s)"
+        f"{' (>=0.95 required)' if g['n_trials'] > 1 else ''}"
+    )
+    lines.append("")
     if passed:
         lines.append(
             "VERDICT: Strategy beat SPY and both random baselines with positive "

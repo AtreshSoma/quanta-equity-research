@@ -263,7 +263,8 @@
     if (finite(stop) && stop > 0) quick.push(`<button type="button" class="ml-chip" data-ml-quick="below" data-level="${stop}" data-label="Stop" ${has('below', stop) ? 'aria-pressed="true" disabled' : 'aria-pressed="false"'}>${has('below', stop) ? 'Alert set' : 'Alert'} at stop ${fmt(stop)}</button>`);
     // The price at which the binding reward/risk hurdle clears (Research key levels).
     const zone = parseFloat(slot.dataset.buyZone);
-    if (finite(zone) && zone > 0) quick.push(`<button type="button" class="ml-chip" data-ml-quick="below" data-level="${zone}" data-label="Buy zone" ${has('below', zone) ? 'aria-pressed="true" disabled' : 'aria-pressed="false"'}>${has('below', zone) ? 'Alert set' : 'Alert'} at buy zone ${fmt(zone)}</button>`);
+    const zoneNote = slot.dataset.buyZoneNote || '';
+    if (finite(zone) && zone > 0) quick.push(`<button type="button" class="ml-chip" data-ml-quick="below" data-level="${zone}" data-label="Buy zone" ${zoneNote ? `title="${esc(zoneNote)}" aria-label="${esc(`Alert at buy zone ${fmt(zone)}. ${zoneNote}`)}"` : ''} ${has('below', zone) ? 'aria-pressed="true" disabled' : 'aria-pressed="false"'}>${has('below', zone) ? 'Alert set' : 'Alert'} at buy zone ${fmt(zone)}</button>`);
     if (finite(target) && target > 0) quick.push(`<button type="button" class="ml-chip" data-ml-quick="above" data-level="${target}" data-label="${esc(slot.dataset.targetLabel || 'Target')}" ${has('above', target) ? 'aria-pressed="true" disabled' : 'aria-pressed="false"'}>${has('above', target) ? 'Alert set' : 'Alert'} at target ${fmt(target)}</button>`);
     slot.innerHTML = `
       <button type="button" class="ml-save" data-ml-save aria-pressed="${saved}">

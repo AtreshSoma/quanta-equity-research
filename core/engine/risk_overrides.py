@@ -5,6 +5,7 @@ from typing import List, Tuple
 
 from .data_validator import _is_finite_positive as _is_valid_price
 from .thresholds import LADDER
+from .thresholds import floor_rr
 from .types import DecisionInputs, FinalAction
 
 
@@ -57,7 +58,7 @@ def also_failing_gates(
         return []
     out: List[Tuple[str, str]] = []
     if "LOW_REWARD_RISK" not in fired and inputs.risk_reward_ratio < inputs.min_rr_for_buy:
-        out.append(("LOW_REWARD_RISK", f"Also: R/R {inputs.risk_reward_ratio:.2f} below min {inputs.min_rr_for_buy:.2f}"))
+        out.append(("LOW_REWARD_RISK", f"Also: R/R {floor_rr(inputs.risk_reward_ratio):.2f} below min {inputs.min_rr_for_buy:.2f}"))
     if "LOW_SCORE" not in fired and inputs.composite_score < inputs.min_score_for_buy:
         out.append(("LOW_SCORE", f"Also: score {inputs.composite_score:.0f} below min {inputs.min_score_for_buy:.0f}"))
     return out
@@ -236,7 +237,7 @@ def apply_risk_override_details(
     if (enforce_price_gates and candidate.allocates_new_capital
             and inputs.risk_reward_ratio < inputs.min_rr_for_buy):
         _add(
-            "LOW_REWARD_RISK", f"R/R {inputs.risk_reward_ratio:.2f} below min {inputs.min_rr_for_buy:.2f} → {downgrade_target.value}"
+            "LOW_REWARD_RISK", f"R/R {floor_rr(inputs.risk_reward_ratio):.2f} below min {inputs.min_rr_for_buy:.2f} → {downgrade_target.value}"
         )
         candidate = downgrade_target
 

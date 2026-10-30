@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple
 import logging
+from statistics import NormalDist
 
 try:
     from scipy.stats import norm
@@ -26,6 +27,8 @@ except ImportError:
     norm = None
 
 logger = logging.getLogger(__name__)
+
+MIN_OVERLAP_DAYS = 60  # shared return days needed before a name is measured
 
 
 @dataclass
@@ -43,7 +46,9 @@ class RiskLimits:
 @dataclass 
 class PortfolioRiskMetrics:
     """Portfolio-level risk metrics"""
-    portfolio_var: float = 0.0
+    portfolio_var: Optional[float] = None       # None = not measured (never 0.0 for unknown)
+    var_coverage: float = 0.0                   # share of position value the VaR covers
+    notes: List[str] = field(default_factory=list)
     sector_concentrations: Dict[str, float] = field(default_factory=dict)
     correlated_pairs: List[Tuple[str, str, float]] = field(default_factory=list)
     current_drawdown: float = 0.0
@@ -123,61 +128,122 @@ class PortfolioRiskManager:
         positions: List[Dict],
         lookback_days: int = 252,
         confidence: float = None
-    ) -> float:
+    ) -> Optional[float]:
         """
-        Calculate correlation-adjusted portfolio Value at Risk.
-        
-        Uses variance-covariance method with historical correlations.
-        
-        Args:
-            positions: List of {'ticker': str, 'value': float}
-            lookback_days: Historical period for correlation/volatility
-            confidence: VaR confidence level (default 95%)
-            
-        Returns:
-            Portfolio VaR as decimal (e.g., 0.025 = 2.5%)
+        Correlation-adjusted parametric portfolio VaR as a decimal (0.025 = 2.5%).
+
+        Returns None when it cannot be measured (no usable history). It never
+        returns 0.0 for "unknown": callers must treat None as "not measured".
+        Use :meth:`portfolio_var_report` for coverage, CVaR and exclusions.
         """
-        if not positions or not HAS_SCIPY:
-            return 0.0
-        
+        return self.portfolio_var_report(positions, lookback_days, confidence)["parametric_var"]
+
+    def portfolio_var_report(
+        self,
+        positions: List[Dict],
+        lookback_days: int = 252,
+        confidence: float = None,
+        min_overlap_days: int = MIN_OVERLAP_DAYS,
+    ) -> Dict:
+        """
+        Measure portfolio VaR / CVaR from real, date-aligned returns only.
+
+        Why this exists: the old code filled any name with thin history with
+        random synthetic returns (unseeded, on a RangeIndex that never lined up
+        with the real dates), which produced NaN, and it returned 0.0 on any
+        failure, which reads as "no risk". Here a name that cannot be measured
+        is left out and reported, weights are renormalised over the names that
+        were measured, and ``coverage`` says how much of the book that is.
+
+        Returns a dict with: parametric_var, historical_var, cvar (expected
+        shortfall; positive loss fractions, None when not measurable),
+        confidence, horizon_days (1), coverage (share of position value
+        measured), measured (tickers used), excluded ({ticker: reason}),
+        n_days (shared trading days) and notes (plain-English caveats).
+        """
         confidence = confidence or self.limits.var_confidence
-        
-        try:
-            tickers = [p['ticker'] for p in positions]
-            weights = np.array([p['value'] for p in positions])
-            weights = weights / weights.sum()  # Normalize to portfolio weights
-            
-            # Get historical returns
-            returns_data = []
-            for ticker in tickers:
-                returns = self._get_historical_returns(ticker, lookback_days)
-                if returns is not None and len(returns) > 20:
-                    returns_data.append(returns)
-                else:
-                    # Fallback: assume 25% annualized volatility
-                    synthetic = pd.Series(np.random.normal(0, 0.25/np.sqrt(252), lookback_days))
-                    returns_data.append(synthetic)
-            
-            # Build correlation matrix
-            returns_df = pd.concat(returns_data, axis=1)
-            returns_df.columns = tickers
-            
-            cov_matrix = returns_df.cov() * 252  # Annualized
-            
-            # Portfolio variance
-            portfolio_variance = np.dot(weights.T, np.dot(cov_matrix, weights))
-            portfolio_std = np.sqrt(portfolio_variance)
-            
-            # VaR using normal distribution
-            z_score = norm.ppf(confidence)
-            daily_var = portfolio_std / np.sqrt(252) * z_score
-            
-            return float(daily_var)
-            
-        except Exception as e:
-            logger.debug(f"VaR calculation failed: {e}")
-            return 0.0
-    
+        report: Dict = {
+            "parametric_var": None, "historical_var": None, "cvar": None,
+            "confidence": confidence, "horizon_days": 1, "coverage": 0.0,
+            "measured": [], "excluded": {}, "n_days": 0, "notes": [],
+        }
+        values: Dict[str, float] = {}
+        for p in positions or []:
+            t = str(p.get('ticker', '')).strip()
+            try:
+                v = float(p.get('value', 0) or 0)
+            except (TypeError, ValueError):
+                v = 0.0
+            if not t:
+                continue
+            if v <= 0 or not np.isfinite(v):
+                report["excluded"][t] = "no positive value"
+                continue
+            values[t] = values.get(t, 0.0) + v
+        total = sum(values.values())
+        if total <= 0:
+            report["notes"].append("No positions with a positive value; VaR not measured.")
+            return report
+
+        series: Dict[str, pd.Series] = {}
+        for t in values:
+            try:
+                r = self._get_historical_returns(t, lookback_days)
+            except Exception as exc:  # a data failure must not look like "no risk"
+                logger.debug("returns lookup failed for %s: %s", t, exc)
+                r = None
+            if r is None:
+                report["excluded"][t] = "no price history"
+                continue
+            r = pd.Series(r).replace([np.inf, -np.inf], np.nan).dropna().tail(lookback_days)
+            if len(r) < min_overlap_days:
+                report["excluded"][t] = f"only {len(r)} return days (need {min_overlap_days})"
+                continue
+            series[t] = r
+
+        # Inner-join on dates. If the common window is too short, drop the name
+        # with the shortest history and retry, so one stray listing cannot
+        # blank out the whole book.
+        frame = pd.DataFrame()
+        while series:
+            frame = pd.concat(series, axis=1, join="inner").dropna()
+            if len(frame) >= min_overlap_days:
+                break
+            shortest = min(series, key=lambda k: len(series[k]))
+            report["excluded"][shortest] = f"fewer than {min_overlap_days} days overlapping the other holdings"
+            del series[shortest]
+            frame = pd.DataFrame()
+        if frame.empty or len(frame) < min_overlap_days:
+            report["notes"].append("Not enough overlapping price history; VaR not measured.")
+            return report
+
+        covered_value = sum(values[t] for t in frame.columns)
+        w = np.array([values[t] / covered_value for t in frame.columns])
+        port = pd.Series(frame.to_numpy() @ w, index=frame.index)
+        sigma = float(port.std(ddof=1))
+        if not np.isfinite(sigma):
+            report["notes"].append("Return history was not finite; VaR not measured.")
+            return report
+
+        z = NormalDist().inv_cdf(confidence)       # stdlib: no SciPy needed
+        cutoff = float(port.quantile(1.0 - confidence))
+        report.update(
+            parametric_var=float(sigma * z),
+            historical_var=-cutoff,
+            cvar=-float(port[port <= cutoff].mean()),
+            coverage=covered_value / total,
+            measured=[str(c) for c in frame.columns],
+            n_days=int(len(frame)),
+        )
+        if report["excluded"]:
+            report["notes"].append(
+                f"Measured on {report['coverage']:.0%} of position value; excluded: "
+                + ", ".join(f"{t} ({why})" for t, why in report["excluded"].items()) + ".")
+        report["notes"].append(
+            "Parametric VaR assumes normal returns; historical VaR and CVaR come from the "
+            "realised portfolio return series (current weights, aligned dates).")
+        return report
+
     def get_sector_concentration(self, positions: List[Dict]) -> Dict[str, float]:
         """Calculate sector concentration percentages."""
         total_value = sum(p.get('value', 0) for p in positions)
@@ -249,8 +315,11 @@ class PortfolioRiskManager:
         """Get comprehensive portfolio risk metrics."""
         metrics = PortfolioRiskMetrics()
         
-        # Calculate VaR
-        metrics.portfolio_var = self.calculate_portfolio_var(positions)
+        # Calculate VaR (None = not measured)
+        var_report = self.portfolio_var_report(positions)
+        metrics.portfolio_var = var_report["parametric_var"]
+        metrics.var_coverage = var_report["coverage"]
+        metrics.notes = list(var_report["notes"])
         
         # Sector concentrations
         metrics.sector_concentrations = self.get_sector_concentration(positions)
@@ -262,7 +331,10 @@ class PortfolioRiskManager:
         violations = []
         
         # VaR limit
-        if metrics.portfolio_var > self.limits.max_portfolio_var:
+        if metrics.portfolio_var is None:
+            # Unmeasured is not "within limits": flag it so it cannot pass silently.
+            violations.append("VaR not measured (insufficient price history); limit not verified")
+        elif metrics.portfolio_var > self.limits.max_portfolio_var:
             violations.append(f"VaR {metrics.portfolio_var:.1%} exceeds limit {self.limits.max_portfolio_var:.1%}")
         
         # Sector concentration
@@ -276,7 +348,8 @@ class PortfolioRiskManager:
         
         metrics.violations = violations
         metrics.is_within_limits = len(violations) == 0
-        metrics.risk_utilization = metrics.portfolio_var / self.limits.max_portfolio_var if self.limits.max_portfolio_var > 0 else 0
+        metrics.risk_utilization = (metrics.portfolio_var / self.limits.max_portfolio_var
+                                    if metrics.portfolio_var is not None and self.limits.max_portfolio_var > 0 else 0)
         
         return metrics
     
@@ -367,7 +440,8 @@ if __name__ == "__main__":
     
     # Get metrics
     metrics = prm.get_portfolio_risk_metrics(positions)
-    print(f"\nPortfolio VaR: {metrics.portfolio_var:.2%}")
+    var_text = "not measured" if metrics.portfolio_var is None else f"{metrics.portfolio_var:.2%}"
+    print(f"\nPortfolio VaR: {var_text}")
     print(f"Sector Concentrations: {metrics.sector_concentrations}")
     print(f"Correlated Pairs: {len(metrics.correlated_pairs)}")
     print(f"Within Limits: {'✅' if metrics.is_within_limits else '❌'}")

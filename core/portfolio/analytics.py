@@ -184,6 +184,96 @@ def volatility_and_correlation(holdings: Sequence[Holding], returns: Any,
     return out
 
 
+TAIL_CONFIDENCE = 0.95
+TAIL_WINDOW_SESSIONS = 21     # about one trading month
+TAIL_SHOCKS = (-0.10, -0.20)  # market moves for the beta stress scenarios
+
+
+def tail_risk(holdings: Sequence[Holding], total: float, returns: Any,
+              beta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Historical tail measures for the current weights, plus beta stress scenarios.
+
+    Uses the same inputs as :func:`volatility_and_correlation`: the daily-return
+    DataFrame is inner-joined on its date index (rows where any covered name is
+    missing are dropped), so a name with a different calendar can never produce
+    a NaN result; it just shortens the sample or, if it has too few days, is left
+    out and reported through ``coverage``.
+
+    * ``var_pct`` / ``cvar_pct``: 1-day 95% historical VaR and expected shortfall
+      of the covered equity book, as positive loss fractions. CVaR is the mean of
+      the returns at or beyond the VaR cut-off, so it is never smaller than VaR.
+    * ``worst_window``: the worst compounded 21-session return the current
+      weights would have had in the sample (a simple historical stress).
+    * ``scenarios``: market -10% / -20% times value-weighted beta (cash at 0).
+
+    This is history applied to today's weights, not a forecast. When history is
+    insufficient the VaR/window fields are None and ``reason`` says why; the beta
+    scenarios do not need returns and are filled whenever betas exist.
+    """
+    out: Dict[str, Any] = {
+        "confidence": TAIL_CONFIDENCE, "horizon_days": 1, "days": 0, "coverage": 0.0,
+        "var_pct": None, "cvar_pct": None, "var_value": None, "cvar_value": None,
+        "worst_window": None, "scenarios": [], "scenario_coverage": 0.0,
+        "reason": None,
+        "method": ("Historical simulation: today's weights applied to past daily returns "
+                   "(inner-joined dates); cash at zero. Beta scenarios use value-weighted beta. "
+                   "Not a forecast."),
+    }
+    priced = {h.symbol: h.value for h in holdings if h.value is not None and h.value > 0}
+    invested = sum(priced.values())
+
+    # Beta scenarios: independent of the return history.
+    b = beta if beta is not None else beta_exposure(holdings, total)
+    eq_beta = b.get("equity_beta") if b else None
+    if eq_beta is not None and invested > 0:
+        cov_val = (b.get("coverage") or 0.0) * invested
+        out["scenario_coverage"] = b.get("coverage") or 0.0
+        for shock in TAIL_SHOCKS:
+            value = eq_beta * shock * cov_val
+            out["scenarios"].append({
+                "market_move": shock,
+                "book_pct": eq_beta * shock,                       # of the beta-covered holdings
+                "value": value,
+                "account_pct": (value / total) if total else None,  # of the whole account
+            })
+
+    if returns is None or getattr(returns, "empty", True):
+        out["reason"] = "No daily return history available."
+        return out
+    cols = [c for c in returns.columns
+            if c in priced and returns[c].notna().sum() >= MIN_RETURN_DAYS]
+    if not cols:
+        out["reason"] = f"No holding has {MIN_RETURN_DAYS} days of return history."
+        return out
+    frame = returns[cols].dropna()
+    if len(frame) < MIN_RETURN_DAYS:
+        out["reason"] = (f"Only {len(frame)} shared trading days across holdings; "
+                         f"{MIN_RETURN_DAYS} are needed.")
+        return out
+    cov_value = sum(priced[c] for c in cols)
+    w = [priced[c] / cov_value for c in cols]
+    port = (frame * w).sum(axis=1)
+    if not port.map(math.isfinite).all():
+        out["reason"] = "Return history contains non-finite values."
+        return out
+    q = float(port.quantile(1.0 - TAIL_CONFIDENCE))
+    tail = port[port <= q]
+    var_pct = -q
+    cvar_pct = -float(tail.mean())
+    out.update(days=int(len(frame)), coverage=cov_value / invested if invested else 0.0,
+               var_pct=var_pct, cvar_pct=cvar_pct,
+               var_value=var_pct * cov_value, cvar_value=cvar_pct * cov_value)
+    if len(port) >= TAIL_WINDOW_SESSIONS:
+        window = (1.0 + port).apply(math.log).rolling(TAIL_WINDOW_SESSIONS).sum().dropna()
+        idx = window.idxmin()
+        ret = math.expm1(float(window.min()))
+        out["worst_window"] = {
+            "sessions": TAIL_WINDOW_SESSIONS, "return": ret, "value": ret * cov_value,
+            "end": idx.isoformat()[:10] if hasattr(idx, "isoformat") else str(idx),
+        }
+    return out
+
+
 def correlated_with(symbol: str, pairs: Sequence[Dict[str, Any]]) -> List[str]:
     out = []
     for p in pairs:
@@ -352,6 +442,7 @@ class PortfolioMetrics:
     unrealized_pnl: Dict[str, Any]
     day_change: Optional[float] = None
     policy: Dict[str, Any] = field(default_factory=dict)
+    tail_risk: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -397,4 +488,5 @@ def compute_metrics(holdings: Sequence[Holding], cash: Optional[float],
         unrealized_pnl=unrealized,
         day_change=day_change,
         policy=policy.to_dict(),
+        tail_risk=tail_risk(holdings, t, returns, beta),
     )

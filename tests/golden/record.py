@@ -52,6 +52,7 @@ from _recorder import (  # noqa: E402
     fixture_path,
     load_recording,
     record_io,
+    replay_clock,
     replay_io,
     save_recording,
 )
@@ -64,7 +65,7 @@ def _snapshot(ticker: str, recording) -> dict:
     import TradingAnalysis_ELITE as elite
     from freezegun import freeze_time
 
-    with freeze_time(recording.recorded_at):
+    with freeze_time(replay_clock(recording)):
         with replay_io(recording, strict=False):
             analyzer = elite.QuantaEliteAnalyzer({})
             result = analyzer.analyze(ticker, account_size=ACCOUNT_SIZE)

@@ -16,10 +16,10 @@
     "beginner_guidance": {
       "aggressive_buyer": "Do not add until the final decision changes",
       "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
-      "breakout_entry": 88.1333,
+      "breakout_entry": 81.6113,
       "buy_now": "NO",
       "candlestick_timing": "WAIT",
-      "confidence": 53.8182,
+      "confidence": 51.0909,
       "data_quality": "PASS",
       "entry_quality": "Poor",
       "existing_holder": "Hold",
@@ -51,13 +51,15 @@
       "dividend_yield": 0.05,
       "earnings_date": "Unknown",
       "ex_dividend_date": "Unknown",
+      "last_earnings_date": "Unknown",
       "last_earnings_result": "Unknown",
       "last_earnings_surprise_pct": 0.0,
-      "near_term_catalyst": false
+      "near_term_catalyst": false,
+      "sessions_since_last_earnings": null
     },
     "company_name": "iShares 20+ Year Treasury Bond ",
     "confidence_level": "MEDIUM",
-    "confidence_score": 53.8182,
+    "confidence_score": 51.0909,
     "conviction_label": "MODERATE-CONVICTION",
     "country": "",
     "currency": "USD",
@@ -119,6 +121,7 @@
         "lineage": [
           {
             "change": "risk leg removed from the ranking composite",
+            "relation": "earlier",
             "status": "UNTESTED",
             "status_text": "Never validated",
             "strategy": "elite.alpha_only.v1",
@@ -127,11 +130,22 @@
           },
           {
             "change": "original composite",
+            "relation": "earlier",
             "status": "NO_EDGE",
             "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
             "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
+          },
+          {
+            "change": "pre-registered 2026-10-29; running in shadow",
+            "doc": "docs/preregistration/elite_research_v3.md",
+            "relation": "successor",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.research.v3",
+            "summary": "Never tested.",
+            "tested_through": null
           }
         ],
         "metrics": {
@@ -166,7 +180,7 @@
       },
       "factor_scores": {
         "sentiment": 50,
-        "technical": 57,
+        "technical": 52,
         "valuation": 50.0
       },
       "freshness": {
@@ -209,7 +223,7 @@
       },
       "qualifier": "",
       "reasons": [
-        "Composite score 53.8 \u2192 candidate HOLD_EXISTING",
+        "Composite score 51.1 \u2192 candidate HOLD_EXISTING",
         "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
       ],
       "red_flags": [
@@ -248,17 +262,68 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 500,
+      "risk_grade_lookback_days": 501,
       "risk_metrics": {
-        "beta": 0.217846,
+        "beta": 0.21823,
         "risk_score": 55,
-        "volatility": 0.115169
+        "volatility": 0.115073
       },
       "risks": [],
       "scenarios": [],
       "schema_version": 1,
-      "score": 53.8182,
+      "score": 51.0909,
       "score_basis": "Research composite (alpha factors only), 0-100",
+      "shadow_model": {
+        "band_action": "HOLD",
+        "key": "elite.research.v3",
+        "note": "Pre-registered shadow model, scored from the same components. Not used for this call: no evidence gate, level, hurdle or override applies to it.",
+        "score": 50.67,
+        "status": "UNTESTED",
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.0,
+          "quality": 0.0,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
+      "shadow_v4": {
+        "band_action": "HOLD",
+        "ev_gate": {
+          "passes": false,
+          "reason": "no 12-month target"
+        },
+        "key": "elite.research.v4",
+        "legs": {
+          "fundamental": 50.0,
+          "quality": 50.0,
+          "revisions": null,
+          "sentiment": 50,
+          "technical": 52,
+          "valuation": null
+        },
+        "note": "Pre-registered shadow model v4 (docs/preregistration/elite_research_v4.md): revisions leg, sector-aware valuation and an expected-value gate. Not used for this call.",
+        "score": 51.0,
+        "score_band": "HOLD",
+        "status": "UNTESTED",
+        "target": {
+          "components": [],
+          "intrinsic": {
+            "components": [],
+            "method": "unavailable",
+            "note": "No usable inputs for this business type.",
+            "value": null
+          },
+          "upside_pct": null,
+          "value": null
+        },
+        "version": "v4",
+        "weights": {
+          "sentiment": 0.5,
+          "technical": 0.5
+        }
+      },
       "sizing": {
         "dollar_risk": 0,
         "portfolio_weight": 0,
@@ -296,6 +361,7 @@
       "lineage": [
         {
           "change": "risk leg removed from the ranking composite",
+          "relation": "earlier",
           "status": "UNTESTED",
           "status_text": "Never validated",
           "strategy": "elite.alpha_only.v1",
@@ -304,11 +370,22 @@
         },
         {
           "change": "original composite",
+          "relation": "earlier",
           "status": "NO_EDGE",
           "status_text": "Tested out of sample: no demonstrated edge",
           "strategy": "elite.composite",
           "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
           "tested_through": "2026-08-25"
+        },
+        {
+          "change": "pre-registered 2026-10-29; running in shadow",
+          "doc": "docs/preregistration/elite_research_v3.md",
+          "relation": "successor",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.research.v3",
+          "summary": "Never tested.",
+          "tested_through": null
         }
       ],
       "metrics": {
@@ -364,7 +441,8 @@
       "operating_margin": 0.0,
       "pb_ratio": 0.0,
       "pe_ratio": 0.0,
-      "peg_ratio": 0.0,
+      "peg_ratio": null,
+      "peg_source": null,
       "piotroski_components_available": 0,
       "piotroski_f_score": null,
       "quality_score": 50.0,
@@ -393,7 +471,7 @@
     "is_high_volatility": false,
     "is_invalid": false,
     "key_insights": [
-      "\u23f8\ufe0f HOLD signal with 54% confidence",
+      "\u23f8\ufe0f HOLD signal with 51% confidence",
       "\ud83d\udd34 Candlestick: Tweezer Top (Bearish, medium reliability)",
       "\ud83d\udcf0 No direct company headlines found; peer/macro sentiment is not treated as company evidence"
     ],
@@ -419,20 +497,20 @@
     "model_action": "WATCHLIST",
     "monte_carlo": {
       "days_simulated": 30,
-      "expected_return": -0.019,
+      "expected_return": -0.0355,
       "expected_return_basis": "mean",
-      "mean_price": 81.4745,
-      "median_price": 81.461,
-      "percentile_25": 79.3578,
-      "percentile_5": 76.344,
-      "percentile_75": 83.6062,
-      "percentile_95": 86.7292,
-      "probability_10pct_gain": 0.005,
+      "mean_price": 81.461,
+      "median_price": 81.4729,
+      "percentile_25": 79.3289,
+      "percentile_5": 76.306,
+      "percentile_75": 83.5639,
+      "percentile_95": 86.7089,
+      "probability_10pct_gain": 0.0053,
       "probability_10pct_loss": 0.0033,
       "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only: not the chance of touching a target, and not target-vs-stop.",
-      "probability_profit": 0.497,
+      "probability_profit": 0.4967,
       "simulations_run": 3000,
-      "var_95": -6.3149
+      "var_95": -6.3615
     },
     "net_assets": 46233300000.0,
     "peer_comparison": {
@@ -490,6 +568,7 @@
         "lineage": [
           {
             "change": "risk leg removed from the ranking composite",
+            "relation": "earlier",
             "status": "UNTESTED",
             "status_text": "Never validated",
             "strategy": "elite.alpha_only.v1",
@@ -498,11 +577,22 @@
           },
           {
             "change": "original composite",
+            "relation": "earlier",
             "status": "NO_EDGE",
             "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
             "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
+          },
+          {
+            "change": "pre-registered 2026-10-29; running in shadow",
+            "doc": "docs/preregistration/elite_research_v3.md",
+            "relation": "successor",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.research.v3",
+            "summary": "Never tested.",
+            "tested_through": null
           }
         ],
         "metrics": {
@@ -537,7 +627,7 @@
       },
       "factor_scores": {
         "sentiment": 50,
-        "technical": 57,
+        "technical": 52,
         "valuation": 50.0
       },
       "freshness": {
@@ -580,7 +670,7 @@
       },
       "qualifier": "",
       "reasons": [
-        "Composite score 53.8 \u2192 candidate HOLD_EXISTING",
+        "Composite score 51.1 \u2192 candidate HOLD_EXISTING",
         "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
       ],
       "red_flags": [
@@ -619,17 +709,68 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 500,
+      "risk_grade_lookback_days": 501,
       "risk_metrics": {
-        "beta": 0.217846,
+        "beta": 0.21823,
         "risk_score": 55,
-        "volatility": 0.115169
+        "volatility": 0.115073
       },
       "risks": [],
       "scenarios": [],
       "schema_version": 1,
-      "score": 53.8182,
+      "score": 51.0909,
       "score_basis": "Research composite (alpha factors only), 0-100",
+      "shadow_model": {
+        "band_action": "HOLD",
+        "key": "elite.research.v3",
+        "note": "Pre-registered shadow model, scored from the same components. Not used for this call: no evidence gate, level, hurdle or override applies to it.",
+        "score": 50.67,
+        "status": "UNTESTED",
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.0,
+          "quality": 0.0,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
+      "shadow_v4": {
+        "band_action": "HOLD",
+        "ev_gate": {
+          "passes": false,
+          "reason": "no 12-month target"
+        },
+        "key": "elite.research.v4",
+        "legs": {
+          "fundamental": 50.0,
+          "quality": 50.0,
+          "revisions": null,
+          "sentiment": 50,
+          "technical": 52,
+          "valuation": null
+        },
+        "note": "Pre-registered shadow model v4 (docs/preregistration/elite_research_v4.md): revisions leg, sector-aware valuation and an expected-value gate. Not used for this call.",
+        "score": 51.0,
+        "score_band": "HOLD",
+        "status": "UNTESTED",
+        "target": {
+          "components": [],
+          "intrinsic": {
+            "components": [],
+            "method": "unavailable",
+            "note": "No usable inputs for this business type.",
+            "value": null
+          },
+          "upside_pct": null,
+          "value": null
+        },
+        "version": "v4",
+        "weights": {
+          "sentiment": 0.5,
+          "technical": 0.5
+        }
+      },
       "sizing": {
         "dollar_risk": 0,
         "portfolio_weight": 0,
@@ -684,36 +825,44 @@
     "recommendation_caveat": "",
     "recommendation_label": "WATCHLIST",
     "recommendation_qualifier": "",
-    "recommendation_text": "WATCHLIST - No new position | Confidence: 54% | Score: 54/100 | Risk: A",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 51% | Score: 51/100 | Risk: A",
     "relative_performance": {
       "basis": "total return, dividend-adjusted closes",
       "benchmark": "SPY",
       "rows": [
         {
           "benchmark_pct": -0.64,
+          "end_date": "2026-10-23",
           "excess_pct": 3.66,
           "sessions": 21,
+          "start_date": "2026-09-24",
           "stock_pct": 3.02,
           "window": "1M"
         },
         {
           "benchmark_pct": 3.4,
+          "end_date": "2026-10-23",
           "excess_pct": -4.94,
           "sessions": 63,
+          "start_date": "2026-07-27",
           "stock_pct": -1.54,
           "window": "3M"
         },
         {
           "benchmark_pct": 7.31,
+          "end_date": "2026-10-23",
           "excess_pct": -11.13,
           "sessions": 126,
+          "start_date": "2026-04-24",
           "stock_pct": -3.82,
           "window": "6M"
         },
         {
           "benchmark_pct": 15.38,
+          "end_date": "2026-10-23",
           "excess_pct": -22.76,
           "sessions": 252,
+          "start_date": "2025-10-22",
           "stock_pct": -7.38,
           "window": "1Y"
         }
@@ -722,12 +871,12 @@
     "requested_symbol": "TLT",
     "retrieval_timestamp": "<volatile>",
     "risk": {
-      "annualized_volatility": 0.1152,
-      "beta": 0.2178,
+      "annualized_volatility": 0.1151,
+      "beta": 0.2182,
       "beta_benchmark": "SPY",
-      "beta_observations": 250,
+      "beta_observations": 251,
       "beta_status": "measured",
-      "cvar_95": -0.016,
+      "cvar_95": -0.0159,
       "grade_drivers": [
         {
           "detail": "12% annualised (points above 25% / 35% / 50%)",
@@ -765,23 +914,45 @@
       "overall_risk_score": 3,
       "risk_grade": "A",
       "risk_points": 3,
-      "sharpe_ratio": -0.4665,
-      "sortino_ratio": -0.6361,
+      "sharpe_ratio": -0.4801,
+      "sortino_ratio": -0.6545,
       "var_95_daily": -0.0116
     },
     "risk_warnings": [],
     "scores": {
       "component_details": {},
-      "composite_score": 53.8182,
+      "composite_score": 51.0909,
       "data_quality_note": "LOW - Limited data sources",
       "fundamental_score": 50.0,
+      "neutral_filled": [
+        "sentiment"
+      ],
       "quality_score": 50.0,
       "risk_score": 55,
       "score_confidence_margin": 0.0,
       "sentiment_score": 50,
-      "technical_score": 57,
+      "shadow_model": {
+        "band_action": "HOLD",
+        "score": 50.67,
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.0,
+          "quality": 0.0,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
+      "technical_score": 52,
       "valuation_score": 50.0,
       "weights": {
+        "fundamental": 0.0,
+        "quality": 0.0,
+        "sentiment": 0.1111,
+        "technical": 0.3333,
+        "valuation": 0.1667
+      },
+      "weights_used": {
         "fundamental": 0.0,
         "quality": 0.0,
         "sentiment": 0.1111,
@@ -821,11 +992,11 @@
     },
     "signal": "HOLD",
     "signal_explanation": {
-      "composite_score": 53.8182,
+      "composite_score": 51.0909,
       "overrides_triggered": [],
-      "primary_reason": "Composite score 54 in HOLD range",
+      "primary_reason": "Composite score 51 in HOLD range",
       "risk_factors": [
-        "Monte Carlo tail shape is unfavorable (2.6% 75th-percentile upside vs 6.3% 5th-percentile downside); diagnostic only"
+        "Monte Carlo tail shape is unfavorable (2.5% 75th-percentile upside vs 6.4% 5th-percentile downside); diagnostic only"
       ],
       "supporting_factors": []
     },
@@ -937,6 +1108,11 @@
       "candlestick_score": 41.2,
       "death_cross": false,
       "golden_cross": false,
+      "indicator_basis": {
+        "live_bar_excluded": false,
+        "reason": "newest bar is a completed, settled session",
+        "scored_through": "2026-10-23"
+      },
       "macd_signal": "BULLISH",
       "momentum_score": 52.3094,
       "prior_trend": "UP",
@@ -949,8 +1125,8 @@
       "trend_strength": "MODERATE",
       "unmeasured": [],
       "volatility_score": 60,
-      "volume_ratio": 1.2892,
-      "volume_ratio_basis": "last completed session (today's is still trading)",
+      "volume_ratio": 0.3053,
+      "volume_ratio_basis": "latest session",
       "week_52_basis": "provider-reported traded range",
       "week_52_high": 92.18,
       "week_52_low": 76.43
@@ -960,7 +1136,7 @@
       "bull_case": [],
       "catalysts": [],
       "risks": [],
-      "summary": "iShares 20+ Year Treasury Bond (TLT) should be held at current levels with a 54% confidence score. Composite score of 54/100."
+      "summary": "iShares 20+ Year Treasury Bond (TLT) should be held at current levels with a 51% confidence score. Composite score of 51/100."
     },
     "ticker": "TLT",
     "trade_setup": {
@@ -978,6 +1154,8 @@
       "time_horizon": "POSITION",
       "trailing_stop": 0.0,
       "trailing_stop_pct": 2.1,
+      "vol_scenario": {},
+      "vol_scenario_caveat": "",
       "win_probability": 0.0
     },
     "valuation": {

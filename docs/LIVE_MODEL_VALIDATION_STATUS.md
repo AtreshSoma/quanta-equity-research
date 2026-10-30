@@ -133,3 +133,20 @@ results.
 
 Until these inputs and enough prospective calls exist, the UI and APIs must
 label buy-tier output **CANDIDATE**, not a validated recommendation.
+
+## 2026-10-29: v3 pre-registered
+
+A third version of the Research model, `elite.research.v3`, is pre-registered in
+[`docs/preregistration/elite_research_v3.md`](preregistration/elite_research_v3.md). Its factor
+weights are one fixed table, re-set by a rule written down before any result for it exists:
+fundamental 0.40, quality 0.30, technical 0.10, valuation 0.10, sentiment 0.10. The rule was
+derived from the 2026-10-22 leg ICs, so the 2010-2026 sample and the survivor universe are
+in-sample for v3.
+
+- Status: **UNTESTED** (no registry entry). It fails closed like any untested key.
+- The default live model stays `elite.research.v2` (`QUANTA_RESEARCH_MODEL` selects v3).
+- v3 is scored in shadow on every Research call and recorded under the ledger engine
+  `elite_v3_shadow`, from 29 October 2026. Its record is kept apart from v2 statistics.
+- The primary test is prospective: 63-session per-date Spearman IC of the v3 score against
+  forward excess return, with a pass at t of 2.0 or more, on at least 30 resolved calls over at
+  least 10 non-overlapping dates. Nothing is decided before those minimums hold.

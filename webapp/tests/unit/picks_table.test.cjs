@@ -45,7 +45,7 @@ test('each row states its call, labelled levels, score bar and capital fit', () 
   rows[0].setup = 'Growth';
   const box = render(payload({ stock_picks: rows }));
   const row = (t) => box.querySelector(`tr.pk-row[data-pk-ticker="${t}"]`);
-  assert.match(T(row('AMZN')), /AMZN ?AMZN Inc\. \$252\.65 Buy ?Growth/);
+  assert.match(T(row('AMZN')), /AMZN ?AMZN Inc\. \$252\.65 ?Oct 2 close ?Buy ?Growth/);
   const lv = row('AMZN').querySelector('.pk-c-levels');
   assert.equal(T(lv.querySelector('.pk-lv-labels')), 'Stop $244.51Target $272.14 +7.7%');
   assert.equal(T(lv.querySelector('.pk-lv-entry')), 'Entry $247.22-$252.65');
@@ -78,16 +78,17 @@ test('one report head: the scan on one line, the verdict once, then the figures,
   assert.deepEqual(meta.slice(2), ['US', 'Balanced mandate', 'Up to 5 positions']);
   // Three figures with one job each; the call counts live in the header only.
   const cards = [...box.querySelectorAll('[data-pk-summary] .pk-sc')];
-  assert.deepEqual(cards.map((c) => T(c.querySelector('dt'))), ['Scan to calls', 'Model sizing total', 'Regime']);
+  assert.deepEqual(cards.map((c) => T(c.querySelector('dt'))), ['Funnel', 'Sized', 'Regime']);
   assert.equal(cards[0].querySelector('.pk-fun').getAttribute('aria-label'), '100 scanned, 4 ranked, 1 sized');
   assert.equal(T(cards[0].querySelector('dd > span')), '95 screened out, 1 excluded for safety');
   assert.equal(T(cards[1].querySelector('dd b')), '$253');
-  assert.match(T(cards[1].querySelector('dd > span:last-child')), /^10\.1% of \$2,500/);
+  assert.match(T(cards[1].querySelector('dd > span:last-child')), /^10\.1% used/);
+  assert.equal(T(cards[1].querySelector('.pk-sc-v small')), 'of $2,500');
   assert.equal(cards[1].querySelector('.pk-meter-fill').style.width, '10.1%');
-  assert.deepEqual([T(cards[2].querySelector('dd b')), T(cards[2].querySelector('dd span'))], ['Bull', 'VIX 15.6']);
+  assert.deepEqual([T(cards[2].querySelector('dd b')), T(cards[2].querySelector('.pk-sc-sub'))], ['Bull', 'VIX 15.6']);
   const all = box.querySelector('[data-picks-v2]').textContent.replace(panel(box, 'analysis').textContent, '')
     .replace(panel(box, 'risk').textContent, '').replace(panel(box, 'method').textContent, '').replace(panel(box, 'signals').textContent, '');
-  for (const once of ['10.1%', '100 scanned', 'VIX 15.6', 'Model not yet validated', '2 Buy or Accumulate']) {
+  for (const once of ['10.1%', '100 scanned', 'VIX 15.6', '2 Buy or Accumulate']) {
     assert.equal(all.split(once).length - 1, 1, `${once} appears once`);
   }
 });
@@ -122,10 +123,26 @@ test('the call chips filter the table; the note states the order', () => {
   assert.deepEqual(tbodyRows, ['buy', 'AMZN', 'accumulate', 'MSFT', 'watchlist', 'CSCO', 'JPM']);
 });
 
-test('the model line shows until the evidence is validated', () => {
-  assert.ok(render(payload()).querySelector('[data-pk-valid]'));
+test('the model flag sits on each Buy and Accumulate card until validated, never on the report head', () => {
+  const box = render(payload());
+  assert.equal(box.querySelector('.pk-report-head .model-flag'), null, 'the head carries no flag');
+  assert.equal(box.querySelector('.pk-ov-tools .model-flag'), null, 'nor the table toolbar');
+  const card = box.querySelector('.pk-card[data-pk-card="AMZN"], .pk-card');
+  assert.ok(card && card.querySelector('.pk-card-tags .model-flag'), 'a Buy card carries it');
   const ok = ROWS().map((r) => ({ ...r, evidence: 'VALIDATED' }));
-  assert.equal(render(payload({ stock_picks: ok })).querySelector('[data-pk-valid]'), null);
+  assert.equal(render(payload({ stock_picks: ok })).querySelector('.model-flag'), null);
+});
+
+test('the report head is one band, and the not-advice line closes the report', () => {
+  const box = render(payload());
+  const view = box.querySelector('[data-picks-v2]');
+  assert.equal(view.querySelector('.pk-report-head [data-not-advice]'), null, 'the head carries no disclaimer');
+  assert.equal(view.lastElementChild.matches('[data-not-advice]'), true, 'the disclaimer closes the report');
+  // Retired flag words: jargon a reader had to decode.
+  const files = ['static/app.js', 'static/elite-pro.js', 'static/my-portfolio.js', 'templates/index.html'];
+  for (const f of files) {
+    assert.doesNotMatch(fs.readFileSync(path.join(__dirname, '..', '..', f), 'utf8'), /Edge unproven|Backtest not significant/i, f);
+  }
 });
 
 test('the report is five sections; a row opens its analysis beside the list of calls', () => {
@@ -142,7 +159,7 @@ test('the report is five sections; a row opens its analysis beside the list of c
   assert.deepEqual(shown(), ['AMZN'], 'the first call opens first');
   const card = panel(box, 'analysis').querySelector('[data-pk-card="AMZN"]');
   assert.match(T(card.querySelector('.pk-card-tags')), /^Buy ?Model not yet validated$/);
-  assert.match(T(card.querySelector('.pk-keys')), /Price ?\$252\.65 ?last close ?Target ?\$272\.14 ?\+7\.7% from price ?Stop ?\$244\.51 ?-3\.2% from price ?R:R ?2\.28 ?net of costs/);
+  assert.match(T(card.querySelector('.pk-keys')), /Price ?\$252\.65 ?Oct 2 close ?Target ?\$272\.14 ?\+7\.7% from price ?Stop ?\$244\.51 ?-3\.2% from price ?R:R ?2\.28 ?net of costs/);
   const plan = T(card.querySelector('.pk-plan'));
   assert.match(plan, /Your capital ?1 share · \$253 \(10\.1% of capital\) · risk at stop \$8 \(0\.33% of capital\)/);
   assert.match(plan, /Conviction ?★★★★☆ 4\/5/);
@@ -218,7 +235,7 @@ test('unreadable names that never reached the book raise no alert line (they blo
 test('case: only Watchlist names says there is no Buy or Accumulate pick, with the count and reasons', () => {
   const box = render(CASES.only_watch());
   const empty = T(box.querySelector('[data-pk-empty]'));
-  assert.equal(empty, 'No Buy or Accumulate picks right now. 2 names are on the Watchlist. Top reasons: Hold signal, no buy setup (50), reward-to-risk below the hurdle (44).');
+  assert.equal(empty, 'No Buy or Accumulate picks right now. 2 names are on the Watchlist. Top reasons across the scan: Hold signal, no buy setup (50); reward-to-risk below the hurdle (44).');
   assert.deepEqual([...box.querySelectorAll('tbody tr.pk-row')].map((r) => r.dataset.pkTicker), ['CSCO', 'JPM'], 'the Watchlist still shows');
   assert.equal(box.querySelector('[data-pk-copy="ba"]'), null, 'nothing to copy as Buy or Accumulate');
   assert.ok(box.querySelector('[data-pk-copy="watchlist"]'));
@@ -239,7 +256,7 @@ test('case: a cost-limited name keeps its call and says what one share needs', (
   assert.equal(T(row.querySelector('.pk-signal')), 'Accumulate');
   assert.equal(T(row.querySelector('.pk-c-pos')), 'Needs about $2,900 for one share within the position cap');
   assert.equal(box.querySelector('[data-pk-empty]'), null, 'an Accumulate call is a pick even when the capital does not fit');
-  assert.match(T(box.querySelector('[data-pk-summary]')), /Model sizing total ?\$0/);
+  assert.match(T(box.querySelector('[data-pk-summary]')), /Sized ?\$0/);
 });
 
 test('case: two share classes of one company are one row; the other class is named in its analysis', () => {
@@ -283,9 +300,9 @@ test('case: an empty scan says so, with the reasons, and has nothing to analyse'
   assert.equal(box.querySelector('.pk-chips'), null);
   assert.equal(box.querySelector('[data-pk-copy]'), null);
   assert.equal(box.querySelector('[data-pk-csv]'), null);
-  assert.match(T(box.querySelector('[data-pk-summary]')), /Model sizing total ?\$0/);
+  assert.match(T(box.querySelector('[data-pk-summary]')), /Sized ?\$0/);
   assert.doesNotMatch(T(box.querySelector('[data-pk-summary]')), /Watchlist/, 'the counts live in the header');
-  assert.match(T(box.querySelector('[data-pk-empty]')), /Hold signal, no buy setup \(50\), reward-to-risk below the hurdle \(44\)/);
+  assert.match(T(box.querySelector('[data-pk-empty]')), /Hold signal, no buy setup \(50\); reward-to-risk below the hurdle \(44\)/);
   assert.match(T(panel(box, 'analysis')), /No Buy, Accumulate or Watchlist call in this scan, so there is nothing to analyse\./);
   assert.equal(panel(box, 'method').querySelector('[data-pk-excluded]'), null);
 });
@@ -341,7 +358,8 @@ test('warnings are only the ones that hold', () => {
   const box = render(payload());
   const warn = [...box.querySelectorAll('[data-pk-warn] li')].map((li) => T(li));
   assert.deepEqual(warn, ['Re-check the entry if the open gaps more than 2% against you.',
-    'Concentration: Technology (3) among these calls; their prices tend to move together.']);
+    // Three Technology rows, one a Watchlist call: only the two that take money count.
+    'Concentration: Technology (2) among these calls; their prices tend to move together.']);
   const calm = ROWS().map((r, i) => ({ ...r, sector: `S${i}` }));
   const high = [...render(payload({ stock_picks: calm, regime: { type: 'VOLATILE', vix: 31.2 } })).querySelectorAll('[data-pk-warn] li')].map((li) => T(li));
   assert.ok(high.includes('VIX 31.2 is above 25: consider standing down.'));
@@ -574,14 +592,14 @@ test('india: the header names India, the regime quotes India VIX, every scanned 
   assert.ok([...render(old).querySelectorAll('.pk-meta li')].map((li) => T(li)).includes('India'), 'an older payload is read from its currency');
   assert.ok([...render(payload()).querySelectorAll('.pk-meta li')].map((li) => T(li)).includes('US'));
   const cards = T(render(INDIA()).querySelector('[data-pk-summary]'));
-  assert.match(cards, /Scan to calls ?50 ?scanned ?0 ?ranked ?0 ?sized ?49 screened out, 1 not analysed/);
-  assert.match(cards, /regime allows 75%/);
+  assert.match(cards, /Funnel ?50 ?scanned ?0 ?ranked ?0 ?sized ?49 screened out, 1 not analysed/);
+  assert.match(cards, /regime cap 75%/);
   assert.match(cards, /Regime ?Bear ?India VIX 13\.6$/);
 });
 
 test('india: the empty state says no name passed and why no Buy call is possible', () => {
   const t = T(render(INDIA()).querySelector('[data-pk-empty]'));
-  assert.match(t, /^No Buy or Accumulate picks right now\. No name passed the per-name rules\. Top reasons: Hold signal, no buy setup \(25\), score below the minimum \(23\), trading volume too low \(1\)\./);
+  assert.match(t, /^No Buy or Accumulate picks right now\. No name passed the per-name rules\. Top reasons across the scan: Hold signal, no buy setup \(25\); score below the minimum \(23\); trading volume too low \(1\)\./);
   assert.match(t, /(?:NSE and BSE|BSE and NSE) listings get no Buy or Accumulate call: no corporate-event source covers them yet, so the best call a name can reach is Watchlist\./);
   assert.equal(render(payload()).querySelector('[data-pk-uncovered]'), null, 'a US scan says nothing about it');
 });
@@ -731,6 +749,43 @@ test('the broker-holdings note sits under Risk and execution, not above the tabl
 test('deployment names the Overview band when it caps the scan, the scanner regime otherwise', () => {
   const capped = INDIA();
   capped.regime = { ...capped.regime, exposure: 55, exposure_basis: { source: 'overview', band: '30-55% gross', posture: 'Neutral' } };
-  assert.match(T(render(capped).querySelector('[data-pk-summary]')), /the market mood allows up to 55%/);
-  assert.match(T(render(INDIA()).querySelector('[data-pk-summary]')), /the scanner regime allows 75%/);
+  assert.match(T(render(capped).querySelector('[data-pk-summary]')), /market-mood cap 55%/);
+  assert.match(T(render(INDIA()).querySelector('[data-pk-summary]')), /, regime cap 75%/);
+});
+
+test('a scan states when it ran in the exchange zone, and which session its bars end on', () => {
+  assert.equal(app.pkRunStamp('2026-10-30T11:25:38-04:00', false).text, 'Oct 30, 2026, 11:25 AM ET');
+  assert.equal(app.pkRunStamp('2026-10-30T11:25:38-04:00', true).text, 'Oct 30, 2026, 8:55 PM IST');
+  assert.equal(app.pkRunStamp('not a date', false), null);
+  const box = render(payload({ timestamp: '2026-10-30T11:25:38-04:00', data_dates: { bar_session: '2026-10-29' } }));
+  const meta = [...box.querySelectorAll('[data-picks-head] .pk-meta li')].map((li) => T(li));
+  assert.equal(meta[1], 'Run Oct 30, 2026, 11:25 AM ET');
+  assert.equal(meta[2], 'Daily bars to Oct 29');
+  assert.equal(box.querySelector('[data-picks-head] .pk-run time').getAttribute('datetime'), '2026-10-30T11:25:38-04:00');
+});
+
+test('a row whose levels rest on a newer price shows that price, its session and its upside', () => {
+  const scan = '2026-10-30T11:25:38-04:00';
+  // DXCM on 2026-10-30: the scan ranked on the Oct 29 close; Research built the levels at 83.95.
+  const r = { ticker: 'DXCM', price: 79.93, price_session: '2026-10-29', target: 83.98, upside_pct: 5.07,
+    price_basis: { price: 83.9501, session: '2026-10-30', fetch: 'Research' } };
+  const a = app.pkAlignRowPrice(r, scan, false);
+  assert.equal(a.price, 83.9501);
+  assert.equal(a.price_when, 'Oct 30 intraday');
+  assert.equal(a.scan_close, 79.93);
+  assert.equal(a.upside_pct, 0.04);
+  assert.deepEqual(app.pkAlignRowPrice(a, scan, false), a, 'idempotent');
+  // A row already on one price keeps it; after the close the same session reads "close".
+  const same = app.pkAlignRowPrice({ price: 51.17, price_session: '2026-10-29' }, scan, false);
+  assert.equal(same.price, 51.17);
+  assert.equal(same.price_when, 'Oct 29 close');
+  assert.equal(app.pkPriceWhen('2026-10-30', '2026-10-30T16:30:00-04:00', false), 'Oct 30 close');
+});
+
+test('a zero reward-to-risk reads 0.00, not as missing', () => {
+  const rows = ROWS().map((x) => (x.ticker === 'CSCO' ? { ...x, risk_reward: 0 } : x));
+  const box = render(payload({ stock_picks: rows }));
+  const cell = box.querySelector('tr.pk-row[data-pk-ticker="CSCO"] .pk-c-rr');
+  assert.equal(T(cell), '0.00');
+  assert.ok(cell.querySelector('.pk-rr-zero').title.includes('no reward for the risk'));
 });

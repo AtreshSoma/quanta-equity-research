@@ -51,3 +51,25 @@ def test_runtime_log_ignores_do_not_hide_documentation():
     hidden = subprocess.run(["git", "check-ignore", "docs/logs/IMPLEMENTATION_LOG.md"], cwd=ROOT,
                             capture_output=True, text=True).stdout.strip()
     assert not hidden, "docs/logs is ignored by .gitignore"
+
+
+# A home-directory path names the machine's user. The repository is public, so
+# published text (docs, the README, the page itself) must cite files by repo
+# path or in words. Placeholders a test or an example uses on purpose are allowed.
+HOME_PATH = re.compile(r"[A-Za-z]:[\\/]+Users[\\/]+([A-Za-z0-9._-]+)|/(?:home|Users)/([A-Za-z0-9._-]+)/")
+PLACEHOLDER_USERS = {"you", "your-name", "username", "user", "name", "secret", "example"}
+
+
+def test_published_text_names_no_home_directory():
+    tracked = _tracked()
+    if tracked is None:
+        pytest.skip("not a git checkout")
+    published = [f for f in tracked if f.endswith((".md", ".html", ".js", ".css"))
+                 and not f.startswith(("tests/", "webapp/tests/"))]
+    hits = []
+    for f in published:
+        text = (ROOT / f).read_text(encoding="utf-8", errors="ignore")
+        for m in HOME_PATH.finditer(text):
+            if (m.group(1) or m.group(2)).lower() not in PLACEHOLDER_USERS:
+                hits.append(f"{f}: {m.group(0)}")
+    assert not hits, f"published files name a home directory: {hits}"

@@ -27,6 +27,7 @@ class PortfolioPolicy:
     # still pass its own policy.
     max_single_position: float = field(default_factory=lambda: _PF.MAX_SINGLE_POSITION)
     trim_review_position: float = field(default_factory=lambda: _PF.TRIM_REVIEW_POSITION)
+    trim_target_position: float = field(default_factory=lambda: _PF.TRIM_TARGET_POSITION)
     max_sector: float = field(default_factory=lambda: _PF.MAX_SECTOR)
     correlation_threshold: float = field(default_factory=lambda: _PF.CORRELATION_THRESHOLD)
     earnings_window_days: int = field(default_factory=lambda: _PF.EARNINGS_WINDOW_DAYS)

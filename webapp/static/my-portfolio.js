@@ -302,7 +302,8 @@
   // ---------------------------------------------------------------- data status
   // Quote and data limitations are stated ONCE, in the summary's status line;
   // tickers and technical detail wait behind one disclosure.
-  const LATE = ['stale', 'unknown', 'delayed'];
+  // Only these withhold a call (service.py `analysis_error`); a delayed quote still gets one.
+  const LATE = ['stale', 'unknown'];
   const SHARED_CODES = new Set(['PORTFOLIO_DATA_INCOMPLETE', 'ACCOUNT_DATA_UNRECONCILED']);
   const isMaterial = (i) => i.severity !== 'info' || i.code === 'RETURNS_UNAVAILABLE';
   // Issues summarised by a note (or by the section they affect), so the record
@@ -327,9 +328,15 @@
     if (late.length) {
       notes.push({
         warn: true,
-        html: `${late.length === total ? `Quotes for all ${total} holdings are` : `${late.length} of ${total} quotes are`} delayed or unverified, so QUANTA gives ${plural(late.length, 'that holding', 'them')} no call until prices refresh.`,
+        html: `${late.length === total ? `Quotes for all ${total} holdings are` : `${late.length} of ${total} quotes are`} out of date or unverified, so QUANTA gives ${plural(late.length, 'that holding', 'them')} no call until prices refresh.`,
         detail: late.map((s) => { const row = rows.find((x) => x.symbol === s); const t = row && (row.broker.quote_freshness || {}).text; return `${s}${t ? ` (${t.charAt(0).toLowerCase()}${t.slice(1)})` : ''}`; }).join(', '),
       });
+    }
+    // A delayed quote keeps its call: say how old the prices are, not that calls are withheld.
+    const ages = rows.filter((x) => !late.includes(x.symbol) && (x.broker.quote_freshness || {}).status === 'delayed')
+      .map((x) => num((x.broker.quote_freshness || {}).age_minutes)).filter((m) => m !== null);
+    if (ages.length) {
+      notes.push({ warn: false, html: `Prices are up to ${Math.round(Math.max(...ages))} min old; weights, today’s change and the calls use those prices. Refresh for current prices.` });
     }
     const shared = new Map();
     rows.forEach((x) => (x.guidance.blocks || []).forEach((b) => { if (SHARED_CODES.has(b.code)) shared.set(b.text, b.code); }));
@@ -795,8 +802,9 @@
   // The research score, muted: it has no demonstrated edge until validated, so it
   // is context, never the loudest number on the row. The evidence status is stated
   // once above the table instead of on every row (audit F14).
-  function evidenceCell(g) {
+  function evidenceCell(g, r) {
     if (g.status !== 'ok') return NA;
+    if (r && r.is_fund) return '<span class="hp-ev hp-muted" title="QUANTA’s research score rates single companies, not funds">Fund · not scored</span>';
     const score = num(g.conviction);
     return `<span class="hp-ev">${score !== null ? `<span class="hp-score">${score.toFixed(0)}<span class="hp-score-scale">/100</span></span>` : NA}${evidenceValidated(g.evidence) ? `<span class="hp-ev-t">${esc(evidenceShort(g.evidence))}</span>` : ''}</span>`;
   }
@@ -870,7 +878,9 @@
   // or adding QUANTA's size. Unsized reductions (a risk-grade trim, an exit review) have none.
   function sizedScenario(g) {
     const im = g.impact || {};
-    const x = g.action === 'Accumulate' ? im.add : (g.action === 'Trim' || g.action === 'Exit Review') ? im.trim_to_cap : null;
+    // A concentration trim is sized to the trim target (clear of the trigger); else to the limit.
+    const x = g.action === 'Accumulate' ? im.add : g.action === 'Trim' ? (im.trim_to_target || im.trim_to_cap)
+      : g.action === 'Exit Review' ? im.trim_to_cap : null;
     return x && x.weight_after != null ? x : null;
   }
 
@@ -901,13 +911,14 @@
       r.market && r.market.earnings_date ? `Next earnings ${r.market.earnings_date} (${r.market.earnings_source === 'broker' ? 'Robinhood calendar' : 'market data'})` : '',
     ].filter(Boolean);
     const im = g.impact || {};
-    const scen = [['Trimmed to the review level', im.trim_to_review], ['Trimmed to the limit', im.trim_to_cap], [g.action === 'Accumulate' ? 'Adding QUANTA’s size' : null, im.add], ['Selling it all', im.remove]]
+    const scen = [['Trimmed to the review level', im.trim_to_review], ['Trimmed to the trim target', im.trim_to_target], ['Trimmed to the limit', im.trim_to_cap], [g.action === 'Accumulate' ? 'Adding QUANTA’s size' : null, im.add], ['Selling it all', im.remove]]
       .filter(([k, x]) => k && x && x.weight_after != null)
       .map(([k, x]) => `<li><span>${k}</span><span>${pct(x.weight_before, 1)} → ${pct(x.weight_after, 1)}; ${esc(x.sector || 'sector')} ${pct(x.sector_weight_before, 0)} → ${pct(x.sector_weight_after, 0)}${x.cash_after != null ? `; cash after ${money(x.cash_after)}` : ''}</span></li>`);
     const row = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
     return `<div class="hp-gi-body">
       <dl class="hp-gi-dl">
-        ${row('Investment outlook', `${stanceChip(g.stance)} score ${num(g.conviction) !== null ? Number(g.conviction).toFixed(0) : '--'}/100${g.score_leaning ? `, leans ${esc(g.score_leaning.toLowerCase())}` : ''}`)}
+        ${r.is_fund ? row('Investment outlook', 'Fund: QUANTA’s research score rates single companies, so it is not used here')
+    : row('Investment outlook', `${stanceChip(g.stance)} score ${num(g.conviction) !== null ? Number(g.conviction).toFixed(0) : '--'}/100${g.score_leaning ? `, leans ${esc(g.score_leaning.toLowerCase())}` : ''}`)}
         ${row('Portfolio action', `${esc(actionLabel(g.action, g))}: ${esc(g.headline)}`)}
         ${g.adding && g.adding.text ? row('Adding', `${esc({ eligible: 'Allowed', blocked: 'Blocked', not_supported: 'Not supported', unavailable: 'Unknown' }[g.adding.status] || 'Unknown')}<span class="hp-sub">${esc(g.adding.text)}</span>`) : ''}
         ${list(g.red_flags).length ? row('Red flags', `${list(g.red_flags).length} measured<span class="hp-sub">${esc(g.action === 'Hold' ? g.key_reason : list(g.red_flags).join(', ').toLowerCase().replace(/_/g, ' '))}</span>`) : ''}
@@ -1256,7 +1267,7 @@
           <td class="num" data-label="P&amp;L">${pnl}</td>
           <td class="hp-col-risk" data-label="Risk">${riskCell(r)}</td>
           <td data-label="Portfolio action">${actionChip(g.action, null, g)}</td>
-          <td class="hp-col-ev" data-label="Score">${evidenceCell(g)}</td>
+          <td class="hp-col-ev" data-label="Score">${evidenceCell(g, r)}</td>
           <td class="hp-reason hp-col-reason" data-label="Key reason">${reasonCell(g)}</td>
         </tr>`;
     }).join('');
@@ -1294,7 +1305,7 @@
     return `<dl class="q-dl hp-dl hp-dl--rows">
       <div><dt>Weight now</dt><dd>${pct(r.broker.weight, 1)} of the portfolio${r.market.sector ? `; ${esc(r.market.sector)}` : ''}</dd></div>
       <div><dt>Room before the single-name limit</dt><dd>${money(im.room_to_cap)}</dd></div>
-      ${row(addLabel, im.add)}${row('Trimming to the limit', im.trim_to_cap)}${row('Selling it all', im.remove)}
+      ${row(addLabel, im.add)}${row('Trimming to the trim target', im.trim_to_target)}${row('Trimming to the limit', im.trim_to_cap)}${row('Selling it all', im.remove)}
     </dl><p class="hp-fine">Previews assume the trade settles in cash at today’s price. They are arithmetic, not orders.</p>`;
   }
 
@@ -1416,13 +1427,13 @@
     const g = r.guidance;
     const b = g.basis || {};
     const im = g.impact || {};
-    const scenario = (g.action === 'Accumulate' && im.add) || ((g.action === 'Trim' || g.action === 'Exit Review') && im.trim_to_cap) || null;
+    const scenario = sizedScenario(g);
     return {
       reason: isShared(g) ? 'Waits on the data status above' : (b.text || g.key_reason || 'Reason not reported'),
       kind: KIND_LABEL[b.kind] || '',
       next: g.next_step || '',
       after: scenario ? num(scenario.weight_after) : null,
-      impactLabel: scenario ? (g.action === 'Accumulate' ? 'If added' : 'If trimmed to limit') : 'Account weight',
+      impactLabel: scenario ? (g.action === 'Accumulate' ? 'If added' : scenario === im.trim_to_target ? 'If trimmed to target' : 'If trimmed to limit') : 'Account weight',
     };
   }
 
@@ -1495,6 +1506,7 @@
     { key: 'overview', label: 'Overview' },
     { key: 'holdings', label: 'Holdings' },
     { key: 'guidance', label: 'Guidance' },
+    { key: 'profit', label: 'Profit plan' },
     { key: 'activity', label: 'Activity' },
     { key: 'review', label: 'Review' },
     { key: 'news', label: 'News & events' },
@@ -1532,6 +1544,7 @@
       ${panel('overview', X.overview ? X.overview(pf) : `${overviewHtml(pf)}${prioritiesPanelHtml(pf)}`)}
       ${panel('holdings', tableHtml(pf))}
       ${panel('guidance', guidanceHtml(pf))}
+      ${panel('profit', X.profit ? X.profit(pf) : '')}
       ${panel('activity', X.activity ? X.activity(pf) : '')}
       ${panel('review', X.review ? X.review(pf, { contribution: todayHtml(pf), risk: exposureHtml(pf) }) : `${todayHtml(pf)}${exposureHtml(pf)}`)}
       ${panel('news', X.news ? X.news(pf) : '')}

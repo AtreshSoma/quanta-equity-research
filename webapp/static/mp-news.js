@@ -195,7 +195,7 @@
       const emptyText = b === 'soon' ? 'Nothing scheduled, filed or reported for your holdings in the next seven days.' : b === 'later' ? 'Nothing further out within 31 days.' : 'No recent filings or matching headlines.';
       const group = (items, title) => (items.length ? `${title ? `<h3 class="mpn-group">${title} <span class="hp-num">${items.length}</span></h3>` : ''}<div class="mpn-list">${items.map((i) => itemHtml(i)).join('')}</div>` : '');
       const body = b === 'soon'
-        ? `${group(list.filter((i) => i.bucket === 'today'), 'Today')}${group(list.filter((i) => i.bucket === 'week'), 'This week')}`
+        ? `${group(list.filter((i) => i.bucket === 'today'), 'Today')}${group(list.filter((i) => i.bucket === 'week'), 'Next 7 days')}`
         : group(list, '');
       return `${head}<div class="q-body">${seg}${kinds}
           ${list.length ? body : `<p class="hp-empty mpn-empty">${emptyText} That covers only the sources listed below.</p>`}

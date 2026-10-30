@@ -332,7 +332,9 @@ def position_limits(pos: PositionContext, ctx: PortfolioContext) -> List[Constra
     if pos.weight is not None and pos.weight >= p.max_single_position:
         out.append(Constraint(
             "POSITION_AT_CAP",
-            f"{_pct(pos.weight, 1)} of the account, over the {_pct(p.max_single_position)} single-name limit",
+            # Two tiers: at the limit new money stops; trims start only at the review level.
+            f"{_pct(pos.weight, 1)} of the account, over the {_pct(p.max_single_position)} single-name limit: "
+            f"no new money (trims start at {_pct(p.trim_review_position)})",
             f"The position falling below {_pct(p.max_single_position)} of the account"))
     if (not pos.is_fund and pos.sector and pos.sector_weight is not None
             and pos.sector_weight >= p.max_sector):
@@ -427,7 +429,14 @@ def tax_note(pos: PositionContext, today: date) -> str:
 
 
 def _trim_sentence(impacts: Dict[str, Any], p: PortfolioPolicy) -> str:
-    """'Trim range: to the 20% review level (sell about $X) or to the 10% limit (...)'."""
+    """'Suggested trim: to 15% (sell about $X). Range: to the 20% review level (...) or to the 10% limit (...)'."""
+    target = impacts.get("trim_to_target") or {}
+    lead = ""
+    if -(target.get("delta_value") or 0) > 0:
+        sh = target.get("shares")
+        lead = (f"Suggested trim: to {_pct(p.trim_target_position)} (sell about {_money(-target['delta_value'])}"
+                + (f", {sh:,.2f} shares" if isinstance(sh, (int, float)) else "") + "), clear of the "
+                f"{_pct(p.trim_review_position)} trigger. ")
     parts = []
     for key, name in (("trim_to_review", f"the {_pct(p.trim_review_position)} review level"),
                       ("trim_to_cap", f"the {_pct(p.max_single_position)} single-name limit")):
@@ -439,15 +448,15 @@ def _trim_sentence(impacts: Dict[str, Any], p: PortfolioPolicy) -> str:
                          + (f", {sh:,.2f} shares" if isinstance(sh, (int, float)) else "") + ")")
     if not parts:
         return ""
-    out = "Trim range: " + " or ".join(parts) + "."
-    cap = impacts.get("trim_to_cap") or {}
-    gain = cap.get("gain")
+    out = lead + ("Range: " if lead else "Trim range: ") + " or ".join(parts) + "."
+    sized, where = (target, "to " + _pct(p.trim_target_position)) if lead else         (impacts.get("trim_to_cap") or {}, "to the limit")
+    gain = sized.get("gain")
     if isinstance(gain, (int, float)):
         split = ""
-        if isinstance(cap.get("gain_long"), (int, float)) and isinstance(cap.get("gain_short"), (int, float)):
-            split = (f" ({_money(cap['gain_long'])} long-term, {_money(cap['gain_short'])} short-term if the "
+        if isinstance(sized.get("gain_long"), (int, float)) and isinstance(sized.get("gain_short"), (int, float)):
+            split = (f" ({_money(sized['gain_long'])} long-term, {_money(sized['gain_short'])} short-term if the "
                      "oldest lots go first)")
-        out += f" Trimming to the limit realises about {_money(gain)} of gain{split}; informational, not tax advice."
+        out += f" Trimming {where} realises about {_money(gain)} of gain{split}; informational, not tax advice."
     return out
 
 
@@ -600,6 +609,11 @@ def guide_position(pos: PositionContext, ctx: PortfolioContext,
     rule = published_holder_rule(d) or {}
     flags = list(rule.get("flags") or [])
     existing = _HOLDER.get(str(d.get("holder_action") or "").upper(), UNAVAILABLE)
+    # The stock score does not rate funds, so a score band never trims or exits one; size and
+    # risk-grade rules still apply (review 2026-10-30: a closed-end fund read "Trim, score 44").
+    if pos.is_fund and existing in (EX_TRIM, EX_EXIT) \
+            and rule.get("basis") in ("SCORE_REDUCE_BAND", "SCORE_EXIT_CORROBORATED"):
+        existing = EX_HOLD
     over_review = pos.weight is not None and pos.weight >= p.trim_review_position
     concentration_trim = over_review and (existing == EX_HOLD
                                           or (existing == EX_TRIM and rule.get("basis") == "RISK_GRADE_F"))
@@ -633,7 +647,8 @@ def guide_position(pos: PositionContext, ctx: PortfolioContext,
         stance=STANCE_LABELS.get(stance_code, stance_code.title()), stance_code=stance_code,
         score_leaning=(STANCE_LABELS.get(model_code, "") if model_code != stance_code else ""),
         new_money=new_money, existing=existing, action=action, adding=adding,
-        conviction=score, red_flags=flags, last_call=last,
+        # The stock score does not rate funds, so a fund carries none (it would read as a rating).
+        conviction=None if pos.is_fund else score, red_flags=flags, last_call=last,
         horizon=(d.get("horizon") or {}).get("label", ""),
         impact=impacts,
     )
@@ -701,8 +716,9 @@ def guide_position(pos: PositionContext, ctx: PortfolioContext,
         trim = _trim_sentence(impacts, p)
         g.next_step = ((trim + " ") if trim else
                        f"Consider trimming toward the {_pct(p.max_single_position)} single-name limit. ") + \
-            (f"The {_pct(p.trim_review_position)} review level and the {_pct(p.max_single_position)} limit are "
-             "QUANTA defaults, not a target set for your goals, time horizon or tax position.")
+            (f"The {_pct(p.trim_review_position)} review level, the {_pct(p.trim_target_position)} trim target and "
+             f"the {_pct(p.max_single_position)} limit are QUANTA defaults, not a target set for your goals, time "
+             "horizon or tax position.")
     elif action == PA_REVIEW_RISK and review_held:
         g.headline = "Risk review still open"
         g.basis = _basis("RISK_REVIEW_HELD", f"Risk grade {grade} after F; the review stays open until grade C or "
@@ -756,7 +772,7 @@ def guide_position(pos: PositionContext, ctx: PortfolioContext,
             why.append(f"Keep {pos.symbol}; no measured red flag argues for cutting it, but {_lower_first(limit.text)}.")
             g.next_step = f"Keep the position. Do not add until: {_lower_first(limit.remedy)}."
         elif pos.is_fund:
-            g.headline = "Core fund: no change indicated"
+            g.headline = "Fund: no change indicated"
             g.basis = _basis("FUND_HOLD", "Fund within portfolio limits; QUANTA's stock score does not rate funds")
             why.append(f"{pos.symbol} is a fund. QUANTA's research score is built for single companies, so it is "
                        f"not used here; the fund is {weight_txt} of the account and within limits.")
@@ -833,8 +849,14 @@ def _conditional_target(action: str, pos: PositionContext, p: PortfolioPolicy,
                         impacts: Dict[str, Any]) -> Dict[str, Any]:
     """A size only where a rule defines one; otherwise say that none is computed."""
     cap = p.max_single_position
+    target = impacts.get("trim_to_target") or {}
     trim = impacts.get("trim_to_cap") or {}
     add = impacts.get("add") or {}
+    if action == PA_TRIM and target.get("weight_after") is not None:
+        return {"weight": target["weight_after"],
+                "text": f"About {_pct(target['weight_after'], 1)} if trimmed to {_pct(p.trim_target_position)}",
+                "basis": f"QUANTA default trim target, halfway between the {_pct(cap)} limit and the "
+                         f"{_pct(p.trim_review_position)} review level; not a personal target"}
     if action in (PA_TRIM, PA_EXIT) and trim.get("weight_after") is not None:
         return {"weight": trim["weight_after"],
                 "text": f"About {_pct(trim['weight_after'], 1)} if trimmed to the {_pct(cap)} single-name limit",
@@ -879,8 +901,12 @@ def attention_items(positions: Sequence[Dict[str, Any]], metrics: Dict[str, Any]
     over = [s for s in sectors if s.get("weight") is not None and s["weight"] >= policy.max_sector]
     if over:
         s = max(over, key=lambda x: x["weight"])
+        total = metrics.get("total_value")
+        excess = (s["weight"] - policy.max_sector) * total if isinstance(total, (int, float)) and total > 0 else None
         out.append({"code": "SECTOR_OVER_LIMIT", "tone": "warn", "symbols": list(s.get("symbols") or []),
-                    "text": f"{s['sector']} is {_pct(s['weight'], 1)} of the account (QUANTA limit {_pct(policy.max_sector)})"})
+                    "excess_value": excess,
+                    "text": f"{s['sector']} is {_pct(s['weight'], 1)} of the account (QUANTA limit {_pct(policy.max_sector)})"
+                            + (f", about {_money(excess)} above it" if excess and excess > 0 else "")})
 
     risky = [r for r in positions if (r.get("guidance") or {}).get("action") == PA_REVIEW_RISK
              or ((r.get("guidance") or {}).get("basis") or {}).get("code") == "RISK_GRADE_F"]
@@ -918,5 +944,6 @@ def attention_items(positions: Sequence[Dict[str, Any]], metrics: Dict[str, Any]
         listed = _names([f"{s} ({_pct(w, 1)})" for s, w in capped])
         verb = "is" if len(capped) == 1 else "are"
         out.append({"code": "OVER_SINGLE_LIMIT", "tone": "info", "symbols": [s for s, _ in capped],
-                    "text": f"{listed} {verb} over the {_pct(policy.max_single_position)} single-name limit"})
+                    "text": f"{listed} {verb} over the {_pct(policy.max_single_position)} single-name limit: "
+                            f"no new money; trims start at {_pct(policy.trim_review_position)}"})
     return out[:_T.PORTFOLIO.ATTENTION_MAX]

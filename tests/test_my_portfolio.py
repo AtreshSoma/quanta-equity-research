@@ -141,6 +141,35 @@ class TestGuidance:
         assert "SECTOR_AT_CAP" not in [b["code"] for b in g.blocks]
         assert g.basis["code"] == "FUND_HOLD" and "does not rate funds" in g.key_reason
         assert g.adding["code"] == "FUND_NOT_RATED"
+        # A score beside "does not rate funds" read as a rating: a fund carries none.
+        assert g.conviction is None
+
+    def test_a_stock_score_band_never_trims_a_fund(self):
+        """Review 2026-10-30: a fund read "Trim: QUANTA score 44 is in the reduce band"."""
+        dec = decision("WATCHLIST", 44, new_money="WATCH")
+        stock = gd.guide_position(pctx(weight=0.02), ctx(), dec)
+        assert stock.action == "Trim" and stock.basis["code"] == "SCORE_REDUCE_BAND"
+        fund = gd.guide_position(pctx(weight=0.02, sector="Large Blend", is_fund=True), ctx(), dec)
+        assert fund.action == "Hold" and fund.basis["code"] == "FUND_HOLD"
+        # Size still applies to a fund.
+        big = gd.guide_position(pctx(weight=0.25, sector="Large Blend", is_fund=True), ctx(), dec)
+        assert big.action == "Trim" and big.basis["code"] == "CONCENTRATION"
+
+    def test_a_closed_end_fund_typed_as_equity_is_still_a_fund(self):
+        """Review 2026-10-30: a venture fund came back as EQUITY and got a stock's
+        "valuation inputs missing" no-call, which a fund can never clear."""
+        from portfolio.service import is_fund_holding
+        cef = {"quote_type": "EQUITY", "company_name": "Example Ventures Fund II"}
+        assert is_fund_holding(cef, "Investment Trusts/Mutual Funds")
+        assert is_fund_holding(cef, "Investment Trusts Or Mutual Funds")
+        # Either signal alone is not enough: an asset manager shares the industry, not the name.
+        assert not is_fund_holding({"quote_type": "EQUITY", "company_name": "Example Asset Management Inc."},
+                                   "Investment Trusts/Mutual Funds")
+        assert not is_fund_holding(cef, "Real Estate Investment Trusts")
+        dec = decision("WATCHLIST", 50, new_money="WATCH")
+        dec["levels"] = {"valuation_target": None}
+        assert gd.unavailable_reason(dec, None, is_fund=True) == ""
+        assert "valuation inputs" in gd.unavailable_reason(dec, None, is_fund=False)
 
     def test_unknown_buying_power_fails_closed(self):
         g = gd.guide_position(pctx(), ctx(buying_power=None), decision())
@@ -312,6 +341,28 @@ class TestGuidance:
         assert items[1]["text"] == ("Holdings under a grade-F risk review (CCC and DDD) are 7.0% of the account "
                                     "and 11.0% of portfolio risk")
         assert items[2]["text"].startswith("Earnings: CCC today; BBB within 7 days")
+        # With the account total, the item says how far over the limit the sector is, in dollars.
+        items = gd.attention_items(rows, dict(metrics, total_value=40_000), an.PortfolioPolicy(), date(2026, 10, 21))
+        assert items[0]["text"] == "Technology is 48.0% of the account (QUANTA limit 30%), about $7,200 above it"
+        assert items[0]["excess_value"] == pytest.approx(7_200)
+
+    def test_a_concentration_trim_is_sized_to_the_target_not_cut_to_the_limit(self):
+        """Review 2026-10-30: cutting a winner past the review level all the way to 10% sold over half of it and realised
+        most of the gain; the suggested size is the 15% target, clear of the 20% trigger."""
+        pol = an.PortfolioPolicy()
+        assert pol.max_single_position < pol.trim_target_position < pol.trim_review_position
+        impacts = {"trim_to_target": {"delta_value": -7_500.0, "weight_after": 0.15, "shares": 25.0,
+                                      "gain": 5_000.0, "gain_long": 5_000.0, "gain_short": 0.0},
+                   "trim_to_review": {"delta_value": -2_500.0, "weight_after": 0.20, "shares": 8.33},
+                   "trim_to_cap": {"delta_value": -12_500.0, "weight_after": 0.10, "shares": 41.7}}
+        g = gd.guide_position(pctx(weight=0.225), ctx(), decision("WATCHLIST", 55, new_money="WATCH"), impacts=impacts)
+        assert g.action == "Trim" and g.basis["code"] == "CONCENTRATION"
+        assert g.next_step.startswith("Suggested trim: to 15% (sell about $7,500, 25.00 shares), clear of the 20% trigger.")
+        assert "Trimming to 15% realises about $5,000 of gain" in g.next_step
+        assert g.target["weight"] == 0.15 and "halfway between the 10% limit and the 20% review level" in g.target["basis"]
+        # Between the limit and the trigger, the key reason says what the limit does and does not do.
+        held = gd.guide_position(pctx(weight=0.11), ctx(), decision("WATCHLIST", 55, new_money="WATCH"))
+        assert held.action == "Hold" and held.key_reason.endswith("no new money (trims start at 20%)")
 
     @pytest.mark.parametrize("grade,last,action", [
         ("D", {"action": "Review Risk", "basis_code": "RISK_GRADE_F"}, "Review Risk"),

@@ -176,7 +176,7 @@ def whatifs():
         if g["action"] not in ("Trim", "Exit Review"):
             continue
         im = g.get("impact") or {}
-        opts = [None] + [im[k]["delta_value"] for k in ("trim_to_cap", "remove") if im.get(k)]
+        opts = [None] + [im[k]["delta_value"] for k in ("trim_to_target", "trim_to_cap", "remove") if im.get(k)]
         options.append([(r["symbol"], d) for d in opts])
     out = {}
     for combo in itertools.product(*options):

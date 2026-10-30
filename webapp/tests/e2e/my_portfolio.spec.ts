@@ -254,7 +254,7 @@ test.describe('My Portfolio', () => {
     await mockPortfolio(page, view);
     await openHoldings(page);
     // The limitation is stated once, in the one status line; tickers wait in the details.
-    await expect(page.locator('.hp-dq-lead')).toHaveText('1 of 8 quotes are delayed or unverified, so QUANTA gives that holding no call until prices refresh.');
+    await expect(page.locator('.hp-dq-lead')).toHaveText('1 of 8 quotes are out of date or unverified, so QUANTA gives that holding no call until prices refresh.');
     await expect(page.locator('.hp-dq-msg')).toContainText('more note');
     await expect(page.locator('.hp-issue-list')).toBeHidden();
     await page.locator('.hp-issues > summary').focus();
@@ -455,7 +455,7 @@ test.describe('My Portfolio', () => {
     await expect(alert).toContainText('start.ps1');
   });
 
-  test('six tabs: keyboard, deep links, and each tab keeps its own scroll', async ({ page }) => {
+  test('seven tabs: keyboard, deep links, and each tab keeps its own scroll', async ({ page }) => {
     await mockPortfolio(page);
     await openHoldings(page);
     const overview = page.locator('#view-holdings').getByRole('tab', { name: /^Overview/ });

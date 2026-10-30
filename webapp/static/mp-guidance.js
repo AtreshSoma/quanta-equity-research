@@ -27,9 +27,10 @@
       return H.decisionOrder(pf).filter((r) => ['Trim', 'Review Risk', 'Exit Review'].includes(r.guidance.action)).map((r) => {
         const im = r.guidance.impact || {};
         const opts = [{ k: 'keep', label: 'Keep', delta: null }];
+        if (im.trim_to_target && num(im.trim_to_target.delta_value) !== null) opts.push({ k: 'target', label: `To ${pct(im.trim_to_target.weight_after, 0)}`, delta: im.trim_to_target.delta_value, long: `Trim to ${pct(im.trim_to_target.weight_after, 0)}` });
         if (im.trim_to_cap && num(im.trim_to_cap.delta_value) !== null) opts.push({ k: 'trim', label: `To ${pct(im.trim_to_cap.weight_after, 0)}`, delta: im.trim_to_cap.delta_value, long: `Trim to ${pct(im.trim_to_cap.weight_after, 0)}` });
         if (im.remove && num(im.remove.delta_value) !== null) opts.push({ k: 'all', label: 'Sell all', delta: im.remove.delta_value, long: 'Sell in full' });
-        return { r, opts, sized: opts.some((o) => o.k === 'trim') };
+        return { r, opts, sized: opts.some((o) => o.k === 'trim' || o.k === 'target') };
       }).filter((x) => x.opts.length > 1);
     }
     const changesFor = (pf) => options(pf).map((x) => {
@@ -162,7 +163,7 @@
     Object.assign(X.actions, {
       wi(arg) {
         const [sym, k] = String(arg).split(':');
-        if (!sym || !['keep', 'trim', 'all'].includes(k)) return;
+        if (!sym || !['keep', 'target', 'trim', 'all'].includes(k)) return;
         ins.wi.choice[sym] = k;
         X.paintSlot('gd-whatif');
         const btn = typeof document !== 'undefined' && document.querySelector(`[data-hp-x="wi:${CSS.escape(sym)}:${k}"]`);

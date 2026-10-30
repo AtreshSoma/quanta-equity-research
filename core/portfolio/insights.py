@@ -19,6 +19,8 @@ from . import events as ev
 from . import exposure as ex
 from . import history as hs
 from . import plan as pl
+from . import profit_plan as pp
+from .analytics import PortfolioPolicy
 from .activity_config import ACTIVITY
 from .journal import DecisionJournal
 from .sources import load_official_calendar
@@ -362,6 +364,31 @@ class Insights:
         return out[:60]
 
     # -- outcomes -----------------------------------------------------------
+
+    def profit_plan(self) -> Dict[str, Any]:
+        """Profit stops, booking rules and tax-loss candidates for the holdings (profit_plan.py)."""
+        pf = self._pf()
+        if not pf:
+            return {"available": False, "reason": "Not connected."}
+        symbols = [h["symbol"] for h in self._holding_rows(pf)]
+        # The same price read as the performance chart, so the two share one cached download.
+        closes = self._prices(symbols + [BENCHMARK], "5y")
+        known = set(PortfolioPolicy.__dataclass_fields__)
+        policy = PortfolioPolicy(**{k: v for k, v in (pf.get("policy") or {}).items() if k in known})
+        ov = pf.get("overview") or {}
+        cash = ov.get("cash") if ov.get("cash") is not None else (pf.get("account") or {}).get("cash")
+        out = pp.build_profit_plan(pf.get("positions") or [], closes, policy, ov.get("total_value"), cash,
+                                   now_new_york(self._clock()).date())
+        notes = []
+        analysis = (pf.get("freshness") or {}).get("analysis") or {}
+        if out.get("available") and analysis.get("state") == "running":
+            notes.append(f"QUANTA is still analysing your holdings ({analysis.get('done') or 0} of "
+                         f"{analysis.get('total') or 0} done): funds and valuation targets fill in as it finishes.")
+        if out.get("available") and closes is None:
+            notes.append("Price history could not be loaded, so no profit stops are drawn; the size and tax rules still apply.")
+        if notes:
+            out["note"] = " ".join(notes)
+        return out
 
     def outcomes(self) -> Dict[str, Any]:
         hist = self._ledger()

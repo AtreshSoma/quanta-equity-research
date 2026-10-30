@@ -15,6 +15,7 @@ plus ``guidance``, the portfolio-context layer's reading of that Decision.
 """
 from __future__ import annotations
 
+import re
 import threading
 import time
 import uuid
@@ -431,6 +432,23 @@ def is_fund_result(res: Optional[Dict[str, Any]]) -> bool:
     return kind in FUND_INSTRUMENT_TYPES or kind == "ETN" or bool(res.get("is_etf") and kind != "INDEX")
 
 
+_BROKER_FUND_INDUSTRY = re.compile(r"investment trusts?\s*(?:/|or)\s*mutual funds?", re.I)
+_FUND_NAME = re.compile(r"\b(?:fund|etf|etn)\b", re.I)
+
+
+def is_fund_holding(res: Optional[Dict[str, Any]], broker_industry: Any = "") -> bool:
+    """A typed fund, or a closed-end fund the data provider types as EQUITY.
+
+    Closed-end and interval funds (e.g. a venture fund) come back from the price provider
+    as plain equities. Robinhood files them under "Investment Trusts/Mutual Funds" and the
+    name says Fund, so both together mark a fund; either alone does not (operating
+    companies such as asset managers share the industry, not the name)."""
+    if is_fund_result(res):
+        return True
+    name = str((res or {}).get("company_name") or (res or {}).get("long_name") or "")
+    return bool(_BROKER_FUND_INDUSTRY.search(str(broker_industry or "")) and _FUND_NAME.search(name))
+
+
 def _future_date(value: Any, today: Optional[date]) -> Optional[str]:
     """An ISO date that is today or later; a past "next earnings" date is stale, not upcoming."""
     if not value:
@@ -468,7 +486,7 @@ def _join_holdings(pf: Portfolio, analysis: Dict[str, Dict[str, Any]], today: Op
                            "earnings_date": str(earnings)[:10] if earnings else None,
                            "earnings_source": earnings_src, "beta": beta,
                            "beta_status": (res.get("risk") or {}).get("beta_status"), "stop": stop,
-                           "is_fund": is_fund_result(res),
+                           "is_fund": is_fund_holding(res, p.industry),
                            "risk_grade": str(dec.get("risk_grade") or "")}
         holdings.append(an.Holding(
             symbol=p.symbol, quantity=p.quantity, value=p.market_value, price=p.last_price,
@@ -701,6 +719,13 @@ def _impacts(holdings: List[an.Holding], total: float, cash: Optional[float], p,
         out["trim_to_review"] = dict(an.change_impact(holdings, total, cash, p.symbol, -cut),
                                      **_sale_detail(p, cut, today),
                                      basis=f"Selling down to the {policy.trim_review_position:.0%} review level")
+    if weight is not None and weight > policy.trim_review_position             and policy.max_single_position < policy.trim_target_position < policy.trim_review_position:
+        cut = p.market_value - policy.trim_target_position * total
+        out["trim_to_target"] = dict(an.change_impact(holdings, total, cash, p.symbol, -cut),
+                                     **_sale_detail(p, cut, today),
+                                     basis=f"Selling down to {policy.trim_target_position:.0%}, between the "
+                                           f"{policy.max_single_position:.0%} limit and the "
+                                           f"{policy.trim_review_position:.0%} review level")
     if weight is not None and weight > policy.max_single_position:
         cut = p.market_value - policy.max_single_position * total
         out["trim_to_cap"] = dict(an.change_impact(holdings, total, cash, p.symbol, -cut), **_sale_detail(p, cut, today),

@@ -101,7 +101,7 @@ test('Overview: KPI strip, performance beside allocation, holdings beside what d
   assert.match(risk.querySelector('.mprg').getAttribute('aria-label'), /6 of 9 points/);
   const tags = new Set([...ov.querySelectorAll('.hp-src')].map((e) => e.textContent));
   for (const t of ['Account data', 'Market data']) assert.ok(tags.has(t), t);
-  assert.match(words(ov.querySelector('.mp-week')), /^This week KO ex-dividend Wed · Employment Situation Fri News & Events$/);
+  assert.match(words(ov.querySelector('.mp-week')), /^Next 7 days KO ex-dividend Wed · Employment Situation Fri News & Events$/);
 });
 
 test('movers: best and worst three by session change, each opening its holding', () => {
@@ -203,10 +203,12 @@ test('the action queue: the three most urgent decisions, the impact of acting, a
   loaded();
   const q = panel(render('overview'), 'overview').querySelector('.mpo-queue');
   const items = [...q.querySelectorAll('.mpo-q')].map(words);
+  // Urgency follows the share of portfolio risk (review 2026-10-30); a concentration trim is
+  // sized to the 15% trim target, clear of the 20% trigger.
   assert.deepEqual(items, [
+    'High Trim NVDA 35.0% of the account, past the 20% review level 35.0% → 15.0% Review',
     "High Review whether to keep RIVN QUANTA score 29 is below 35, with a measured red flag: QUANTA's 12-month valuation target is below the price 3.9% Review",
-    'Medium Trim NVDA 35.0% of the account, past the 20% review level 35.0% → 10.0% Review',
-    'Medium Trim XOM QUANTA score 41 is in the reduce band (35 to 45) 8.5% Review']);
+    'Low Trim XOM QUANTA score 41 is in the reduce band (35 to 45) 8.5% Review']);
   assert.equal(words(q.querySelector('[data-hp-tab-go="guidance"]')), 'See all 3');
   // The same reason Guidance gives.
   const g = frag(hp.guidanceHtml(pf));
@@ -215,9 +217,9 @@ test('the action queue: the three most urgent decisions, the impact of acting, a
 
 test('guidance what-if: only the server-defined scenarios, previewed with the server’s own risk rule', () => {
   loaded();
-  assert.deepEqual(X.whatifOptions(pf).map((x) => `${x.r.symbol}:${x.opts.map((o) => o.k)}`), ['RIVN:keep,all', 'NVDA:keep,trim,all', 'XOM:keep,all']);
+  assert.deepEqual(X.whatifOptions(pf).map((x) => `${x.r.symbol}:${x.opts.map((o) => o.k)}`), ['RIVN:keep,all', 'NVDA:keep,target,trim,all', 'XOM:keep,all']);
   const ui = frag(X.whatifPanel(pf));
-  assert.deepEqual([...ui.querySelectorAll('[data-hp-x^="wi:NVDA:"]')].map(words), ['Keep', 'To 10%', 'Sell all']);
+  assert.deepEqual([...ui.querySelectorAll('[data-hp-x^="wi:NVDA:"]')].map(words), ['Keep', 'To 15%', 'To 10%', 'Sell all']);
   assert.match(words(ui.querySelector('.hp-fine')), /QUANTA sizes a trim only above the 10% single-name limit; for the other 2, selling in full is the outer bound/);
   const nv = pf.positions.find((r) => r.symbol === 'NVDA').guidance.impact.trim_to_cap.delta_value;
   const key = X.whatifKey([{ symbol: 'NVDA', delta_value: nv }]);
@@ -226,7 +228,11 @@ test('guidance what-if: only the server-defined scenarios, previewed with the se
   const prev = frag(X.slotRenderers['gd-wi-prev'](pf));
   assert.match(words(prev.body), /High → to Moderate Cash \$9,650 \(10\.7%\) → to \$32,326 \(35\.7%\) Top position NVDA 35\.0% → to AAPL 15\.1% Technology 59\.7% → to 34\.7%/);
   assert.match(words(prev.body), /Frees \$22,676 to cash/);
-  // The hero's effect on risk is the same computation.
+  // The hero's effect on risk is the same computation, for the hero's own (trim-target) size.
+  const tg = pf.positions.find((r) => r.symbol === 'NVDA').guidance.impact.trim_to_target.delta_value;
+  const tkey = X.whatifKey([{ symbol: 'NVDA', delta_value: tg }]);
+  assert.ok(I.whatif[tkey], 'the fixture recorded the trim-target size');
+  ins.wi.res[tkey] = clone(I.whatif[tkey]);
   assert.match(words(frag(X.slotRenderers['gd-hero-risk'](pf)).body), /^Risk High → to Moderate$/);
   hp._state.hidden = true;
   try { assert.doesNotMatch(words(frag(X.slotRenderers['gd-wi-prev'](pf)).body), /\$\d/); } finally { hp._state.hidden = false; }
@@ -435,7 +441,7 @@ test('News & Events: today and this week, each item says what, why, exposure and
   loaded();
   const nw = panel(render('news'), 'news');
   assert.deepEqual([...nw.querySelectorAll('.mpn-buckets .mpc-segb')].map(words), ['Today & this week 4', 'Later, to 31 days 5', 'Recent filings & news 3']);
-  assert.deepEqual([...nw.querySelectorAll('.mpn-group')].map(words), ['Today 2', 'This week 2']);
+  assert.deepEqual([...nw.querySelectorAll('.mpn-group')].map(words), ['Today 2', 'Next 7 days 2']);
   const items = [...nw.querySelectorAll('.mpn-item')];
   for (const it of items) {
     assert.deepEqual([...it.querySelectorAll('.mpn-4 dt')].map(words), ['Why it matters', 'Exposure', 'What to watch']);

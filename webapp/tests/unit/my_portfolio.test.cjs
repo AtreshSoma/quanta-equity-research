@@ -399,9 +399,9 @@ test('partial data and reconciliation mismatch are visible', () => {
   const dq = d.querySelector('.hp-dq');
   assert.ok(dq.classList.contains('is-warn'));
   // The quote limitation is the lead, stated once; tickers wait in the details.
-  assert.match(dq.querySelector('.hp-dq-lead').textContent, /^1 of 8 quotes are delayed or unverified, so QUANTA gives that holding no call until prices refresh\.$/);
+  assert.match(dq.querySelector('.hp-dq-lead').textContent, /^1 of 8 quotes are out of date or unverified, so QUANTA gives that holding no call until prices refresh\.$/);
   assert.match(dq.querySelector('.hp-dq-msg').textContent, /\d more notes?/);
-  assert.equal((d.body.textContent.match(/delayed or unverified/g) || []).length, 1);
+  assert.equal((d.body.textContent.match(/out of date or unverified/g) || []).length, 1);
   assert.equal(d.querySelector('details.hp-issues').open, false, 'technical record stays collapsed');
   assert.match(d.querySelector('.hp-issue-list').textContent, /Affected KO/);
   assert.match(d.querySelector('.hp-recon').textContent, /differ from Robinhood’s total by \$412\.50/);
@@ -416,9 +416,18 @@ test('market closure is not staleness: a last-session close reads as current', (
   pf.positions[0].broker.quote_freshness = { status: 'stale', text: 'From 2026-09-20' };
   const t = frag(hp.overviewHtml(pf));
   assert.ok(t.querySelector('.hp-dq.is-warn'));
-  assert.match(t.querySelector('.hp-dq-lead').textContent, /1 of 8 quotes are delayed or unverified/);
+  assert.match(t.querySelector('.hp-dq-lead').textContent, /1 of 8 quotes are out of date or unverified/);
   assert.match(t.querySelector('.hp-issue-list').textContent, /Affected RIVN \(from 2026-09-20\)/);
   assert.doesNotMatch(t.querySelector('.hp-dq-prices').textContent, /market closed/, 'a mixed-age book is not labelled as a clean close');
+});
+
+test('a delayed quote keeps its call: the note gives the price age, not "no call" (review 2026-10-30)', () => {
+  const pf = clone(fixture.portfolio);
+  pf.positions.forEach((r) => { r.broker.quote_freshness = { status: 'delayed', age_minutes: 25.4, text: 'Price from 2:22 PM ET, 25 min ago' }; });
+  const d = frag(hp.overviewHtml(pf));
+  assert.doesNotMatch(d.body.textContent, /no call until prices refresh/);
+  assert.match(d.body.textContent, /Prices are up to 25 min old; weights, today’s change and the calls use those prices/);
+  assert.equal(d.querySelector('.hp-dq.is-warn'), null, 'an older price is information, not a warning');
 });
 
 test('guidance tones avoid alarm red and the stylesheet stays within its rules', () => {
@@ -441,7 +450,9 @@ test('guidance tones avoid alarm red and the stylesheet stays within its rules',
     .replace(/--mp-lag: [^;]*;/g, '').replace(/--mpt-down: [^;]*;/g, '').replace(/--risk-high: var\(--bear\);/g, '')
     .replace(/\.mpb i\.is-down::before[^}]*}/g, '').replace(/\.mpo-div i\.is-up[^}]*} \.mpo-div i\.is-down[^}]*}/g, '')
     .replace(/\.mpo-cbar i\.is-down[^}]*}/g, '').replace(/\.mpd-tip td\.bull[^}]*} \.mpd-tip td\.bear[^}]*}/g, '')
-    .replace(/\.mpo-pin-t \.bull[^}]*} \.mpo-pin-t \.bear[^}]*}/g, '');
+    .replace(/\.mpo-pin-t \.bull[^}]*} \.mpo-pin-t \.bear[^}]*}/g, '')
+    // Profit plan: open losses (bars, legend key, loss figures) only.
+    .replace(/\.pp-(key\.is-loss|down|bar-l i\.is-loss|legs td\.pp-down) \{[^}]*}/g, '');
   assert.doesNotMatch(pnlOnly, /--bear/, 'only P&L direction uses red');
   assert.doesNotMatch(section, /backdrop-filter|violet|purple|!important|linear-gradient|radial-gradient/);
 });
@@ -464,12 +475,13 @@ test('guidance shows only decisions: the largest as the hero, the rest by severi
   assert.match(d.querySelector('.q-head-sub').textContent, /^3 need a decision · Not yet tested, all 7 calls · Analysis /);
   const hero = d.querySelector('.hp-hero');
   assert.match(words(hero.querySelector('.hp-hero-h')), /^NVDA Trim Model not yet validated 35\.0% of the account, past the 20% review level$/);
-  assert.match(words(hero.querySelector('.hp-hero-bars')), /Now 35\.0% After trim 10\.0% 10% limit 20% review/);
-  assert.match(words(hero.querySelector('.hp-hero-cash')), /^Cash freed \$22,676 at today’s prices, not an order$/);
-  assert.match(words(hero.querySelector('.hp-hero-fx')), /Largest position NVDA 35\.0% → to AAPL 15\.1% Technology 59\.7% → to 34\.7% Cash 10\.7% → to 35\.7%/);
-  // The trim is a range with shares and the gain it would realise, from the lots.
-  assert.match(hero.querySelector('.hp-hero-next').textContent, /^Position size · Trim range: to the 20% review level \(sell about \$13,619, 77\.25 shares\) or to the 10% single-name limit/);
-  assert.match(hero.querySelector('.hp-hero-next').textContent, /realises about \$14,805 of gain \(\$14,805 long-term, \$0 short-term if the oldest lots go first\)/);
+  assert.match(words(hero.querySelector('.hp-hero-bars')), /Now 35\.0% After trim 15\.0% 10% limit 20% review/);
+  // Sized to the 15% trim target (clear of the 20% trigger), not cut to the 10% limit.
+  assert.match(words(hero.querySelector('.hp-hero-cash')), /^Cash freed \$18,148 at today’s prices, not an order$/);
+  assert.match(words(hero.querySelector('.hp-hero-fx')), /Largest position NVDA 35\.0% → to AAPL 15\.1% Technology 59\.7% → to /);
+  // The suggested size first, then the range, with shares and the gain it would realise, from the lots.
+  assert.match(hero.querySelector('.hp-hero-next').textContent, /^Position size · Suggested trim: to 15% \(sell about \$18,148, [\d.]+ shares\), clear of the 20% trigger\. Range: to the 20% review level \(sell about \$13,619, 77\.25 shares\) or to the 10% single-name limit/);
+  assert.match(hero.querySelector('.hp-hero-next').textContent, /Trimming to 15% realises about \$[\d,]+ of gain \(\$[\d,]+ long-term, \$0 short-term if the oldest lots go first\)/);
   // The other decisions: a card per reason, the reason as its title and not repeated in the row.
   const cards = [...d.querySelectorAll('.hp-gc')];
   assert.deepEqual(cards.map((c) => c.querySelector('.hp-gc-t').textContent), [
@@ -504,7 +516,7 @@ test('new money on hold is grouped by reason; a shared data limitation is counte
   assert.match(words(t.querySelector('.hp-gc-h')), /^New money on hold 3 holdings$/);
   assert.deepEqual([...t.querySelectorAll('tr')].map(words), ['Over the 10% single-name limit AAPL', 'Sector over the 30% limit MSFT']);
   // The full reason travels with the ticker (tooltip and name), from the server's text.
-  assert.equal(t.querySelector('[data-hp-inspect="AAPL"]').getAttribute('title'), '15.1% of the account, over the 10% single-name limit');
+  assert.equal(t.querySelector('[data-hp-inspect="AAPL"]').getAttribute('title'), '15.1% of the account, over the 10% single-name limit: no new money (trims start at 20%)');
   // JNJ waits on a shared data limitation, which is stated once in the data status.
   assert.doesNotMatch(t.textContent, /JNJ|stop-risk coverage/);
   assert.match(words(t.querySelector('.hp-fine')), /^1 more waits on the account data noted in the data status\.$/);
@@ -560,13 +572,13 @@ test('the assessment restates published figures and adds no judgement of its own
   assert.match(words(frag(hp.assessmentHtml(calm)).body), /Concentrated: 4\.6 effective positions across 8 holdings; nothing is over QUANTA’s references\./);
 });
 
-test('six tabs, Guidance with its decision count, one selected, each controlling a labelled panel', () => {
+test('seven tabs, Guidance with its decision count, one selected, each controlling a labelled panel', () => {
   hp._state.tab = 'overview';
   const d = frag(hp.portfolioHtml(fixture));
   const tabs = [...d.querySelectorAll('[role="tablist"] [role="tab"]')];
-  assert.deepEqual(tabs.map(words), ['Overview', 'Holdings 8', 'Guidance 3', 'Activity', 'Review', 'News & events']);
-  assert.deepEqual(tabs.map((t) => t.getAttribute('aria-selected')), ['true', 'false', 'false', 'false', 'false', 'false']);
-  assert.deepEqual(tabs.map((t) => t.getAttribute('tabindex')), ['0', '-1', '-1', '-1', '-1', '-1']);
+  assert.deepEqual(tabs.map(words), ['Overview', 'Holdings 8', 'Guidance 3', 'Profit plan', 'Activity', 'Review', 'News & events']);
+  assert.deepEqual(tabs.map((t) => t.getAttribute('aria-selected')), ['true', 'false', 'false', 'false', 'false', 'false', 'false']);
+  assert.deepEqual(tabs.map((t) => t.getAttribute('tabindex')), ['0', '-1', '-1', '-1', '-1', '-1', '-1']);
   for (const t of tabs) {
     const p = d.getElementById(t.getAttribute('aria-controls'));
     assert.equal(p.getAttribute('role'), 'tabpanel');
@@ -624,7 +636,7 @@ test('an expanded recommendation separates outlook from action and states every 
     assert.ok(t.includes(part), part);
   }
   assert.match(t, /Bullish\s*score 77\/100/);
-  assert.match(t, /About 10\.0% if trimmed to the 10% single-name limit.*not a personal target/s);
+  assert.match(t, /About 15\.0% if trimmed to 15%.*not a personal target/s);
   assert.match(t, /QUANTA analysis Sep \d+/);
   const xom = [...d.querySelectorAll('.hp-gi')].find((el) => el.dataset.hpDisclosure === 'gi-XOM');
   assert.match(xom.textContent, /No target size: QUANTA does not size reductions/);

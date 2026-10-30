@@ -790,6 +790,10 @@ class RESEARCH(_Group):
 class PORTFOLIO(_Group):
     MAX_SINGLE_POSITION = 0.10      # no new money at or above this weight
     TRIM_REVIEW_POSITION = 0.20     # a HOLD this large is sent to trim review
+    # Where a concentration trim is sized to: halfway between the limit and the review
+    # level, so the position does not sit on the trigger and re-fire on the next rally,
+    # and the sale (and the gain it realises) is smaller than cutting to the limit.
+    TRIM_TARGET_POSITION = 0.15
     MAX_SECTOR = 0.30               # no new money into a sector at or above this
     CORRELATION_THRESHOLD = 0.70
     EARNINGS_WINDOW_DAYS = 7
@@ -820,6 +824,23 @@ class PORTFOLIO(_Group):
     OUTCOME_HORIZON_DAYS = 63       # trading days after a call before its outcome counts
     JOURNAL_RECENT_DAYS = 45        # Review lists call changes from this many calendar days
     DRAWDOWN_COMPARE_MARGIN = 0.02  # deepest-fall gap vs the benchmark worth calling out
+    # Profit plan (portfolio/profit_plan.py): mechanical rules for booking and protecting
+    # gains. They are standard trading rules of thumb, stated with their parameters; QUANTA
+    # has not validated them as an edge, and none of them is an order.
+    # An investor's stop, not a trader's: a month-high minus 3 daily moves (a classic
+    # Chandelier) sat inside one bad week and flagged most of a book on one sell-off day.
+    # A quarter's high minus 8 average daily moves is about two typical monthly swings.
+    PROFIT_TRAIL_SESSIONS = 63      # highest close and average daily move over about a quarter
+    PROFIT_TRAIL_MOVES = 8.0        # profit stop: that high minus this many average daily moves
+    PROFIT_PROTECT_MOVES = 2.0      # "near the stop": within this many average moves of it
+    PROFIT_STOP_SCALE_OUT = 0.5     # below the stop with a gain: book this share, reset the rest
+    PROFIT_RECOVER_COST_GAIN = 1.0  # up this much (100% = doubled): sell the original cost back out
+    PROFIT_VALUATION_SCALE_OUT = 1 / 3  # at or past QUANTA's 12-month valuation target: book a third
+    PROFIT_MIN_SALE_VALUE = 50.0    # smaller sales are not suggested
+    PROFIT_CHART_SESSIONS = 126     # about six months on each holding's chart
+    HARVEST_MIN_LOSS = 50.0         # an unrealised loss at least this many dollars ...
+    HARVEST_MIN_LOSS_PCT = 0.05     # ... and this deep is listed as a tax-loss candidate
+    WASH_SALE_DAYS = 30             # US wash-sale window either side of a loss sale
 
 
 # ── Chase alerts (audit A07) ─────────────────────────────────────────────────

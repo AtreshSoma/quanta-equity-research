@@ -11470,6 +11470,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -11478,6 +11479,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -11486,6 +11488,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -11494,6 +11497,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -11502,6 +11506,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -11510,12 +11515,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -11581,6 +11588,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -11589,6 +11597,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -11597,6 +11606,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -11605,6 +11615,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -11613,6 +11624,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -11621,12 +11633,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -11703,6 +11717,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -11711,6 +11726,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -11719,6 +11735,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -11727,6 +11744,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -11735,6 +11753,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -11743,12 +11762,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -11814,6 +11835,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -11822,6 +11844,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -11830,6 +11853,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -11838,6 +11862,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -11846,6 +11871,7 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
@@ -11854,12 +11880,14 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.0
      },
      {
       "sector": "Cash",
       "value": 17322.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.19124271330153683
      }
     ],
@@ -11873,6 +11901,503 @@
     "weights": {
      "AAPL": 0.15129835718071014,
      "NVDA": 0.35035771065182836,
+     "MSFT": 0.09527910263204381,
+     "KO": 0.0840399222752164,
+     "XOM": 0.0,
+     "RIVN": 0.03908320084790673,
+     "BRK.B": 0.06200317965023847,
+     "JNJ": 0.026695813460519344
+    },
+    "total_value": 90576.0
+   },
+   "basis": "Selling at today's prices, proceeds held as cash; the same rules as the portfolio view. Arithmetic, not orders."
+  },
+  "NVDA:-1814760": {
+   "available": true,
+   "changes": [
+    {
+     "symbol": "NVDA",
+     "delta_value": -18147.600000000006
+    }
+   ],
+   "freed": 18147.600000000006,
+   "before": {
+    "risk": {
+     "level": "High",
+     "points": 6,
+     "drivers": [
+      "Largest position is 35% of the portfolio",
+      "Technology is 60% of the portfolio",
+      "Holdings beta 1.30",
+      "Annualised volatility 22%"
+     ],
+     "note": "",
+     "partial": false,
+     "unmeasured": []
+    },
+    "concentration": {
+     "top": {
+      "symbol": "NVDA",
+      "weight": 0.35035771065182836
+     },
+     "top5_weight": 0.7656774421480305,
+     "hhi": 0.21927612581011233,
+     "effective_names": 4.560459996753021,
+     "over_cap": [
+      {
+       "symbol": "NVDA",
+       "weight": 0.35035771065182836
+      },
+      {
+       "symbol": "AAPL",
+       "weight": 0.15129835718071014
+      }
+     ],
+     "label": "Concentrated"
+    },
+    "sectors": [
+     {
+      "sector": "Technology",
+      "value": 54068.0,
+      "symbols": [
+       "AAPL",
+       "NVDA",
+       "MSFT"
+      ],
+      "fund": false,
+      "weight": 0.5969351704645822
+     },
+     {
+      "sector": "Energy",
+      "value": 7672.0,
+      "symbols": [
+       "XOM"
+      ],
+      "fund": false,
+      "weight": 0.08470234940823176
+     },
+     {
+      "sector": "Consumer Defensive",
+      "value": 7612.0,
+      "symbols": [
+       "KO"
+      ],
+      "fund": false,
+      "weight": 0.0840399222752164
+     },
+     {
+      "sector": "Unclassified",
+      "value": 5616.0,
+      "symbols": [
+       "BRK.B"
+      ],
+      "fund": false,
+      "weight": 0.06200317965023847
+     },
+     {
+      "sector": "Consumer Cyclical",
+      "value": 3540.0,
+      "symbols": [
+       "RIVN"
+      ],
+      "fund": false,
+      "weight": 0.03908320084790673
+     },
+     {
+      "sector": "Healthcare",
+      "value": 2418.0,
+      "symbols": [
+       "JNJ"
+      ],
+      "fund": false,
+      "weight": 0.026695813460519344
+     },
+     {
+      "sector": "Cash",
+      "value": 9650.0,
+      "symbols": [],
+      "fund": false,
+      "weight": 0.10654036389330507
+     }
+    ],
+    "cash": 9650.0,
+    "cash_weight": 0.10654036389330507,
+    "beta": {
+     "equity_beta": 1.2955331297304475,
+     "portfolio_beta": 1.1575065586531332,
+     "coverage": 0.9306032671823641
+    },
+    "weights": {
+     "AAPL": 0.15129835718071014,
+     "NVDA": 0.35035771065182836,
+     "MSFT": 0.09527910263204381,
+     "KO": 0.0840399222752164,
+     "XOM": 0.08470234940823176,
+     "RIVN": 0.03908320084790673,
+     "BRK.B": 0.06200317965023847,
+     "JNJ": 0.026695813460519344
+    },
+    "total_value": 90576.0
+   },
+   "after": {
+    "risk": {
+     "level": "Moderate",
+     "points": 3,
+     "drivers": [
+      "Largest position is 15% of the portfolio",
+      "Technology is 40% of the portfolio",
+      "Holdings beta 1.17"
+     ],
+     "note": "",
+     "partial": false,
+     "unmeasured": []
+    },
+    "concentration": {
+     "top": {
+      "symbol": "AAPL",
+      "weight": 0.15129835718071014
+     },
+     "top5_weight": 0.5653197314962021,
+     "hhi": 0.15568810903445424,
+     "effective_names": 6.423098117138137,
+     "over_cap": [
+      {
+       "symbol": "AAPL",
+       "weight": 0.15129835718071014
+      },
+      {
+       "symbol": "NVDA",
+       "weight": 0.14999999999999997
+      }
+     ],
+     "label": "Moderately diversified"
+    },
+    "sectors": [
+     {
+      "sector": "Technology",
+      "value": 35920.399999999994,
+      "symbols": [
+       "AAPL",
+       "NVDA",
+       "MSFT"
+      ],
+      "fund": false,
+      "weight": 0.3965774598127539
+     },
+     {
+      "sector": "Energy",
+      "value": 7672.0,
+      "symbols": [
+       "XOM"
+      ],
+      "fund": false,
+      "weight": 0.08470234940823176
+     },
+     {
+      "sector": "Consumer Defensive",
+      "value": 7612.0,
+      "symbols": [
+       "KO"
+      ],
+      "fund": false,
+      "weight": 0.0840399222752164
+     },
+     {
+      "sector": "Unclassified",
+      "value": 5616.0,
+      "symbols": [
+       "BRK.B"
+      ],
+      "fund": false,
+      "weight": 0.06200317965023847
+     },
+     {
+      "sector": "Consumer Cyclical",
+      "value": 3540.0,
+      "symbols": [
+       "RIVN"
+      ],
+      "fund": false,
+      "weight": 0.03908320084790673
+     },
+     {
+      "sector": "Healthcare",
+      "value": 2418.0,
+      "symbols": [
+       "JNJ"
+      ],
+      "fund": false,
+      "weight": 0.026695813460519344
+     },
+     {
+      "sector": "Cash",
+      "value": 27797.600000000006,
+      "symbols": [],
+      "fund": false,
+      "weight": 0.30689807454513346
+     }
+    ],
+    "cash": 27797.600000000006,
+    "cash_weight": 0.30689807454513346,
+    "beta": {
+     "equity_beta": 1.1671252431668369,
+     "portfolio_beta": 0.8089367532859141,
+     "coverage": 0.9105424795789635
+    },
+    "weights": {
+     "AAPL": 0.15129835718071014,
+     "NVDA": 0.14999999999999997,
+     "MSFT": 0.09527910263204381,
+     "KO": 0.0840399222752164,
+     "XOM": 0.08470234940823176,
+     "RIVN": 0.03908320084790673,
+     "BRK.B": 0.06200317965023847,
+     "JNJ": 0.026695813460519344
+    },
+    "total_value": 90576.0
+   },
+   "basis": "Selling at today's prices, proceeds held as cash; the same rules as the portfolio view. Arithmetic, not orders."
+  },
+  "NVDA:-1814760,XOM:-767200": {
+   "available": true,
+   "changes": [
+    {
+     "symbol": "NVDA",
+     "delta_value": -18147.600000000006
+    },
+    {
+     "symbol": "XOM",
+     "delta_value": -7672.0
+    }
+   ],
+   "freed": 25819.600000000006,
+   "before": {
+    "risk": {
+     "level": "High",
+     "points": 6,
+     "drivers": [
+      "Largest position is 35% of the portfolio",
+      "Technology is 60% of the portfolio",
+      "Holdings beta 1.30",
+      "Annualised volatility 22%"
+     ],
+     "note": "",
+     "partial": false,
+     "unmeasured": []
+    },
+    "concentration": {
+     "top": {
+      "symbol": "NVDA",
+      "weight": 0.35035771065182836
+     },
+     "top5_weight": 0.7656774421480305,
+     "hhi": 0.21927612581011233,
+     "effective_names": 4.560459996753021,
+     "over_cap": [
+      {
+       "symbol": "NVDA",
+       "weight": 0.35035771065182836
+      },
+      {
+       "symbol": "AAPL",
+       "weight": 0.15129835718071014
+      }
+     ],
+     "label": "Concentrated"
+    },
+    "sectors": [
+     {
+      "sector": "Technology",
+      "value": 54068.0,
+      "symbols": [
+       "AAPL",
+       "NVDA",
+       "MSFT"
+      ],
+      "fund": false,
+      "weight": 0.5969351704645822
+     },
+     {
+      "sector": "Energy",
+      "value": 7672.0,
+      "symbols": [
+       "XOM"
+      ],
+      "fund": false,
+      "weight": 0.08470234940823176
+     },
+     {
+      "sector": "Consumer Defensive",
+      "value": 7612.0,
+      "symbols": [
+       "KO"
+      ],
+      "fund": false,
+      "weight": 0.0840399222752164
+     },
+     {
+      "sector": "Unclassified",
+      "value": 5616.0,
+      "symbols": [
+       "BRK.B"
+      ],
+      "fund": false,
+      "weight": 0.06200317965023847
+     },
+     {
+      "sector": "Consumer Cyclical",
+      "value": 3540.0,
+      "symbols": [
+       "RIVN"
+      ],
+      "fund": false,
+      "weight": 0.03908320084790673
+     },
+     {
+      "sector": "Healthcare",
+      "value": 2418.0,
+      "symbols": [
+       "JNJ"
+      ],
+      "fund": false,
+      "weight": 0.026695813460519344
+     },
+     {
+      "sector": "Cash",
+      "value": 9650.0,
+      "symbols": [],
+      "fund": false,
+      "weight": 0.10654036389330507
+     }
+    ],
+    "cash": 9650.0,
+    "cash_weight": 0.10654036389330507,
+    "beta": {
+     "equity_beta": 1.2955331297304475,
+     "portfolio_beta": 1.1575065586531332,
+     "coverage": 0.9306032671823641
+    },
+    "weights": {
+     "AAPL": 0.15129835718071014,
+     "NVDA": 0.35035771065182836,
+     "MSFT": 0.09527910263204381,
+     "KO": 0.0840399222752164,
+     "XOM": 0.08470234940823176,
+     "RIVN": 0.03908320084790673,
+     "BRK.B": 0.06200317965023847,
+     "JNJ": 0.026695813460519344
+    },
+    "total_value": 90576.0
+   },
+   "after": {
+    "risk": {
+     "level": "Elevated",
+     "points": 4,
+     "drivers": [
+      "Largest position is 15% of the portfolio",
+      "Technology is 40% of the portfolio",
+      "Holdings beta 1.21",
+      "Annualised volatility 21%"
+     ],
+     "note": "",
+     "partial": false,
+     "unmeasured": []
+    },
+    "concentration": {
+     "top": {
+      "symbol": "AAPL",
+      "weight": 0.15129835718071014
+     },
+     "top5_weight": 0.5426205617382088,
+     "hhi": 0.18267339751315032,
+     "effective_names": 5.474250841193293,
+     "over_cap": [
+      {
+       "symbol": "AAPL",
+       "weight": 0.15129835718071014
+      },
+      {
+       "symbol": "NVDA",
+       "weight": 0.14999999999999997
+      }
+     ],
+     "label": "Moderately diversified"
+    },
+    "sectors": [
+     {
+      "sector": "Technology",
+      "value": 35920.399999999994,
+      "symbols": [
+       "AAPL",
+       "NVDA",
+       "MSFT"
+      ],
+      "fund": false,
+      "weight": 0.3965774598127539
+     },
+     {
+      "sector": "Consumer Defensive",
+      "value": 7612.0,
+      "symbols": [
+       "KO"
+      ],
+      "fund": false,
+      "weight": 0.0840399222752164
+     },
+     {
+      "sector": "Unclassified",
+      "value": 5616.0,
+      "symbols": [
+       "BRK.B"
+      ],
+      "fund": false,
+      "weight": 0.06200317965023847
+     },
+     {
+      "sector": "Consumer Cyclical",
+      "value": 3540.0,
+      "symbols": [
+       "RIVN"
+      ],
+      "fund": false,
+      "weight": 0.03908320084790673
+     },
+     {
+      "sector": "Healthcare",
+      "value": 2418.0,
+      "symbols": [
+       "JNJ"
+      ],
+      "fund": false,
+      "weight": 0.026695813460519344
+     },
+     {
+      "sector": "Energy",
+      "value": 0.0,
+      "symbols": [
+       "XOM"
+      ],
+      "fund": false,
+      "weight": 0.0
+     },
+     {
+      "sector": "Cash",
+      "value": 35469.600000000006,
+      "symbols": [],
+      "fund": false,
+      "weight": 0.3916004239533652
+     }
+    ],
+    "cash": 35469.600000000006,
+    "cash_weight": 0.3916004239533652,
+    "beta": {
+     "equity_beta": 1.2085349886038506,
+     "portfolio_beta": 0.7352721747041073,
+     "coverage": 0.8980880623666216
+    },
+    "weights": {
+     "AAPL": 0.15129835718071014,
+     "NVDA": 0.14999999999999997,
      "MSFT": 0.09527910263204381,
      "KO": 0.0840399222752164,
      "XOM": 0.0,
@@ -11936,6 +12461,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -11944,6 +12470,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -11952,6 +12479,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -11960,6 +12488,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -11968,6 +12497,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -11976,12 +12506,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -12046,6 +12578,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.34657745981275395
      },
      {
@@ -12054,6 +12587,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -12062,6 +12596,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -12070,6 +12605,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -12078,6 +12614,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -12086,12 +12623,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 32326.4,
       "symbols": [],
+      "fund": false,
       "weight": 0.3568980745451334
      }
     ],
@@ -12172,6 +12711,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -12180,6 +12720,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -12188,6 +12729,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -12196,6 +12738,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -12204,6 +12747,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -12212,12 +12756,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -12283,6 +12829,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.34657745981275395
      },
      {
@@ -12291,6 +12838,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -12299,6 +12847,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -12307,6 +12856,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -12315,6 +12865,7 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
@@ -12323,12 +12874,14 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.0
      },
      {
       "sector": "Cash",
       "value": 39998.4,
       "symbols": [],
+      "fund": false,
       "weight": 0.44160042395336513
      }
     ],
@@ -12405,6 +12958,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -12413,6 +12967,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -12421,6 +12976,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -12429,6 +12985,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -12437,6 +12994,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -12445,12 +13003,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -12509,6 +13069,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.24657745981275392
      },
      {
@@ -12517,6 +13078,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -12525,6 +13087,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -12533,6 +13096,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -12541,6 +13105,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -12549,12 +13114,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 41384.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.45689807454513337
      }
     ],
@@ -12635,6 +13202,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -12643,6 +13211,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -12651,6 +13220,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -12659,6 +13229,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -12667,6 +13238,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -12675,12 +13247,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -12739,6 +13313,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.24657745981275392
      },
      {
@@ -12747,6 +13322,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -12755,6 +13331,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -12763,6 +13340,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -12771,6 +13349,7 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
@@ -12779,12 +13358,14 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.0
      },
      {
       "sector": "Cash",
       "value": 49056.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.5416004239533652
      }
     ],
@@ -12861,6 +13442,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -12869,6 +13451,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -12877,6 +13460,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -12885,6 +13469,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -12893,6 +13478,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -12901,12 +13487,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -12972,6 +13560,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -12980,6 +13569,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -12988,6 +13578,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -12996,6 +13587,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -13004,6 +13596,7 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
@@ -13012,12 +13605,14 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.0
      },
      {
       "sector": "Cash",
       "value": 13190.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.1456235647412118
      }
     ],
@@ -13098,6 +13693,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -13106,6 +13702,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -13114,6 +13711,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -13122,6 +13720,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -13130,6 +13729,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -13138,12 +13738,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -13209,6 +13811,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -13217,6 +13820,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -13225,6 +13829,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -13233,6 +13838,7 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
@@ -13241,6 +13847,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.0
      },
      {
@@ -13249,12 +13856,14 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.0
      },
      {
       "sector": "Cash",
       "value": 20862.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.23032591414944356
      }
     ],
@@ -13268,6 +13877,511 @@
     "weights": {
      "AAPL": 0.15129835718071014,
      "NVDA": 0.35035771065182836,
+     "MSFT": 0.09527910263204381,
+     "KO": 0.0840399222752164,
+     "XOM": 0.0,
+     "RIVN": 0.0,
+     "BRK.B": 0.06200317965023847,
+     "JNJ": 0.026695813460519344
+    },
+    "total_value": 90576.0
+   },
+   "basis": "Selling at today's prices, proceeds held as cash; the same rules as the portfolio view. Arithmetic, not orders."
+  },
+  "NVDA:-1814760,RIVN:-354000": {
+   "available": true,
+   "changes": [
+    {
+     "symbol": "RIVN",
+     "delta_value": -3540.0
+    },
+    {
+     "symbol": "NVDA",
+     "delta_value": -18147.600000000006
+    }
+   ],
+   "freed": 21687.600000000006,
+   "before": {
+    "risk": {
+     "level": "High",
+     "points": 6,
+     "drivers": [
+      "Largest position is 35% of the portfolio",
+      "Technology is 60% of the portfolio",
+      "Holdings beta 1.30",
+      "Annualised volatility 22%"
+     ],
+     "note": "",
+     "partial": false,
+     "unmeasured": []
+    },
+    "concentration": {
+     "top": {
+      "symbol": "NVDA",
+      "weight": 0.35035771065182836
+     },
+     "top5_weight": 0.7656774421480305,
+     "hhi": 0.21927612581011233,
+     "effective_names": 4.560459996753021,
+     "over_cap": [
+      {
+       "symbol": "NVDA",
+       "weight": 0.35035771065182836
+      },
+      {
+       "symbol": "AAPL",
+       "weight": 0.15129835718071014
+      }
+     ],
+     "label": "Concentrated"
+    },
+    "sectors": [
+     {
+      "sector": "Technology",
+      "value": 54068.0,
+      "symbols": [
+       "AAPL",
+       "NVDA",
+       "MSFT"
+      ],
+      "fund": false,
+      "weight": 0.5969351704645822
+     },
+     {
+      "sector": "Energy",
+      "value": 7672.0,
+      "symbols": [
+       "XOM"
+      ],
+      "fund": false,
+      "weight": 0.08470234940823176
+     },
+     {
+      "sector": "Consumer Defensive",
+      "value": 7612.0,
+      "symbols": [
+       "KO"
+      ],
+      "fund": false,
+      "weight": 0.0840399222752164
+     },
+     {
+      "sector": "Unclassified",
+      "value": 5616.0,
+      "symbols": [
+       "BRK.B"
+      ],
+      "fund": false,
+      "weight": 0.06200317965023847
+     },
+     {
+      "sector": "Consumer Cyclical",
+      "value": 3540.0,
+      "symbols": [
+       "RIVN"
+      ],
+      "fund": false,
+      "weight": 0.03908320084790673
+     },
+     {
+      "sector": "Healthcare",
+      "value": 2418.0,
+      "symbols": [
+       "JNJ"
+      ],
+      "fund": false,
+      "weight": 0.026695813460519344
+     },
+     {
+      "sector": "Cash",
+      "value": 9650.0,
+      "symbols": [],
+      "fund": false,
+      "weight": 0.10654036389330507
+     }
+    ],
+    "cash": 9650.0,
+    "cash_weight": 0.10654036389330507,
+    "beta": {
+     "equity_beta": 1.2955331297304475,
+     "portfolio_beta": 1.1575065586531332,
+     "coverage": 0.9306032671823641
+    },
+    "weights": {
+     "AAPL": 0.15129835718071014,
+     "NVDA": 0.35035771065182836,
+     "MSFT": 0.09527910263204381,
+     "KO": 0.0840399222752164,
+     "XOM": 0.08470234940823176,
+     "RIVN": 0.03908320084790673,
+     "BRK.B": 0.06200317965023847,
+     "JNJ": 0.026695813460519344
+    },
+    "total_value": 90576.0
+   },
+   "after": {
+    "risk": {
+     "level": "Moderate",
+     "points": 3,
+     "drivers": [
+      "Largest position is 15% of the portfolio",
+      "Technology is 40% of the portfolio",
+      "Holdings beta 1.12"
+     ],
+     "note": "",
+     "partial": false,
+     "unmeasured": []
+    },
+    "concentration": {
+     "top": {
+      "symbol": "AAPL",
+      "weight": 0.15129835718071014
+     },
+     "top5_weight": 0.5653197314962021,
+     "hhi": 0.17128038823811942,
+     "effective_names": 5.83838004039183,
+     "over_cap": [
+      {
+       "symbol": "AAPL",
+       "weight": 0.15129835718071014
+      },
+      {
+       "symbol": "NVDA",
+       "weight": 0.14999999999999997
+      }
+     ],
+     "label": "Moderately diversified"
+    },
+    "sectors": [
+     {
+      "sector": "Technology",
+      "value": 35920.399999999994,
+      "symbols": [
+       "AAPL",
+       "NVDA",
+       "MSFT"
+      ],
+      "fund": false,
+      "weight": 0.3965774598127539
+     },
+     {
+      "sector": "Energy",
+      "value": 7672.0,
+      "symbols": [
+       "XOM"
+      ],
+      "fund": false,
+      "weight": 0.08470234940823176
+     },
+     {
+      "sector": "Consumer Defensive",
+      "value": 7612.0,
+      "symbols": [
+       "KO"
+      ],
+      "fund": false,
+      "weight": 0.0840399222752164
+     },
+     {
+      "sector": "Unclassified",
+      "value": 5616.0,
+      "symbols": [
+       "BRK.B"
+      ],
+      "fund": false,
+      "weight": 0.06200317965023847
+     },
+     {
+      "sector": "Healthcare",
+      "value": 2418.0,
+      "symbols": [
+       "JNJ"
+      ],
+      "fund": false,
+      "weight": 0.026695813460519344
+     },
+     {
+      "sector": "Consumer Cyclical",
+      "value": 0.0,
+      "symbols": [
+       "RIVN"
+      ],
+      "fund": false,
+      "weight": 0.0
+     },
+     {
+      "sector": "Cash",
+      "value": 31337.600000000006,
+      "symbols": [],
+      "fund": false,
+      "weight": 0.3459812753930402
+     }
+    ],
+    "cash": 31337.600000000006,
+    "cash_weight": 0.3459812753930402,
+    "beta": {
+     "equity_beta": 1.1187429134093214,
+     "portfolio_beta": 0.7316788133910389,
+     "coverage": 0.9051966292134831
+    },
+    "weights": {
+     "AAPL": 0.15129835718071014,
+     "NVDA": 0.14999999999999997,
+     "MSFT": 0.09527910263204381,
+     "KO": 0.0840399222752164,
+     "XOM": 0.08470234940823176,
+     "RIVN": 0.0,
+     "BRK.B": 0.06200317965023847,
+     "JNJ": 0.026695813460519344
+    },
+    "total_value": 90576.0
+   },
+   "basis": "Selling at today's prices, proceeds held as cash; the same rules as the portfolio view. Arithmetic, not orders."
+  },
+  "NVDA:-1814760,RIVN:-354000,XOM:-767200": {
+   "available": true,
+   "changes": [
+    {
+     "symbol": "RIVN",
+     "delta_value": -3540.0
+    },
+    {
+     "symbol": "NVDA",
+     "delta_value": -18147.600000000006
+    },
+    {
+     "symbol": "XOM",
+     "delta_value": -7672.0
+    }
+   ],
+   "freed": 29359.600000000006,
+   "before": {
+    "risk": {
+     "level": "High",
+     "points": 6,
+     "drivers": [
+      "Largest position is 35% of the portfolio",
+      "Technology is 60% of the portfolio",
+      "Holdings beta 1.30",
+      "Annualised volatility 22%"
+     ],
+     "note": "",
+     "partial": false,
+     "unmeasured": []
+    },
+    "concentration": {
+     "top": {
+      "symbol": "NVDA",
+      "weight": 0.35035771065182836
+     },
+     "top5_weight": 0.7656774421480305,
+     "hhi": 0.21927612581011233,
+     "effective_names": 4.560459996753021,
+     "over_cap": [
+      {
+       "symbol": "NVDA",
+       "weight": 0.35035771065182836
+      },
+      {
+       "symbol": "AAPL",
+       "weight": 0.15129835718071014
+      }
+     ],
+     "label": "Concentrated"
+    },
+    "sectors": [
+     {
+      "sector": "Technology",
+      "value": 54068.0,
+      "symbols": [
+       "AAPL",
+       "NVDA",
+       "MSFT"
+      ],
+      "fund": false,
+      "weight": 0.5969351704645822
+     },
+     {
+      "sector": "Energy",
+      "value": 7672.0,
+      "symbols": [
+       "XOM"
+      ],
+      "fund": false,
+      "weight": 0.08470234940823176
+     },
+     {
+      "sector": "Consumer Defensive",
+      "value": 7612.0,
+      "symbols": [
+       "KO"
+      ],
+      "fund": false,
+      "weight": 0.0840399222752164
+     },
+     {
+      "sector": "Unclassified",
+      "value": 5616.0,
+      "symbols": [
+       "BRK.B"
+      ],
+      "fund": false,
+      "weight": 0.06200317965023847
+     },
+     {
+      "sector": "Consumer Cyclical",
+      "value": 3540.0,
+      "symbols": [
+       "RIVN"
+      ],
+      "fund": false,
+      "weight": 0.03908320084790673
+     },
+     {
+      "sector": "Healthcare",
+      "value": 2418.0,
+      "symbols": [
+       "JNJ"
+      ],
+      "fund": false,
+      "weight": 0.026695813460519344
+     },
+     {
+      "sector": "Cash",
+      "value": 9650.0,
+      "symbols": [],
+      "fund": false,
+      "weight": 0.10654036389330507
+     }
+    ],
+    "cash": 9650.0,
+    "cash_weight": 0.10654036389330507,
+    "beta": {
+     "equity_beta": 1.2955331297304475,
+     "portfolio_beta": 1.1575065586531332,
+     "coverage": 0.9306032671823641
+    },
+    "weights": {
+     "AAPL": 0.15129835718071014,
+     "NVDA": 0.35035771065182836,
+     "MSFT": 0.09527910263204381,
+     "KO": 0.0840399222752164,
+     "XOM": 0.08470234940823176,
+     "RIVN": 0.03908320084790673,
+     "BRK.B": 0.06200317965023847,
+     "JNJ": 0.026695813460519344
+    },
+    "total_value": 90576.0
+   },
+   "after": {
+    "risk": {
+     "level": "Elevated",
+     "points": 4,
+     "drivers": [
+      "Largest position is 15% of the portfolio",
+      "Technology is 40% of the portfolio",
+      "Holdings beta 1.16",
+      "Annualised volatility 21%"
+     ],
+     "note": "",
+     "partial": false,
+     "unmeasured": []
+    },
+    "concentration": {
+     "top": {
+      "symbol": "AAPL",
+      "weight": 0.15129835718071014
+     },
+     "top5_weight": 0.5426205617382088,
+     "hhi": 0.20390237603258296,
+     "effective_names": 4.9043077351889375,
+     "over_cap": [
+      {
+       "symbol": "AAPL",
+       "weight": 0.15129835718071014
+      },
+      {
+       "symbol": "NVDA",
+       "weight": 0.14999999999999997
+      }
+     ],
+     "label": "Concentrated"
+    },
+    "sectors": [
+     {
+      "sector": "Technology",
+      "value": 35920.399999999994,
+      "symbols": [
+       "AAPL",
+       "NVDA",
+       "MSFT"
+      ],
+      "fund": false,
+      "weight": 0.3965774598127539
+     },
+     {
+      "sector": "Consumer Defensive",
+      "value": 7612.0,
+      "symbols": [
+       "KO"
+      ],
+      "fund": false,
+      "weight": 0.0840399222752164
+     },
+     {
+      "sector": "Unclassified",
+      "value": 5616.0,
+      "symbols": [
+       "BRK.B"
+      ],
+      "fund": false,
+      "weight": 0.06200317965023847
+     },
+     {
+      "sector": "Healthcare",
+      "value": 2418.0,
+      "symbols": [
+       "JNJ"
+      ],
+      "fund": false,
+      "weight": 0.026695813460519344
+     },
+     {
+      "sector": "Energy",
+      "value": 0.0,
+      "symbols": [
+       "XOM"
+      ],
+      "fund": false,
+      "weight": 0.0
+     },
+     {
+      "sector": "Consumer Cyclical",
+      "value": 0.0,
+      "symbols": [
+       "RIVN"
+      ],
+      "fund": false,
+      "weight": 0.0
+     },
+     {
+      "sector": "Cash",
+      "value": 39009.600000000006,
+      "symbols": [],
+      "fund": false,
+      "weight": 0.4306836248012719
+     }
+    ],
+    "cash": 39009.600000000006,
+    "cash_weight": 0.4306836248012719,
+    "beta": {
+     "equity_beta": 1.1552648072704483,
+     "portfolio_beta": 0.6577111724698689,
+     "coverage": 0.8910918737782743
+    },
+    "weights": {
+     "AAPL": 0.15129835718071014,
+     "NVDA": 0.14999999999999997,
      "MSFT": 0.09527910263204381,
      "KO": 0.0840399222752164,
      "XOM": 0.0,
@@ -13335,6 +14449,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -13343,6 +14458,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -13351,6 +14467,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -13359,6 +14476,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -13367,6 +14485,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -13375,12 +14494,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -13444,6 +14565,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.34657745981275395
      },
      {
@@ -13452,6 +14574,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -13460,6 +14583,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -13468,6 +14592,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -13476,6 +14601,7 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
@@ -13484,12 +14610,14 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.0
      },
      {
       "sector": "Cash",
       "value": 35866.4,
       "symbols": [],
+      "fund": false,
       "weight": 0.3959812753930401
      }
     ],
@@ -13574,6 +14702,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -13582,6 +14711,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -13590,6 +14720,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -13598,6 +14729,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -13606,6 +14738,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -13614,12 +14747,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -13684,6 +14819,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.34657745981275395
      },
      {
@@ -13692,6 +14828,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -13700,6 +14837,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -13708,6 +14846,7 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
@@ -13716,6 +14855,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.0
      },
      {
@@ -13724,12 +14864,14 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.0
      },
      {
       "sector": "Cash",
       "value": 43538.4,
       "symbols": [],
+      "fund": false,
       "weight": 0.48068362480127186
      }
     ],
@@ -13810,6 +14952,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -13818,6 +14961,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -13826,6 +14970,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -13834,6 +14979,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -13842,6 +14988,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -13850,12 +14997,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -13914,6 +15063,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.24657745981275392
      },
      {
@@ -13922,6 +15072,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -13930,6 +15081,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -13938,6 +15090,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -13946,6 +15099,7 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
@@ -13954,12 +15108,14 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.0
      },
      {
       "sector": "Cash",
       "value": 44924.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.4959812753930401
      }
     ],
@@ -14044,6 +15200,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.5969351704645822
      },
      {
@@ -14052,6 +15209,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.08470234940823176
      },
      {
@@ -14060,6 +15218,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -14068,6 +15227,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -14076,6 +15236,7 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.03908320084790673
      },
      {
@@ -14084,12 +15245,14 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
       "sector": "Cash",
       "value": 9650.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.10654036389330507
      }
     ],
@@ -14148,6 +15311,7 @@
        "NVDA",
        "MSFT"
       ],
+      "fund": false,
       "weight": 0.24657745981275392
      },
      {
@@ -14156,6 +15320,7 @@
       "symbols": [
        "KO"
       ],
+      "fund": false,
       "weight": 0.0840399222752164
      },
      {
@@ -14164,6 +15329,7 @@
       "symbols": [
        "BRK.B"
       ],
+      "fund": false,
       "weight": 0.06200317965023847
      },
      {
@@ -14172,6 +15338,7 @@
       "symbols": [
        "JNJ"
       ],
+      "fund": false,
       "weight": 0.026695813460519344
      },
      {
@@ -14180,6 +15347,7 @@
       "symbols": [
        "XOM"
       ],
+      "fund": false,
       "weight": 0.0
      },
      {
@@ -14188,12 +15356,14 @@
       "symbols": [
        "RIVN"
       ],
+      "fund": false,
       "weight": 0.0
      },
      {
       "sector": "Cash",
       "value": 52596.0,
       "symbols": [],
+      "fund": false,
       "weight": 0.5806836248012719
      }
     ],

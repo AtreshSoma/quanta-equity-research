@@ -154,14 +154,30 @@
     X.slotRenderers['movers-overview'] = moversInner;
 
     // ------------------------------------------------------------ action queue
-    const URGENCY = { 'Exit Review': ['High', 'high'], Trim: ['Medium', 'med'], 'Review Risk': ['Medium', 'med'], Accumulate: ['Low', 'low'] };
+    // Urgency follows how much of the portfolio's risk the holding carries, not the
+    // action type alone: a trim on a fifth of the risk outranks a review of a 2% name.
+    const RISK_SHARE_HIGH = 0.15;
+    const RISK_SHARE_MED = 0.05;
+    const URGENCY_RANK = { High: 0, Medium: 1, Low: 2 };
+    function urgencyOf(r, pol) {
+      const a = r.guidance.action;
+      if (a === 'Exit Review') return ['High', 'high'];
+      if (a === 'Accumulate') return ['Low', 'low'];
+      const share = num(r.risk_share);
+      const w = num(r.broker.weight);
+      const review = num(pol.trim_review_position);
+      if ((share !== null && share >= RISK_SHARE_HIGH) || (w !== null && review !== null && w >= review)) return ['High', 'high'];
+      if (share === null || share >= RISK_SHARE_MED) return ['Medium', 'med'];
+      return ['Low', 'low'];
+    }
     const VERB = { 'Exit Review': 'Review whether to keep', Trim: 'Trim', 'Review Risk': 'Review the size of', Accumulate: 'Consider adding to' };
     function queueInner(pf) {
-      const rows = H.decisionOrder(pf);
       const pol = pf.policy || {};
+      const rank = (r) => URGENCY_RANK[urgencyOf(r, pol)[0]];
+      const rows = H.decisionOrder(pf).slice().sort((a, b) => rank(a) - rank(b) || (num(b.risk_share) || 0) - (num(a.risk_share) || 0));
       const body = rows.slice(0, 3).map((r) => {
         const d = H.decisionSummary(r);
-        const [u, cls] = URGENCY[r.guidance.action] || ['Low', 'low'];
+        const [u, cls] = urgencyOf(r, pol);
         const w = num(r.broker.weight);
         return `<li class="mpo-q" data-sym="${esc(r.symbol)}"><span class="mpo-u mpo-u--${cls}">${u}</span>
           <span class="mpo-q-t"><b>${esc(VERB[r.guidance.action] || r.guidance.action)} <button type="button" class="mpo-sym" data-hp-inspect="${esc(r.symbol)}" aria-label="${esc(`${r.symbol} details`)}">${esc(r.symbol)}</button></b><span>${esc(d.reason)}</span></span>

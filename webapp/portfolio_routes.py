@@ -12,6 +12,7 @@ Routes (all under /api/portfolio):
     GET  /diagnostics     live tool schemas and payload shapes (no values)
     GET  /performance     simulation / ledger performance, attribution, markers
     GET  /intraday        today's holdings over the latest session's 5-minute bars (simulation)
+    GET  /profit-plan     profit stops, booking rules, tax-loss candidates and sector paths
     POST /whatif          metrics after selling some holdings to cash (same rules as the view)
     GET  /outcomes        trade outcomes and recommendation outcomes (kept separate)
     POST /exposure        Sector / Asset class / Geography / Holdings views
@@ -233,6 +234,11 @@ def _guarded(fn, *args):
 @bp.get("/performance")
 def performance():
     return _guarded(_insights().performance)
+
+
+@bp.get("/profit-plan")
+def profit_plan():
+    return _guarded(_insights().profit_plan)
 
 
 @bp.get("/intraday")

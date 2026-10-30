@@ -503,7 +503,7 @@
       const body = shown.length
         ? shown.map((i) => `<b>${esc(i.title.replace(/ reports earnings$/, ' earnings').replace(/ goes ex-dividend$/, ' ex-dividend').replace(/ \((\w+) data\)$/, ''))}</b> <span class="hp-muted">${esc(day(i))}</span>`).join('<span aria-hidden="true"> · </span>')
         : 'Nothing scheduled for your holdings';
-      return `<p class="mp-week"><span class="mp-week-k">This week</span> ${body} <button type="button" class="q-btn q-btn--link hp-inline-link" data-hp-tab-go="news">News &amp; Events</button></p>`;
+      return `<p class="mp-week"><span class="mp-week-k">Next 7 days</span> ${body} <button type="button" class="q-btn q-btn--link hp-inline-link" data-hp-tab-go="news">News &amp; Events</button></p>`;
     }
     slotRenderers['events-line'] = () => weekLine();
 

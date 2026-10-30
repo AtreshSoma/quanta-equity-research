@@ -7013,6 +7013,62 @@ html.lc-locked { overflow: hidden; }
   .picks-v2 .pk-report-head .pk-meta { order: 0; flex: 1 1 0; }
 }
 
+/* ── Picks report head, 2026-10-30 ──────────────────────────────────────────
+   One compact band above the tabs: the settings line (with the model flag and
+   Export), then the verdict on the left and three figures on the right. The
+   not-advice line moved under the report. Every figure reads the same way:
+   label, value line, quiet detail line. */
+.picks-v2 .pk-report-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: var(--sp-8); padding-bottom: var(--sp-4); }
+.picks-v2 .pk-report-head > .pk-head { grid-column: 1 / -1; }
+.picks-v2 .pk-report-head > .pk-verdict { min-width: 0; padding: var(--sp-4) 0 0; }
+.picks-v2 .pk-report-head .pk-verdict-h { font-size: var(--fs-lg); }
+.picks-v2 .pk-report-head .pk-verdict-why { margin-top: 2px; font-size: var(--fs-xs); color: var(--text-muted); }
+.picks-v2 .pk-report-head > .pk-scards { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-7); padding: var(--sp-4) 0 0; border: 0; }
+.picks-v2 .pk-report-head .pk-sc { display: grid; grid-template-rows: auto auto; align-content: start; gap: 2px; flex: none; padding: 0; border: 0; }
+.picks-v2 .pk-report-head .pk-sc dt { font-size: var(--fs-2xs); color: var(--text-muted); }
+.picks-v2 .pk-report-head .pk-sc dd { display: grid; grid-template-columns: none; gap: 2px; margin: 0; }
+.picks-v2 .pk-report-head :is(.pk-sc-v, .pk-fun) { display: flex; align-items: baseline; gap: 6px; min-height: 1.4em; }
+.picks-v2 .pk-report-head :is(.pk-sc-v, .pk-fun) b { font-family: var(--pk-num); font-size: var(--fs-lg); font-weight: 600; line-height: 1.3; color: var(--text-primary); }
+.picks-v2 .pk-report-head :is(.pk-sc-v, .pk-fun) small { font-size: var(--fs-2xs); color: var(--text-muted); }
+.picks-v2 .pk-report-head .pk-sc-sub { font-size: var(--fs-2xs); line-height: 1.3; color: var(--text-muted); white-space: nowrap; }
+.picks-v2 .pk-report-head .pk-sc-v .pk-meter { align-self: center; width: 4.5rem; height: 4px; margin-left: 2px; }
+/* The regime is a word, not a figure: body face, not the numeral face. */
+.picks-v2 .pk-report-head .pk-sc:not(.pk-sc-funnel, .pk-sc-deploy) .pk-sc-v b { font-family: inherit; }
+
+/* The settings line wraps rather than clipping: it carries the run time, the
+   saved age and the bar date, and none of them may be cut off. */
+.picks-v2 .pk-report-head .pk-meta { flex-wrap: wrap; row-gap: 2px; white-space: normal; overflow: visible; }
+.picks-v2 .pk-report-head .pk-meta li { white-space: nowrap; }
+.picks-v2 .pk-report-head .pk-meta li.pk-run { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+/* Price cell: the price, then the session it is from. An intraday price (the
+   one a Research-checked row's levels were built on) is marked in the accent. */
+.pk-px { display: inline-grid; justify-items: end; gap: 1px; }
+.pk-px-when { font-family: var(--font-sans); font-size: var(--fs-2xs); font-weight: 400; color: var(--text-muted); white-space: nowrap; }
+.pk-px-when.is-live { color: var(--primary); }
+.pk-rr-zero { color: var(--text-muted); cursor: help; }
+
+/* The tab strip's scrollbar follows the theme (it showed white in dark mode). */
+.picks-v2 .pk-tabs { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+/* The first tab starts on the report's left edge, with the head and the table. */
+.picks-v2 .pk-report-head + .pk-tabs { padding-left: 0; }
+
+/* The not-advice line closes the report, beside the table's footnote. */
+.picks-v2 > .not-advice { margin: calc(-1 * var(--sp-2)) 0 0; padding: 0; border: 0; color: var(--text-muted); }
+
+@container pkv (max-width: 900px) {
+  .picks-v2 .pk-report-head { grid-template-columns: minmax(0, 1fr); }
+  .picks-v2 .pk-report-head > .pk-scards { padding-top: var(--sp-3); }
+}
+@container pkv (max-width: 760px) {
+  /* Settings wrap beside Export rather than squeezing into a column. */
+  .picks-v2 .pk-report-head .pk-head { align-items: flex-start; }
+  .picks-v2 .pk-report-head .pk-meta { flex: 1 1 0; flex-wrap: wrap; row-gap: 2px; white-space: normal; }
+}
+@container pkv (max-width: 480px) {
+  .picks-v2 .pk-report-head .pk-sc-sub { white-space: normal; }
+}
+
 /* ======================= Overview, revision 2 (2026-10-18, consolidated) =======================
    News first, plain English first. One block, no override passes.
    Type scale: 12 / 13 / 14 / 16 / 22 / 32 / 40, nothing under 12px; sentence case
@@ -8608,3 +8664,12 @@ html.lc-locked { overflow: hidden; }
   .ml-n { display: none; }
 }
 @media (pointer: coarse) { .ml-save, .ml-chip { min-height: 36px; } .ml-x { width: 36px; height: 36px; } }
+
+/* -- Research tear sheet: presentation of levels, live previews, scores -- */
+.dlevels-basis { margin: 8px 0 0; font-size: var(--fs-xs); line-height: 1.5; }
+.decision-prov { margin: 8px 0 0; padding: 6px 10px; border-left: 2px solid var(--warn); background: var(--warn-dim); border-radius: var(--r-sm); font-size: var(--fs-xs); line-height: 1.5; color: var(--text-primary); }
+.sg-live { margin: 0 0 10px; padding: 8px 10px; border-left: 2px solid var(--warn); background: var(--warn-dim); border-radius: var(--r-sm); }
+.sg-live p { margin: 0; font-size: var(--fs-xs); line-height: 1.5; color: var(--text-primary); }
+.score-note { display: block; font-size: var(--fs-2xs); font-weight: 400; color: var(--text-muted); }
+.rp-since { font-size: var(--fs-2xs); font-weight: 400; color: var(--text-muted); white-space: nowrap; }
+.rp-since::before { content: "\00b7\00a0"; }

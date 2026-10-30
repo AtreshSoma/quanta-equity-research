@@ -220,7 +220,9 @@ def test_untested_version_surfaces_its_failed_predecessor():
     assert e.status is ev.EvidenceStatus.UNTESTED
     assert e.status.permits_recommendation is False
     assert "no edge" in e.summary.lower() and "elite.composite" in e.summary
-    names = [x["strategy"] for x in e.lineage]
+    # Pre-registered successors are listed after the earlier versions (2026-10-29),
+    # so the predecessor order is checked on the earlier rows alone.
+    names = [x["strategy"] for x in e.lineage if x["relation"] == "earlier"]
     assert names == ["elite.alpha_only.v1", "elite.composite"]
     assert e.lineage[1]["status"] == "NO_EDGE"
     assert e.to_dict()["lineage"][1]["tested_through"] == "2026-08-25"

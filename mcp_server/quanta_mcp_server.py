@@ -26,6 +26,8 @@ Version: 1.0.0
 import os
 import sys
 import json
+import math
+import re
 import time
 import logging
 import warnings
@@ -98,7 +100,14 @@ except ImportError:
 
 mcp = FastMCP(
     "QUANTA Elite Trading Intelligence",
-    instructions="Institutional-grade stock analysis, market intelligence, and portfolio management tools powered by the QUANTA Elite Trading System v2.0.",
+    instructions=(
+        "QUANTA equity research tools (US and Indian stocks, free delayed data). "
+        "No model here has a demonstrated out-of-sample edge, and QUANTA never places orders. "
+        "Prefer the JSON tools (get_decision, explain_decision, verify_narrative, plan_check, "
+        "plan_simulate, portfolio_tail_risk) when you need numbers. Repeat a Decision's label and "
+        "evidence status word for word, never upgrade a call, and run verify_narrative on any "
+        "summary you write before showing it."
+    ),
 )
 
 # ─── Global Analyzer (lazy-loaded) ──────────────────────────────────────────
@@ -833,10 +842,13 @@ def portfolio_risk_check(
     portfolio_value: float = 100000,
 ) -> str:
     """
-    Analyze portfolio-level risk: VaR, sector concentration, correlation clusters.
-    
-    Detects over-concentration, correlated positions, and calculates portfolio VaR.
-    
+    Analyze portfolio-level risk: VaR and CVaR, sector and single-name concentration.
+
+    Concentration is flagged against the same limits My Portfolio uses
+    (engine.thresholds.PORTFOLIO). VaR/CVaR come from date-aligned real returns;
+    names without enough history are excluded and listed, never filled in.
+    For machine-readable numbers use portfolio_tail_risk.
+
     Args:
         positions_json: JSON array of positions, each with keys: ticker, shares, avg_cost, sector.
                         Example: '[{"ticker":"AAPL","shares":50,"avg_cost":175,"sector":"Technology"},
@@ -923,21 +935,30 @@ def portfolio_risk_check(
         for p in position_details:
             sector_weights[p['sector']] = sector_weights.get(p['sector'], 0) + p['weight']
 
+        # The same limits My Portfolio applies; these used to be 25% / 40% here,
+        # so the two surfaces disagreed about the same book.
+        name_cap = _PF.MAX_SINGLE_POSITION * 100
+        sector_cap = _PF.MAX_SECTOR * 100
+
         lines.append("## Sector Concentration")
         for sector, weight in sorted(sector_weights.items(), key=lambda x: x[1], reverse=True):
-            warning = " ⚠️ OVER-CONCENTRATED" if weight > 40 else (" ⚠️ HIGH" if weight > 30 else "")
+            warning = " ⚠️ OVER LIMIT" if weight >= sector_cap else ""
             lines.append(f"- **{sector}:** {weight:.1f}%{warning}")
         lines.append("")
+
+        lines.extend(_var_section(position_details))
 
         # Risk flags
         lines.append("## Risk Flags")
         max_position = max(position_details, key=lambda x: x['weight'])
-        if max_position['weight'] > 25:
-            lines.append(f"- ⚠️ **Single stock concentration:** {max_position['ticker']} at {max_position['weight']:.1f}% — reduce below 20%")
+        if max_position['weight'] >= name_cap:
+            lines.append(f"- ⚠️ **Single stock concentration:** {max_position['ticker']} at "
+                         f"{max_position['weight']:.1f}% (QUANTA limit {name_cap:.0f}%: no new money at or above it)")
 
         for sector, weight in sector_weights.items():
-            if weight > 40:
-                lines.append(f"- ⚠️ **Sector concentration:** {sector} at {weight:.1f}% — diversify")
+            if weight >= sector_cap:
+                lines.append(f"- ⚠️ **Sector concentration:** {sector} at {weight:.1f}% "
+                             f"(QUANTA limit {sector_cap:.0f}%)")
 
         losers = [p for p in position_details if p['pnl_pct'] < -15]
         if losers:
@@ -951,10 +972,10 @@ def portfolio_risk_check(
 
         # Recommendations
         lines.append("## Portfolio Recommendations")
-        if any(w > 35 for w in sector_weights.values()):
-            lines.append("1. Reduce sector concentration to below 30% per sector")
-        if max_position['weight'] > 20:
-            lines.append(f"2. Trim {max_position['ticker']} to ≤15% of portfolio")
+        if any(w >= sector_cap for w in sector_weights.values()):
+            lines.append(f"1. Reduce sector concentration to below {sector_cap:.0f}% per sector")
+        if max_position['weight'] >= name_cap:
+            lines.append(f"2. Trim {max_position['ticker']} below {name_cap:.0f}% of portfolio")
         if total_pnl_pct > 20:
             lines.append("3. Consider taking 25-33% profits to lock in gains")
         if total_pnl_pct < -10:
@@ -1562,6 +1583,300 @@ def position_advisor(
 # =============================================================================
 # The running web app checks these alerts and posts the notifications; these
 # tools only read and change the list, so they work whether it is running or not.
+
+# =============================================================================
+# STRUCTURED (JSON) TOOLS
+#
+# The markdown tools above are for reading. These return JSON so an agent can
+# use the numbers without parsing prose, and they carry the guard rails the
+# 2026-10-28 audit asked for: the Decision is returned as the engine built it,
+# its interpretation cites the fields it was written from, and any narrative an
+# agent writes can be checked against the Decision before it is shown.
+# =============================================================================
+
+from engine.interpretation import build_interpretation, check_narrative  # noqa: E402
+from engine import plan_check as _plan_check  # noqa: E402
+from engine import plan_simulator as _plan_sim  # noqa: E402
+from engine.thresholds import PORTFOLIO as _PF, LEVELS as _LEVELS  # noqa: E402
+
+_TICKER_RE = re.compile(r"[A-Z0-9][A-Z0-9.\-^=]{0,14}")
+
+
+def _json(obj: Any) -> str:
+    return json.dumps(_safe_serialize(obj), indent=2, default=str)
+
+
+def _clean_ticker(ticker: str) -> Optional[str]:
+    t = (ticker or "").strip().upper()
+    return t if _TICKER_RE.fullmatch(t) else None
+
+
+def _analysis_and_decision(ticker: str, account_size: float = 100000):
+    result = _get_analyzer().analyze(ticker, account_size)
+    decision = decision_for_analysis(result)
+    return result, (decision.to_dict() if decision else None)
+
+
+def _var_section(position_details: List[Dict[str, Any]]) -> List[str]:
+    """Markdown VaR/CVaR lines from real, date-aligned returns (or why not)."""
+    if not HAS_PORTFOLIO_RISK:
+        return ["## Value at Risk", "- Not measured: the portfolio risk module is unavailable.", ""]
+    try:
+        rep = PortfolioRiskManager().portfolio_var_report(
+            [{"ticker": p["ticker"], "value": p["market_value"]} for p in position_details])
+    except Exception as exc:  # noqa: BLE001
+        return ["## Value at Risk", f"- Not measured: {type(exc).__name__}.", ""]
+    out = ["## Value at Risk (1 day, historical returns)"]
+    conf = rep.get("confidence") or 0.95
+    if rep.get("historical_var") is None and rep.get("parametric_var") is None:
+        out.append("- Not measured: " + ("; ".join(rep.get("notes") or []) or "insufficient aligned history."))
+    else:
+        if rep.get("historical_var") is not None:
+            out.append(f"- **Historical VaR {conf:.0%}:** {rep['historical_var']:.2%} of the measured book")
+        if rep.get("cvar") is not None:
+            out.append(f"- **CVaR / expected shortfall {conf:.0%}:** {rep['cvar']:.2%}")
+        if rep.get("parametric_var") is not None:
+            out.append(f"- **Parametric (normal) VaR {conf:.0%}:** {rep['parametric_var']:.2%}")
+        out.append(f"- Coverage: {rep.get('coverage', 0):.0%} of value, {rep.get('n_days', 0)} aligned sessions.")
+    for sym, why in (rep.get("excluded") or {}).items():
+        out.append(f"- Excluded {sym}: {why}")
+    out.append("")
+    return out
+
+
+@mcp.tool()
+def get_decision(ticker: str, account_size: float = 100000) -> str:
+    """
+    The QUANTA Decision for one ticker as JSON, plus a grounded interpretation.
+
+    Returns {"decision": <Decision.to_dict()>, "interpretation": {...}}. The
+    decision carries label, evidence status, blockers (with the condition that
+    clears each), levels, net reward/risk and both R/R hurdles. Repeat
+    decision.label and decision.evidence.status_text verbatim. The
+    interpretation's sentences each list the decision fields they cite.
+    decision.shadow_model, when present, is the other Research model version
+    scored in shadow (untested, no gates). It is not QUANTA's call: never present
+    its score or band as the call, the label or the action.
+
+    Args:
+        ticker: e.g. AAPL, MSFT, RELIANCE.NS
+        account_size: account value used for the risk-budget sizing (default 100,000)
+    """
+    sym = _clean_ticker(ticker)
+    if not sym:
+        return _json({"error": "invalid ticker"})
+    try:
+        _, decision = _analysis_and_decision(sym, account_size)
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"get_decision error: {exc}")
+        return _json({"error": f"analysis failed: {type(exc).__name__}", "ticker": sym})
+    if not decision:
+        return _json({"ticker": sym, "decision": None, "error": "no decision could be built"})
+    return _json({"ticker": sym, "decision": decision, "interpretation": build_interpretation(decision)})
+
+
+@mcp.tool()
+def explain_decision(decision_json: str) -> str:
+    """
+    Grounded plain-English explanation of a Decision you already have.
+
+    Pass the "decision" object from get_decision. Returns sentences that each
+    cite the decision fields they were written from, plus a self-check. No
+    analysis is run and nothing is re-scored.
+    """
+    try:
+        decision = json.loads(decision_json)
+    except json.JSONDecodeError:
+        return _json({"error": "decision_json is not valid JSON"})
+    if not isinstance(decision, dict):
+        return _json({"error": "decision_json must be a JSON object"})
+    interp = build_interpretation(decision)
+    return _json({"interpretation": interp, "self_check": check_narrative(interp["text"], decision)})
+
+
+@mcp.tool()
+def verify_narrative(text: str, decision_json: str) -> str:
+    """
+    Check a summary you wrote against the Decision it describes.
+
+    Returns {"grounded": bool, "findings": [...]}: every number in the text that
+    the Decision does not contain (within rounding), bullish or bearish wording
+    that contradicts the label, and any claim of a proven edge for an
+    unvalidated model. Do not present a narrative with findings as QUANTA's view.
+    """
+    try:
+        decision = json.loads(decision_json)
+    except json.JSONDecodeError:
+        return _json({"error": "decision_json is not valid JSON"})
+    if not isinstance(decision, dict):
+        return _json({"error": "decision_json must be a JSON object"})
+    return _json(check_narrative(text or "", decision))
+
+
+@mcp.tool()
+def plan_check(ticker: str, shares: float, entry: float, stop: float, target: float,
+               account_value: float = 0.0, cash: float = 0.0,
+               use_research: bool = False) -> str:
+    """
+    Pre-trade checklist for a BUY plan the user intends to place. QUANTA never places orders.
+
+    Checks geometry, net reward/risk against the 1.5 Research gate and 1.8 Picks
+    funding hurdle, dollar risk and position size against the sizing caps
+    (when account_value is given), earnings inside the horizon, FOMC within two
+    sessions, and (with use_research=True, which runs a full analysis) QUANTA's
+    own Decision for the ticker. Holdings-based concentration checks are SKIPPED
+    here (My Portfolio is only connected in the web app). Each check is PASS,
+    WARN, BLOCK or SKIPPED with a next step; "fingerprint" identifies this exact plan.
+    """
+    from datetime import date as _date
+    sym = _clean_ticker(ticker)
+    if not sym:
+        return _json({"error": "invalid ticker"})
+    vals = [shares, entry, stop, target]
+    if not all(isinstance(v, (int, float)) and math.isfinite(v) and v > 0 for v in vals):
+        return _json({"error": "shares, entry, stop and target must be positive numbers"})
+    research, earnings, sector = None, None, None
+    if use_research:
+        try:
+            result, research = _analysis_and_decision(sym)
+            cat = getattr(result, "catalysts", None)
+            raw = getattr(result, "next_earnings_date", None) or getattr(cat, "earnings_date", None)
+            if raw:
+                earnings = datetime.fromisoformat(str(raw)[:10]).date()
+            sector = getattr(result, "sector", None)
+        except Exception as exc:  # noqa: BLE001
+            logger.info(f"plan_check research context unavailable: {exc}")
+    try:
+        out = _plan_check.check_plan(
+            ticker=sym, shares=shares, entry=entry, stop=stop, target=target,
+            plan_date=_date.today(), today=_date.today(),
+            account_value=account_value or None, cash=cash or None,
+            horizon_sessions=_LEVELS.RESEARCH_HORIZON_DAYS, research=research,
+            next_earnings=earnings, holdings=None,
+            sector=(sector if sector and sector != "Unknown" else None), side="buy",
+            material_filings=_plan_filings(sym, _date.today()))
+    except ValueError as exc:
+        return _json({"error": str(exc)})
+    out["context"] = {"research_used": research is not None, "holdings_connected": False}
+    return _json(out)
+
+
+@mcp.tool()
+def plan_simulate(ticker: str, entry: float, stop: float, target: float,
+                  horizon_sessions: int = 63, paths: int = 5000, seed: int = 20261028,
+                  drift: str = "zero") -> str:
+    """
+    How often does this plan reach its target before its stop? A simulation, not a forecast.
+
+    Stationary block bootstrap of the stock's own daily bars (default last 756
+    sessions), rescaled to today's EWMA volatility, with gap-through-stop fills
+    at the open and stop-first when a bar touches both. Also replays the same
+    ATR-multiple geometry over history, with a Wilson interval on the
+    effective (non-overlapping) sample. The verdict compares the target share
+    with the break-even share 1/(1+R) and says "not distinguishable from
+    break-even" when history cannot tell them apart. drift="zero" (default)
+    removes the stock's past trend; "historical" keeps it.
+    """
+    sym = _clean_ticker(ticker)
+    if not sym:
+        return _json({"error": "invalid ticker"})
+    if drift not in ("zero", "historical"):
+        return _json({"error": "drift must be 'zero' or 'historical'"})
+    try:
+        import yfinance as yf
+        bars = yf.Ticker(sym).history(period="5y", interval="1d", auto_adjust=False)
+    except Exception as exc:  # noqa: BLE001
+        return _json({"error": f"price bars unavailable: {type(exc).__name__}", "ticker": sym})
+    if bars is None or bars.empty:
+        return _json({"error": "no daily bars returned", "ticker": sym})
+    try:
+        out = _plan_sim.simulate_plan(bars, entry=entry, stop=stop, target=target,
+                                      horizon_sessions=int(horizon_sessions), paths=int(paths),
+                                      seed=int(seed), drift=drift, ticker=sym, side="long")
+    except _plan_sim.PlanSimulationError as exc:
+        return _json({"error": str(exc), "available": False, "ticker": sym})
+    return _json({"ticker": sym, **out})
+
+
+def _plan_filings(sym: str, today) -> Optional[Dict[str, Any]]:
+    """Plan Check's 8-K input for the MCP checklist. Never raises: a failure is "unavailable", shown as SKIPPED."""
+    try:
+        from engine import sec_events as _se_mod
+        return _se_mod.plan_window(sym, today)
+    except Exception as exc:  # noqa: BLE001
+        logger.info(f"plan_check material filings unavailable: {type(exc).__name__}")
+        return {"status": "unavailable", "message": "The 8-K check could not run.", "events": []}
+
+
+@mcp.tool()
+def material_filings(ticker: str, days: int = 90) -> str:
+    """
+    Recent SEC 8-K filings for a US stock, each tagged with its items and severity, plus this
+    stock's past reaction to each item versus SPY. Past reactions are not a forecast.
+
+    Each item has a plain-English title, a severity (HIGH, MEDIUM, LOW, or UNRATED for codes
+    QUANTA has no note for) and a reaction study: abnormal returns over 1, 2, 5 and 20 sessions,
+    with n, median, mean, a 95% interval and the share of negative reactions. Below 5 filings
+    per item no statistics are given. Each filing counts once, under its primary item. Name
+    HIGH-severity filings and their dates, and quote past-reaction numbers with n and the
+    "not a forecast" caveat. Indian and other non-US tickers are reported as not covered.
+    """
+    from datetime import date as _date
+    sym = _clean_ticker(ticker)
+    if not sym:
+        return _json({"error": "invalid ticker"})
+    if not isinstance(days, int) or isinstance(days, bool) or not (1 <= days <= 365):
+        return _json({"error": "days must be a whole number from 1 to 365"})
+    from engine import event_study as _es
+    from engine import sec_events as _se_mod
+
+    def _bars(symbol: str):
+        import yfinance as yf
+        return yf.Ticker(symbol).history(period="5y", interval="1d", auto_adjust=False)
+
+    try:
+        today = _date.today()
+        out = _es.build_report(sym, days=days, today=today, bars_loader=_bars)
+    except Exception as exc:  # noqa: BLE001
+        return _json({"error": f"material filings unavailable: {type(exc).__name__}", "ticker": sym})
+    if out.get("status") == "ok":
+        out["recent"] = _se_mod.within_days(out.get("recent") or [], days, today)
+    out["days"] = days
+    return _json(out)
+
+
+@mcp.tool()
+def portfolio_tail_risk(positions_json: str, lookback_days: int = 252) -> str:
+    """
+    Portfolio VaR and CVaR (expected shortfall) as JSON, from real date-aligned returns.
+
+    positions_json: JSON array of {"ticker": str, "value": float} (market value).
+    Returns parametric and historical 1-day VaR, CVaR, confidence, coverage
+    (share of value measured), the aligned sample length, and every excluded
+    ticker with its reason. Nothing is filled in with synthetic data: a value
+    that cannot be measured is null, never 0.
+    """
+    try:
+        positions = json.loads(positions_json)
+    except json.JSONDecodeError:
+        return _json({"error": "positions_json is not valid JSON"})
+    if not isinstance(positions, list) or not positions:
+        return _json({"error": "positions_json must be a non-empty JSON array"})
+    clean = []
+    for p in positions:
+        sym = _clean_ticker(str((p or {}).get("ticker", "")))
+        try:
+            val = float((p or {}).get("value"))
+        except (TypeError, ValueError):
+            val = float("nan")
+        if not sym or not math.isfinite(val) or val <= 0:
+            return _json({"error": f"bad position: {p!r}"})
+        clean.append({"ticker": sym, "value": val})
+    if not HAS_PORTFOLIO_RISK:
+        return _json({"error": "portfolio risk module unavailable"})
+    lookback = max(60, min(int(lookback_days), 1260))
+    return _json(PortfolioRiskManager().portfolio_var_report(clean, lookback_days=lookback))
+
 
 def _my_list_store():
     webapp_dir = os.path.join(PROJECT_ROOT, 'webapp')

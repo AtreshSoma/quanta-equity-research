@@ -879,6 +879,16 @@ _last_scan_meta: Dict[str, Any] = {
 }
 _last_scan_meta_lock = threading.Lock()
 
+# Which server process produced a scan. Two servers can share one browser (a
+# second instance on another port, or one restarted mid-session), and a book on
+# screen must be traceable to the store that saved it. Stamped on every saved
+# scan and reported by /api/health; a new id on every start.
+_SERVER_INSTANCE: Dict[str, Any] = {
+    "id": uuid.uuid4().hex[:12],
+    "pid": os.getpid(),
+    "started_at": datetime.now(timezone.utc).isoformat(),
+}
+
 
 def _classify_scan_status(
     universe_size: int,
@@ -6230,6 +6240,7 @@ def _backend_health(probe: bool = True) -> Dict[str, Any]:
         "providers": providers,
         "price_probe": price_probe,
         "last_scan": scan_meta,
+        "server_instance": dict(_SERVER_INSTANCE),
         "sec_contact": _sec_contact_status(),
         # Offset-aware like every other stamp that crosses to the browser;
         # a naive isoformat() is parsed by new Date() as browser-local time.
@@ -6911,6 +6922,11 @@ def _stock_picks_table(quanta: Any, picks: List[Dict[str, Any]], final_recs: Lis
         fn = getattr(quanta, name, None)
         return (fn(*a, **kw) or []) if callable(fn) else []
     pnf = {d["ticker"]: d for d in _call("passed_not_funded", set(published))}
+    # Names outside the book the Research check ran on; None when the engine
+    # did not run it (deep confirmation off), so rows keep the scanner call.
+    checked = getattr(quanta, "_unpublished_checked", None)
+    if not isinstance(checked, dict) or not getattr(quanta, "_deep_confirm_enabled", True):
+        checked = None
     gates = {g["ticker"]: g for g in _call("closest_to_qualifying", set(published), uncapped=True)}
     banned = set(_T.BOOK.BANNED_GRADES)
 
@@ -7017,6 +7033,16 @@ def _stock_picks_table(quanta: Any, picks: List[Dict[str, Any]], final_recs: Lis
                 reasons = [str(x) for x in (getattr(fr, "final_action_reasons", None) or []) if x]
                 row.update(status="watch", reason=_plain_why(reasons[-1] if reasons else "",
                                                              getattr(fr, "decision", None) or {}, False))
+        elif t in pnf and checked is not None and t in checked and _action_key(
+                getattr(checked[t], "final_action", "")) not in ("STRONG_BUY", "BUY", "ACCUMULATE"):
+            # The Research check downgraded a name a selection limit left out: a Watchlist call.
+            reasons = [str(x) for x in (getattr(checked[t], "final_action_reasons", None) or []) if x]
+            row.update(status="watch", reason=_plain_why(reasons[-1] if reasons else "",
+                                                         getattr(checked[t], "decision", None) or {}, False))
+        elif t in pnf and checked is not None and t not in checked:
+            # Never Research-checked (past the check's cap): not shown as a call.
+            row.update(status="below_rule", gate=None,
+                       reason="Not Research-checked: " + str(pnf[t].get("text") or ""))
         elif t in pnf:
             d = pnf[t]
             row.update(status="not_funded", reason=str(d.get("text") or ""), capital_needed=d.get("capital_needed"))
@@ -7153,7 +7179,8 @@ def _picks_view(rows: List[Dict[str, Any]], quanta: Any) -> Dict[str, Any]:
                              "source": check.get("source") or "SEC EDGAR", "filed": check.get("filed"), "url": check.get("url")})
             continue
         if status == "below_rule":
-            screened.append({"ticker": r["ticker"], "company": r.get("company"), "gate": r.get("gate")})
+            screened.append({"ticker": r["ticker"], "company": r.get("company"), "gate": r.get("gate"),
+                             "reason": r.get("reason") or ""})
             continue
         if r["ticker"] in skips and status != "funded":
             note = notes.get(r["ticker"]) or {}
@@ -7862,11 +7889,19 @@ def _run_stock_picks(job_id: str, params: dict):
             _CALL_OF_ACTION.get(_action_key(r.get("final_action"))) for r in (result.get("recommendations") or [])]
         _ba = sum(1 for c in _calls if c in ("buy", "accumulate"))
         _notes = {"book": f"{_reached} passed the screens, {_ba} Buy or Accumulate, {_calls.count('watchlist')} Watchlist"}
+        # "250 of 250" counts names attempted; say how many of them the data
+        # checks stopped, so it agrees with the "not analysed" count on the page.
+        _cna = int((((accounting or {}).get("could_not_analyse") or {}).get("count")) or 0)
+        _an = stage_log.get("analysing") or {}
+        if _cna and _an.get("total"):
+            _notes["analysing"] = (f"{_an.get('done')} of {_an.get('total')}; {_cna} of them could not be "
+                                   f"analysed (failed the data checks)")
         if "research_check" not in stage_log:
             _notes["research_check"] = ("skipped: turned off for this scan" if not dc_enabled
                                         else "skipped: no name was selected for it")
         # Saved BEFORE the job reads "complete": the page refreshes its Recent
         # scans list the moment it sees that status, and must find this scan in it.
+        result["server_instance"] = _SERVER_INSTANCE["id"]
         _save_last_scan(params, result)
         _update_job(job_id, progress=100, message="Complete", status="complete", result=result,
                     finished_at=time.time(),
@@ -7885,6 +7920,7 @@ def _run_stock_picks(job_id: str, params: dict):
                 "provider_rate_limited_count": provider_rate_limited_count,
                 "provider_circuit_open": provider_circuit_open,
                 "deep_confirm_enabled": dc_enabled,
+                "server_instance": _SERVER_INSTANCE["id"],
             })
 
     except Exception as e:
@@ -9392,6 +9428,34 @@ try:
         edgar=_EdgarClient(), calendar=_load_calendar, journal=_DecisionJournal()))
 except Exception as _portfolio_exc:  # noqa: BLE001 - the rest of QUANTA must still start
     logger.error("My Portfolio unavailable: %s", _portfolio_exc)
+
+def _latest_tear_sheet(symbol: str) -> Optional[Dict[str, Any]]:
+    """Freshest cached Research payload for ``symbol`` across modes and account
+    sizes (the verdict and blockers do not depend on the account), within the
+    stale-retention window. Read-only: never starts an analysis."""
+    prefix = f"{str(symbol or '').upper()}::"
+    now = time.time()
+    with _analysis_result_lock:
+        entries = [v for k, v in _analysis_result_cache.items() if k.startswith(prefix)]
+    entries = [e for e in entries
+               if now - float(e.get("timestamp") or 0) <= ANALYSIS_STALE_RETENTION_SECONDS]
+    if not entries:
+        return None
+    best = max(entries, key=lambda e: float(e.get("timestamp") or 0))
+    payload = best.get("payload")
+    return payload if isinstance(payload, dict) else None
+
+
+try:
+    from plan_routes import init_plan as _init_plan
+    _init_plan(app, tear_sheet_reader=_latest_tear_sheet)
+except Exception as _plan_exc:  # noqa: BLE001 - the rest of QUANTA must still start
+    logger.error("Plan tools unavailable: %s", _plan_exc)
+try:
+    from events_routes import bp as _events_bp
+    app.register_blueprint(_events_bp)
+except Exception as _events_exc:  # noqa: BLE001 - material filings are optional
+    logger.error("Material filings unavailable: %s", _events_exc)
 
 
 # ---------------------------------------------------------------------------

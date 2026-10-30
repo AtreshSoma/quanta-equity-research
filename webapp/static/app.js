@@ -263,21 +263,22 @@ function evidenceValidated(ev) {
   const need = String(thr('LADDER.STRONG_BUY_EVIDENCE') || '').toUpperCase();
   return !!need && status === need;
 }
-// [PURE] The flag's words: a model that was tested and did not show a
-// significant edge is "Edge unproven"; anything else short of validated is
-// "not yet validated".
+// [PURE] The flag's words: one plain label for any model short of validated.
+// Why it is not validated (tested without a significant edge, untested, out of
+// date) is in the flag's tooltip and on the evidence page.
 // The not-advice line that sits beside every call (Picks report, Research decision).
 const NOT_ADVICE_HTML = '<p class="q-note not-advice" data-not-advice>Model output for research, not personal investment advice. Check every price with your broker before you place an order.</p>';
 
-function modelFlagWords(ev) {
-  const status = String((ev && typeof ev === 'object' ? ev.status : ev) || '').toUpperCase();
-  return status === 'NO_EDGE' ? 'Edge unproven' : 'Model not yet validated';
+function modelFlagWords() {
+  return 'Model not yet validated';
 }
 // The flag every call carries until its model is validated: Picks, Research and
 // My Portfolio show the same words and link to the evidence page.
 function modelFlagHtml(ev, attrs = '') {
   if (evidenceValidated(ev)) return '';
-  const why = (ev && typeof ev === 'object' && (ev.status_text || ev.text)) || 'not validated out of sample';
+  const status = String((ev && typeof ev === 'object' ? ev.status : ev) || '').toUpperCase();
+  const why = (ev && typeof ev === 'object' && (ev.status_text || ev.text))
+    || (status === 'NO_EDGE' ? 'tested on past data, and its edge was not statistically significant' : 'not validated out of sample');
   return `<a class="pk-valid model-flag" href="#track" data-view-link="track" data-model-flag ${attrs} title="Model evidence: ${escapeHtml(why)}. Open the evidence page.">${modelFlagWords(ev)}</a>`;
 }
 
@@ -537,7 +538,7 @@ const ACTION_MEANING = {
 const actionKey = (a) => String(a || '').toUpperCase().replace(/[\s-]+/g, '_');
 // The model's track record in words a reader does not need a glossary for.
 const EVIDENCE_PLAIN = {
-  VALIDATED: 'Proven on past data', PARTIAL: 'Partly tested', NO_EDGE: 'Tested, edge unproven',
+  VALIDATED: 'Proven on past data', PARTIAL: 'Partly tested', NO_EDGE: 'Tested, not significant',
   UNTESTED: 'Not yet tested', STALE: 'Test out of date',
 };
 const evidencePlain = (ev) => {
@@ -552,6 +553,17 @@ const decisionMeaning = (action) => ACTION_MEANING[actionKey(action)] || '';
 
 // Display words for the Decision's per-reader contract. Pure lookups of the
 // backend's enum values; unknown values render as sent.
+// The other Research model version, scored beside this call (Decision.shadow_model).
+// One muted line that says it is not the call. Empty when the payload has none.
+function shadowModelLineHtml(decision) {
+  const sm = decision && decision.shadow_model;
+  // Number(null) is 0, so a missing score must be tested before it is converted.
+  const score = sm && sm.score != null ? Number(sm.score) : NaN;
+  if (!sm || !Number.isFinite(score)) return '';
+  const version = String(sm.version || 'shadow').toLowerCase();
+  const status = String(sm.status || 'UNKNOWN').toLowerCase().replace(/_/g, ' ');
+  return `<p class="muted shadow-model-line" data-shadow-model>${escapeHtml(`Shadow model ${version} (${status}): score ${Math.round(score)} — not used for this call.`)}</p>`;
+}
 const STANCE_WORD = { BULLISH: ['Bullish score', 'bull'], NEUTRAL: ['Neutral score', ''], BEARISH: ['Bearish score', 'bear'], NONE: ['No score', ''] };
 const NEW_MONEY_WORD = { ELIGIBLE: ['Eligible (risk-budget size)', 'bull'], WATCH: ['Not yet, watch', 'warn'], AVOID: ['Avoid', 'bear'], NONE: ['No call', ''] };
 const HOLDER_WORD = { HOLD: ['Hold, keep the stop', ''], TRIM: ['Trim into strength', 'warn'], EXIT: ['Exit on strength', 'bear'], 'N/A': ['No call', ''] };
@@ -1416,7 +1428,7 @@ function renderGuideEvidence(data) {
   const model = !engines.length
     ? 'No model has an evidence record yet.'
     : !validated.length
-      ? 'No QUANTA model is proven yet, so every Buy and Accumulate call carries a flag: <span class="hw-tag">Edge unproven</span> where its model was tested and its edge did not clear the significance bar, <span class="hw-tag">Model not yet validated</span> otherwise.'
+      ? 'No QUANTA model is proven yet, so every Buy and Accumulate call carries a <span class="hw-tag">Model not yet validated</span> flag. Its tooltip says why: tested without a significant edge, or not tested yet.'
       : validated.length === engines.length
         ? 'Every QUANTA model shown in the track record is validated on past data.'
         : `${escapeHtml(validated.map((e) => e.label || e.engine).join(', '))} ${validated.length === 1 ? 'is' : 'are'} validated; the other models are not.`;
@@ -2448,12 +2460,12 @@ function renderTrackRecord(data = {}) {
       <td class="num">${ev.tested_through ? escapeHtml(ev.tested_through) : '<span class="q-na">--</span>'}</td>
       <td class="num">${Number(e.recorded) || 0}${trackFreezeNote(e)}</td>
       <td class="track-means">${trackPlainLine(ev)}${escapeHtml(ev.summary || '')}</td>
-    </tr>${(ev.lineage || []).map((l) => `<tr class="track-lineage" data-lineage="${escapeHtml(l.strategy || '')}">
-      <td class="track-engine muted">↳ earlier version <span class="mono">${escapeHtml(l.strategy || '')}</span></td>
+    </tr>${(ev.lineage || []).map((l) => `<tr class="track-lineage${l.relation === 'successor' ? ' track-successor' : ''}" data-lineage="${escapeHtml(l.strategy || '')}"${l.relation === 'successor' ? ' data-successor' : ''}>
+      <td class="track-engine muted">${l.relation === 'successor' ? '↳ pre-registered successor' : '↳ earlier version'} <span class="mono">${escapeHtml(l.strategy || '')}</span></td>
       <td><span class="q-status-cell warn">${escapeHtml(l.status_text || l.status || '')}</span></td>
       <td class="num">${l.tested_through ? escapeHtml(l.tested_through) : '<span class="q-na">--</span>'}</td>
       <td class="num"><span class="q-na">--</span></td>
-      <td class="track-means">${escapeHtml(l.summary || '')}${l.change ? ` <small class="muted">(${escapeHtml(l.change)})</small>` : ''}</td>
+      <td class="track-means">${escapeHtml(l.summary || '')}${l.change ? ` <small class="muted">(${escapeHtml(l.change)})</small>` : ''}${l.doc ? ` <small class="muted">Pre-registration: <span class="mono">${escapeHtml(l.doc)}</span></small>` : ''}</td>
     </tr>`).join('')}`;
   }).join('');
   const validation = `<section class="q-panel track-section" aria-labelledby="track-validation-h">
@@ -2996,7 +3008,9 @@ function startClock() {
   };
   tick();
   if (_clockTimer) clearInterval(_clockTimer);
-  _clockTimer = setInterval(tick, 1000);
+  // Skip the per-second redraw while the tab is hidden; tick() reads the real
+  // time, so the clock is exact again on the first second it is visible.
+  _clockTimer = setInterval(() => { if (typeof document === 'undefined' || !document.hidden) tick(); }, 1000);
 }
 
 // [PURE] What the header's freshness chip reports: on Discover, the age of Discover's own
@@ -9489,7 +9503,8 @@ function savedScanDetail(s) {
   const bits = [savedScanName(s), fmtMoney(s.capital, sym, 0), s.risk_profile ? `${titleLabel(s.risk_profile)} mandate` : '',
     s.max_positions ? `up to ${Number(s.max_positions)} positions` : '', s.has_filters ? 'with filters' : '',
     `${s.buy_accumulate || 0} Buy or Accumulate, ${s.watchlist || 0} Watchlist`,
-    s.closed_since === true ? 'prices from before the last market close' : ''];
+    s.closed_since === true ? 'prices from before the last market close' : '',
+    s.server_instance ? `saved by server ${s.server_instance}` : ''];
   return bits.filter(Boolean).join(', ');
 }
 
@@ -10087,8 +10102,10 @@ function pkEmptyHtml(data, rows) {
   const reached = Number(acc.reached_book);
   // The verdict for an empty book: a plain heading, then why, in body text.
   // It used to be an amber box; an empty book is a normal outcome, not a caution.
+  // Semicolons between reasons: a reason's own words can carry a comma
+  // ("Hold signal, no buy setup"), so commas made the list ambiguous.
   const why = [wl ? `${wl} name${wl === 1 ? ' is' : 's are'} on the Watchlist.` : '',
-    reasons.length ? `${reached === 0 ? 'No name passed the per-name rules. ' : ''}Top reasons: ${reasons.join(', ')}.` : ''].filter(Boolean).join(' ');
+    reasons.length ? `${reached === 0 ? 'No name passed the per-name rules. ' : ''}Top reasons across the scan: ${reasons.join('; ')}.` : ''].filter(Boolean).join(' ');
   return `<div class="pk-verdict pk-empty" data-pk-empty>
       <h3 class="pk-verdict-h" data-result-heading tabindex="-1">No Buy or Accumulate picks right now.</h3>
       ${why ? `<p class="pk-verdict-why">${escapeHtml(why)}</p>` : ''}
@@ -10370,8 +10387,14 @@ const pkIsIndia = (data) => /^IN(DIA)?$/i.test(String(data.market || '')) || (!d
    used to add a separate note above the report for that). */
 function pkHeadHtml(data, rows, sym) {
   void sym;
-  const when = data.timestamp && !Number.isNaN(Date.parse(data.timestamp)) ? fmtStamp(data.timestamp) : '';
-  const meta = [pkProvenance(when), pkIsIndia(data) ? 'India' : 'US',
+  const india = pkIsIndia(data);
+  const run = pkRunStamp(data.timestamp, india);
+  const bars = ((data.data_dates || {}).bar_session || '').split('-').map(Number);
+  const barsDay = bars[0] ? new Date(bars[0], bars[1] - 1, bars[2]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+  const meta = [run ? { cls: 'pk-run', title: `Scan completed ${run.local} (your time)`, text: `Run ${run.text}` } : '',
+    pkProvenance(),
+    barsDay ? { cls: 'pk-bars', title: 'Scores read completed daily bars only; prices on a Research-checked row may be newer (see its Price cell)', text: `Daily bars to ${barsDay}` } : '',
+    india ? 'India' : 'US',
     (data.risk_profile || {}).profile ? `${titleLabel(data.risk_profile.profile)} mandate` : '',
     data.max_positions ? `Up to ${Number(data.max_positions)} positions` : '',
     pkFiltersText(data) ? `Filters: ${pkFiltersText(data)}` : ''].filter(Boolean);
@@ -10383,16 +10406,30 @@ function pkHeadHtml(data, rows, sym) {
   const tools = rows.length ? `<details class="pk-export"><summary class="btn-mini">Export</summary>
       <div class="pk-actions pk-export-menu" role="group" aria-label="Export">${copy}<button type="button" class="btn-mini" data-pk-csv>Download CSV</button></div></details>` : '';
   const item = (m) => (typeof m === 'string' ? `<li>${escapeHtml(m)}</li>`
+    : m.cls === 'pk-run' ? `<li class="pk-run" title="${escapeHtml(m.title)}"><time datetime="${escapeHtml(String(data.timestamp))}">${escapeHtml(m.text)}</time></li>`
     : `<li class="${m.cls}" title="${escapeHtml(m.title)}"${m.cls === 'is-saved' ? ' data-pk-saved' : ''}>${escapeHtml(m.text)}</li>`);
+  // No model flag here: the evidence status is stated once beside the scan
+  // setup ("a risk budget rather than a validated edge") and on each Buy or
+  // Accumulate card, where it bears on a decision.
   return `<header class="pk-head" data-picks-head>
       <ul class="pk-meta" aria-label="Scan settings" title="${escapeHtml(meta.map((m) => (typeof m === 'string' ? m : m.text)).join(' · '))}">${meta.map(item).join('')}</ul>
       ${tools}
     </header>`;
 }
 
-/* When the report on screen was made: "Run 2026-10-18 09:50" for a scan just
-   run; "Saved 40m ago" for one reopened from Recent scans, in amber once the
-   market has closed since its prices were final. */
+/* [PURE] When a scan ran, in the exchange's own zone: "Oct 30, 2026, 11:25 AM ET"
+   (IST for India), so the time reads the same on any computer. ``local`` is the
+   reader's own clock, for the tooltip. Null without a valid stamp. */
+function pkRunStamp(iso, india) {
+  const d = new Date(iso);
+  if (!iso || Number.isNaN(d.getTime())) return null;
+  const opts = { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' };
+  return { text: `${d.toLocaleString('en-US', { ...opts, timeZone: india ? 'Asia/Kolkata' : 'America/New_York' })} ${india ? 'IST' : 'ET'}`,
+    local: d.toLocaleString(undefined, { ...opts, timeZoneName: 'short' }) };
+}
+
+/* A reopened scan's age beside its run time: "Saved 40m ago", in amber once
+   the market has closed since its prices were final. Nothing for a scan just run. */
 // Re-reads the age on the saved-scan stamp in the Picks header.
 function refreshSavedStamp() {
   const el = document.querySelector('[data-picks-head] [data-pk-saved]');
@@ -10400,8 +10437,8 @@ function refreshSavedStamp() {
   if (p && typeof p === 'object' && p.cls === 'is-saved') el.textContent = p.text;
 }
 
-function pkProvenance(when) {
-  if (!state.picksSavedAt) return when ? `Run ${when}` : '';
+function pkProvenance() {
+  if (!state.picksSavedAt) return '';
   const savedMeta = state.picksSavedMeta || {};
   const age = savedScanAge(state.picksSavedAt);
   const note = savedScanNoteHtml({ closed_since: savedMeta.closed_since, as_of_session: savedMeta.as_of_session },
@@ -10424,9 +10461,10 @@ function pkVerdictHtml(data, rows) {
 }
 
 /* Three figures, each with one job; the header already counts the calls and
-   the table lists them, so neither is repeated here.
-   Scan to calls: where the universe went (scanned, ranked, sized).
-   Deployment: capital used against the regime's exposure ceiling.
+   the table lists them, so neither is repeated here. Each reads the same way:
+   label, one value line, one quiet detail line.
+   Funnel: where the universe went (scanned, ranked, sized).
+   Sized: capital the model sized against the regime's exposure ceiling.
    Regime: the market read the scan ran under. */
 function pkSummaryCardsHtml(data, rows, sym) {
   const capital = Number(data.capital || 0);
@@ -10441,26 +10479,27 @@ function pkSummaryCardsHtml(data, rows, sym) {
   const exposure = pkNum(regime.exposure);
   const usedPct = capital > 0 ? (invested / capital) * 100 : null;
   const cell = (k, body, cls = '') => `<div class="pk-sc${cls}"><dt>${escapeHtml(k)}</dt><dd>${body}</dd></div>`;
-  const sub = (t) => (t ? `<span>${escapeHtml(t)}</span>` : '');
+  const sub = (t) => (t ? `<span class="pk-sc-sub">${escapeHtml(t)}</span>` : '');
 
   const steps = [[scanned, 'scanned'], [rows.length, 'ranked'], [sized.length, 'sized']];
   const funnel = scanned ? `<ol class="pk-fun" aria-label="${escapeHtml(steps.map(([n, l]) => `${n} ${l}`).join(', '))}">${steps.map(([n, l]) => `<li><b>${escapeHtml(String(n))}</b> <small>${escapeHtml(l)}</small></li>`).join('')}</ol>` : '<b>-</b>';
   const funnelSub = [out ? `${out} screened out` : '', ex ? `${ex} excluded for safety` : '', failed ? `${failed} not analysed` : ''].filter(Boolean).join(', ');
 
-  // The meter is the one place exposure appears: fill = capital used, tick = the
-  // share of capital the regime allows.
+  // The meter shows capital used against the share the regime allows (the tick).
+  // With nothing sized an empty bar says nothing, so it is left out.
   const clampPct = (v) => Math.max(0, Math.min(100, v));
-  const meter = usedPct !== null ? `<span class="pk-meter" aria-hidden="true"><span class="pk-meter-fill" style="width:${clampPct(usedPct).toFixed(1)}%"></span>${exposure !== null ? `<span class="pk-meter-cap" style="left:${clampPct(exposure).toFixed(1)}%"></span>` : ''}</span>` : '';
+  const meter = usedPct ? `<span class="pk-meter" aria-hidden="true"><span class="pk-meter-fill" style="width:${clampPct(usedPct).toFixed(1)}%"></span>${exposure !== null ? `<span class="pk-meter-cap" style="left:${clampPct(exposure).toFixed(1)}%"></span>` : ''}</span>` : '';
   // One exposure model: the cap is the Overview's market-mood band when one was read.
-  const capWords = (regime.exposure_basis || {}).source === 'overview' ? 'the market mood allows up to' : 'the scanner regime allows';
-  const deploySub = capital ? `${usedPct.toFixed(1)}% of ${fmtMoney(capital, sym, 0)}${exposure !== null ? `, ${capWords} ${Number(exposure)}%` : ''}` : '';
+  const capWords = (regime.exposure_basis || {}).source === 'overview' ? 'market-mood cap' : 'regime cap';
+  const ofCapital = capital ? `<small>of ${escapeHtml(fmtMoney(capital, sym, 0))}</small>` : '';
+  const deploySub = capital ? `${usedPct.toFixed(1)}% used${exposure !== null ? `, ${capWords} ${Number(exposure)}%` : ''}` : '';
 
   const regimeSub = [pkNum(regime.vix) > 0 ? `${pkIsIndia(data) ? 'India VIX' : 'VIX'} ${Number(regime.vix).toFixed(1)}${regime.vix_is_proxy ? ' (est.)' : ''}` : '',
     unknown ? 'trend unread: benchmark history unavailable' : ''].filter(Boolean).join(', ');
   return `<dl class="pk-scards" data-pk-summary>
-      ${cell('Scan to calls', `${funnel}${sub(funnelSub)}`, ' pk-sc-funnel')}
-      ${cell('Model sizing total', `<b>${escapeHtml(fmtMoney(invested, sym, 0))}</b>${meter}${sub(deploySub)}`, ' pk-sc-deploy')}
-      ${regime.type ? cell('Regime', `<b>${escapeHtml(unknown ? 'Unknown' : titleLabel(regime.type))}</b>${sub(regimeSub)}`) : ''}
+      ${cell('Funnel', `${funnel}${sub(funnelSub)}`, ' pk-sc-funnel')}
+      ${cell('Sized', `<span class="pk-sc-v"><b>${escapeHtml(fmtMoney(invested, sym, 0))}</b>${ofCapital}${meter}</span>${sub(deploySub)}`, ' pk-sc-deploy')}
+      ${regime.type ? cell('Regime', `<span class="pk-sc-v"><b>${escapeHtml(unknown ? 'Unknown' : titleLabel(regime.type))}</b></span>${sub(regimeSub)}`) : ''}
     </dl>`;
 }
 
@@ -10517,6 +10556,14 @@ function pkStatusChipsHtml(rows) {
    states it once. */
 const PK_WATCH_CAPITAL = 'No new money on a Watchlist call';
 
+/* R:R is a figure whenever the row has levels: a zero is a real reading (the
+   target sits at the top of the entry zone), not a missing one. */
+function pkRrCellHtml(r, rr, dec) {
+  if (r.status === 'avoid' || rr === null || (rr <= 0 && !(pkNum(r.stop) && pkNum(r.target)))) return PK_NA;
+  if (rr > 0) return escapeHtml(rr.toFixed(dec));
+  return `<span class="pk-rr-zero" title="The target is at or below the top of the entry zone: no reward for the risk from there.">${escapeHtml((0).toFixed(dec))}</span>`;
+}
+
 function pkRowHtml(r, i, sym, showCap = true) {
   const sized = pkIsSized(r);
   const rr = pkNum(r.risk_reward);
@@ -10529,25 +10576,22 @@ function pkRowHtml(r, i, sym, showCap = true) {
     <tr class="pk-row${sized ? ' is-sized' : ''}" data-pk-ticker="${escapeHtml(r.ticker)}" data-pk-outcome="${cssToken(pkGroupOf(r))}" data-pk-sector="${escapeHtml(r.sector || '')}" data-pk-grade="${escapeHtml(r.risk_grade || '')}" data-pk-score="${score100(r.score) ?? ''}" data-pk-rr="${pkNum(r.risk_reward) ?? ''}">
       <td class="pk-c-rank num">${escapeHtml(String(r.rank))}</td>
       <td class="pk-c-stock"><button type="button" class="pk-ticker" data-ticker="${escapeHtml(r.ticker)}" title="Open the ${escapeHtml(r.ticker)} tear sheet">${escapeHtml(r.ticker)}</button><span class="pk-co">${escapeHtml(r.company || '')}</span>${pkHeldClassesHtml(r)}${pkOwnHtml(r, sym)}</td>
-      <td class="pk-c-price num" data-label="Price">${pkNum(r.price) ? escapeHtml(fmtPrice(r.price, sym)) : PK_NA}</td>
+      <td class="pk-c-price num" data-label="Price">${pkPriceCellHtml(r, sym)}</td>
       <td class="pk-c-signal">${pkDecisionHtml(r)}${sub ? `<span class="pk-setup">${escapeHtml(sub)}</span>` : ''}</td>
       <td class="pk-c-levels">${pkLevelsCellHtml(r, sym)}</td>
-      <td class="pk-c-rr num" data-label="R:R">${r.status !== 'avoid' && rr ? escapeHtml(rr.toFixed(dec)) : PK_NA}</td>
+      <td class="pk-c-rr num" data-label="R:R">${pkRrCellHtml(r, rr, dec)}</td>
       <td class="pk-c-score" data-label="Score">${pkScoreCellHtml(r)}</td>
       ${showCap ? `<td class="pk-c-pos">${position}</td>` : ''}
       <td class="pk-c-more"><button type="button" class="pk-expand" data-pk-open="${escapeHtml(r.ticker)}" aria-label="Open the ${escapeHtml(r.ticker)} analysis"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
     </tr>`;
 }
 
-/* The Calls tab: the call filters with the model flag on one toolbar row, then
-   the table. The verdict and the scan figures sit above the tabs (they describe
+/* The Calls tab: the call filters on one toolbar row, then the table. The
+   verdict, the scan figures and the model flag sit above the tabs (they describe
    the whole scan); the broker-holdings note lives under Risk and execution. */
 function pkOverviewHtml(data, rows, sym, foot) {
-  const ev = (rows.find((r) => r.evidence) || {}).evidence;
-  const note = modelFlagHtml(ev, 'data-pk-valid');
   if (!rows.length) return `<p class="pk-panel-empty">No Buy, Accumulate or Watchlist call in this scan. Method lists every name and the rule it stopped at.</p>${foot}`;
-  return `<div class="pk-ov-tools">${pkStatusChipsHtml(rows)}${pkResultFiltersHtml(rows)}
-      ${note ? `<div class="pk-ov-sub">${note}</div>` : ''}</div>
+  return `<div class="pk-ov-tools">${pkStatusChipsHtml(rows)}${pkResultFiltersHtml(rows)}</div>
       ${pkTableHtml(rows, sym)}<p class="pk-nomatch" data-pk-nomatch hidden>No call matches these filters.</p>${pkWarningsHtml(data, rows)}
     ${foot}`;
 }
@@ -10586,7 +10630,7 @@ function pkKeysHtml(r, sym) {
   const target = pkNum(r.target);
   const dec = Number(thr('UI.RR_DECIMALS')) || 2;
   const g = pkGauge(r);
-  const cells = [['Price', price ? fmtPrice(price, sym) : '-', price ? 'last close' : '', '']];
+  const cells = [['Price', price ? fmtPrice(price, sym) : '-', price ? (r.price_when || 'last close') : '', '']];
   if (r.status !== 'avoid' && target && price) {
     const up = (target / price - 1) * 100;
     cells.push(['Target', fmtPrice(target, sym), up >= 0 ? `${pkSignedPct(up)} from price` : 'below the price',
@@ -10847,7 +10891,9 @@ function pkWarningsHtml(data, rows) {
   if (vix !== null && vix > Number(thr('REGIME.VIX_SKIP'))) out.push(`VIX ${vix.toFixed(1)} is above ${thr('REGIME.VIX_SKIP')}: consider standing down.`);
   if (rows.some(pkIsSized)) out.push(`Re-check the entry if the open gaps more than ${(Number(thr('CHECKLIST.PREMARKET_GAP_PCT')) * 100).toFixed(0)}% against you.`);
   const sectors = {};
-  rows.forEach((r) => { if (r.sector) sectors[r.sector] = (sectors[r.sector] || 0) + 1; });
+  // Buy and Accumulate calls only: a Watchlist call takes no money, so it adds no concentration.
+  rows.filter((r) => r.call === 'buy' || r.call === 'accumulate')
+    .forEach((r) => { if (r.sector) sectors[r.sector] = (sectors[r.sector] || 0) + 1; });
   const conc = Object.entries(sectors).filter(([, n]) => n >= 2).map(([s, n]) => `${s} (${n})`);
   if (conc.length) out.push(`Concentration: ${conc.join(', ')} among these calls; their prices tend to move together.`);
   return out.length ? `<ul class="pk-warn" data-pk-warn>${out.map((t) => `<li>${escapeHtml(t)}</li>`).join('')}</ul>` : '';
@@ -10868,6 +10914,56 @@ const PK_SORT = {
 };
 const PK_COLS = [['rank', '#'], ['stock', 'Stock'], ['price', 'Price'], ['signal', 'Call'], ['levels', 'Levels'],
   ['rr', 'R:R'], ['score', 'Score'], ['pos', 'Your capital']];
+
+/* [PURE] "Oct 29 close" or "Oct 30 intraday": which price a row shows. A session
+   dated the scan's own day, read before that exchange closed, is intraday. */
+function pkPriceWhen(session, scanIso, india) {
+  const [y, mo, d] = String(session || '').split('-').map(Number);
+  if (!y) return '';
+  const day = new Date(y, mo - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const t = new Date(scanIso);
+  if (Number.isNaN(t.getTime())) return `${day} close`;
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: india ? 'Asia/Kolkata' : 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(t).map((x) => [x.type, x.value]));
+  const closeAt = india ? 15.5 : 16;
+  const intraday = String(session) === `${p.year}-${p.month}-${p.day}` && Number(p.hour) + Number(p.minute) / 60 < closeAt;
+  return `${day} ${intraday ? 'intraday' : 'close'}`;
+}
+
+/* [PURE] One price per row. The Research check re-reads a name's live price and
+   builds its entry, stop and target on it, while the scan ranked on the last
+   completed close. A row whose levels rest on a newer price shows that price,
+   so the price, the dot on the levels bar and the upside all measure against
+   the number the levels were built on; the scan's close is kept for the
+   tooltip. Every row gains ``price_when``. Idempotent. */
+function pkAlignRowPrice(r, scanIso, india) {
+  const b = (r && r.price_basis) || {};
+  const live = pkNum(b.price);
+  let out = r;
+  if (live && b.session && r.price_session && String(b.session) > String(r.price_session)) {
+    const target = pkNum(r.target);
+    out = { ...r, price: live, price_session: String(b.session), scan_close: pkNum(r.price), scan_close_session: r.price_session,
+      upside_pct: target ? Math.round(((target - live) / live) * 10000) / 100 : r.upside_pct };
+  }
+  const when = pkPriceWhen(out.price_session, scanIso, india);
+  return when === out.price_when ? out : { ...out, price_when: when };
+}
+function pkAlignPrices(data) {
+  const india = pkIsIndia(data);
+  return { ...data, stock_picks: (data.stock_picks || []).map((r) => pkAlignRowPrice(r, data.timestamp, india)) };
+}
+
+/* The Price cell: the price, the session it is from, and (when the levels were
+   built on a newer price than the scan's close) that close in the tooltip. */
+function pkPriceCellHtml(r, sym) {
+  if (!pkNum(r.price)) return PK_NA;
+  const was = r.scan_close ? ` The scan ranked on the ${r.scan_close_session} close, ${fmtPrice(r.scan_close, sym)}.` : '';
+  const title = r.scan_close
+    ? `Price the Research check built these levels on (${r.price_when}).${was}`
+    : `Close of ${r.price_session}, the last completed session the scan read`;
+  return `<span class="pk-px" title="${escapeHtml(title)}">${escapeHtml(fmtPrice(r.price, sym))}${r.price_when ? `<small class="pk-px-when${r.scan_close ? ' is-live' : ''}">${escapeHtml(r.price_when)}</small>` : ''}</span>`;
+}
 
 /* [Overview] Stop, entry zone, target and price on one scale, each labelled. */
 function pkLevelsCellHtml(r, sym) {
@@ -10974,6 +11070,7 @@ function pkSectionsHtml(data, rows, sym) {
 }
 
 function renderPicksTableView(container, data) {
+  data = pkAlignPrices(data);
   const sym = data.currency || '$';
   // Only QUANTA's calls are picks; anything else is listed under Method.
   const rows = (data.stock_picks || []).filter(pkGroupOf);
@@ -10991,9 +11088,9 @@ function renderPicksTableView(container, data) {
         ${pkHeadHtml(data, rows, sym)}
         ${pkVerdictHtml(data, rows)}
         ${pkSummaryCardsHtml(data, rows, sym)}
-        ${NOT_ADVICE_HTML}
       </div>
-      ${pkSectionsHtml(data, rows, sym)}`;
+      ${pkSectionsHtml(data, rows, sym)}
+      ${NOT_ADVICE_HTML}`;
   wireErrorExport(container, data);
   wireSafeModeRetry(container);
   wirePicksTable(container, data);
@@ -11479,10 +11576,21 @@ function renderPicks(data, { savedAt = null } = {}) {
    --------------------------------------------------------------------------- */
 
 /* [F2] One R:R format everywhere: the configured decimals (UI.RR_DECIMALS). */
+/* [F2] One R:R format everywhere: the configured decimals (UI.RR_DECIMALS),
+   floored, never rounded up, as the server floors its ratios. */
+function floorDp(v, dp) {
+  const f = 10 ** dp;
+  return (Math.floor(v * f + 1e-9) / f).toFixed(dp);
+}
+function rrDecimals() {
+  const d = Number(thr('UI.RR_DECIMALS'));
+  return Number.isInteger(d) && d >= 0 ? d : 2;
+}
 function fmtRR(v) {
+  if (v === null || v === undefined || v === '') return '--';
   const n = Number(v);
   if (!Number.isFinite(n)) return '--';
-  return `${n.toFixed(thr('UI.RR_DECIMALS') ?? 2)}:1`;
+  return `${floorDp(n, rrDecimals())}:1`;
 }
 
 /* [F2] The ONE level set the engine published for this pick (Research levels
@@ -11942,16 +12050,41 @@ function recommendationLabel(data) {
 // the fill beneath is the same reading drawn, with no second colour.
 // `notMeasured` names why a score is a placeholder: the row then reads "n/m"
 // (with that reason as its tooltip) instead of printing the placeholder.
-function scoreBar(label, value, notMeasured = '') {
-  const has = !notMeasured && value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+function scoreBar(label, value, notMeasured = '', opts = {}) {
+  const neutral = Boolean(opts.neutral);
+  const has = !neutral && !notMeasured && value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
   const n = has ? Number(value) : 0;
   const fill = Math.max(0, Math.min(100, n));
+  const shown = has ? fmtNumber(n, 1) : (opts.valueText || (notMeasured ? 'n/m' : '--'));
+  const note = opts.note ? `<span class="score-note">${escapeHtml(opts.note)}</span>` : '';
+  const spoken = has ? fmtNumber(n, 1) : (neutral ? 'not measured, counted as 50' : (notMeasured ? 'not measured' : 'not available'));
   return `
     <div class="score-row${has ? '' : ' is-na'}"${notMeasured ? ` title="${escapeHtml(notMeasured)}" data-not-measured` : ''}>
-      <div class="label">${escapeHtml(label)}</div>
-      <div class="score-value">${has ? fmtNumber(n, 1) : (notMeasured ? 'n/m' : '--')}</div>
-      <div class="score-track" role="img" aria-label="${escapeHtml(label)} ${has ? fmtNumber(n, 1) : (notMeasured ? 'not measured' : 'not available')} of 100"><div class="score-fill" data-fill="${fill}" style="width:${fill}%"></div></div>
+      <div class="label">${escapeHtml(label)}${note}</div>
+      <div class="score-value">${escapeHtml(shown)}</div>
+      <div class="score-track" role="img" aria-label="${escapeHtml(label)} ${spoken} of 100"><div class="score-fill" data-fill="${fill}" style="width:${fill}%"></div></div>
     </div>`;
+}
+
+// One leg of the multi-factor scores. A leg the composite filled with a
+// neutral 50 says so, with its weight; Risk is sizing only, never in the composite.
+function scoreLeg(scores, label, value, notMeasured = '') {
+  const key = label.toLowerCase();
+  const filled = (Array.isArray(scores && scores.neutral_filled) ? scores.neutral_filled : []).map((x) => String(x).toLowerCase());
+  const weights = (scores && scores.weights_used && typeof scores.weights_used === 'object') ? scores.weights_used : {};
+  const w = Number(weights[key]);
+  const wPct = Number.isFinite(w) && w > 0 ? Math.round(w <= 1 ? w * 100 : w) : null;
+  const opts = {};
+  if (filled.includes(key)) {
+    opts.neutral = true;
+    // Short value; the explanation rides on the leg's note line so the value
+    // column does not wrap into three lines.
+    opts.valueText = 'n/m';
+    opts.note = wPct != null ? `counted as 50 · ${wPct}% weight` : 'counted as 50';
+    notMeasured = notMeasured || 'No reliable reading: the composite counts a neutral 50 in its place';
+  }
+  if (key === 'risk') opts.note = 'sizing only, not in the composite';
+  return scoreBar(label, value, notMeasured, opts);
 }
 
 // [DECISION-INTEGRITY] Legacy analyzer commentary sometimes names a verdict
@@ -12776,7 +12909,7 @@ function renderAnalysis(data) {
     ? 'No long reward · 0:1'
     : ((data.beginner_guidance && data.beginner_guidance.rr_label && data.beginner_guidance.rr_label !== 'N/A')
       ? data.beginner_guidance.rr_label
-      : (effectiveRR ? `${fmtNumber(effectiveRR, 2)}:1` : 'Not available'));
+      : (effectiveRR ? fmtRR(effectiveRR) : 'Not available'));
 
   const mcMedianMovePct = isPositive(currentPrice) && isPositive(mc.median_price)
     ? ((Number(mc.median_price) - currentPrice) / currentPrice) * 100
@@ -12821,7 +12954,8 @@ function renderAnalysis(data) {
   const heroStop = decision ? firstUsable(levels.stop) : firstUsable(levels.stop, stopL);
   const heroTarget = decision ? firstUsable(levels.target) : firstUsable(levels.target, baseTgt);
   const heroTiming = dqGate.failed ? null : entryTimingNote(data, heroAction, sym, heroTarget);
-  const heroUp = upsidePct(heroTarget, currentPrice);
+  // Every % on the Key levels card is from the entry, the same base as the risk/reward.
+  const heroUp = upsidePct(heroTarget, heroEntry);
   const horizonLabel = (decision && decision.horizon && decision.horizon.label)
     || (trade.time_horizon ? titleLabel(trade.time_horizon) : '');
   const ev = (decision && decision.evidence) || data.evidence || {};
@@ -12857,6 +12991,12 @@ function renderAnalysis(data) {
   // The longer-dated valuation reference the horizon target is pro-rated from.
   const valuationTarget = decision && isPositive(levels.valuation_target) ? Number(levels.valuation_target) : null;
   const valuationMonths = levels.valuation_target_horizon_days ? Math.max(1, Math.round(Number(levels.valuation_target_horizon_days) / 21)) : 12;
+  // With no QUANTA valuation, the horizon target is only a share of the way to the analysts' mean.
+  const valuationUnavailable = valuation.valuation_label === 'UNAVAILABLE' || valuation.dcf_status === 'unavailable';
+  const thDays = Number(levels.target_horizon_days); const vhDays = Number(levels.valuation_target_horizon_days);
+  const targetFracHtml = valuationTarget && valuationUnavailable && thDays > 0 && vhDays > 0
+    ? `<span class="dlevel-note">${Math.round((thDays / vhDays) * 100)}% of the way to the analysts’ ${valuationMonths}-month mean; no QUANTA valuation</span>`
+    : '';
   // A value that is words (not a figure) is set in the sans, never in mono.
   const wordCls = (v) => (typeof v === 'string' && v && !/^[-+\u2212]?[$\u20b9\u20ac\u00a3]?\d/.test(v.replace(/<[^>]*>/g, '').trim()) ? ' is-word' : '');
   const composite = scores.composite_score != null ? `${fmtNumber(scores.composite_score, 1)}/100` : '--';
@@ -12900,7 +13040,7 @@ function renderAnalysis(data) {
   const valuationCard = factsCard('Valuation multiples', [
     ['P/E (trailing)', fmtMultiple(fundamental.pe_ratio, 1)],
     ['P/E (forward)', fmtMultiple(fundamental.forward_pe, 1)],
-    ['PEG', naEtf(fmtMultiple(fundamental.peg_ratio, 2))],
+    ['PEG', isPositive(fundamental.peg_ratio) ? naEtf(fmtMultiple(fundamental.peg_ratio, 2)) : 'n/m'],
     ['EV / EBITDA', naEtf(fmtMultiple(fundamental.ev_ebitda, 1))],
     // A DCF that was rejected or does not apply is not a 0% gap to price.
     ['DCF vs price', valuation.dcf_status && valuation.dcf_status !== 'measured'
@@ -13165,12 +13305,12 @@ function renderAnalysis(data) {
         <h3 class="section-kicker">Multi-factor scores <span class="section-kicker-tail">0–100 ranking inputs${ev.permits_recommendation ? '' : ', not validated'}</span></h3>
         <div class="score-grid score-strip">
           ${scoreBar('Composite', scores.composite_score).replace('class="score-row', 'class="score-row is-lead')}
-          ${scoreBar('Technical', scores.technical_score)}
-          ${scoreBar('Fundamental', scores.fundamental_score)}
-          ${scoreBar('Valuation', scores.valuation_score, valuation.valuation_label === 'UNAVAILABLE' ? 'No DCF or valuation multiple was measured; the composite carries a neutral 50 in its place' : '')}
-          ${scoreBar('Quality', scores.quality_score)}
-          ${scoreBar('Sentiment', scores.sentiment_score)}
-          ${scoreBar('Risk', scores.risk_score)}
+          ${scoreLeg(scores, 'Technical', scores.technical_score)}
+          ${scoreLeg(scores, 'Fundamental', scores.fundamental_score)}
+          ${scoreLeg(scores, 'Valuation', scores.valuation_score, valuation.valuation_label === 'UNAVAILABLE' ? 'No DCF or valuation multiple was measured; the composite carries a neutral 50 in its place' : '')}
+          ${scoreLeg(scores, 'Quality', scores.quality_score)}
+          ${scoreLeg(scores, 'Sentiment', scores.sentiment_score)}
+          ${scoreLeg(scores, 'Risk', scores.risk_score)}
         </div>
       </article>`;
 
@@ -13192,6 +13332,7 @@ function renderAnalysis(data) {
           ${ev.strategy ? `<span class="model-evidence-strategy mono">${escapeHtml(ev.strategy)}</span>` : ''}
         </div>
         ${(ev.caveats || []).length ? `<ul class="q-bullets">${ev.caveats.map((c) => `<li class="warn">${escapeHtml(c)}</li>`).join('')}</ul>` : ''}
+        ${shadowModelLineHtml(decision)}
         <a class="q-btn q-btn--link" href="#track" data-view-link="track">Open model evidence and track record</a>
       </article>`;
 
@@ -13275,7 +13416,8 @@ function renderAnalysis(data) {
                  data-stop="${escapeHtml(String(isPositive(heroStop) ? heroStop : ''))}"
                  data-target="${escapeHtml(String(isPositive(heroTarget) ? heroTarget : ''))}"
                  data-target-label="${escapeHtml(isPositive(heroTarget) && targetMonths ? `${targetMonths}-month target` : 'Target')}"
-                 data-buy-zone="${escapeHtml(String(buyZonePrice(levels) || ''))}"></div>
+                 data-buy-zone="${escapeHtml(String(buyZonePrice(levels) || ''))}"
+                 data-buy-zone-note="${escapeHtml(buyZoneCaveat(levels, heroEntry, heroStop, sym))}"></div>
           </div>
         </div>
 
@@ -13288,6 +13430,7 @@ function renderAnalysis(data) {
             ${heroMeaning ? `<p class="decision-meaning">${escapeHtml(heroMeaning)}</p>` : ''}
             <p class="decision-prev" data-call-prev hidden></p>
             ${heroTiming ? `<p class="decision-timing ${heroTiming.tone}" data-entry-timing>${escapeHtml(heroTiming.text)}</p>` : ''}
+            ${provisionalBannerHtml(technical)}
           </div>
           ${railFactsHtml}
           <section class="decision-why" aria-label="Why this Decision"${engineBlockers ? ' data-why-not-buy' : ''}>
@@ -13311,14 +13454,15 @@ function renderAnalysis(data) {
             ${level(isPositive(levels.entry) ? 'Entry' : 'Reference price', fmtPrice(heroEntry, sym))}
             ${level('Stop', isPositive(heroStop) ? fmtPrice(heroStop, sym) : '--', isPositive(heroStop) ? 'bear' : '')}
             ${level(`${targetMonths ? (valuationTarget ? `${targetMonths}-month target` : `${targetMonths}-month valuation target`) : (decision ? 'Target' : 'Base target')}${dqGate.failed ? ' (not validated)' : ''}`, isPositive(heroTarget) ? fmtPrice(heroTarget, sym) : '--', isPositive(heroTarget) ? (dqGate.failed ? 'muted' : 'gold') : '',
-              isPositive(heroTarget) && heroUp != null ? `<span class="${dqGate.failed ? 'muted' : directionClass(heroUp)}">${fmtPct(heroUp, 1, false)}</span>` : (decision ? 'none published by this Decision' : ''))}
+              (isPositive(heroTarget) && heroUp != null ? `<span class="${dqGate.failed ? 'muted' : directionClass(heroUp)}">${fmtPct(heroUp, 1, false)}</span>` : (decision ? 'none published by this Decision' : '')) + targetFracHtml)}
             ${level('Reward / risk', escapeHtml(sharedRRLabel), '', /^\d/.test(sharedRRLabel) ? `to the ${targetMonths ? `${targetMonths}-month ` : ''}target, after costs` : '')}
             ${whyItems.some((x) => /\d\/100\b/.test(plainReason(stripEmoji(String(x))))) ? '' : level('Composite', `${composite}${dqGate.failed ? ' (preliminary)' : ''}`, dqGate.failed ? 'muted' : '')}
             ${valuationTarget ? level(`${valuationMonths}-month ${streetOnlyTarget ? 'Street target' : 'valuation target'}`, fmtPrice(valuationTarget, sym), 'muted',
-              `<span class="${directionClass(upsidePct(valuationTarget, currentPrice))}">${fmtPct(upsidePct(valuationTarget, currentPrice), 1, false)}</span><span class="dlevel-note">${streetOnlyTarget ? `analysts’ mean${Number(mi.analyst_count) ? ` (${Number(mi.analyst_count)})` : ''}, no QUANTA valuation` : 'context, not the R/R target'}</span>`) : ''}
+              `<span class="${directionClass(upsidePct(valuationTarget, heroEntry))}">${fmtPct(upsidePct(valuationTarget, heroEntry), 1, false)}</span><span class="dlevel-note">${streetOnlyTarget ? `analysts’ mean${Number(mi.analyst_count) ? ` (${Number(mi.analyst_count)})` : ''}, no QUANTA valuation` : 'context, not the R/R target'}</span>`) : ''}
             </div>
+            ${levelBasisHtml(data, levels, sym, currentPrice)}
             ${levelLadderHtml(heroStop, heroEntry, heroTarget, currentPrice, sym, dqGate.failed)}
-            ${dqGate.failed ? '' : levelNotesHtml({ levels, entry: heroEntry, target: heroTarget, rr: effectiveRR, technical, sym })}
+            ${dqGate.failed ? '' : levelNotesHtml({ levels, entry: heroEntry, target: heroTarget, stop: heroStop, rr: effectiveRR, technical, sym })}
           </section>
 
             ${decision && decision.caveat ? `<p class="decision-caveat">${escapeHtml(decision.caveat)}</p>` : ''}
@@ -13454,7 +13598,7 @@ function relativeCardHtml(rel, ticker, peer) {
         <h3 class="section-kicker">Performance vs ${escapeHtml(bench)}${hasPeer ? ` and ${escapeHtml(peer.fund)}` : ''} <span class="section-kicker-tail">${tail}</span></h3>
         <div class="q-tablewrap" tabindex="0" role="region" aria-label="Relative performance">
           <table class="q-table"><thead><tr><th>Window</th><th class="num">${escapeHtml(ticker || 'Stock')}</th><th class="num">${escapeHtml(bench)}</th>${hasPeer ? `<th class="num">${escapeHtml(peer.fund)}</th>` : ''}<th class="num">${hasPeer ? `vs ${escapeHtml(bench)}` : 'Difference'}</th>${hasPeer ? `<th class="num">vs ${escapeHtml(peer.fund)}</th>` : ''}</tr></thead>
-          <tbody>${rows.map((r) => `<tr><td>${escapeHtml(r.window)}</td><td class="num ${directionClass(r.stock_pct)}">${fmtPct(r.stock_pct, 1, false)}</td><td class="num">${pct(r.benchmark_pct)}</td>${hasPeer ? `<td class="num">${pct(fundBy[r.window])}</td>` : ''}<td class="num rp-diff ${r.excess_pct != null ? directionClass(r.excess_pct) : ''}">${relBar(r.excess_pct)}${pts(r.excess_pct)}</td>${hasPeer ? `<td class="num rp-diff ${vsFund(r) != null ? directionClass(vsFund(r)) : ''}">${pts(vsFund(r))}</td>` : ''}</tr>`).join('')}</tbody></table>
+          <tbody>${rows.map((r) => `<tr><td>${escapeHtml(r.window)}${r.start_date ? ` <span class="rp-since">since ${escapeHtml(shortDay(r.start_date))}</span>` : ''}</td><td class="num ${directionClass(r.stock_pct)}">${fmtPct(r.stock_pct, 1, false)}</td><td class="num">${pct(r.benchmark_pct)}</td>${hasPeer ? `<td class="num">${pct(fundBy[r.window])}</td>` : ''}<td class="num rp-diff ${r.excess_pct != null ? directionClass(r.excess_pct) : ''}">${relBar(r.excess_pct)}${pts(r.excess_pct)}</td>${hasPeer ? `<td class="num rp-diff ${vsFund(r) != null ? directionClass(vsFund(r)) : ''}">${pts(vsFund(r))}</td>` : ''}</tr>`).join('')}</tbody></table>
         </div>
       </article>`;
 }
@@ -13483,7 +13627,7 @@ function streetStripHtml(data, read) {
     cell('EPS estimate, 30d', read === undefined ? reading : (eps != null ? `<span class="${directionClass(eps)}">${fmtPct(eps, 2, false)}</span>` : '<span class="q-na">Not reported</span>'),
       'this year’s consensus', 'Change in the consensus EPS estimate for the current fiscal year over 30 days'),
     cell('Forward P/E', escapeHtml(fmtMultiple(f.forward_pe, 1)), isPositive(f.pe_ratio) ? `trailing ${escapeHtml(fmtMultiple(f.pe_ratio, 1))}` : ''),
-    cell('PEG', escapeHtml(fmtMultiple(f.peg_ratio, 2)), 'P/E over growth'),
+    cell('PEG', isPositive(f.peg_ratio) ? escapeHtml(fmtMultiple(f.peg_ratio, 2)) : 'n/m', isPositive(f.peg_ratio) ? 'P/E over growth' : 'no reliable growth figure'),
   ];
   return `
       <article class="section-card ts-street" data-street aria-labelledby="ts-street-h">
@@ -13495,16 +13639,54 @@ function streetStripHtml(data, read) {
 // Notes under the risk/reward ladder that turn the levels into a plan: the
 // reward/risk hurdles and where they clear, the hit rate the levels need, and
 // resistance in the way. Each figure comes from the Decision or the payload.
-function levelNotesHtml({ levels, entry, target, rr, technical, sym }) {
+// The one muted line under the levels: when the levels were set, from which
+// price, and the live price now (kept current by syncLivePrice).
+function analysisStampText(stamp) {
+  if (!stamp) return '';
+  const d = new Date(stamp);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+function levelBasisHtml(data, levels, sym, livePrice) {
+  const ref = Number(levels && levels.reference_price);
+  if (!(ref > 0)) return '';
+  const when = analysisStampText(data.analysis_timestamp || data.market_timestamp);
+  const live = isPositive(livePrice) ? Number(livePrice) : ref;
+  return `<p class="dlevels-basis muted" data-levels-basis>Levels set${when ? ` at ${escapeHtml(when)}` : ''} from ${escapeHtml(fmtPrice(ref, sym))}; live price now <span data-levels-live>${escapeHtml(fmtPrice(live, sym))}</span></p>`;
+}
+
+// Today's move the Decision does not include yet, beside the call.
+function provisionalBannerHtml(technical) {
+  const lp = technical && technical.live_preview;
+  if (!lp || !lp.large_move) return '';
+  const day = Number(lp.day_change_pct);
+  const txt = Number.isFinite(day) ? `today’s ${day > 0 ? '+' : day < 0 ? '\u2212' : ''}${fmtNumber(Math.abs(day), 1)}% move` : 'today’s large move';
+  return `<p class="decision-prov warn" data-provisional role="note"><b>Provisional:</b> ${escapeHtml(txt)} is not in this call yet; it is re-scored after the close.</p>`;
+}
+
+function levelNotesHtml({ levels, entry, target, stop, rr, technical, sym }) {
   const items = [];
   const hurdles = (levels && levels.rr_hurdles) || {};
-  const rrText = (v) => `${fmtNumber(v, 2)}:1`;
   const research = hurdles.research;
   const funding = hurdles.funding;
+  const clearOf = (row) => (row && isPositive(row.clear_entry) ? Number(row.clear_entry) : null);
+  // Two hurdles on purpose: Research judges the call at its own gate, Picks
+  // asks for a margin above it before committing money. Say so where a call
+  // passes one and not the other, so the gap does not read as a contradiction.
+  const twoGates = research && funding && Number(funding.min) > Number(research.min)
+    ? ` <span class="muted" data-hurdle-why>Research judges the call at ${fmtRR(research.min)}; Picks funds only at ${fmtRR(funding.min)}, a margin for costs and estimate error.</span>`
+    : '';
   if (research && !research.passes) {
-    items.push(`<li class="warn" data-hurdle="research">The Research call needs ${rrText(research.min)}${research.clear_entry ? `: reached at or below <b class="mono">${escapeHtml(fmtPrice(research.clear_entry, sym))}</b>` : ''}.</li>`);
+    const rc = clearOf(research);
+    items.push(`<li class="warn" data-hurdle="research">The Research call needs ${fmtRR(research.min)}${rc ? `: reached at or below <b class="mono">${escapeHtml(fmtPrice(rc, sym))}</b>` : ''}.${twoGates}</li>`);
   } else if (funding && !funding.passes) {
-    items.push(`<li class="warn" data-hurdle="funding">Picks funds at ${rrText(funding.min)} reward/risk${funding.clear_entry ? `: reached at or below <b class="mono">${escapeHtml(fmtPrice(funding.clear_entry, sym))}</b>, with the stop and target re-set from that price` : ''}.</li>`);
+    const fc = clearOf(funding);
+    const belowStop = fc != null && Number(stop) > 0 && fc < Number(stop);
+    let text = `Picks funds at ${fmtRR(funding.min)} reward/risk${fc ? `: reached at or below <b class="mono">${escapeHtml(fmtPrice(fc, sym))}</b>` : ''}`;
+    // buyZoneCaveat ends its own sentence; drop that full stop, the item adds one.
+    if (belowStop) text += `. That is below today’s stop (${escapeHtml(fmtPrice(stop, sym))}): ${escapeHtml(buyZoneCaveat(levels, entry, stop, sym, true).replace(/\.$/, ''))}`;
+    else if (fc) text += ', with the stop and target re-set from that price';
+    items.push(`<li class="warn" data-hurdle="funding">${text}.${twoGates}</li>`);
   }
   if (Number(rr) > 0) {
     items.push(`<li data-breakeven>Break-even hit rate <b class="mono">${Math.round(100 / (1 + Number(rr)))}%</b>: the share of trades like this that must reach the target before the stop.</li>`);
@@ -13522,6 +13704,26 @@ const isoDay = (iso) => (/^\d{4}-\d{2}-\d{2}/.test(String(iso || ''))
   : String(iso || ''));
 
 // The price at which the binding reward/risk hurdle clears, for the buy-zone alert.
+// The funding clear price sits below today's stop: at that price Picks would
+// re-set the stop (keeping the entry-to-stop distance) and the target (the
+// horizon's share of the way to the valuation target). Empty when it does not
+// sit below the stop. `sentenceOnly` drops the leading "Below today's stop" clause.
+function buyZoneCaveat(levels, entry, stop, sym, sentenceOnly = false) {
+  const funding = levels && levels.rr_hurdles && levels.rr_hurdles.funding;
+  const z = funding && isPositive(funding.clear_entry) ? Number(funding.clear_entry) : null;
+  const s = Number(stop); const e = Number(entry);
+  if (!(z > 0) || !(s > 0) || !(e > 0) || !(z < s)) return '';
+  const newStop = z - (e - s);
+  const vt = Number(levels.valuation_target); const vh = Number(levels.valuation_target_horizon_days); const th = Number(levels.target_horizon_days);
+  let out = `at that price QUANTA would re-set the stop to about ${fmtPrice(newStop, sym)}`;
+  if (vt > 0 && vh > 0 && th > 0) {
+    const frac = th / vh;
+    out += ` and the target to about ${fmtPrice(z + frac * (vt - z), sym)}`;
+  }
+  out += '.';
+  return sentenceOnly ? out : `Below today’s stop (${fmtPrice(s, sym)}): ${out}`;
+}
+
 function buyZonePrice(levels) {
   const h = (levels && levels.rr_hurdles) || {};
   const row = (h.research && !h.research.passes) ? h.research : ((h.funding && !h.funding.passes) ? h.funding : null);
@@ -13607,6 +13809,56 @@ function applyResearchRead(container, data, read, ctx) {
 // what it says in one word, coloured by direction (green bullish, red bearish,
 // amber near a level, gray neutral). Bands come from config (UI.TECH_*,
 // REGIME.RSI_OVERBOUGHT). The header tallies the directional rows.
+// While a session is trading (or inside the post-close settle window), the
+// signals are scored from the last completed bar so they do not drift through
+// the day (engine.bars). Say so, so a reader comparing with the live chart is
+// not surprised that today's move is not in the RSI yet.
+function indicatorBasisHtml(technical) {
+  const b = (technical && technical.indicator_basis) || null;
+  if (!b || !b.live_bar_excluded || !b.scored_through) return '';
+  return `<p class="muted" data-indicator-basis style="margin:4px 0 8px;font-size:var(--fs-xs);">Scored through the ${escapeHtml(isoDay(b.scored_through))} close. Today's bar counts once the session has closed and settled; prices and levels on this page are live.</p>`;
+}
+
+// While today's bar is excluded from scoring, say what it did and what it
+// would do to the signals, in plain words. Only states what the payload holds.
+function shortDay(iso) {
+  return /^\d{4}-\d{2}-\d{2}/.test(String(iso || ''))
+    ? new Date(`${String(iso).slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+    : '';
+}
+function livePreviewHtml(t, sym) {
+  const lp = t && t.live_preview;
+  if (!lp || typeof lp !== 'object') return '';
+  const day = Number(lp.day_change_pct);
+  const sigma = Number(lp.daily_sigma_pct);
+  const rsi = Number(lp.rsi);
+  const ob = Number(thr('REGIME.RSI_OVERBOUGHT')); const os = Number(thr('UI.TECH_RSI_OVERSOLD'));
+  const through = shortDay((t.indicator_basis || {}).scored_through);
+  const parts = [];
+  if (Number.isFinite(day)) {
+    const sign = day > 0 ? '+' : day < 0 ? '\u2212' : '';
+    const mult = lp.large_move && sigma > 0 ? Math.abs(day) / sigma : null;
+    const multText = mult != null && mult >= 1 ? (mult >= 2 ? `${Math.round(mult)}\u00d7` : `${mult.toFixed(1)}\u00d7`) : '';
+    parts.push(`Today: ${sign}${fmtNumber(Math.abs(day), 1)}%${lp.large_move ? ` (a large move${multText ? `, ${multText} a normal day` : ''})` : ''}.`);
+  } else {
+    parts.push('Today’s bar is not in these signals yet.');
+  }
+  parts.push(through
+    ? `These signals are scored through the ${through} close and do not include it yet.`
+    : 'These signals do not include today yet.');
+  if (Number.isFinite(rsi)) {
+    const word = rsi >= ob ? ' (overbought)' : (rsi <= os ? ' (oversold)' : '');
+    parts.push(`With today included, RSI would be ${Math.round(rsi)}${word}.`);
+  }
+  parts.push('QUANTA re-scores after the close.');
+  return `<div class="sg-live" role="note" data-live-preview><p>${escapeHtml(parts.join(' '))}</p></div>`;
+}
+function volumeNoteHtml(t) {
+  if (!/last completed session/i.test(String(t.volume_ratio_basis || ''))) return '';
+  const day = shortDay((t.indicator_basis || {}).scored_through);
+  return ` <span class="sg-note">${escapeHtml(day ? `${day} session` : 'last completed session')}</span>`;
+}
+
 function technicalSignalsHtml(technical, price, sym) {
   const t = technical || {};
   const num = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
@@ -13640,7 +13892,7 @@ function technicalSignalsHtml(technical, price, sym) {
   const vr = num(t.volume_ratio);
   if (vr != null && vr > 0) {
     add('volume', 'Volume vs average', `${fmtNumber(vr, 2)}\u00d7`, 'neutral',
-      vr >= Number(thr('UI.TECH_VOLUME_HEAVY')) ? 'Heavy' : (vr <= Number(thr('UI.TECH_VOLUME_LIGHT')) ? 'Light' : 'Normal'));
+      vr >= Number(thr('UI.TECH_VOLUME_HEAVY')) ? 'Heavy' : (vr <= Number(thr('UI.TECH_VOLUME_LIGHT')) ? 'Light' : 'Normal'), '', volumeNoteHtml(t));
   }
   const near = Number(thr('UI.TECH_NEAR_LEVEL_PCT'));
   const lvl = (key, label, v, side) => {
@@ -13671,6 +13923,8 @@ function technicalSignalsHtml(technical, price, sym) {
   return `
       <article class="section-card ts-signals" data-signals aria-labelledby="ts-signals-h">
         <h3 class="section-kicker" id="ts-signals-h">Technical signals <span class="section-kicker-tail">of ${directional.length} directional signals: ${bull} bullish, ${bear} bearish, ${flat} neutral</span></h3>
+        ${livePreviewHtml(t, sym)}
+        ${indicatorBasisHtml(t)}
         <div class="sg-tally" role="img" aria-label="${bull} bullish, ${bear} bearish and ${flat} neutral of ${directional.length} directional signals"><span class="sg-tally-bull" style="width:${pct(bull)}%"></span><span class="sg-tally-flat" style="width:${pct(flat)}%"></span><span class="sg-tally-bear" style="width:${pct(bear)}%"></span></div>
         <dl class="sg-list">${rows.map((r) => `
           <div class="sg-row" data-signal="${r.key}"><dt>${escapeHtml(r.label)}${r.note}</dt><dd class="sg-v">${r.value}${r.extra}</dd><dd class="sg-word">${r.word ? `<span class="sg-pill sg--${r.tone}">${escapeHtml(r.word)}</span>` : ''}</dd></div>`).join('')}
@@ -13853,6 +14107,7 @@ function syncLivePrice(container, d, { ticker, analysisPrice, sym }) {
   const val = container.querySelector('.decision-price-value');
   const chg = container.querySelector('.decision-price-change');
   const nav = container.querySelector('.ts-nav-px');
+  container.querySelectorAll('[data-levels-live]').forEach((el) => { el.textContent = fmtPrice(px, sym); });
   if (val) {
     val.textContent = fmtPrice(px, sym);
     val.title = isPositive(analysisPrice) && Math.abs(px - analysisPrice) >= 0.005
@@ -14466,6 +14721,12 @@ if (typeof window !== 'undefined') {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    // Picks head and prices (2026-10-30): run time, session label, one price per row.
+    pkRunStamp, pkPriceWhen, pkAlignRowPrice,
+    // Research v3 shadow (2026-10-29): the shadow model's one muted line.
+    shadowModelLineHtml,
+    // Completed-bar scoring (2026-10-29): the "scored through" note.
+    indicatorBasisHtml,
     // Discover (2026-10-20): odds, revisions, causes, the read and the status line.
     targetLagged, oddsCellHtml, revisionsCellHtml, sessionCellHtml, rvolCellHtml, discoverReadHtml, moverReason, bookIndex,
     renderDiscoverStatus, freshnessSource, marketTodayIso, exchangeDaysUntil, renderSecurityQueues, setupQualityForMover,
@@ -14479,6 +14740,7 @@ if (typeof module !== 'undefined' && module.exports) {
     recentScansHtml, savedScanAge, savedScanDetail, savedScanNoteHtml, renderRecentScans, refreshRecentScans, openRecentScan, fillScanForm, applyScanFilters, restoreLastScan, onUserScanComplete,
     pkFiltersText, pickScanFilters, initScanFilters, scanTypeName, pkAnalysisHtml, pkSignedPct, pkDecision, setupSummaryText,
     thr, fmtThreshold, applyThresholds, fmtRR, bindingLevels,
+  buyZoneCaveat, levelBasisHtml, provisionalBannerHtml, livePreviewHtml, volumeNoteHtml, scoreLeg, scoreBar, shortDay, analysisStampText, floorDp,
     researchDiagnosticHtml,
     renderResearchDiagnostic,
     handleAnalyzeJobError,

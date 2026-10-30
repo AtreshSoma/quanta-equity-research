@@ -160,6 +160,26 @@ def last_completed_session(now: Optional[datetime] = None) -> _date:
     return previous_trading_day(today)
 
 
+# NYSE early close (New York time) on the sessions listed in early_close_time.
+EARLY_CLOSE = time(13, 0)
+
+
+def early_close_time(day: _date) -> Optional[time]:
+    """13:00 New York when *day* is an NYSE early-close session, else None.
+
+    The sessions are the day after Thanksgiving, 24 December and 3 July, each
+    only when it is a trading day (a holiday or weekend day has no session to
+    close early). Only the settle window in ``engine.bars`` needs this: on a
+    half-day the daily bar is final at 13:00, not 16:00.
+    """
+    if not is_trading_day(day):
+        return None
+    thanksgiving = _nth_weekday(day.year, 11, 3, 4)
+    if day == thanksgiving + timedelta(days=1) or (day.month, day.day) in ((12, 24), (7, 3)):
+        return EARLY_CLOSE
+    return None
+
+
 def format_horizon(sessions: int, start: Optional[_date] = None) -> str:
     """Render a session count as "12 sessions (by Fri 18 Sep)"."""
     target = add_trading_days(start or datetime.now().date(), sessions)

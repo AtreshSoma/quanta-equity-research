@@ -79,8 +79,21 @@ TICKER_PROPERTIES = (
     "earnings_history",
     "insider_transactions",
     "fast_info",
+    "eps_trend",
+    "eps_revisions",
+    "recommendations",
 )
-TICKER_METHODS = ("history", "option_chain")
+TICKER_METHODS = ("history", "option_chain", "get_earnings_dates")
+
+# Methods a fixture may lack without it counting as an unrecorded read. The
+# earnings-date table was read only from 2026-10-29; fixtures recorded before
+# then have no table, so replay serves it as empty (the same answer the engine
+# gets when the provider lists nothing) and it is not a miss. Re-recording a
+# ticker captures the table; until then its next-date fallback is "unavailable".
+# The estimate-revision frames are read from 2026-10-29 by the v4 shadow model
+# only; an older fixture serves them empty, so v4 scores without a revisions leg.
+# The recommendation counts (Buy / Hold / Sell split, display only) likewise.
+OPTIONAL_METHODS = ("get_earnings_dates", "eps_trend", "eps_revisions", "recommendations")
 
 # Sentinel stored when a real access raised, so replay can reproduce the
 # failure rather than papering over it with an empty default.
@@ -253,6 +266,8 @@ class _ReplayTicker:
         self._strict = strict
 
     def _miss(self, key: tuple, default: Any) -> Any:
+        if len(key) >= 3 and key[2] in OPTIONAL_METHODS:
+            return default
         self._rec.misses.append(key)
         if self._strict:
             raise KeyError(
@@ -508,6 +523,18 @@ def _offline_event_patches() -> list:
                     else _ce.EventCheck("clear", note="not recorded (offline replay)")) for s in symbols}
 
     return [mock.patch.object(_ce, "check_many", _offline_events)]
+
+
+def replay_clock(rec: Recording) -> str:
+    """The instant a replay runs at: the recorded date, after the session has settled.
+
+    21:30 UTC is 17:30 New York (EDT), 16:30 in winter, and 03:00 IST the next
+    day. That is after the US close plus the settle window and after the NSE
+    close, so the recorded session counts as completed. Midnight, the old pin,
+    put the recorded bar in the future. ``date.today()`` still reads the
+    recording date.
+    """
+    return f"{rec.recorded_at} 21:30:00"
 
 
 def replay_io(rec: Recording, *, strict: bool = True) -> Any:

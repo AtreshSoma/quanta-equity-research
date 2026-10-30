@@ -208,6 +208,13 @@ class Decision:
     # The price-history range the analysis read ("2y/1d"; "6mo/1d" is the
     # provider fallback, too short for the risk window).
     history_range: str = ""
+    # The other Research model version, scored from the same components and
+    # published beside this call. Informational: no gate, level or hurdle
+    # applies to it. None when the Decision has no such model (not a Research call).
+    shadow_model: Optional[Dict[str, Any]] = None
+    # The pre-registered v4 shadow call (engine/research_v4), recorded under its
+    # own ledger engine. Informational like shadow_model; None when not scored.
+    shadow_v4: Optional[Dict[str, Any]] = None
 
     @property
     def presentation(self) -> Presentation:
@@ -278,6 +285,10 @@ class Decision:
             "sources": [asdict(s) for s in self.sources],
             "freshness": asdict(self.freshness),
         }
+        if self.shadow_model is not None:
+            d["shadow_model"] = dict(self.shadow_model)
+        if self.shadow_v4 is not None:
+            d["shadow_v4"] = dict(self.shadow_v4)
         return _clean(d)
 
     def headline(self) -> str:

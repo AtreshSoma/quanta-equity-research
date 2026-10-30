@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import Iterable, List, Optional
 
 from .dividend import SUPPRESS_THRESHOLD
+from .thresholds import floor_rr
 from .types import FinalAction
 
 
@@ -82,7 +83,7 @@ def validate_consistency(views: Iterable[TickerView], *, deployed: float = 0.0,
                     "(maximum allowed action is ACCUMULATE)"
                 )
             if v.risk_reward_ratio < 1.5:
-                rep.add(f"{v.ticker}: {v.summary_action} but R/R {v.risk_reward_ratio:.2f} < 1.5")
+                rep.add(f"{v.ticker}: {v.summary_action} but R/R {floor_rr(v.risk_reward_ratio):.2f} < 1.5")
 
         # rule: HOLD_EXISTING requires existing position
         if v.summary_action == FinalAction.HOLD_EXISTING.value and not v.has_existing_position:

@@ -178,16 +178,17 @@ def cmd_elite_walkforward(args: argparse.Namespace) -> int:
         ("random exit", result.random_exit),
     ):
         alpha = rep.alpha_ann_pct
+        na = not rep.trade_stats_applicable  # buy-and-hold: no discrete trades
         print(
             f"{label:<16}"
             f"{rep.cagr_pct:>8.2f}"
             f"{rep.sharpe:>8.2f}"
             f"{rep.sortino:>8.2f}"
             f"{rep.max_drawdown_pct:>8.2f}"
-            f"{rep.n_trades:>7}"
-            f"{rep.hit_rate_pct:>7.1f}"
-            f"{rep.expectancy_pct:>8.3f}"
-            f"{rep.profit_factor:>6.2f}"
+            f"{('n/a' if na else rep.n_trades):>7}"
+            f"{('n/a' if na else f'{rep.hit_rate_pct:.1f}'):>7}"
+            f"{('n/a' if na else f'{rep.expectancy_pct:.3f}'):>8}"
+            f"{('n/a' if na else f'{rep.profit_factor:.2f}'):>6}"
             f"{('n/a' if alpha is None else f'{alpha:.2f}'):>8}"
         )
     print()

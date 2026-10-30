@@ -36,6 +36,12 @@
   const H = 300;            // price pane height in viewBox units
   const VOL_SHARE = 0.16;
   const RANGES = [['1d', '1D'], ['5d', '5D'], ['1mo', '1M'], ['6mo', '6M'], ['ytd', 'YTD'], ['1y', '1Y'], ['5y', '5Y'], ['max', 'Max']];
+  // The base of a range change: the first bar's day, so "past 6 months" says since when.
+  function baseNote(state) {
+    const pts = state && state.data && state.data.points;
+    if (!pts || !pts.length || !state.data || state.data.range === '1d') return '';
+    return ` since ${state.model.z.day(pts[0][0])} close`;
+  }
   const RANGE_WORDS = { '1d': 'today', '5d': 'past 5 days', '1mo': 'past month', '6mo': 'past 6 months', ytd: 'year to date', '1y': 'past year', '5y': 'past 5 years', max: 'all time' };
   const REFRESH_MS = { '1d': 20000, '5d': 60000 };
   const LIVE_PATCH_MS = 60000;
@@ -752,7 +758,7 @@
       const tone = finite(chg) ? ((chg >= 0) !== isInverse(data) ? 'bull' : 'bear') : '';
       const asOf = is1d
         ? (data.market_open ? `Market open, as of ${z.time(data.regular_time || data.retrieved_at)}` : `At close: ${z.day(data.regular_time || data.retrieved_at)}, ${z.time(data.regular_time || data.retrieved_at)}`)
-        : `Change ${RANGE_WORDS[data.range] || ''}, last bar ${z.full(state.data.points[state.data.points.length - 1][0])}`;
+        : `Change ${baseNote(state) ? baseNote(state).trim() : (RANGE_WORDS[data.range] || '')}, last bar ${z.full(state.data.points[state.data.points.length - 1][0])}`;
       const extd = is1d && data.extended && finite(data.extended.price) && Math.abs(data.extended.price - regular) >= 0.005
         ? (() => {
           const e = data.extended;
@@ -765,7 +771,7 @@
     } else {
       const chgPct = base ? ((last - base) / base) * 100 : null;
       const when = data.market_open && (is1d || state.livePatched) ? `Live, ${z.time(data.retrieved_at)}` : `Last bar ${is1d ? z.time(data.points[data.points.length - 1][0]) : z.full(data.points[data.points.length - 1][0])}`;
-      quote = `<div class="lc-q lc-q--compact"><span class="lc-px lc-px--sm${state.flash ? ` is-flash-${state.flash}` : ''}">${esc(cur)}${fmtNum(last, priceDigits(last))}</span><span class="lc-chg ${up ? 'bull' : 'bear'}">${fmtSigned(chgPct)}% ${esc(is1d && finite(data.previous_close) ? 'vs previous close' : RANGE_WORDS[data.range] || '')}</span><span class="lc-asof">${esc(when)}</span></div>`;
+      quote = `<div class="lc-q lc-q--compact"><span class="lc-px lc-px--sm${state.flash ? ` is-flash-${state.flash}` : ''}">${esc(cur)}${fmtNum(last, priceDigits(last))}</span><span class="lc-chg ${up ? 'bull' : 'bear'}">${fmtSigned(chgPct)}% ${esc(is1d && finite(data.previous_close) ? 'vs previous close' : (baseNote(state) ? baseNote(state).trim() : (RANGE_WORDS[data.range] || '')))}</span><span class="lc-asof">${esc(when)}</span></div>`;
     }
     state.quote.innerHTML = quote;
     state.flash = '';

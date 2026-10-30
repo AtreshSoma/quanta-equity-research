@@ -3,8 +3,8 @@
   "recorded_at": "2026-10-23",
   "result": {
     "action_items": [
-      "Do not open a new position while the blocking conditions remain",
-      "Re-run the Decision after the primary blocker clears",
+      "Do not open a new position: the overall score is bearish",
+      "If you hold it: trim into strength and keep the stop",
       "Review position before 2026-10-27"
     ],
     "action_plan_note": "These targets are for existing holders, not new entry recommendations.",
@@ -17,29 +17,29 @@
     "beginner_guidance": {
       "aggressive_buyer": "Do not add until the final decision changes",
       "beginner_action": "Do not open a new position; review the resolved decision and its risks.",
-      "breakout_entry": 1604.38,
+      "breakout_entry": 1220.8,
       "buy_now": "NO",
       "candlestick_timing": "WAIT / NO CLEAR EDGE",
-      "confidence": 49.9688,
+      "confidence": 44.3438,
       "data_quality": "PASS",
       "entry_quality": "Weak",
-      "existing_holder": "Hold",
-      "existing_holder_stop": 1118.51,
-      "long_term_holder_stop": 1118.51,
-      "long_tf": "Review before adding",
-      "main_reason": "Risk/reward of 0.79:1 is below the 1.50:1 minimum.",
-      "mid_tf": "Hold existing / wait",
-      "new_buyer": "Wait; no new position",
+      "existing_holder": "Trim into strength; keep the stop",
+      "existing_holder_stop": 1138.01,
+      "long_term_holder_stop": 1138.01,
+      "long_tf": "Avoid",
+      "main_reason": "Bearish technicals and weak setup outweigh other factors.",
+      "mid_tf": "Avoid",
+      "new_buyer": "Avoid new buy",
       "pullback_basis": "support zone",
       "pullback_entry": 1160.8,
       "pullback_is_deep": false,
       "pullback_stop": 1135.44,
-      "recommendation_label": "WATCHLIST",
+      "recommendation_label": "AVOID",
       "risk_conflict_warning": "",
       "risk_grade": "B",
-      "rr_label": "Unfavorable, 0.79:1",
-      "short_tf": "Wait",
-      "signal": "HOLD",
+      "rr_label": "N/A",
+      "short_tf": "Avoid",
+      "signal": "SELL",
       "tactical_stop": 1164.0,
       "tactical_stop_basis": "~1x ATR",
       "volume_requirement": ">= 1.5x avg on entry day",
@@ -52,13 +52,15 @@
       "dividend_yield": 0.005,
       "earnings_date": "2026-10-27",
       "ex_dividend_date": "Unknown",
+      "last_earnings_date": "Unknown",
       "last_earnings_result": "Unknown",
       "last_earnings_surprise_pct": 0.0,
-      "near_term_catalyst": true
+      "near_term_catalyst": true,
+      "sessions_since_last_earnings": null
     },
     "company_name": "RELIANCE INDUSTRIES LTD",
     "confidence_level": "LOW",
-    "confidence_score": 49.9688,
+    "confidence_score": 44.3438,
     "conviction_label": "LOW-CONVICTION",
     "country": "India",
     "currency": "INR",
@@ -69,7 +71,7 @@
     "day_change": 5.5,
     "day_change_pct": 0.4643,
     "decision": {
-      "action": "WATCHLIST",
+      "action": "AVOID",
       "as_of": "<volatile>",
       "blockers": [
         {
@@ -77,23 +79,16 @@
           "code": "EVENT_CHECK_NOT_COVERED",
           "remedy": "None: names on exchanges no event source covers get no Buy call (owner decision)",
           "text": "No corporate-event source covers this exchange's listings"
-        },
-        {
-          "category": "score",
-          "code": "HOLD_NOT_OWNED",
-          "remedy": "Overall score reaching 55 or higher",
-          "text": "Overall score is in the neutral band (45\u201355)"
         }
       ],
-      "blocking": [
-        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
-      ],
+      "blocking": [],
       "blocking_codes": [
-        "EVENT_CHECK_NOT_COVERED",
-        "HOLD_NOT_OWNED"
+        "EVENT_CHECK_NOT_COVERED"
       ],
       "caveat": "",
-      "conflicts": [],
+      "conflicts": [
+        "Analyst consensus target implies +40.0% upside"
+      ],
       "engine": "elite",
       "event_check": {
         "agreement_date": null,
@@ -130,6 +125,7 @@
         "lineage": [
           {
             "change": "risk leg removed from the ranking composite",
+            "relation": "earlier",
             "status": "UNTESTED",
             "status_text": "Never validated",
             "strategy": "elite.alpha_only.v1",
@@ -138,11 +134,22 @@
           },
           {
             "change": "original composite",
+            "relation": "earlier",
             "status": "NO_EDGE",
             "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
             "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
+          },
+          {
+            "change": "pre-registered 2026-10-29; running in shadow",
+            "doc": "docs/preregistration/elite_research_v3.md",
+            "relation": "successor",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.research.v3",
+            "summary": "Never tested.",
+            "tested_through": null
           }
         ],
         "metrics": {
@@ -180,7 +187,7 @@
         "quality": 47.5,
         "sentiment": 50,
         "technical": 40,
-        "valuation": 50.0
+        "valuation": 20.0
       },
       "freshness": {
         "lag_sessions": 0,
@@ -190,7 +197,7 @@
       },
       "generated_at": "<volatile>",
       "history_range": "2y/1d",
-      "holder_action": "HOLD",
+      "holder_action": "TRIM",
       "holdings_known": false,
       "horizon": {
         "key": "position",
@@ -199,32 +206,21 @@
       },
       "interpretation": null,
       "invalidation": [],
-      "label": "WATCHLIST",
+      "label": "AVOID",
       "levels": {
-        "entry": 1190.0,
+        "entry": null,
         "reference_price": 1190.0,
-        "reward_risk": 0.791436,
-        "rr_hurdles": {
-          "funding": {
-            "clear_entry": 896.29,
-            "min": 1.8,
-            "passes": false
-          },
-          "research": {
-            "clear_entry": 982.82,
-            "min": 1.5,
-            "passes": false
-          }
-        },
-        "stop": 1118.51,
-        "target": 1254.04,
-        "target_basis": "63-session target, pro-rated from the 12-month valuation target",
-        "target_horizon_days": 63,
-        "valuation_target": 1446.17,
-        "valuation_target_horizon_days": 252
+        "reward_risk": 0.0,
+        "rr_hurdles": {},
+        "stop": null,
+        "target": null,
+        "target_basis": "",
+        "target_horizon_days": null,
+        "valuation_target": null,
+        "valuation_target_horizon_days": null
       },
-      "model_stance": "NEUTRAL",
-      "new_money": "WATCH",
+      "model_stance": "BEARISH",
+      "new_money": "AVOID",
       "primary_blocker": {
         "category": "missing_data",
         "code": "EVENT_CHECK_NOT_COVERED",
@@ -233,10 +229,11 @@
       },
       "qualifier": "",
       "reasons": [
-        "Composite score 50.0 \u2192 candidate HOLD_EXISTING",
-        "HOLD_EXISTING but no existing position \u2192 WATCHLIST"
+        "Composite score 44.3 \u2192 candidate AVOID"
       ],
-      "red_flags": [],
+      "red_flags": [
+        "DCF_OVERVALUATION"
+      ],
       "risk_grade": "B",
       "risk_grade_drivers": [
         {
@@ -270,19 +267,19 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 494,
+      "risk_grade_lookback_days": 495,
       "risk_metrics": {
-        "beta": 0.936579,
+        "beta": 0.93503,
         "risk_score": 45,
-        "volatility": 0.209307
+        "volatility": 0.209123
       },
       "risks": [],
       "scenarios": [
         {
           "method": "range of analyst consensus, intrinsic value (lowest)",
           "name": "low_method",
-          "price": 1079.79,
-          "return_pct": -9.26118,
+          "price": 856.4,
+          "return_pct": -28.0336,
           "source_ids": [
             "analyst_consensus",
             "intrinsic_value"
@@ -291,8 +288,8 @@
         {
           "method": "weighted blend of analyst consensus, intrinsic value",
           "name": "weighted",
-          "price": 1446.17,
-          "return_pct": 21.5271,
+          "price": 1362.4,
+          "return_pct": 14.4874,
           "source_ids": [
             "analyst_consensus",
             "intrinsic_value"
@@ -310,8 +307,80 @@
         }
       ],
       "schema_version": 1,
-      "score": 49.9688,
+      "score": 44.3438,
       "score_basis": "Research composite (alpha factors only), 0-100",
+      "shadow_model": {
+        "band_action": "HOLD",
+        "key": "elite.research.v3",
+        "note": "Pre-registered shadow model, scored from the same components. Not used for this call: no evidence gate, level, hurdle or override applies to it.",
+        "score": 49.25,
+        "status": "UNTESTED",
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.4,
+          "quality": 0.3,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
+      "shadow_v4": {
+        "band_action": "HOLD",
+        "ev_gate": {
+          "passes": false,
+          "reason": "no stop to measure risk against"
+        },
+        "key": "elite.research.v4",
+        "legs": {
+          "fundamental": 60,
+          "quality": 47.5,
+          "revisions": 44.6,
+          "sentiment": 50,
+          "technical": 40,
+          "valuation": 65.96
+        },
+        "note": "Pre-registered shadow model v4 (docs/preregistration/elite_research_v4.md): revisions leg, sector-aware valuation and an expected-value gate. Not used for this call.",
+        "score": 52.0,
+        "score_band": "HOLD",
+        "status": "UNTESTED",
+        "target": {
+          "components": [
+            {
+              "source": "analyst",
+              "value": 1666.0,
+              "weight": 0.625
+            },
+            {
+              "source": "intrinsic",
+              "value": 801.749,
+              "weight": 0.375
+            }
+          ],
+          "intrinsic": {
+            "components": [
+              {
+                "source": "dcf",
+                "value": 801.749,
+                "weight": 1.0
+              }
+            ],
+            "method": "dcf",
+            "note": "",
+            "value": 801.749
+          },
+          "upside_pct": 12.77,
+          "value": 1341.91
+        },
+        "version": "v4",
+        "weights": {
+          "fundamental": 0.32,
+          "quality": 0.24,
+          "revisions": 0.2,
+          "sentiment": 0.08,
+          "technical": 0.08,
+          "valuation": 0.08
+        }
+      },
       "sizing": {
         "dollar_risk": 0,
         "portfolio_weight": 0,
@@ -331,7 +400,7 @@
           "url": ""
         }
       ],
-      "stance": "NEUTRAL",
+      "stance": "BEARISH",
       "ticker": "RELIANCE.NS",
       "transitions": []
     },
@@ -349,6 +418,7 @@
       "lineage": [
         {
           "change": "risk leg removed from the ranking composite",
+          "relation": "earlier",
           "status": "UNTESTED",
           "status_text": "Never validated",
           "strategy": "elite.alpha_only.v1",
@@ -357,11 +427,22 @@
         },
         {
           "change": "original composite",
+          "relation": "earlier",
           "status": "NO_EDGE",
           "status_text": "Tested out of sample: no demonstrated edge",
           "strategy": "elite.composite",
           "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
           "tested_through": "2026-08-25"
+        },
+        {
+          "change": "pre-registered 2026-10-29; running in shadow",
+          "doc": "docs/preregistration/elite_research_v3.md",
+          "relation": "successor",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.research.v3",
+          "summary": "Never tested.",
+          "tested_through": null
         }
       ],
       "metrics": {
@@ -397,7 +478,7 @@
     "exchange": "NSI",
     "expense_ratio": 0.0,
     "fast_mode": false,
-    "final_action": "WATCHLIST",
+    "final_action": "AVOID",
     "first_bar_date": "2024-10-23",
     "fundamental": {
       "altman_z_score": 1.2398,
@@ -417,7 +498,8 @@
       "operating_margin": 12.331,
       "pb_ratio": 1.7813,
       "pe_ratio": 21.5502,
-      "peg_ratio": 0.0,
+      "peg_ratio": 0.82,
+      "peg_source": "provider",
       "piotroski_components_available": 5,
       "piotroski_f_score": 4,
       "quality_score": 47.5,
@@ -452,7 +534,8 @@
     "is_high_volatility": false,
     "is_invalid": false,
     "key_insights": [
-      "\u23f8\ufe0f HOLD signal with 50% confidence",
+      "\ud83d\udca8 SELL signal with 44% confidence",
+      "\u26a0\ufe0f DCF suggests 33% overvaluation",
       "\ud83d\udcf0 No direct company headlines found; peer/macro sentiment is not treated as company evidence"
     ],
     "last_bar_date": "2026-10-23",
@@ -474,23 +557,23 @@
     "market_state": "POSTPOST",
     "market_timestamp": "<volatile>",
     "mc_model_note": "",
-    "model_action": "WATCHLIST",
+    "model_action": "AVOID",
     "monte_carlo": {
       "days_simulated": 30,
-      "expected_return": -1.4089,
+      "expected_return": -1.3785,
       "expected_return_basis": "mean",
-      "mean_price": 1173.23,
-      "median_price": 1169.33,
-      "percentile_25": 1105.45,
-      "percentile_5": 1013.31,
-      "percentile_75": 1239.05,
-      "percentile_95": 1344.91,
-      "probability_10pct_gain": 0.0977,
-      "probability_10pct_loss": 0.154,
+      "mean_price": 1173.6,
+      "median_price": 1167.41,
+      "percentile_25": 1105.76,
+      "percentile_5": 1012.98,
+      "percentile_75": 1238.78,
+      "percentile_95": 1346.96,
+      "probability_10pct_gain": 0.103,
+      "probability_10pct_loss": 0.1507,
       "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only: not the chance of touching a target, and not target-vs-stop.",
-      "probability_profit": 0.418,
+      "probability_profit": 0.4157,
       "simulations_run": 3000,
-      "var_95": -14.8477
+      "var_95": -14.8759
     },
     "net_assets": 0.0,
     "peer_comparison": {
@@ -498,10 +581,10 @@
       "pb_sector_avg": 3.7099,
       "pb_stock": 1.7813,
       "pb_vs_sector": -51.9845,
-      "pe_sector_avg": 18.3219,
+      "pe_sector_avg": 18.2277,
       "pe_stock": 21.5502,
-      "pe_vs_sector": 17.6197,
-      "roe_sector_avg": 19.9947,
+      "pe_vs_sector": 18.2277,
+      "roe_sector_avg": 14.18,
       "roe_stock": 0,
       "roe_vs_sector": 0.0,
       "sector": "Energy",
@@ -510,8 +593,8 @@
     },
     "portfolio_outlook": {
       "bottom_line": "Existing holders can hold with a strict stop. New buyers should wait for pullback or breakout confirmation.",
-      "reason": "Risk/reward of 0.79:1 is below the 1.50:1 minimum.",
-      "recommendation": "WATCHLIST"
+      "reason": "Bearish technicals and weak setup outweigh other factors.",
+      "recommendation": "AVOID"
     },
     "portfolio_risk_check": {
       "adjustments": {},
@@ -537,38 +620,46 @@
     "previous_close": 1184.5,
     "quote_type": "EQUITY",
     "recommendation_caveat": "",
-    "recommendation_label": "WATCHLIST",
+    "recommendation_label": "AVOID",
     "recommendation_qualifier": "",
-    "recommendation_text": "WATCHLIST - No new position | Confidence: 50% | Score: 50/100 | Risk: B",
+    "recommendation_text": "AVOID - No new exposure | Confidence: 44% | Score: 44/100 | Risk: B",
     "relative_performance": {
       "basis": "total return, dividend-adjusted closes",
       "benchmark": "^NSEI",
       "rows": [
         {
           "benchmark_pct": -3.12,
+          "end_date": "2026-10-23",
           "excess_pct": -0.94,
           "sessions": 21,
+          "start_date": "2026-09-22",
           "stock_pct": -4.06,
           "window": "1M"
         },
         {
           "benchmark_pct": -5.32,
+          "end_date": "2026-10-23",
           "excess_pct": -1.14,
           "sessions": 63,
+          "start_date": "2026-07-23",
           "stock_pct": -6.46,
           "window": "3M"
         },
         {
           "benchmark_pct": -7.29,
+          "end_date": "2026-10-23",
           "excess_pct": -4.94,
           "sessions": 126,
+          "start_date": "2026-04-22",
           "stock_pct": -12.23,
           "window": "6M"
         },
         {
           "benchmark_pct": -10.76,
+          "end_date": "2026-10-23",
           "excess_pct": -2.25,
           "sessions": 252,
+          "start_date": "2025-10-15",
           "stock_pct": -13.01,
           "window": "1Y"
         }
@@ -577,10 +668,10 @@
     "requested_symbol": "RELIANCE.NS",
     "retrieval_timestamp": "<volatile>",
     "risk": {
-      "annualized_volatility": 0.2093,
-      "beta": 0.9366,
+      "annualized_volatility": 0.2091,
+      "beta": 0.935,
       "beta_benchmark": "^NSEI",
-      "beta_observations": 245,
+      "beta_observations": 246,
       "beta_status": "measured",
       "cvar_95": -0.0275,
       "grade_drivers": [
@@ -620,25 +711,47 @@
       "overall_risk_score": 4,
       "risk_grade": "B",
       "risk_points": 4,
-      "sharpe_ratio": -0.3877,
-      "sortino_ratio": -0.5558,
-      "var_95_daily": -0.0209
+      "sharpe_ratio": -0.472,
+      "sortino_ratio": -0.6735,
+      "var_95_daily": -0.0208
     },
     "risk_warnings": [
       "\ud83d\udcc5 EARNINGS IMMINENT: 4 days away"
     ],
     "scores": {
       "component_details": {},
-      "composite_score": 49.9688,
+      "composite_score": 44.3438,
       "data_quality_note": "MODERATE - Some data sources missing",
       "fundamental_score": 60,
+      "neutral_filled": [
+        "sentiment"
+      ],
       "quality_score": 47.5,
       "risk_score": 45,
       "score_confidence_margin": 0.0,
       "sentiment_score": 50,
+      "shadow_model": {
+        "band_action": "HOLD",
+        "score": 49.25,
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.4,
+          "quality": 0.3,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
       "technical_score": 40,
-      "valuation_score": 50.0,
+      "valuation_score": 20.0,
       "weights": {
+        "fundamental": 0.3125,
+        "quality": 0.1625,
+        "sentiment": 0.0625,
+        "technical": 0.275,
+        "valuation": 0.1875
+      },
+      "weights_used": {
         "fundamental": 0.3125,
         "quality": 0.1625,
         "sentiment": 0.0625,
@@ -676,13 +789,13 @@
       "sources_succeeded": 1,
       "status": "NO_NEWS"
     },
-    "signal": "HOLD",
+    "signal": "SELL",
     "signal_explanation": {
-      "composite_score": 49.9688,
+      "composite_score": 44.3438,
       "overrides_triggered": [],
-      "primary_reason": "Composite score 50 in HOLD range",
+      "primary_reason": "Composite score 44 triggers REDUCE",
       "risk_factors": [
-        "Monte Carlo tail shape is unfavorable (4.1% 75th-percentile upside vs 14.8% 5th-percentile downside); diagnostic only"
+        "Monte Carlo tail shape is unfavorable (4.1% 75th-percentile upside vs 14.9% 5th-percentile downside); diagnostic only"
       ],
       "supporting_factors": [
         "Fundamental score 60 (strong)"
@@ -775,7 +888,7 @@
         "status": "ok"
       }
     ],
-    "stance": "NEUTRAL",
+    "stance": "BEARISH",
     "symbol_note": "",
     "technical": {
       "adx": 28.5643,
@@ -787,6 +900,11 @@
       "candlestick_score": 50.0,
       "death_cross": false,
       "golden_cross": false,
+      "indicator_basis": {
+        "live_bar_excluded": false,
+        "reason": "newest bar is a completed session",
+        "scored_through": "2026-10-23"
+      },
       "macd_signal": "BULLISH",
       "momentum_score": 59.4758,
       "prior_trend": "SIDEWAYS",
@@ -799,14 +917,17 @@
       "trend_strength": "MODERATE",
       "unmeasured": [],
       "volatility_score": 45,
-      "volume_ratio": 1.0017,
-      "volume_ratio_basis": "last completed session (today's is still trading)",
+      "volume_ratio": 0.9764,
+      "volume_ratio_basis": "latest session",
       "week_52_basis": "provider-reported traded range",
       "week_52_high": 1611.8,
       "week_52_low": 1152.2
     },
     "thesis": {
-      "bear_case": [],
+      "bear_case": [
+        "Valuation stretched - significantly overvalued",
+        "DCF suggests 32.6% overvaluation"
+      ],
       "bull_case": [
         "Growing revenues at 29.7% YoY"
       ],
@@ -817,31 +938,33 @@
       "risks": [
         "\ud83d\udcc5 EARNINGS IMMINENT: 4 days away"
       ],
-      "summary": "RELIANCE INDUSTRIES LTD (RELIANCE.NS) should be held at current levels with a 50% confidence score. Composite score of 50/100."
+      "summary": "RELIANCE INDUSTRIES LTD (RELIANCE.NS) should be sold to manage risk with a 44% confidence score. Composite score of 44/100."
     },
     "ticker": "RELIANCE.NS",
     "trade_setup": {
-      "entry_price": 1190.0,
+      "entry_price": 0.0,
       "entry_type": "REFERENCE",
       "has_long_reward": true,
       "is_actionable_entry": false,
-      "levels_available": true,
-      "risk_reward_ratio": 0.7914,
-      "setup_basis": "spot (reference only, not an order); stop 2.75xATR below entry; 63-session target pro-rated from the 12-month valuation target \u20b91,446.17; Target 1 is a tactical partial exit",
-      "stop_loss": 1118.51,
-      "target_aggressive": 1666.0,
-      "target_base": 1446.17,
-      "target_conservative": 1220.8,
-      "time_horizon": "POSITION",
+      "levels_available": false,
+      "risk_reward_ratio": 0.0,
+      "setup_basis": "exit signal: no long entry levels",
+      "stop_loss": 0.0,
+      "target_aggressive": 0.0,
+      "target_base": 0.0,
+      "target_conservative": 0.0,
+      "time_horizon": "SWING",
       "trailing_stop": 0.0,
-      "trailing_stop_pct": 4.4,
+      "trailing_stop_pct": 0.0,
+      "vol_scenario": {},
+      "vol_scenario_caveat": "",
       "win_probability": 0.0
     },
     "valuation": {
-      "dcf_fair_value": 1248.53,
+      "dcf_fair_value": 801.749,
       "dcf_method": "earnings_based",
       "dcf_status": "measured",
-      "dcf_upside": 4.9188,
+      "dcf_upside": -32.6261,
       "fair_value_sources": [
         "graham",
         "dcf"
@@ -849,8 +972,8 @@
       "graham_number": 911.05,
       "graham_status": "measured",
       "target_aggressive": 1666.0,
-      "target_agreement_pct": 57.3,
-      "target_base": 1446.17,
+      "target_agreement_pct": 35.8,
+      "target_base": 1362.4,
       "target_components": [
         {
           "source": "analyst_consensus",
@@ -859,20 +982,20 @@
         },
         {
           "source": "intrinsic_value",
-          "value": 1079.79,
+          "value": 856.4,
           "weight": 0.375
         }
       ],
-      "target_confidence": 57.3,
-      "target_conservative": 1079.79,
+      "target_confidence": 35.8,
+      "target_conservative": 856.4,
       "target_probability": 0.0,
       "target_source_count": 2,
       "target_sources": [
         "analyst_consensus",
         "intrinsic_value"
       ],
-      "valuation_label": "FAIRLY_VALUED",
-      "valuation_score": 50,
+      "valuation_label": "SIGNIFICANTLY_OVERVALUED",
+      "valuation_score": 20,
       "valuation_status": "measured"
     }
   },

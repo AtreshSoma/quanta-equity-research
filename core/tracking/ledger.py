@@ -180,11 +180,23 @@ class GroupStats:
     # Benchmarks the group's calls were actually scored against ("SPY" for US
     # listings, "^NSEI" for NSE and BSE names). More than one means a mixed-market group.
     benchmarks: List[str] = field(default_factory=list)
+    # Additive uncertainty fields. ``hit_rate_ci95`` is a Wilson 95% interval
+    # for ``hit_rate`` (fractions). ``p_value`` is the two-sided normal p of
+    # ``t_stat``; ``p_value_bh`` is its Benjamini-Hochberg adjusted value across
+    # all groups in the same summarize() call (None when not computable).
+    hit_rate_ci95: Optional[tuple] = None
+    p_value: Optional[float] = None
+    p_value_bh: Optional[float] = None
+    target_first_ci95: Optional[tuple] = None
+    stop_first_ci95: Optional[tuple] = None
 
     def to_dict(self) -> Dict[str, Any]:
         d = dict(self.__dict__)
         if d["ci95_excess_pct"] is not None:
             d["ci95_excess_pct"] = list(d["ci95_excess_pct"])
+        for k in ("hit_rate_ci95", "target_first_ci95", "stop_first_ci95"):
+            if d[k] is not None:
+                d[k] = list(d[k])
         return d
 
 
@@ -256,6 +268,15 @@ class SignalLedger:
         if stance not in {"BULLISH", "NEUTRAL", "BEARISH"}:
             # INVALID / NONE decisions carry no view and are not scored.
             return None
+        # A call cannot be made from a session that has not happened yet; a
+        # future as_of would let a row be scored against data not yet known
+        # to exist. Checked against the recording clock (UTC date).
+        today = datetime.now(timezone.utc).date()
+        if as_of_d > today:
+            raise ValueError(
+                f"ledger: as_of {as_of_d.isoformat()} is in the future "
+                f"(recording date {today.isoformat()}); refusing to record {ticker} {engine}"
+            )
         key = f"{engine}|{ticker}|{int(horizon_days)}|{as_of_d.isoformat()}"
         row = {
             "signal_key": key,
@@ -432,6 +453,13 @@ class SignalLedger:
             stats = _group_stats(dict(zip(group_by, key)), members)
             stats.benchmarks = sorted({m.get("benchmark") or BENCHMARK for m in members})
             out.append(stats)
+        # Many groups are looked at at once: report FDR-adjusted p-values so a
+        # lucky group is not read as a finding.
+        if out:
+            from apex_quant import stats as _S  # lazy: keeps tracking importable without numpy at import time
+            adj = _S.benjamini_hochberg_adjusted([g.p_value for g in out])
+            for g, a in zip(out, adj):
+                g.p_value_bh = a
         return out
 
 
@@ -701,8 +729,16 @@ def _group_stats(key: Dict[str, Any], members: List[Dict[str, Any]]) -> GroupSta
     else:
         verdict = "No significant difference from the benchmark"
 
+    from apex_quant import stats as _S  # lazy import, see summarize()
+    hit_ci = _S.wilson_interval(wins, n)
+    p_val = _S.two_sided_p(t_stat) if t_stat is not None else None
+
     return GroupStats(
         key=key,
+        hit_rate_ci95=hit_ci,
+        target_first_ci95=_S.wilson_interval(sum(1 for t in touches if t == "target"), len(touches)),
+        stop_first_ci95=_S.wilson_interval(sum(1 for t in touches if t == "stop"), len(touches)),
+        p_value=p_val,
         n_resolved=n,
         n_pending=pending,
         hit_rate=wins / n,
@@ -800,4 +836,47 @@ def record_decisions(decisions: Iterable[Any], context: Optional[Dict[str, Any]]
                 n += 1
         except Exception as exc:  # noqa: BLE001
             logger.warning("ledger: failed to record %s: %s", getattr(d, "ticker", "?"), exc)
+    return n
+
+
+def shadow_engine(version: str) -> str:
+    """Ledger engine key of a Research model version run in shadow, e.g. ``elite_v3_shadow``."""
+    return f"elite_{version}_shadow"
+
+
+def record_shadow_calls(decision: Any, shadow: Dict[str, Any], horizons: Sequence[int],
+                        context: Optional[Dict[str, Any]] = None,
+                        ledger: Optional[SignalLedger] = None) -> int:
+    """Record a shadow model's call beside the live one, under its own engine.
+
+    The shadow call takes the live call's ticker, session, factor scores and
+    horizons, but its own score, band and evidence status, and its own strategy
+    key in the context. Summaries group by engine and strategy, so its outcomes
+    are never pooled with the live model's. It has no levels, so it is scored on
+    direction and excess return only. The caller applies the same session and
+    freshness gates as for the live call.
+    """
+    if os.environ.get("QUANTA_TRACKING_DISABLED") == "1":
+        return 0
+    from engine.evidence import band_stance  # lazy: keeps this module's imports unchanged
+
+    version, key = shadow.get("version"), shadow.get("key")
+    band = str(shadow.get("band_action") or "")
+    if not version or not key or not band:
+        return 0
+    ledger = ledger or default_ledger()
+    ctx = dict(context or {}, strategy=key, role="shadow")
+    n = 0
+    for days in horizons:
+        try:
+            row = ledger.record(
+                engine=shadow_engine(version), ticker=decision.ticker, as_of=decision.as_of,
+                horizon_days=int(days), horizon_key=f"{int(days)}d", stance=band_stance(band),
+                action=band, label=band, evidence_status=str(shadow.get("status") or ""),
+                score=shadow.get("score"), factors=decision.factor_scores, context=ctx,
+                reference_price=decision.reference_price, benchmark=benchmark_for(decision.ticker),
+            )
+            n += row is not None
+        except Exception as exc:  # noqa: BLE001 - a shadow must not cost the live call
+            logger.warning("ledger: failed to record shadow %s for %s: %s", version, decision.ticker, exc)
     return n

@@ -114,7 +114,7 @@
     return need ? String(ev.status || '').toUpperCase() === need : !!ev.permits_recommendation;
   };
   const modelFlag = (ev) => (!ev || evidenceValidated(ev) ? ''
-    : `<a class="pk-valid model-flag hp-model-flag" href="#track" data-view-link="track" data-model-flag title="${esc(`Model evidence: ${ev.text || 'not validated out of sample'}. Open the evidence page.`)}">${String(ev.status || '').toUpperCase() === 'NO_EDGE' ? 'Edge unproven' : 'Model not yet validated'}</a>`);
+    : `<a class="pk-valid model-flag hp-model-flag" href="#track" data-view-link="track" data-model-flag title="${esc(`Model evidence: ${ev.text || 'not validated out of sample'}. Open the evidence page.`)}">Model not yet validated</a>`);
   const actionChip = (a, ev, g) => `<span class="hp-action hp-action--${ACTION_TONE[a] || 'muted'}">${esc(actionLabel(a, g))}</span>${ev && a !== 'Unavailable' ? modelFlag(ev) : ''}`;
   const stanceChip = (s) => `<span class="hp-stance hp-stance--${STANCE_TONE[s] || 'muted'}">${esc(s)}</span>`;
 
@@ -724,6 +724,23 @@
       kpi('stops', 'Loss at model stops', loss !== null ? money(loss) : NA, stopReading, stopVisual),
       kpi('volatility', 'Annualized volatility', vol !== null ? pct(vol, 1) : NA, volReading, volVisual),
     ];
+    // Tail risk: historical, from today's weights; hidden when the server sent nothing usable.
+    const tr = m.tail_risk || {};
+    const trVar = num(tr.var_pct);
+    const trCvar = num(tr.cvar_pct);
+    const trWin = tr.worst_window && num(tr.worst_window.return) !== null ? tr.worst_window : null;
+    const trScn = (tr.scenarios || []).filter((x) => num(x.market_move) !== null && num(x.book_pct) !== null);
+    const trCell = (label, value, sub) => `<li class="hp-correlation" data-tail-row><span class="hp-pair">${esc(label)}</span><span class="hp-num">${value}</span><span class="hp-muted">${sub}</span></li>`;
+    const tailCells = [];
+    if (trVar !== null) tailCells.push(trCell('1-day VaR 95%', `${pct(trVar, 1)}`, `${money(tr.var_value)} of the measured holdings on a bad day (1 in 20)`));
+    if (trCvar !== null) tailCells.push(trCell('1-day CVaR 95%', `${pct(trCvar, 1)}`, `${money(tr.cvar_value)}: average loss on the worst 1 in 20 days`));
+    if (trWin) tailCells.push(trCell(`Worst ${num(trWin.sessions) || 21} sessions`, `${pct(trWin.return, 1, true, true)}`, `${money(trWin.value)}${trWin.end ? ` · ended ${esc(dayText(trWin.end))}` : ''}`));
+    trScn.forEach((x) => tailCells.push(trCell(`Market ${pct(x.market_move, 0, true, true)}`, `${pct(x.book_pct, 1, true, true)}`, `${money(x.value)} on holdings, from their beta`)));
+    const tailBlock = tailCells.length
+      ? `<div class="hp-tail" data-hp="tail-risk"><h3 class="hp-h3">Tail risk <span>${tr.days ? `last ${esc(tr.days)} sessions` : 'beta only'}${tr.coverage != null && tr.coverage > 0 && tr.coverage < 0.9995 ? `; ${pct(tr.coverage, 0)} of holdings covered` : ''}</span></h3>
+          <ul class="hp-rows">${tailCells.join('')}</ul>
+          <p class="hp-fine">${esc(tr.days ? `Historical, from the last ${tr.days} sessions of your current weights; not a forecast.` : 'Estimated from holdings beta; not a forecast.')}${tr.reason && !trVar ? ` ${esc(tr.reason)}` : ''}</p></div>`
+      : '';
     const threshold = num(pol.correlation_threshold);
     const weights = m.weights || {};
     const pairs = (v.correlated_pairs || []).slice().sort((x, y) => y.correlation - x.correlation);
@@ -745,6 +762,7 @@
       <header class="q-head"><div class="q-head-l"><h2 class="q-head-title" id="hp-ex-h">Risk exposure</h2><p class="q-head-sub">What can hurt this portfolio${risk.level ? ` · QUANTA rates it <strong class="${/high/i.test(risk.level) ? 'is-warn' : ''}">${esc(risk.level)}</strong>` : ''}</p></div><div class="q-head-r">${tag('quanta')}</div></header>
       <div class="q-body">
         <dl class="hp-measures">${kpis.join('')}</dl>
+        ${tailBlock}
         ${returnsIssue ? `<p class="hp-note is-warn">${esc(returnsIssue.message)}</p>` : ''}
         <div class="hp-risk-lists">
           <div><h3 class="hp-h3">Move together <span>${threshold !== null ? threshold.toFixed(2) : '0.70'}+ correlation${v.days ? ` · ${v.days} days` : ''}</span></h3>${together}</div>

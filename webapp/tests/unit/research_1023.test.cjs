@@ -31,6 +31,8 @@ test('a failing funding hurdle names the price that clears it, and the hit rate 
   assert.ok(funding, 'the funding hurdle is stated');
   assert.match(funding.textContent, /1\.80:1/);
   assert.match(funding.textContent, /\$206\.43/);
+  assert.match(funding.querySelector('[data-hurdle-why]').textContent, /Research judges the call at 1\.50:1; Picks funds only at 1\.80:1/,
+    'the two hurdles are explained where a call passes one and not the other');
   assert.match(el.querySelector('[data-breakeven]').textContent, /37%/, '1 / (1 + 1.72) = 37%');
   assert.ok(el.querySelector('[data-hurdle-resistance]'), 'resistance between entry and target is named');
   assert.equal(app.buyZonePrice(levels), 206.43);
@@ -110,4 +112,16 @@ test('an average on intraday or weekly bars names its bar', () => {
   assert.equal(lc.studyLabel('SMA 200', '1m'), 'SMA 200 (1-min)');
   assert.equal(lc.studyLabel('SMA 50', '1wk'), 'SMA 50 (weekly)');
   assert.equal(lc.studyLabel('SMA 200', '1d'), 'SMA 200');
+});
+
+test('signals scored from the last completed bar say so; a settled bar adds nothing', () => {
+  const live = { indicator_basis: { scored_through: '2026-10-28', live_bar_excluded: true, reason: 'still trading' } };
+  const note = frag(app.indicatorBasisHtml(live)).querySelector('[data-indicator-basis]');
+  assert.ok(note, 'the note is shown while today\'s bar is excluded');
+  assert.match(note.textContent, /Scored through the Oct 28, 2026 close/);
+  assert.match(note.textContent, /prices and levels on this page are live/);
+  assert.equal(app.indicatorBasisHtml({ indicator_basis: { scored_through: '2026-10-28', live_bar_excluded: false } }), '');
+  assert.equal(app.indicatorBasisHtml({}), '');
+  const card = frag(app.technicalSignalsHtml({ ...live, rsi: 55, macd_signal: 'BULLISH', trend_direction: 'UP' }, 100, '$'));
+  assert.ok(card.querySelector('[data-indicator-basis]'), 'the Technical signals card carries the note');
 });

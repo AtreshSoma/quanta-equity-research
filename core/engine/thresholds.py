@@ -21,6 +21,7 @@ Rules for this file:
 from __future__ import annotations
 
 import copy
+import math
 import os
 from typing import Any, Dict
 
@@ -37,6 +38,12 @@ def _env_float(name: str, default: float) -> float:
         return float(os.environ.get(name, default))
     except (TypeError, ValueError):
         return default
+
+
+def _env_choice(name: str, default: str, choices: tuple) -> str:
+    """An environment value from ``choices``; anything else keeps the default."""
+    value = str(os.environ.get(name, default)).strip().lower()
+    return value if value in choices else default
 
 
 class alias:
@@ -539,6 +546,13 @@ class BOOK(_Group):
     CLOSEST_ROWS = 5                # "closest to qualifying" names shown after a scan (A12)
     MAX_PAIRWISE_CORRELATION = 0.70  # a candidate this correlated with one book name is blocked
     MAX_AVERAGE_CORRELATION = 0.60  # ... or this correlated with the book on average
+    # Selection skips that depend on what the book held at the time: retried
+    # against the rebuilt book after the Research check withdraws a pick.
+    BOOK_DEPENDENT_SKIPS = ("correlation", "sector_cap", "capital_used", "same_issuer",
+                            "stop_risk", "portfolio_var")
+    # Buy-tier names left out of the book (a selection limit) that still get the
+    # Research check, in rank order, so the page never shows an unchecked call.
+    RESEARCH_CHECK_UNPUBLISHED_MAX = 8
 
 
 # ── Sizing ───────────────────────────────────────────────────────────────────
@@ -575,6 +589,9 @@ class SIZING(_Group):
     EARNINGS_NEAR_SIZE_MULT = 0.50
     EARNINGS_ELEVATED_SIZE_MULT = 0.80
     EARNINGS_UNKNOWN_SIZE_MULT = 0.70
+    # No new money while the next report is this close (inclusive), in the deep
+    # dive and in every scan: the name is held at Watch with the date.
+    EARNINGS_NO_NEW_MONEY_DAYS = 14
     # Days to the next report for each band (inclusive): within IMMINENT_DAYS the
     # IMMINENT multiplier applies, within NEAR_DAYS the NEAR one, within
     # ELEVATED_DAYS the ELEVATED one; further out, full size (P7).
@@ -628,6 +645,10 @@ class LEVELS(_Group):
     MAX_STOP_DISTANCE_PCT = 0.20
     TRAILING_ATR_MULTIPLIER = 1.75
     ENTRY_ZONE_ATR_MULT = 1.0       # zone = [entry - k x ATR, entry]
+    # A breakout entry (the level a price must reach) is offered only when that
+    # level is within this many ATRs of the price. Further away it is not a
+    # near-term trigger, so it is not shown.
+    BREAKOUT_MAX_ATR = 3.0
     TARGET_STRUCT_MAX_AGE_SESSIONS = 63  # a 52-week high older than this is not a target
     STRUCT_MIN_ABOVE_PCT = 0.02     # a structural level counts only this far above spot
     ANALYST_TARGET_SANE_RANGE = (0.5, 3.0)   # consensus outside price x this range is ignored
@@ -689,10 +710,41 @@ class LADDER(_Group):
     STRONG_BUY_EVIDENCE = "VALIDATED"  # owner decision Q4: below this, STRONG_BUY folds into BUY
 
 
+# ── Research model v4 (shadow; docs/preregistration/elite_research_v4.md) ────
+# Scored beside the live call from the same analysis and never changes it.
+# Changing any value here is a new version, not a v4 edit.
+
+class RESEARCH_V4(_Group):
+    # v3's weights scaled by 0.8, plus estimate revisions at 0.20 (Zacks-style).
+    WEIGHTS = {"technical": 0.08, "fundamental": 0.32, "valuation": 0.08,
+               "quality": 0.24, "sentiment": 0.08, "revisions": 0.20}
+    VALUATION_SATURATION = 0.40     # 12-month upside of +/-40% maps to a 100 / 0 valuation leg
+    # Expected-value gate: chance of the 12-month target before the stop within
+    # the horizon, under a drift from the valuation upside and a volatility from ATR.
+    HORIZON_DAYS = 63
+    VALUATION_HORIZON_DAYS = 252
+    DRIFT_SHRINK = 0.5              # 12-month targets run optimistic: half the implied drift
+    ATR_TO_SIGMA = 1.25             # ATR / price overstates the close-to-close daily sigma
+    MIN_EV_R = 0.10                 # expected return must be at least this share of the risk
+    # Intrinsic value by sector (engine/fair_value_v4.py); 12-month target blend.
+    COST_OF_EQUITY = 0.10
+    LONG_RUN_GROWTH = 0.03
+    BANK_ROE_CLIP = (0.0, 0.25)
+    ENERGY_FCF_YIELD = 0.08
+    GRAHAM_MAX_PB = 3.0
+    PLAUSIBLE_RATIO = 3.0
+
+
 # ── Research engine overrides (TradingAnalysis_ELITE) ────────────────────────
 
 class RESEARCH(_Group):
     MIN_RISK_REWARD = alias(RR, "RESEARCH_MIN")
+    # Which Research model is live: "v2" (the model whose out-of-sample result is
+    # in the evidence registry) or "v3" (pre-registered 2026-10-29, untested,
+    # docs/preregistration/elite_research_v3.md). Read once at import, like the
+    # other env overrides. The default stays v2: an untested model must not
+    # silently replace the current one. The other version is scored in shadow.
+    MODEL_VERSION = _env_choice("QUANTA_RESEARCH_MODEL", "v2", ("v2", "v3"))
     TARGET_UPSIDE_THIN_PCT = 5.0        # base-target upside below this trims one notch
     ANALYST_DOWNSIDE_LIMIT_PCT = -5.0   # consensus below this vs price -> HOLD
     RSI_EXHAUSTION = 85.0               # with a bearish MACD -> no fresh BUY
@@ -715,6 +767,22 @@ class RESEARCH(_Group):
     # NSE/BSE regular session close (hour, minute IST): before it, today's daily
     # bar is still forming. The US close is engine.market_calendar.SESSION_CLOSE.
     INDIA_SESSION_CLOSE_IST = (15, 30)
+    # Minutes after the close before the daily bar counts as settled. Yahoo keeps
+    # correcting the final print for a while (closing auction, late prints), so a
+    # bar read at 16:05 is not yet the number the model was validated on.
+    # Scores read only settled bars (engine/bars.py); live prices do not wait.
+    BAR_SETTLE_MINUTES = 20
+    # Live-move read-out (engine/bars.py live_preview): today's bar is shown beside
+    # the scores and never scored. A move this large is flagged for the reader:
+    # at least LIVE_MOVE_FLOOR_PCT, and at least LIVE_MOVE_SIGMA daily sigmas
+    # (sigma over the last LIVE_SIGMA_SESSIONS completed sessions).
+    LIVE_MOVE_FLOOR_PCT = 4.0
+    LIVE_MOVE_SIGMA = 3.0
+    LIVE_SIGMA_SESSIONS = 63
+    LIVE_VOLUME_SESSIONS = 20
+    # Simulator volatility: an EWMA's weight halves every this many sessions,
+    # and the forecast mean-reverts to the lookback's own variance on that clock.
+    VOL_HALF_LIFE_SESSIONS = 20
 
 
 # ── My Portfolio policy (portfolio.analytics.PortfolioPolicy defaults) ──────
@@ -985,7 +1053,19 @@ class SHORTTERM(_Group):
 
 
 GROUPS = (CAPITAL, UNIVERSE, SHORTTERM, CHASE, SCORE, RR, INSIDER, COMMITTEE, REGIME, MARKET, BOOK, SIZING, COSTS, LEVELS,
-          RISK_GRADE, LADDER, RESEARCH, PORTFOLIO, EVENTS, EVIDENCE, UI, CHECKLIST, STYLE, ETF, WHY, SAVED_SCANS)
+          RISK_GRADE, LADDER, RESEARCH, RESEARCH_V4, PORTFOLIO, EVENTS, EVIDENCE, UI, CHECKLIST, STYLE, ETF, WHY,
+          SAVED_SCANS)
+
+
+# Equity risk premium for the Research DCF discount rate (rf + beta * ERP).
+# ASSUMPTION (owner-reviewable): US 5.5% is the legacy Research value; India
+# 7.0% is a mature-market premium plus a country-risk add-on (Damodaran-style
+# range 6.5-8%). Applied only to .NS/.BO tickers, with UNIVERSE.RISK_FREE_RATE_INDIA
+# (6.5%) as the risk-free leg. The US DCF keeps Config.RISK_FREE_RATE (4.5%) and
+# Config.MARKET_RISK_PREMIUM; these are module constants, not a _Group, so they
+# do not alter the thresholds JSON the webapp fixture mirrors.
+EQUITY_RISK_PREMIUM_US = 0.055
+EQUITY_RISK_PREMIUM_INDIA = 0.07
 
 
 def as_dict() -> Dict[str, Dict[str, Any]]:
@@ -999,9 +1079,21 @@ def as_dict() -> Dict[str, Dict[str, Any]]:
     return {g.__name__: {k: _jsonable(v) for k, v in g.values().items()} for g in GROUPS}
 
 
+def floor_rr(value: float) -> float:
+    """A reward/risk ratio cut DOWN to UI.RR_DECIMALS places.
+
+    Rounding to nearest let a true 1.4988 print as 1.50 and so read as meeting
+    a 1.50 minimum it does not meet. Flooring means a shown ratio never exceeds
+    the true one. The 9-place pre-round only strips float noise (1.15 * 100 is
+    114.99999999999999 in binary), so an exact 1.15 still shows 1.15.
+    """
+    scale = 10 ** UI.RR_DECIMALS
+    return math.floor(round(float(value) * scale, 9)) / scale
+
+
 def fmt_rr(value: float) -> str:
-    """A reward/risk ratio as the page prints it, e.g. ``1.50:1``."""
-    return f"{float(value):.{UI.RR_DECIMALS}f}:1"
+    """A reward/risk ratio as the page prints it, e.g. ``1.49:1``. Floored, never rounded up."""
+    return f"{floor_rr(value):.{UI.RR_DECIMALS}f}:1"
 
 
 if __name__ == "__main__":  # pragma: no cover - regenerates the JS test fixture

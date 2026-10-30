@@ -30,6 +30,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .thresholds import RESEARCH as _RESEARCH
 from .types import FinalAction
 
 REGISTRY_ENV = "QUANTA_EVIDENCE_PATH"
@@ -50,13 +51,38 @@ SHORTTERM_PRICE_CORE = "shortterm.price_core"
 #   elite.research.v2    -- 2026-09-27 audit: two-sided valuation, independent
 #                           quality leg, one-horizon reward/risk; tested out of
 #                           sample: NO_EDGE (through 2026-09-30)
-ELITE = "elite.research.v2"
+#   elite.research.v3    -- 2026-10-29 pre-registered: factor weights re-set by a
+#                           fixed rule (docs/preregistration/elite_research_v3.md).
+#                           Never tested; runs in shadow until its prospective
+#                           test is decided. Fails closed like any untested key.
+#   elite.research.v4    -- 2026-10-29 pre-registered: revisions leg, sector-aware
+#                           valuation, expected-value gate
+#                           (docs/preregistration/elite_research_v4.md). Shadow
+#                           only: not a QUANTA_RESEARCH_MODEL choice yet.
+ELITE_V2 = "elite.research.v2"
+ELITE_V3 = "elite.research.v3"
+ELITE_V4 = "elite.research.v4"
+RESEARCH_KEYS: Dict[str, str] = {"v2": ELITE_V2, "v3": ELITE_V3}
+
+
+def live_research_key() -> str:
+    """Evidence key of the Research model selected now (QUANTA_RESEARCH_MODEL).
+
+    Read at call time, so the key and the weights the engine applies always
+    come from the same selector value.
+    """
+    return RESEARCH_KEYS.get(_RESEARCH.MODEL_VERSION, ELITE_V2)
+
+
+# The live Research key, as read at import. Call live_research_key() where the
+# selector may have changed since import (tests, long-running processes).
+ELITE = live_research_key()
 ELITE_PRO = "elite_pro.composite"
 
 # A scanner call is funded only after the model named here confirms it (Picks
 # deep-confirm runs the Research engine and publishes its levels). While the
 # scanner's own composite has no test of its own, its calls carry the governing
-# model's result, so a Picks Buy shows "Edge unproven" when Research has none.
+# model's result, so a Picks Buy shows "Model not yet validated" when Research has none.
 GOVERNED_BY: Dict[str, str] = {ELITE_PRO: ELITE}
 
 # Earlier versions of each live model, newest first. Their results are shown
@@ -64,10 +90,32 @@ GOVERNED_BY: Dict[str, str] = {ELITE_PRO: ELITE}
 # for the current version. The removal of the risk leg was chosen by looking
 # at the predecessor's out-of-sample result, so that sample period is no
 # longer out-of-sample for any successor.
+_ALPHA_ONLY_AND_COMPOSITE = [
+    {"strategy": "elite.alpha_only.v1", "change": "risk leg removed from the ranking composite"},
+    {"strategy": "elite.composite", "change": "original composite"},
+]
 LINEAGE: Dict[str, List[Dict[str, str]]] = {
-    ELITE: [
-        {"strategy": "elite.alpha_only.v1", "change": "risk leg removed from the ranking composite"},
-        {"strategy": "elite.composite", "change": "original composite"},
+    ELITE_V2: list(_ALPHA_ONLY_AND_COMPOSITE),
+    ELITE_V3: [
+        {"strategy": ELITE_V2,
+         "change": "weights re-set by pre-registered rule from the 2026-10-22 leg ICs "
+                   "(fundamental 40, quality 30, others 10)"},
+    ] + list(_ALPHA_ONLY_AND_COMPOSITE),
+    ELITE_V4: [
+        {"strategy": ELITE_V3,
+         "change": "estimate-revisions leg (20%, v3 weights x0.8), sector-aware 12-month target, "
+                   "expected-value gate in place of the pro-rated reward/risk hurdle"},
+        {"strategy": ELITE_V2, "change": "v3's predecessor"},
+    ] + list(_ALPHA_ONLY_AND_COMPOSITE),
+}
+
+# Pre-registered successors of a live model. Shown in its lineage table as
+# context ("running in shadow"), never as evidence, and never failing it.
+SUCCESSORS: Dict[str, List[Dict[str, str]]] = {
+    ELITE_V2: [
+        {"strategy": ELITE_V3,
+         "change": "pre-registered 2026-10-29; running in shadow",
+         "doc": "docs/preregistration/elite_research_v3.md"},
     ],
 }
 
@@ -145,21 +193,29 @@ def _age_days(iso: Optional[str], now: Optional[datetime] = None) -> Optional[fl
 
 
 def _lineage(strategy: str, reg: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Earlier versions (relation "earlier") and pre-registered successors
+    (relation "successor") of *strategy*, each with its registry status."""
     out: List[Dict[str, Any]] = []
-    for item in LINEAGE.get(strategy, []):
+    items = [(i, "earlier") for i in LINEAGE.get(strategy, [])]
+    items += [(i, "successor") for i in SUCCESSORS.get(strategy, [])]
+    for item, relation in items:
         entry = (reg.get("strategies") or {}).get(item["strategy"]) or {}
         try:
             status = EvidenceStatus(entry.get("status", "UNTESTED"))
         except ValueError:
             status = EvidenceStatus.UNTESTED
-        out.append({
+        row = {
             "strategy": item["strategy"],
+            "relation": relation,
             "change": item.get("change", ""),
             "status": status.value,
             "status_text": _STATUS_TEXT[status],
             "summary": str(entry.get("summary", "")) if entry else "Never tested.",
             "tested_through": entry.get("tested_through") if entry else None,
-        })
+        }
+        if item.get("doc"):
+            row["doc"] = item["doc"]
+        out.append(row)
     return out
 
 
@@ -186,7 +242,10 @@ def get_evidence(strategy: str, registry: Optional[Dict[str, Any]] = None,
             summary="No out-of-sample validation has been run for this scoring model.",
             lineage=lineage,
         )
-        failed = [x for x in lineage if x["status"] == EvidenceStatus.NO_EDGE.value]
+        # Only earlier versions count: a pre-registered successor never
+        # explains (or fails) the version it succeeds.
+        failed = [x for x in lineage if x["status"] == EvidenceStatus.NO_EDGE.value
+                  and x["relation"] == "earlier"]
         if failed:
             ev.summary = (
                 "This version has not been tested. Its predecessor "
@@ -267,6 +326,24 @@ def stance_for(action: FinalAction) -> str:
         return "BEARISH"
     if action is FinalAction.INVALID:
         return "NONE"
+    return "NEUTRAL"
+
+
+_BULLISH_BANDS = ("STRONG_BUY", "BUY", "ACCUMULATE")
+_BEARISH_BANDS = ("REDUCE", "SELL", "STRONG_SELL")
+
+
+def band_stance(band: str) -> str:
+    """Directional view of a score band, for a call that has no FinalAction.
+
+    Used by the shadow model, whose band is read straight from SCORE_BANDS with
+    no gates applied. Buy-tier bands are bullish, Reduce and Sell bands bearish
+    (as AVOID is for the live call), Hold neutral.
+    """
+    if band in _BULLISH_BANDS:
+        return "BULLISH"
+    if band in _BEARISH_BANDS:
+        return "BEARISH"
     return "NEUTRAL"
 
 

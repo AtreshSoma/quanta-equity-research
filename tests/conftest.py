@@ -36,6 +36,14 @@ os.environ.setdefault("QUANTA_DEEP_CONFIRM_RETRY_WAIT", "0")
 import tempfile  # noqa: E402
 os.environ["QUANTA_CACHE_DIR"] = tempfile.mkdtemp(prefix="quanta-test-cache-")
 os.environ["QUANTA_YF_DISK_CACHE"] = "0"
+# SP_ELITE_PRO.setup_logging writes ./logs/quanta_trading.log (no env override)
+# but returns early when the QUANTA logger already has a handler. Give it a
+# temp-dir one first so a test run never appends to the production log.
+import logging  # noqa: E402
+_qlog = logging.getLogger("QUANTA")
+if not _qlog.handlers:
+    _qlog.addHandler(logging.FileHandler(
+        os.path.join(os.environ["QUANTA_CACHE_DIR"], "quanta_trading.log"), encoding="utf-8"))
 # The same for the Overview's day-over-day regime history (app.py upserts it).
 os.environ["QUANTA_REGIME_HISTORY_PATH"] = os.path.join(os.environ["QUANTA_CACHE_DIR"], "regime_history.json")
 # The suite never calls Yahoo's earnings calendar; tests that need it stub it.

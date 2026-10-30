@@ -40,7 +40,13 @@ ensure_paths()
 
 import cohorts  # noqa: E402
 from _normalize import diff, normalize  # noqa: E402
-from _recorder import EXPECTED_DIR, available_fixtures, load_recording, replay_io  # noqa: E402
+from _recorder import (  # noqa: E402
+    EXPECTED_DIR,
+    available_fixtures,
+    load_recording,
+    replay_clock,
+    replay_io,
+)
 
 pytestmark = pytest.mark.golden
 
@@ -59,7 +65,7 @@ def _run_replay(ticker: str):
 
     recording = load_recording(ticker)
 
-    with freeze_time(recording.recorded_at):
+    with freeze_time(replay_clock(recording)):
         # strict=False so a fixture gap is reported as a miss and asserted on
         # below, rather than aborting before we can say which key was absent.
         with replay_io(recording, strict=False):

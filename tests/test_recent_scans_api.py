@@ -80,3 +80,18 @@ def test_the_retention_is_published_for_the_page():
     body = webapp.app.test_client().get("/api/thresholds").get_json()
     saved = (body.get("thresholds") or body)["SAVED_SCANS"]
     assert saved["RETENTION_HOURS"] == 24 and saved["MAX_SAVED"] == 12
+
+
+def test_each_scan_names_the_server_instance_that_saved_it(tmp_path, monkeypatch):
+    # B18: a book on screen must be traceable to the server that produced it.
+    client = _client(tmp_path, monkeypatch)
+    stamped = dict(_result("AAPL"), server_instance=webapp._SERVER_INSTANCE["id"])
+    webapp._save_last_scan(_params(scan_type="standard"), stamped)
+    webapp._save_last_scan(_params(scan_type="focused_etf"), _result("SPY"))  # saved before the stamp
+    by_type = {s["scan_type"]: s for s in client.get("/api/stock-picks/recent?market=US").get_json()["scans"]}
+    assert by_type["standard"]["server_instance"] == webapp._SERVER_INSTANCE["id"]
+    assert by_type["focused_etf"]["server_instance"] is None
+
+    health = webapp._backend_health(probe=False)["server_instance"]
+    assert health["id"] == webapp._SERVER_INSTANCE["id"] and len(health["id"]) == 12
+    assert health["pid"] > 0 and health["started_at"].endswith("+00:00")

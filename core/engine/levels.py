@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from .thresholds import LEVELS, UI
+from .thresholds import LEVELS, UI, floor_rr
 
 RR_BASIS = "net of costs at the top of the entry zone"
 
@@ -48,9 +48,43 @@ def rr_triggers(entry: float, stop: float, target: float, cost_frac: float, min_
     return {"min_rr": float(min_rr), "target_needed": target_needed, "entry_needed": entry_needed}
 
 
+def entry_to_spot(entry_price: float, entry: float, spot: float) -> float:
+    """Convert an ENTRY price to the SPOT that produces it.
+
+    The engine sets entry = spot x 1.002 for a new buy (a limit at a slight
+    premium), so a price solved as an entry is ``entry x spot / entry_price``
+    in spot terms. When the entry is the spot itself (RSI extended, or a
+    reference only) the ratio is 1 and nothing changes.
+    """
+    return float(entry_price) * float(spot) / float(entry)
+
+
+def breakout_entry(price: float, week_52_high: Optional[float], resistance_level: Optional[float],
+                   atr: Optional[float]) -> float:
+    """The level a breakout entry is priced at, or 0.0 when none applies.
+
+    The nearest overhead level is the lower of the 52-week high and the nearest
+    swing resistance, counting only levels above the price. It is offered only
+    when it sits within ``LEVELS.BREAKOUT_MAX_ATR`` ATRs of the price. A 52-week
+    high 45% overhead is not a breakout entry for a call made today, and an
+    ATR that is unknown means the distance cannot be judged, so nothing is shown.
+    """
+    price = float(price or 0.0)
+    atr = float(atr or 0.0)
+    overhead = [float(x) for x in (week_52_high, resistance_level) if x and float(x) > price]
+    if price <= 0 or atr <= 0 or not overhead:
+        return 0.0
+    level = min(overhead)
+    return level if (level - price) <= LEVELS.BREAKOUT_MAX_ATR * atr else 0.0
+
+
 def research_rr_clear_entry(valuation_target: float, horizon_frac: float, stop_distance: float,
                             cost_frac: float, min_rr: float) -> Optional[float]:
-    """The highest spot at which a Research Decision's net R:R reaches ``min_rr``.
+    """The highest ENTRY price at which a Research Decision's net R:R reaches ``min_rr``.
+
+    This solves for the entry, not the spot: the engine's entry can sit above
+    spot (a limit at a premium), so a caller that shows this to a reader as a
+    spot price must convert it with :func:`entry_to_spot` first.
 
     Unlike :func:`rr_triggers`, the Research levels move with the entry: the
     stop sits ``stop_distance`` (an ATR multiple) below it and the horizon
@@ -81,7 +115,9 @@ def publish_levels(source: str, entry: float, stop: float, target: float, rr: fl
         "entry_zone_high": _r2(entry),
         "stop": _r2(stop),
         "target": _r2(target),
-        "risk_reward": round(float(rr or 0.0), UI.RR_DECIMALS),
+        # Floored, not rounded: a true 1.4988 must not be stored as 1.50 and so
+        # pass a 1.50 hurdle it does not meet (see thresholds.floor_rr).
+        "risk_reward": floor_rr(float(rr or 0.0)),
         "rr_basis": RR_BASIS,
         "cost_frac": float(cost_frac),
         "horizon_days": int(horizon_days) if horizon_days else None,

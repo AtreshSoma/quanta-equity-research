@@ -29,6 +29,7 @@ docs/
 ├── audits/       Findings: what was checked and what was wrong
 ├── design/       Redesign briefs, proposals and their logs
 ├── logs/         Plans and implementation or fix logs: what was changed, in order
+├── preregistration/  Tests of a model version, written before any result (one file per version)
 ├── reference/    Comparisons and teardowns of other code
 └── img/          Screenshots used by the root README
 ```
@@ -84,6 +85,13 @@ root README is current.
 | [PICKS_FIX_LOG.md](logs/PICKS_FIX_LOG.md), [PICKS_OUTPUT_FIX_LOG.md](logs/PICKS_OUTPUT_FIX_LOG.md) | Picks fixes in batches, and the fix to a scan that funded nothing (4 October 2026) |
 | [ELITE_BUGFIX_REPORT.md](logs/ELITE_BUGFIX_REPORT.md) | Code-level bug fixes in `TradingAnalysis_ELITE.py` |
 | [MAIN_SELECTIVE_INTEGRATION_2026-09-24.md](logs/MAIN_SELECTIVE_INTEGRATION_2026-09-24.md) | What was taken selectively from `main` and the redesign line |
+
+## preregistration/
+
+| Document | Covers |
+|---|---|
+| [elite_research_v3.md](preregistration/elite_research_v3.md) | `elite.research.v3`, 29 October 2026: the weight rule, the prospective test, the stopping rule and the live switch. Untested; runs in shadow |
+| [elite_research_v4.md](preregistration/elite_research_v4.md) | `elite.research.v4`, 29 October 2026: the expected-value gate, sector-aware fair value and the estimate-revisions factor. Registered 30 October; untested; runs in shadow |
 
 ## reference/
 

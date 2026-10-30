@@ -19,14 +19,14 @@
       "breakout_entry": 549.96,
       "buy_now": "NO",
       "candlestick_timing": "HOLD WITH STOP",
-      "confidence": 61.8951,
+      "confidence": 59.9506,
       "data_quality": "PASS",
       "entry_quality": "Moderate",
       "existing_holder": "Hold with trailing stop",
       "existing_holder_stop": 526.107,
       "long_term_holder_stop": 526.107,
       "long_tf": "Review before adding",
-      "main_reason": "Risk/reward of 0.14:1 is below the 1.50:1 minimum.",
+      "main_reason": "Risk/reward of 0.13:1 is below the 1.50:1 minimum.",
       "mid_tf": "Hold existing / wait",
       "new_buyer": "Wait; no new position",
       "pullback_basis": "VWAP (14d)",
@@ -36,7 +36,7 @@
       "recommendation_label": "WATCHLIST",
       "risk_conflict_warning": "",
       "risk_grade": "B",
-      "rr_label": "Unfavorable, 0.14:1",
+      "rr_label": "Unfavorable, 0.13:1",
       "short_tf": "Wait",
       "signal": "HOLD",
       "tactical_stop": 532.471,
@@ -51,13 +51,15 @@
       "dividend_yield": 0.0,
       "earnings_date": "2026-11-07",
       "ex_dividend_date": "Unknown",
+      "last_earnings_date": "Unknown",
       "last_earnings_result": "Unknown",
       "last_earnings_surprise_pct": 0.0,
-      "near_term_catalyst": false
+      "near_term_catalyst": false,
+      "sessions_since_last_earnings": null
     },
     "company_name": "Berkshire Hathaway Inc. New",
     "confidence_level": "MEDIUM",
-    "confidence_score": 61.8951,
+    "confidence_score": 59.9506,
     "conviction_label": "MODERATE-CONVICTION",
     "country": "United States",
     "currency": "USD",
@@ -79,7 +81,7 @@
         }
       ],
       "blocking": [
-        "R/R 0.14 below min 1.50 \u2192 WATCHLIST"
+        "R/R 0.13 below min 1.50 \u2192 WATCHLIST"
       ],
       "blocking_codes": [
         "LOW_REWARD_RISK"
@@ -119,6 +121,7 @@
         "lineage": [
           {
             "change": "risk leg removed from the ranking composite",
+            "relation": "earlier",
             "status": "UNTESTED",
             "status_text": "Never validated",
             "strategy": "elite.alpha_only.v1",
@@ -127,11 +130,22 @@
           },
           {
             "change": "original composite",
+            "relation": "earlier",
             "status": "NO_EDGE",
             "status_text": "Tested out of sample: no demonstrated edge",
             "strategy": "elite.composite",
             "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
             "tested_through": "2026-08-25"
+          },
+          {
+            "change": "pre-registered 2026-10-29; running in shadow",
+            "doc": "docs/preregistration/elite_research_v3.md",
+            "relation": "successor",
+            "status": "UNTESTED",
+            "status_text": "Never validated",
+            "strategy": "elite.research.v3",
+            "summary": "Never tested.",
+            "tested_through": null
           }
         ],
         "metrics": {
@@ -168,7 +182,7 @@
         "fundamental": 71,
         "quality": 71.9444,
         "sentiment": 35,
-        "technical": 70,
+        "technical": 65,
         "valuation": 50.0
       },
       "freshness": {
@@ -192,15 +206,17 @@
       "levels": {
         "entry": 543.338,
         "reference_price": 543.338,
-        "reward_risk": 0.139367,
+        "reward_risk": 0.13,
         "rr_hurdles": {
           "funding": {
-            "clear_entry": 426.36,
+            "clear_entry": 426.35,
+            "clear_entry_basis": "spot",
             "min": 1.8,
             "passes": false
           },
           "research": {
             "clear_entry": 447.36,
+            "clear_entry_basis": "spot",
             "min": 1.5,
             "passes": false
           }
@@ -222,8 +238,8 @@
       },
       "qualifier": "",
       "reasons": [
-        "Composite score 61.9 \u2192 candidate ACCUMULATE",
-        "R/R 0.14 below min 1.50 \u2192 WATCHLIST"
+        "Composite score 60.0 \u2192 candidate ACCUMULATE",
+        "R/R 0.13 below min 1.50 \u2192 WATCHLIST"
       ],
       "red_flags": [],
       "risk_grade": "B",
@@ -259,11 +275,11 @@
           "points": 0
         }
       ],
-      "risk_grade_lookback_days": 500,
+      "risk_grade_lookback_days": 501,
       "risk_metrics": {
-        "beta": -0.0514482,
+        "beta": -0.0502959,
         "risk_score": 60,
-        "volatility": 0.171128
+        "volatility": 0.17103
       },
       "risks": [],
       "scenarios": [
@@ -278,8 +294,81 @@
         }
       ],
       "schema_version": 1,
-      "score": 61.8951,
+      "score": 59.9506,
       "score_basis": "Research composite (alpha factors only), 0-100",
+      "shadow_model": {
+        "band_action": "ACCUMULATE",
+        "key": "elite.research.v3",
+        "note": "Pre-registered shadow model, scored from the same components. Not used for this call: no evidence gate, level, hurdle or override applies to it.",
+        "score": 64.98,
+        "status": "UNTESTED",
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.4,
+          "quality": 0.3,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
+      "shadow_v4": {
+        "band_action": "WATCHLIST",
+        "ev_gate": {
+          "ev_r": -0.022036,
+          "expected_return": -0.000723042,
+          "inputs": {
+            "a": 0.0224379,
+            "b": 0.0322256,
+            "horizon": 63,
+            "mu": 1.96695e-06,
+            "sigma": 0.00922527
+          },
+          "p_neither": 0.000174546,
+          "p_stop": 0.410081,
+          "p_target": 0.589745,
+          "passes": false,
+          "risk": 0.0328119
+        },
+        "key": "elite.research.v4",
+        "legs": {
+          "fundamental": 71,
+          "quality": 71.94,
+          "revisions": 54.1,
+          "sentiment": 35,
+          "technical": 65,
+          "valuation": 52.84
+        },
+        "note": "Pre-registered shadow model v4 (docs/preregistration/elite_research_v4.md): revisions leg, sector-aware valuation and an expected-value gate. Not used for this call.",
+        "score": 63.03,
+        "score_band": "ACCUMULATE",
+        "status": "UNTESTED",
+        "target": {
+          "components": [
+            {
+              "source": "analyst",
+              "value": 555.667,
+              "weight": 1.0
+            }
+          ],
+          "intrinsic": {
+            "components": [],
+            "method": "unavailable",
+            "note": "Dropped justified_pb value 680385.71: outside the plausible band 181.11 to 1630.01.",
+            "value": null
+          },
+          "upside_pct": 2.27,
+          "value": 555.67
+        },
+        "version": "v4",
+        "weights": {
+          "fundamental": 0.32,
+          "quality": 0.24,
+          "revisions": 0.2,
+          "sentiment": 0.08,
+          "technical": 0.08,
+          "valuation": 0.08
+        }
+      },
       "sizing": {
         "dollar_risk": 0,
         "portfolio_weight": 0,
@@ -325,6 +414,7 @@
       "lineage": [
         {
           "change": "risk leg removed from the ranking composite",
+          "relation": "earlier",
           "status": "UNTESTED",
           "status_text": "Never validated",
           "strategy": "elite.alpha_only.v1",
@@ -333,11 +423,22 @@
         },
         {
           "change": "original composite",
+          "relation": "earlier",
           "status": "NO_EDGE",
           "status_text": "Tested out of sample: no demonstrated edge",
           "strategy": "elite.composite",
           "summary": "Composite score does not predict forward returns out of sample. 21d: IC -0.023 (t -1.41); 63d: IC -0.034 (t -0.96)",
           "tested_through": "2026-08-25"
+        },
+        {
+          "change": "pre-registered 2026-10-29; running in shadow",
+          "doc": "docs/preregistration/elite_research_v3.md",
+          "relation": "successor",
+          "status": "UNTESTED",
+          "status_text": "Never validated",
+          "strategy": "elite.research.v3",
+          "summary": "Never tested.",
+          "tested_through": null
         }
       ],
       "metrics": {
@@ -393,7 +494,8 @@
       "operating_margin": 32.561,
       "pb_ratio": 0.001,
       "pe_ratio": 13.6654,
-      "peg_ratio": 0.1268,
+      "peg_ratio": 10.06,
+      "peg_source": "provider",
       "piotroski_components_available": 9,
       "piotroski_f_score": 8,
       "quality_score": 71.9444,
@@ -431,7 +533,7 @@
     "is_high_volatility": false,
     "is_invalid": false,
     "key_insights": [
-      "\u23f8\ufe0f HOLD signal with 62% confidence",
+      "\u23f8\ufe0f HOLD signal with 60% confidence",
       "\ud83d\udcc8 RSI at 75 - overbought, watch for pullback",
       "\u2b50 High Piotroski F-Score (8/9) - strong fundamentals",
       "\ud83d\udcf0 No direct company headlines found; peer/macro sentiment is not treated as company evidence",
@@ -462,17 +564,17 @@
       "expected_return": 1.7519,
       "expected_return_basis": "mean",
       "mean_price": 552.856,
-      "median_price": 551.269,
-      "percentile_25": 531.237,
-      "percentile_5": 503.428,
-      "percentile_75": 572.954,
-      "percentile_95": 606.816,
+      "median_price": 551.271,
+      "percentile_25": 531.251,
+      "percentile_5": 503.454,
+      "percentile_75": 572.943,
+      "percentile_95": 606.783,
       "probability_10pct_gain": 0.0873,
       "probability_10pct_loss": 0.0157,
       "probability_event": "P(price above today's close at the end of the 30-day horizon), model-conditional. Terminal outcome only: not the chance of touching a target, and not target-vs-stop.",
-      "probability_profit": 0.607,
+      "probability_profit": 0.6073,
       "simulations_run": 3000,
-      "var_95": -7.3452
+      "var_95": -7.3404
     },
     "net_assets": 0.0,
     "peer_comparison": {
@@ -492,7 +594,7 @@
     },
     "portfolio_outlook": {
       "bottom_line": "Existing holders can hold with a strict stop. New buyers should wait for pullback or breakout confirmation.",
-      "reason": "Risk/reward of 0.14:1 is below the 1.50:1 minimum.",
+      "reason": "Risk/reward of 0.13:1 is below the 1.50:1 minimum.",
       "recommendation": "WATCHLIST"
     },
     "portfolio_risk_check": {
@@ -521,36 +623,44 @@
     "recommendation_caveat": "",
     "recommendation_label": "WATCHLIST",
     "recommendation_qualifier": "",
-    "recommendation_text": "WATCHLIST - No new position | Confidence: 62% | Score: 62/100 | Risk: B",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 60% | Score: 60/100 | Risk: B",
     "relative_performance": {
       "basis": "total return, dividend-adjusted closes",
       "benchmark": "SPY",
       "rows": [
         {
           "benchmark_pct": -0.62,
+          "end_date": "2026-10-23",
           "excess_pct": 8.17,
           "sessions": 21,
+          "start_date": "2026-09-24",
           "stock_pct": 7.55,
           "window": "1M"
         },
         {
           "benchmark_pct": 3.42,
+          "end_date": "2026-10-23",
           "excess_pct": 5.86,
           "sessions": 63,
+          "start_date": "2026-07-27",
           "stock_pct": 9.28,
           "window": "3M"
         },
         {
           "benchmark_pct": 7.34,
+          "end_date": "2026-10-23",
           "excess_pct": 8.43,
           "sessions": 126,
+          "start_date": "2026-04-24",
           "stock_pct": 15.77,
           "window": "6M"
         },
         {
           "benchmark_pct": 15.41,
+          "end_date": "2026-10-23",
           "excess_pct": -4.93,
           "sessions": 252,
+          "start_date": "2025-10-22",
           "stock_pct": 10.48,
           "window": "1Y"
         }
@@ -559,12 +669,12 @@
     "requested_symbol": "BRK-B",
     "retrieval_timestamp": "<volatile>",
     "risk": {
-      "annualized_volatility": 0.1711,
-      "beta": -0.0514,
+      "annualized_volatility": 0.171,
+      "beta": -0.0503,
       "beta_benchmark": "SPY",
-      "beta_observations": 250,
+      "beta_observations": 251,
       "beta_status": "measured",
-      "cvar_95": -0.0241,
+      "cvar_95": -0.0237,
       "grade_drivers": [
         {
           "detail": "17% annualised (points above 25% / 35% / 50%)",
@@ -602,23 +712,46 @@
       "overall_risk_score": 4,
       "risk_grade": "B",
       "risk_points": 4,
-      "sharpe_ratio": 0.3288,
-      "sortino_ratio": 0.4633,
+      "sharpe_ratio": 0.3083,
+      "sortino_ratio": 0.4342,
       "var_95_daily": -0.0153
     },
     "risk_warnings": [],
     "scores": {
       "component_details": {},
-      "composite_score": 61.8951,
+      "composite_score": 59.9506,
       "data_quality_note": "MODERATE - Some data sources missing",
       "fundamental_score": 71,
+      "neutral_filled": [
+        "valuation",
+        "sentiment"
+      ],
       "quality_score": 71.9444,
       "risk_score": 60,
       "score_confidence_margin": 0.0,
       "sentiment_score": 35,
-      "technical_score": 70,
+      "shadow_model": {
+        "band_action": "ACCUMULATE",
+        "score": 64.98,
+        "version": "v3",
+        "weights": {
+          "fundamental": 0.4,
+          "quality": 0.3,
+          "sentiment": 0.1,
+          "technical": 0.1,
+          "valuation": 0.1
+        }
+      },
+      "technical_score": 65,
       "valuation_score": 50.0,
       "weights": {
+        "fundamental": 0.2222,
+        "quality": 0.0889,
+        "sentiment": 0.1667,
+        "technical": 0.3889,
+        "valuation": 0.1333
+      },
+      "weights_used": {
         "fundamental": 0.2222,
         "quality": 0.0889,
         "sentiment": 0.1667,
@@ -658,12 +791,12 @@
     },
     "signal": "HOLD",
     "signal_explanation": {
-      "composite_score": 61.8951,
+      "composite_score": 59.9506,
       "overrides_triggered": [],
-      "primary_reason": "Composite score 62 meets ACCUMULATE threshold",
+      "primary_reason": "Composite score 60 meets ACCUMULATE threshold",
       "risk_factors": [],
       "supporting_factors": [
-        "Technical score 70 (bullish)",
+        "Technical score 65 (bullish)",
         "Fundamental score 71 (strong)",
         "5 bullish confirmations"
       ]
@@ -767,6 +900,11 @@
       "candlestick_score": 50.0,
       "death_cross": false,
       "golden_cross": false,
+      "indicator_basis": {
+        "live_bar_excluded": false,
+        "reason": "newest bar is a completed, settled session",
+        "scored_through": "2026-10-23"
+      },
       "macd_signal": "BULLISH",
       "momentum_score": 36.2805,
       "prior_trend": "UP",
@@ -779,8 +917,8 @@
       "trend_strength": "STRONG",
       "unmeasured": [],
       "volatility_score": 70,
-      "volume_ratio": 1.3013,
-      "volume_ratio_basis": "last completed session (today's is still trading)",
+      "volume_ratio": 0.4028,
+      "volume_ratio_basis": "latest session",
       "week_52_basis": "provider-reported traded range",
       "week_52_high": 549.96,
       "week_52_low": 464.01
@@ -794,7 +932,7 @@
       ],
       "catalysts": [],
       "risks": [],
-      "summary": "Berkshire Hathaway Inc. New (BRK-B) should be held at current levels with a 62% confidence score. Composite score of 62/100."
+      "summary": "Berkshire Hathaway Inc. New (BRK-B) should be held at current levels with a 60% confidence score. Composite score of 60/100."
     },
     "ticker": "BRK-B",
     "trade_setup": {
@@ -812,6 +950,14 @@
       "time_horizon": "POSITION",
       "trailing_stop": 0.0,
       "trailing_stop_pct": 2.3,
+      "vol_scenario": {
+        "analyst_weight": 1.0,
+        "daily_sigma": 0.01077,
+        "horizon_sessions": 63,
+        "plus_1sigma_price": 591.846,
+        "target_sigma": 0.07
+      },
+      "vol_scenario_caveat": "",
       "win_probability": 0.0
     },
     "valuation": {

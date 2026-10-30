@@ -205,6 +205,8 @@ def _summary(data: Dict[str, Any], now: datetime) -> Dict[str, Any]:
         "scanned": scanned, "buy_accumulate": sum(c in ("buy", "accumulate") for c in calls),
         "watchlist": calls.count("watchlist"), "funded": result.get("funded_count"),
         "regime": (result.get("regime") or {}).get("type"),
+        # The server process that ran it (None for scans saved before the stamp).
+        "server_instance": result.get("server_instance"),
     }
     if saved:
         out.update(_closed_since(params.get("market"), saved, now) or {})

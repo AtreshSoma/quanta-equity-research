@@ -29,8 +29,9 @@ def test_in_progress_bar_is_excluded(market, now):
 
 
 @pytest.mark.parametrize("market,now", [
-    ("US", "2026-09-08 16:00:00-04:00"),
-    ("IN", "2026-09-08 15:30:00+05:30"),
+    # Settled: the close plus the settle window (thresholds.RESEARCH.BAR_SETTLE_MINUTES).
+    ("US", "2026-09-08 16:30:00-04:00"),
+    ("IN", "2026-09-08 15:50:00+05:30"),
 ])
 def test_completed_bar_is_still_validated(market, now):
     bars = _bars()

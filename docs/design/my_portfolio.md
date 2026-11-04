@@ -18,8 +18,9 @@ Robinhood MCP ──► brokers/mcp_http.py   read-tool allowlist; write tools r
               ──► webapp/portfolio_routes.py + static/my-portfolio.js
 ```
 
-`portfolio/execution.py` is a placeholder for review → confirm → place. It is
-disabled by a code constant, and the research client cannot call order tools.
+My Portfolio places no orders: the research client refuses every write-shaped tool name
+(`brokers.mcp_http`), and there is no execution code. Adding any would be a reviewed code
+change with its own per-order confirmation step.
 
 ## Connecting
 

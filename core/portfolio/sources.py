@@ -36,6 +36,10 @@ USER_AGENT = "QUANTA-Portfolio/1.0 (local research tool; contact via QUANTA_SEC_
 SEC_MIN_INTERVAL = 0.12        # SEC asks for at most 10 requests per second
 CIK_TTL = 24 * 3600
 FILINGS_TTL = 30 * 60
+# After a timeout, a network failure or a rate limit, every symbol would wait out its own
+# timeout again; remember the outage briefly and answer the others at once.
+OUTAGE_TTL = 60
+OUTAGE_REASONS = ("timeout", "network_error", "rate_limited")
 TIMEOUT = 8
 
 # Form 8-K item titles, as the SEC publishes them. Items not listed are shown by number.
@@ -193,8 +197,10 @@ def sec_user_agent() -> Optional[str]:
     (an email or URL) is embedded in QUANTA's own agent string.
     """
     c = resolve_sec_contact()
-    if c.state != "configured":
-        return None
+    return _agent_string(c) if c.state == "configured" else None
+
+
+def _agent_string(c: SecContact) -> str:
     return c._value if c.variable == SEC_AGENT_VAR else f"QUANTA-Research/1.0 ({c._value})"
 
 
@@ -213,7 +219,7 @@ def _pace() -> None:
 def _agent(require_contact: bool) -> str:
     c = resolve_sec_contact()
     if c.state == "configured":
-        return c._value if c.variable == SEC_AGENT_VAR else f"QUANTA-Research/1.0 ({c._value})"
+        return _agent_string(c)
     if require_contact:
         if c.state == "malformed":
             raise SecContactMalformed(f"{c.variable} is set but names no email address or web address")
@@ -276,6 +282,8 @@ class EdgarClient:
         self._fund_ciks: Dict[str, int] = {}
         self._fund_ciks_at = 0.0
         self._cache: Dict[str, Any] = {}
+        self._outage: Optional[Dict[str, Any]] = None
+        self._outage_until = 0.0
 
     def _cik_map(self) -> Dict[str, int]:
         with self._lock:
@@ -326,6 +334,8 @@ class EdgarClient:
             hit = self._cache.get(key)
             if hit and self._clock() - hit[0] < FILINGS_TTL:
                 return hit[1]
+            if self._outage is not None and self._clock() < self._outage_until:
+                return self._outage
         try:
             cik = self.cik(symbol)
             if cik is None:
@@ -348,6 +358,9 @@ class EdgarClient:
             reason, http_status = failure_reason(exc)
             out = {"status": "error", "error": type(exc).__name__, "detail": str(exc)[:200], "filings": [],
                    "reason": reason, "http_status": http_status}
+            if reason in OUTAGE_REASONS:
+                with self._lock:
+                    self._outage, self._outage_until = out, self._clock() + OUTAGE_TTL
             return out
         with self._lock:
             self._cache[key] = (self._clock(), out)

@@ -2,8 +2,8 @@
 
 A broker integration implements :class:`PortfolioProvider` and nothing else in
 QUANTA knows which broker it is talking to. The interface has no order methods
-on purpose: execution, if it is ever built, lives behind a separate gateway
-(``portfolio.execution``) with its own confirmation step.
+on purpose: execution, if it is ever built, belongs behind a separate gateway
+with its own per-order confirmation step.
 """
 from __future__ import annotations
 

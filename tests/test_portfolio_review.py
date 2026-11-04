@@ -290,11 +290,40 @@ class TestJournal:
         j.record([self.row()], "2026-09-20")
         assert j.record([self.row(action="Trim")], "2026-09-01") == 0
 
-    def test_corrupt_file_starts_empty_instead_of_crashing(self, tmp_path):
+    def test_corrupt_file_is_kept_aside_and_a_new_journal_started(self, tmp_path):
         p = tmp_path / "j.json"
         p.write_text("{not json")
         j = DecisionJournal(p)
         assert j.entries() == [] and j.record([self.row()], "2026-09-29") == 1
+        kept = list(tmp_path.glob("j.corrupt-*.json"))
+        assert len(kept) == 1 and kept[0].read_text() == "{not json"
+
+    def test_unreadable_file_is_never_overwritten(self, tmp_path, monkeypatch):
+        p = tmp_path / "j.json"
+        j = DecisionJournal(p)
+        assert j.record([self.row()], "2026-09-20") == 1
+        before = p.read_text()
+        real = Path.read_text
+
+        def locked(self, *a, **k):                        # a Windows sharing violation
+            if self == p:
+                raise PermissionError("locked")
+            return real(self, *a, **k)
+        monkeypatch.setattr(Path, "read_text", locked)
+        j2 = DecisionJournal(p)
+        assert j2.entries() == []                          # a reader degrades to empty ...
+        with pytest.raises(OSError):                       # ... a writer refuses
+            j2.record([self.row(action="Trim")], "2026-09-29")
+        monkeypatch.undo()
+        assert p.read_text() == before
+
+    def test_repeated_reads_see_a_later_write(self, tmp_path):
+        j = DecisionJournal(tmp_path / "j.json")
+        assert j.entries() == []
+        j.record([self.row()], "2026-09-20")
+        assert len(j.entries()) == 1
+        j.record([self.row(action="Trim")], "2026-09-29")
+        assert [e["action"] for e in j.entries()][-1] == "Trim" and len(j.entries()) == 2
 
 
 # ---------------------------------------------------------------------------

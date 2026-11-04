@@ -7,6 +7,7 @@ absent or fail, and the section that needs it then says so without taking down t
 """
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from dataclasses import dataclass, field
@@ -24,6 +25,8 @@ from .analytics import PortfolioPolicy
 from .activity_config import ACTIVITY
 from .journal import DecisionJournal
 from .sources import load_official_calendar
+
+log = logging.getLogger("QUANTA-PORTFOLIO")
 
 BENCHMARK = "SPY"
 BENCHMARK_NAME = "S&P 500 (SPY)"
@@ -140,6 +143,7 @@ class Insights:
         self._closes: Dict[Any, Any] = {}
         self._profiles: Dict[str, Any] = {}
         self._history: Optional[Dict[str, Any]] = None
+        self._history_handle: Optional[str] = None      # the account the cached history belongs to
         self._history_at = 0.0
         self._crypto_history: Dict[str, Any] = {}
         self._crypto_evidence: Dict[str, Any] = {}
@@ -166,7 +170,11 @@ class Insights:
         except Exception:  # noqa: BLE001 - market data is optional
             frame = None
         with self._lock:
-            self._closes[key] = (time.time(), frame)
+            now = time.time()
+            # Entries are only checked on read, so drop the expired ones here or they stay for the session.
+            for k in [k for k, v in self._closes.items() if now - v[0] > PRICE_TTL]:
+                del self._closes[k]
+            self._closes[key] = (now, frame)
         return frame
 
     def _profile_map(self, symbols: Sequence[str]) -> Dict[str, Dict[str, Any]]:
@@ -201,7 +209,8 @@ class Insights:
         session = now_new_york(self._clock()).date().isoformat()
         try:
             return self.src.journal.record(pf.get("positions", []), session, self._clock())
-        except OSError:
+        except OSError as exc:
+            log.warning("Decision journal not updated: %s", type(exc).__name__)
             return 0
 
     def last_calls(self) -> Dict[str, Dict[str, Any]]:
@@ -224,18 +233,20 @@ class Insights:
 
     def _ledger(self) -> Dict[str, Any]:
         """Broker record history, cached; each part reports why it is missing."""
-        with self._lock:
-            if self._history is not None and time.time() - self._history_at < PRICE_TTL:
-                return self._history
         handle = getattr(self.svc, "_account", None)
         out: Dict[str, Any] = {"orders": None, "trades": None, "issues": []}
-        if handle:
-            try:
-                out = self.svc.provider.load_history(handle)
-            except Exception as exc:  # noqa: BLE001 - history is optional; auth errors surface on refresh
-                out["issues"].append({"code": "HISTORY_FAILED", "message": type(exc).__name__})
+        if not handle:                                   # disconnected: nothing of the old account is shown
+            return out
         with self._lock:
-            self._history, self._history_at = out, time.time()
+            if (self._history is not None and self._history_handle == handle
+                    and time.time() - self._history_at < PRICE_TTL):
+                return self._history
+        try:
+            out = self.svc.provider.load_history(handle)
+        except Exception as exc:  # noqa: BLE001 - history is optional; auth errors surface on refresh
+            out["issues"].append({"code": "HISTORY_FAILED", "message": type(exc).__name__})
+        with self._lock:
+            self._history, self._history_handle, self._history_at = out, handle, time.time()
         return out
 
     def performance(self) -> Dict[str, Any]:
@@ -448,7 +459,9 @@ class Insights:
             "best": max(known, key=lambda b: b["gain"]) if known else None,
             "worst": min(known, key=lambda b: b["gain"]) if known else None,
             "trades": sum(trades) if trades else None,
-            "per_trade": (r["total"] / sum(trades)) if r.get("total") is not None and trades and sum(trades) else None,
+            # Only when every bucket reports its count: a total over a partial count overstates the average.
+            "per_trade": (r["total"] / sum(trades)) if (r.get("total") is not None and trades and sum(trades)
+                                                        and len(trades) == len(r["buckets"])) else None,
         }, cumulative=cum,
             note="Realized results only: gains and losses on positions closed in this window, as Robinhood reports them. "
                  "Open positions, dividends and deposits are not included.")
@@ -623,9 +636,13 @@ class Insights:
         # Correlation of each candidate with the holdings, from one daily-returns download.
         if self.svc._returns_fn is not None:
             try:
-                rets = self.svc._returns_fn(sorted(set(holdings) | set(symbols)))
+                with self._lock:
+                    # Also the names an earlier, superseded job analysed but never got to correlate.
+                    targets = list(symbols) + [s for s, e in self._cand.items()
+                                               if e.get("state") == "done" and s not in symbols and s not in self._cand_corr]
+                rets = self.svc._returns_fn(sorted(set(holdings) | set(targets)))
                 if rets is not None and not getattr(rets, "empty", True):
-                    for sym in symbols:
+                    for sym in targets:
                         if sym not in rets.columns:
                             continue
                         corr = {}
@@ -661,14 +678,28 @@ class Insights:
         started = False
         if run and syms:
             with self._lock:
-                fresh = [s for s in syms if not (self._cand.get(s) and self._cand[s].get("state") in ("done", "running", "pending")
-                                                 and time.time() - self._cand[s].get("finished_at", time.time()) < CANDIDATE_TTL)]
+                live = self._cand_job if (self._cand_job and not self._cand_job.get("cancelled")
+                                          and not self._cand_job.get("finished_at")) else None
+                owned = set(live["symbols"]) if live else set()
+
+                def current(s: str) -> bool:
+                    # Done and recent, being analysed right now, or queued in the job that owns it.
+                    e = self._cand.get(s) or {}
+                    if e.get("state") == "done":
+                        return time.time() - e.get("finished_at", 0) < CANDIDATE_TTL
+                    return e.get("state") == "running" or (e.get("state") == "pending" and s in owned)
+
+                fresh = [s for s in syms if not current(s)]
                 if fresh:
+                    if live:
+                        # The old job stops, so its still-queued names move to the new one.
+                        fresh += [s for s in live["symbols"]
+                                  if s not in fresh and (self._cand.get(s) or {}).get("state") == "pending"]
+                        live["cancelled"] = True
                     for s in fresh:
                         self._cand[s] = {"state": "pending"}
-                    if self._cand_job:
-                        self._cand_job["cancelled"] = True
-                    job = {"done": 0, "total": len(fresh), "finished_at": None, "cancelled": False}
+                    job = {"done": 0, "total": len(fresh), "symbols": list(fresh), "finished_at": None,
+                           "cancelled": False}
                     self._cand_job = job
                     threading.Thread(target=self._run_candidates, args=(job, fresh, size, held), daemon=True).start()
                     started = True

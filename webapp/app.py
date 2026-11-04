@@ -91,6 +91,7 @@ from engine import valuation_view as _valuation_view  # noqa: E402
 from engine import scan_filters as _scan_filters  # noqa: E402
 import saved_scans  # noqa: E402  (sibling module: the saved-scans store)
 import discover_enrich as _disc  # noqa: E402  (sibling module: Discover reads and caches)
+import request_guard  # noqa: E402  (sibling module: the loopback and CSRF guard)
 
 
 def _display_path(path: Path) -> str:
@@ -571,18 +572,10 @@ app.config["SECRET_KEY"] = os.urandom(24).hex()
 # so browsers fetch the file that is actually on disk.
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-# ---------------------------------------------------------------------------
-# Request guard (whole app). QUANTA is an unauthenticated local app, so:
-#  * the Host header must be loopback -- a DNS-rebinding page served from
-#    another name cannot read /api/* responses through the browser;
-#  * every state-changing request must carry X-QUANTA-Request: 1 -- a custom
-#    header a cross-site page cannot send without a CORS preflight this server
-#    never approves -- and, when the browser sends an Origin, it must be this
-#    server. `get_json(force=True)` used to accept a cross-site text/plain POST
-#    that started scans, cleared caches and opened files.
-# The My Portfolio blueprint keeps its own identical, stricter guard.
-# ---------------------------------------------------------------------------
-LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+# Request guard (whole app): loopback Host, and a custom header plus a
+# same-origin check on every state-changing request. See request_guard.py.
+app.before_request(request_guard.guard)
+
 CONTENT_SECURITY_POLICY = "; ".join((
     "default-src 'self'",
     "script-src 'self'",
@@ -597,25 +590,6 @@ CONTENT_SECURITY_POLICY = "; ".join((
     "form-action 'self'",
     "frame-ancestors 'none'",
 ))
-CSRF_HEADER = "X-QUANTA-Request"
-_UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
-
-
-def _request_hostname(hostport: str) -> str:
-    return (urlsplit("//" + (hostport or "")).hostname or "").lower()
-
-
-@app.before_request
-def _quanta_request_guard():
-    if _request_hostname(request.host) not in LOOPBACK_HOSTS:
-        return jsonify({"error": "QUANTA is only served on this computer (loopback)."}), 403
-    if request.method in _UNSAFE_METHODS:
-        if request.headers.get(CSRF_HEADER) != "1":
-            return jsonify({"error": "Missing request header."}), 403
-        origin = request.headers.get("Origin")
-        if origin and urlsplit(origin).netloc.lower() != (request.host or "").lower():
-            return jsonify({"error": "Cross-origin request refused."}), 403
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -9543,7 +9517,7 @@ def _serve(host: str, port: int) -> None:
 def main():
     port = int(os.getenv("QUANTA_PORT", 5500))
     host = os.getenv("QUANTA_HOST", "127.0.0.1")
-    if host not in {"127.0.0.1", "localhost", "::1"}:
+    if host not in request_guard.LOOPBACK_HOSTS:
         raise RuntimeError(
             "Refusing to expose the unauthenticated QUANTA Flask app on a "
             "non-loopback host. Deploy behind authenticated access control."

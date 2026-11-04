@@ -70,6 +70,9 @@ if (-not $Python) {
 
 $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"
+# PowerShell decodes captured native output with the console code page (437), which turned
+# Python's UTF-8 into mojibake in the log. A host with no console can refuse this; the job still runs.
+try { [Console]::OutputEncoding = [Text.UTF8Encoding]::new() } catch { }
 $coreDir = Join-Path $Root "core"
 $env:PYTHONPATH = if ($env:PYTHONPATH) { "$coreDir;$env:PYTHONPATH" } else { $coreDir }
 

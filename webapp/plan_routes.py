@@ -21,7 +21,6 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
-from urllib.parse import urlsplit
 
 import pandas as pd
 from flask import Blueprint, jsonify, request
@@ -37,13 +36,13 @@ from engine import plan_simulator as _plan_sim  # noqa: E402
 from engine import research_cache as _research_cache  # noqa: E402
 from engine import thresholds as _T  # noqa: E402
 
+import request_guard  # noqa: E402
+
 log = logging.getLogger("quanta.plan")
 bp = Blueprint("plan", __name__)
 
 # The same symbol grammar the app uses for every ticker field.
 TICKER_RE = re.compile(r"[A-Z0-9^.=&-]{1,32}")
-REQUEST_HEADER = "X-QUANTA-Request"
-LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
 PRICE_MAX = 1e7
 MONEY_MAX = 1e13
 SHARES_MAX = 1e9
@@ -57,25 +56,8 @@ class PlanDataError(RuntimeError):
     """Price bars could not be fetched right now."""
 
 
-# ---------------------------------------------------------------------------
-# Guard (mirrors My Portfolio's: loopback host, custom header, same-origin)
-# ---------------------------------------------------------------------------
-
-def _hostname(hostport: str) -> str:
-    return (urlsplit("//" + (hostport or "")).hostname or "").lower()
-
-
-@bp.before_request
-def _guard():
-    if _hostname(request.host) not in LOOPBACK:
-        return jsonify({"error": "The plan tools are only served on this computer (loopback)."}), 403
-    if request.method == "POST":
-        if request.headers.get(REQUEST_HEADER) != "1":
-            return jsonify({"error": "Missing request header."}), 403
-        origin = request.headers.get("Origin")
-        if origin and urlsplit(origin).netloc.lower() != (request.host or "").lower():
-            return jsonify({"error": "Cross-origin request refused."}), 403
-    return None
+# Guard: loopback host, custom header, same-origin (request_guard.py)
+bp.before_request(request_guard.guard)
 
 
 @bp.after_request

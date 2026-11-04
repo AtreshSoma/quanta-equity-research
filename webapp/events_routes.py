@@ -22,7 +22,6 @@ import time
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
-from urllib.parse import urlsplit
 
 from flask import Blueprint, jsonify, request
 
@@ -34,12 +33,12 @@ from engine import event_study as _es  # noqa: E402
 from engine import sec_events as _se  # noqa: E402
 
 import plan_routes  # noqa: E402  - the shared ticker grammar and the daily-bar loader
+import request_guard  # noqa: E402
 
 log = logging.getLogger("quanta.events")
 bp = Blueprint("events", __name__)
 
 TICKER_RE = plan_routes.TICKER_RE
-LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
 CACHE_TTL_SECONDS = 30 * 60
 
 _CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
@@ -50,19 +49,8 @@ class EventsInputError(ValueError):
     """A request field failed validation; the message is shown to the user."""
 
 
-# ---------------------------------------------------------------------------
-# Guard: loopback host only (read-only route, so no CSRF header is needed)
-# ---------------------------------------------------------------------------
-
-def _hostname(hostport: str) -> str:
-    return (urlsplit("//" + (hostport or "")).hostname or "").lower()
-
-
-@bp.before_request
-def _guard():
-    if _hostname(request.host) not in LOOPBACK:
-        return jsonify({"error": "The material filings tool is only served on this computer (loopback)."}), 403
-    return None
+# Guard: loopback host (the route is GET-only, so the CSRF check never applies)
+bp.before_request(request_guard.guard)
 
 
 @bp.after_request

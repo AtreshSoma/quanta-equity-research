@@ -22,8 +22,8 @@ Routes (all under /api/portfolio):
     GET  /records         open lots, order fills and closed trades (whichever exist)
     GET  /journal         the decision journal's summary and dated call changes
 
-The rest of the app has no request-forgery protection, because until now it
-held nothing private. These routes do, so they carry their own guards:
+These routes hold private data, so on top of the app-wide guard they install
+it again themselves (request_guard.py), and harden every response:
 
 * the Host header must be loopback (blocks DNS-rebinding reads of holdings);
 * POSTs need ``X-QUANTA-Request: 1`` (a custom header a cross-site page cannot
@@ -44,6 +44,7 @@ from urllib.parse import urlsplit
 
 from flask import Blueprint, jsonify, redirect, request
 
+import request_guard
 from brokers.redact import RedactingFilter, get_logger, redact
 from portfolio.insights import Insights, MarketSources
 from portfolio.provider import AuthExpired, NotConnected, PortfolioProvider, ProviderError
@@ -52,9 +53,8 @@ from portfolio.service import PortfolioService
 log = get_logger("QUANTA-PORTFOLIO")
 
 bp = Blueprint("my_portfolio", __name__, url_prefix="/api/portfolio")
+bp.before_request(request_guard.guard)
 
-LOOPBACK = {"127.0.0.1", "localhost", "::1"}
-REQUEST_HEADER = "X-QUANTA-Request"
 _HANDLE = re.compile(r"[0-9a-f]{16}")
 
 _service: Optional[PortfolioService] = None
@@ -98,23 +98,6 @@ def current_holdings() -> Optional[dict]:
         return None
 
 
-def _hostname(hostport: str) -> str:
-    return (urlsplit("//" + (hostport or "")).hostname or "").lower()
-
-
-@bp.before_request
-def _guard():
-    if _hostname(request.host) not in LOOPBACK:
-        return jsonify({"error": "My Portfolio is only served on this computer (loopback)."}), 403
-    if request.method == "POST":
-        if request.headers.get(REQUEST_HEADER) != "1":
-            return jsonify({"error": "Missing request header."}), 403
-        origin = request.headers.get("Origin")
-        if origin and urlsplit(origin).netloc.lower() != request.host.lower():
-            return jsonify({"error": "Cross-origin request refused."}), 403
-    return None
-
-
 @bp.after_request
 def _headers(resp):
     resp.headers["Cache-Control"] = "no-store, max-age=0"
@@ -150,7 +133,7 @@ def _redirect_uri() -> str:
     127.0.0.1; the sign-in state lives in server memory, not in cookies.
     """
     host = request.host
-    if _hostname(host) == "localhost":
+    if request_guard.hostname(host) == "localhost":
         port = urlsplit("//" + host).port
         host = "127.0.0.1" + (f":{port}" if port else "")
     return f"http://{host}/api/portfolio/oauth/callback"

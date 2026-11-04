@@ -22,12 +22,15 @@ vocabulary (:func:`portfolio.guidance.canonical_action`): an entry written as
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 import threading
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
+
+log = logging.getLogger("QUANTA-PORTFOLIO")
 
 REAFFIRM_DAYS = 21
 # Rule kinds that describe a gap in the analysis, not a view on the stock.
@@ -52,17 +55,46 @@ class DecisionJournal:
     def __init__(self, path: Optional[Path] = None):
         self.path = Path(path) if path else default_path()
         self._lock = threading.RLock()
+        # (mtime, size) -> parsed file: one page build asks several questions of the journal.
+        self._cache: Optional[tuple] = None
 
     # -- storage ------------------------------------------------------------
 
-    def _read(self) -> Dict[str, Any]:
+    def _read(self, for_write: bool = False) -> Dict[str, Any]:
+        """The stored journal. A reader gets an empty one when the file cannot be read.
+
+        A writer must never build on an empty stand-in for a file that exists: an
+        unreadable file (locked by another program) raises OSError so nothing is
+        written, and a corrupt one is moved aside first so the history is kept.
+        """
+        fresh = {"schema": SCHEMA, "started": None, "entries": []}
+        try:
+            st = self.path.stat()
+        except FileNotFoundError:
+            return fresh
+        except OSError:
+            if for_write:
+                raise
+            return fresh
+        key = (st.st_mtime_ns, st.st_size)
+        if self._cache is not None and self._cache[0] == key:
+            return self._cache[1]
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
-            if isinstance(data, dict) and isinstance(data.get("entries"), list):
-                return data
-        except (OSError, ValueError):
-            pass
-        return {"schema": SCHEMA, "started": None, "entries": []}
+        except OSError:
+            if for_write:
+                raise
+            return fresh
+        except ValueError:
+            data = None
+        if isinstance(data, dict) and isinstance(data.get("entries"), list):
+            self._cache = (key, data)
+            return data
+        if for_write:
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+            os.replace(self.path, self.path.with_name(f"{self.path.stem}.corrupt-{stamp}{self.path.suffix}"))
+            log.warning("Decision journal was unreadable; kept as a .corrupt copy and started a new one")
+        return fresh
 
     def _write(self, data: Dict[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -94,8 +126,8 @@ class DecisionJournal:
         """
         now = now or datetime.now(timezone.utc)
         with self._lock:
-            data = self._read()
-            entries: List[Dict[str, Any]] = data["entries"]
+            data = dict(self._read(for_write=True))      # the cached copy stays as it was read
+            entries: List[Dict[str, Any]] = list(data["entries"])
             last: Dict[str, Dict[str, Any]] = {}
             for e in entries:
                 last[e["symbol"]] = e

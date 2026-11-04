@@ -15,6 +15,7 @@ plus ``guidance``, the portfolio-context layer's reading of that Decision.
 """
 from __future__ import annotations
 
+import logging
 import re
 import threading
 import time
@@ -27,9 +28,12 @@ from engine.thresholds import PORTFOLIO as _PF
 
 from . import analytics as an
 from . import guidance as gd
+from . import profit_plan as pp
 from .fund_events import FUND_INSTRUMENT_TYPES
 from .models import ConnectionState, DataIssue, Portfolio, finite
 from .provider import AuthExpired, PortfolioProvider, ProviderError
+
+log = logging.getLogger("QUANTA-PORTFOLIO")
 
 AnalyzeFn = Callable[[str, Optional[float]], Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]]
 ReturnsFn = Callable[[List[str]], Any]
@@ -362,8 +366,8 @@ class PortfolioService:
             v = self.view()
             if v.get("portfolio"):
                 self.insights.record_journal(v["portfolio"])
-        except Exception:  # noqa: BLE001 - the journal is a record, never a reason to fail a job
-            pass
+        except Exception as exc:  # noqa: BLE001 - the journal is a record, never a reason to fail a job
+            log.warning("Decision journal not updated: %s", type(exc).__name__)
 
     def whatif(self, changes: Any) -> Dict[str, Any]:
         """Portfolio metrics after selling part or all of some holdings to cash.
@@ -736,41 +740,19 @@ def _impacts(holdings: List[an.Holding], total: float, cash: Optional[float], p,
 def _sale_detail(p, sell_value: float, today: Optional[date] = None) -> Dict[str, Any]:
     """Shares and gain realised by selling ``sell_value`` of a position at today's price.
 
-    Gain uses the broker's average cost; the long/short split assumes the oldest
-    lots go first (FIFO, Robinhood's default). Arithmetic, not tax advice.
+    The gain rule (broker lots oldest first, else average cost) is
+    :func:`portfolio.profit_plan.sale_gain`, so the trim previews and the profit plan agree.
+    Arithmetic, not tax advice.
     """
     price = p.last_price
     if not price or price <= 0 or sell_value <= 0:
         return {}
     shares = sell_value / price
+    g = pp.sale_gain(shares, price, p.average_cost, [lot.to_dict() for lot in (p.tax_lots or [])],
+                     today or date.today())
     out: Dict[str, Any] = {"shares": shares}
-    if p.average_cost is not None:
-        out["gain"] = shares * (price - p.average_cost)
-    lots = [lot for lot in (p.tax_lots or []) if lot.cost_per_share is not None and lot.quantity]
-    today = today or date.today()
-
-    def term(lot) -> Optional[str]:
-        if lot.term in ("short", "long"):
-            return lot.term
-        try:
-            return "long" if (today - date.fromisoformat(str(lot.acquired_on)[:10])).days > 365 else "short"
-        except (TypeError, ValueError):
-            return None
-
-    if lots and all(term(lot) for lot in lots):
-        left, short, long_ = shares, 0.0, 0.0
-        for lot in sorted(lots, key=lambda x: x.acquired_on or ""):
-            take = min(left, float(lot.quantity))
-            gain = take * (price - float(lot.cost_per_share))
-            if term(lot) == "long":
-                long_ += gain
-            else:
-                short += gain
-            left -= take
-            if left <= 1e-9:
-                break
-        if left <= 1e-6:
-            # The lots are what a sale actually realises, so they set the total too.
-            out.update(gain=short + long_, gain_short=short, gain_long=long_,
-                       lot_order="oldest lots first (FIFO)")
+    if g["gain"] is not None:
+        out["gain"] = g["gain"]
+    if g["basis"].startswith("lots"):
+        out.update(gain_short=g["gain_short"], gain_long=g["gain_long"], lot_order="oldest lots first (FIFO)")
     return out

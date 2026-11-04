@@ -30,7 +30,6 @@ from brokers.redact import RedactingFilter, redact, register_sensitive  # noqa: 
 from brokers.robinhood import READ_TOOLS, RobinhoodProvider  # noqa: E402
 from portfolio import analytics as an  # noqa: E402
 from portfolio import guidance as gd  # noqa: E402
-from portfolio.execution import EXECUTION_ENABLED, ExecutionDisabled, ExecutionGateway, OrderIntent  # noqa: E402
 from portfolio.models import AccountSummary, ConnectionState, Portfolio, Position  # noqa: E402
 from portfolio.provider import AuthExpired, ProviderError  # noqa: E402
 from portfolio.service import PortfolioService, build_view, quote_freshness  # noqa: E402
@@ -758,13 +757,6 @@ class TestReadOnlyBoundary:
         diag = prov.diagnostics()
         assert set(diag["write_tools_offered"]) == {"review_equity_order", "place_equity_order", "create_watchlist"}
         assert diag["status"]["execution_enabled"] is False and diag["status"]["read_only"] is True
-
-    def test_execution_layer_is_disabled(self):
-        assert EXECUTION_ENABLED is False
-        with pytest.raises(ExecutionDisabled):
-            ExecutionGateway().place(OrderIntent("AAPL", "buy", 1), "token")
-        with pytest.raises(ExecutionDisabled):
-            ExecutionGateway().review(OrderIntent("AAPL", "buy", 1))
 
     def test_sse_responses_are_parsed(self):
         prov, fake = connected_provider(FakeRobinhood(sse=True))

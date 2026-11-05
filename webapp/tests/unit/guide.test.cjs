@@ -592,7 +592,9 @@ test('My Portfolio limits, read-only tools and the ledger match the thresholds a
   for (const t of ['get_accounts', 'get_equity_positions', 'get_equity_quotes', 'get_equity_tax_lots', 'get_equity_fundamentals', 'get_earnings_calendar', 'get_realized_pnl']) assert.ok(tools.includes(t), t);
   // Order *history* is a read; no tool that places, reviews, previews or cancels an order is listed.
   assert.doesNotMatch(tools, /(place|review|preview|cancel|replace)_\w*order/);
-  assert.match(src('portfolio/execution.py'), /^EXECUTION_ENABLED = False$/m);
+  // execution.py was deleted (a4d72f2); read-only is enforced where tools are called.
+  assert.match(src('brokers/mcp_http.py'), /^class ToolNotPermitted\(/m);
+  assert.match(src('brokers/robinhood.py'), /^assert not any\(is_write_tool\(t\) for t in READ_TOOLS\.values\(\)\)$/m);
   assert.match(src('brokers/oauth.py'), /Tokens live only in this object's memory/);
   // Ledger: 30 calls on 10+ dates, ^NSEI for Indian listings (.NS and .BO), SPY otherwise.
   const ledger = src('tracking/ledger.py');

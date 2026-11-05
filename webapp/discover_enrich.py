@@ -332,27 +332,135 @@ def earnings_moves(reports: List[Tuple[datetime, bool]], closes: List[Tuple[date
         return []
     days = [d for d, _ in closes]
     px = [c for _, c in closes]
-    oh, om = _SESSION_OPEN.get(market, _SESSION_OPEN["US"])
     out: List[Dict[str, Any]] = []
     for when, reported in sorted(reports, key=lambda x: x[0], reverse=True):
         if not reported:
             continue
-        d = when.date()
-        before_open = (when.hour, when.minute) < (oh, om)
-        try:
-            if before_open:
-                i = days.index(d) if d in days else None
-            else:
-                i = next((k for k, dd in enumerate(days) if dd > d), None)
-        except ValueError:
-            i = None
+        i = _reaction_index(when, days, market)
         if i is None or i == 0:
             continue
         move = (px[i] / px[i - 1] - 1) * 100
-        out.append({"date": d.isoformat(), "move_pct": round(move, 2), "timing": "bmo" if before_open else "amc"})
+        out.append({"date": when.date().isoformat(), "move_pct": round(move, 2), "timing": _timing(when, market)})
         if len(out) >= limit:
             break
     return out
+
+
+def _timing(when: datetime, market: str) -> str:
+    oh, om = _SESSION_OPEN.get(market, _SESSION_OPEN["US"])
+    return "bmo" if (when.hour, when.minute) < (oh, om) else "amc"
+
+
+def _reaction_index(when: datetime, days: List[date], market: str) -> Optional[int]:
+    """Index in `days` of the session a report moved: the report day for one
+    before the open, the next session for one after it. None if not traded yet."""
+    d = when.date()
+    if _timing(when, market) == "bmo":
+        return days.index(d) if d in days else None
+    return next((k for k, dd in enumerate(days) if dd > d), None)
+
+
+def _sign(x: Optional[float], band: float) -> int:
+    return 0 if x is None or abs(x) < band else (1 if x > 0 else -1)
+
+
+def report_read(reports: List[Tuple[datetime, Optional[float], Optional[float]]],
+                closes: List[Tuple[date, float]], trend: Dict[str, Dict[str, Any]],
+                analyst_rows: List[Dict[str, Any]], market: str = "US",
+                now: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
+    """The last report, read in the weeks after it: EPS against the estimate,
+    the report-day move against past ones, the estimate changes and analyst
+    actions since (the Street's read of the guidance), the next report, and
+    how often this stock kept moving the report-day way after past reports.
+
+    `reports` are (exchange-time datetime, EPS estimate, reported EPS); a row
+    without reported EPS is a future report. `closes` ascend by date. `trend`
+    is the EPS trend table by period ("0q", "+1q", "0y", "+1y").
+
+    The lean is post-earnings drift (Bernard & Thomas 1989; Chan, Jegadeesh &
+    Lakonishok 1996): up or down only when at least two of surprise, report-day
+    move and revisions point the same way and none points the other. A
+    documented tendency that often fails, not a forecast. None when there is
+    no report inside REPORT_RECENT_DAYS."""
+    now = now or datetime.now()
+    done = sorted((r for r in reports if r[2] is not None), key=lambda r: r[0])
+    if not done:
+        return None
+    when, est, rep = done[-1]
+    days_since = (now.date() - when.date()).days
+    if not 0 <= days_since <= int(M.REPORT_RECENT_DAYS):
+        return None
+    inline = float(M.REPORT_INLINE_SURPRISE_PCT)
+    surprise = round((rep - est) / abs(est) * 100, 2) if est else None
+    s_sign = _sign(surprise, inline)
+
+    days = [d for d, _ in closes]
+    px = [c for _, c in closes]
+    i = _reaction_index(when, days, market)
+    reaction = round((px[i] / px[i - 1] - 1) * 100, 2) if i else None
+    since = round((px[-1] / px[i - 1] - 1) * 100, 2) if i else None
+
+    # Past reports: their report-day move and the move over the next N sessions.
+    n_after = int(M.REPORT_DRIFT_SESSIONS)
+    react_min = float(M.REPORT_REACTION_MIN_PCT)
+    past = done[:-1][-int(M.EARNINGS_HISTORY_REPORTS):]
+    moves, followed, counted = [], 0, 0
+    for w, _, _ in past:
+        j = _reaction_index(w, days, market)
+        if not j:
+            continue
+        move = (px[j] / px[j - 1] - 1) * 100
+        moves.append(abs(move))
+        if j + n_after < len(px) and abs(move) >= react_min:
+            counted += 1
+            followed += (px[j + n_after] > px[j]) == (move > 0)
+    surprises = [(r - e) / abs(e) * 100 for _, e, r in past + [done[-1]] if e]
+
+    # Estimate changes over the shortest trend window that reaches back to the report.
+    window = next((w for w in (7, 30, 60, 90) if days_since <= w), 90)
+    est_chg: Dict[str, float] = {}
+    for period in ("0q", "+1q", "0y", "+1y"):
+        row = trend.get(period) or {}
+        cur, ago = _num(row.get("current")), _num(row.get(f"{window}daysAgo"))
+        if cur is not None and ago:
+            est_chg[period] = round((cur - ago) / abs(ago) * 100, 2)
+    revs = [est_chg[p] for p in ("0q", "0y") if p in est_chg]
+    rev = round(sum(revs) / len(revs), 2) if revs else None
+
+    start = datetime.combine(when.date(), datetime.min.time())
+    since_rows = [r for r in analyst_rows if r.get("when") and r["when"] >= start]
+    analysts = revisions_summary(since_rows, now, days_since + 1) if since_rows else None
+
+    nxt = next(((w, e) for w, e, r in sorted(reports, key=lambda r: r[0]) if r is None and w > when), None)
+
+    reasons = []
+    votes = [s_sign, _sign(reaction, react_min), _sign(rev, float(M.REPORT_REVISION_MIN_PCT))]
+    if s_sign:
+        reasons.append(f"EPS {'beat' if s_sign > 0 else 'missed'} the estimate by {abs(surprise):.1f}%")
+    if votes[1]:
+        reasons.append(f"the stock {'rose' if reaction > 0 else 'fell'} {abs(reaction):.1f}% on the report")
+    if votes[2]:
+        reasons.append(f"estimates were {'raised' if rev > 0 else 'cut'} {abs(rev):.1f}% since")
+    ups, downs = votes.count(1), votes.count(-1)
+    direction = "up" if ups >= 2 and not downs else ("down" if downs >= 2 and not ups else "mixed")
+    # Drift is weak in some names (large caps above all): say when this one's record disagrees.
+    history_agrees = followed * 2 > counted if counted >= int(M.REPORT_DRIFT_MIN_REPORTS) else None
+
+    return {
+        "date": when.date().isoformat(), "timing": _timing(when, market), "days_since": days_since,
+        "eps_actual": rep, "eps_estimate": est, "surprise_pct": surprise,
+        "result": None if surprise is None else ("in line" if not s_sign else ("beat" if s_sign > 0 else "miss")),
+        "beats": sum(1 for s in surprises if s >= inline), "reports_counted": len(surprises),
+        "reaction": None if reaction is None else {"date": days[i].isoformat(), "move_pct": reaction,
+                                                   "typical_abs_pct": round(sum(moves) / len(moves), 2) if moves else None},
+        "since_pct": since,
+        "estimates": {"window_days": window, **est_chg} if est_chg else None,
+        "revision_pct": rev,
+        "analysts": analysts,
+        "drift": {"sessions": n_after, "followed": followed, "counted": counted} if counted else None,
+        "next": {"date": nxt[0].date().isoformat(), "eps_estimate": nxt[1]} if nxt else None,
+        "lean": {"direction": direction, "reasons": reasons, "history_agrees": history_agrees},
+    }
 
 
 def _mid(row: Dict[str, Any]) -> Optional[float]:
@@ -489,23 +597,28 @@ def _parse_when(text: Any) -> Optional[datetime]:
         return None
 
 
-def _eps_trend(sym: str) -> Optional[Dict[str, Any]]:
+def _eps_trend(sym: str) -> Optional[Dict[str, Dict[str, Any]]]:
+    """The EPS trend table by period ("0q", "+1q", "0y", "+1y")."""
     def fetch():
         df = _yf().Ticker(sym).eps_trend
-        if df is None or df.empty or "0y" not in df.index:
+        if df is None or df.empty:
             return {}
-        return {k: _num(v) for k, v in df.loc["0y"].items()}
-    return cached(_SLOW, f"eps|{sym}", fetch)
+        return {str(p): {k: _num(v) for k, v in row.items()} for p, row in df.iterrows()}
+    return cached(_SLOW, f"ept|{sym}", fetch)
 
 
 def _earnings_dates(sym: str) -> Optional[List[List[Any]]]:
+    """[when, reported, EPS estimate, reported EPS] per listed report, future ones included."""
     def fetch():
         df = _yf().Ticker(sym).get_earnings_dates(limit=int(M.EARNINGS_HISTORY_REPORTS) + 4)
         if df is None or df.empty:
             return []
-        col = "Reported EPS" if "Reported EPS" in df.columns else None
-        return [[w.isoformat(), bool(col and _num(r.get(col)) is not None)] for w, r in df.iterrows()]
-    return cached(_SLOW, f"ed|{sym}", fetch)
+        rows = []
+        for w, r in df.iterrows():
+            rep = _num(r.get("Reported EPS"))
+            rows.append([w.isoformat(), rep is not None, _num(r.get("EPS Estimate")), rep])
+        return rows
+    return cached(_SLOW, f"edx|{sym}", fetch)
 
 
 # `tk` lets one read share a Ticker: yfinance's option_chain(date) on a fresh
@@ -595,7 +708,7 @@ def idea_read(sym: str, market: str, price: Any, target: Any, earnings_date: Any
     if ud is not None:
         rows = [{**r, "when": _parse_when(r.get("when"))} for r in ud]
         out["revisions"] = revisions_summary(rows, now, int(M.REVISION_WINDOW_DAYS))
-    eps = _safe(lambda: _eps_trend(sym), f"eps {sym}") or {}
+    eps = (_safe(lambda: _eps_trend(sym), f"eps {sym}") or {}).get("0y") or {}
     cur, ago = eps.get("current"), eps.get(str(M.EPS_REVISION_WINDOW))
     out["eps_revision_pct"] = round((cur / ago - 1) * 100, 2) if cur and ago and ago > 0 else None
 
@@ -635,7 +748,7 @@ def idea_read(sym: str, market: str, price: Any, target: Any, earnings_date: Any
                 er["expiry"] = ex
         reps = _safe(lambda: _earnings_dates(sym), f"earnings dates {sym}") or []
         reports = []
-        for w, reported in reps:
+        for w, reported, *_ in reps:
             dt = _parse_when_local(w, market)
             if dt is not None:
                 reports.append((dt, reported))
@@ -696,12 +809,19 @@ def research_read(sym: str, market: str, price: Any, target: Any, horizon_days: 
         out["peer"] = {"fund": fund, "basis": basis, "rows": rows} if rows else None
 
     ud = _safe(lambda: _revisions(sym), f"revisions {sym}")
+    analyst_rows = [{**r, "when": _parse_when(r.get("when"))} for r in ud or []]
     if ud is not None:
-        out["revisions"] = revisions_summary([{**r, "when": _parse_when(r.get("when"))} for r in ud], now,
-                                             int(M.REVISION_WINDOW_DAYS))
-    eps = _safe(lambda: _eps_trend(sym), f"eps {sym}") or {}
+        out["revisions"] = revisions_summary(analyst_rows, now, int(M.REVISION_WINDOW_DAYS))
+    trend = _safe(lambda: _eps_trend(sym), f"eps {sym}") or {}
+    eps = trend.get("0y") or {}
     cur, ago = eps.get("current"), eps.get(str(M.EPS_REVISION_WINDOW))
     out["eps_revision_pct"] = round((cur / ago - 1) * 100, 2) if cur and ago and ago > 0 else None
+
+    # The report just behind: results, the reaction, what moved since, what comes next.
+    reps = _safe(lambda: _earnings_dates(sym), f"earnings dates {sym}") or []
+    dated = [(dt, e, r) for dt, e, r in ((_parse_when_local(w, market), e, r) for w, _, e, r in reps) if dt is not None]
+    out["last_report"] = _safe(lambda: report_read(dated, [(date.fromisoformat(d), c) for d, c in hist], trend,
+                                                   analyst_rows, market, now), f"report {sym}")
 
     rate, rate_src = risk_free(market)
     tk = _yf().Ticker(sym) if market == "US" else None
@@ -734,8 +854,7 @@ def research_read(sym: str, market: str, price: Any, target: Any, horizon_days: 
             if ch:
                 er["implied_move_pct"] = implied_move(ch["calls"], ch["puts"], s)
                 er["expiry"] = ex
-        reps = _safe(lambda: _earnings_dates(sym), f"earnings dates {sym}") or []
-        reports = [(dt, rep) for dt, rep in ((_parse_when_local(w, market), r) for w, r in reps) if dt is not None]
+        reports = [(dt, r is not None) for dt, _, r in dated]
         moves = earnings_moves(reports, [(date.fromisoformat(d), c) for d, c in hist], market)
         er["history"] = moves
         er["avg_abs_move_pct"] = round(sum(abs(m["move_pct"]) for m in moves) / len(moves), 2) if moves else None

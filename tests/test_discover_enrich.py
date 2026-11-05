@@ -125,6 +125,69 @@ def test_earnings_moves_use_the_session_the_report_landed_in():
     assert len(moves) == 2, "an unreported date is skipped"
 
 
+def _sessions(start, closes):
+    out, d = [], start
+    for c in closes:
+        while d.weekday() >= 5:
+            d += timedelta(days=1)
+        out.append((d, c))
+        d += timedelta(days=1)
+    return out
+
+
+def test_report_read_the_last_report_its_reaction_and_the_lean():
+    # Two past reports that each rose and kept rising 20 sessions on; then a beat
+    # after the close on day 60 that the stock rose 5% on the next session.
+    px = [100.0] * 10 + [104.0] + [104.0 + i for i in range(1, 25)] + [128.0] * 5 + [133.0] + [134.0] * 20 + [134.0] * 2
+    px += [140.7, 142.0]
+    closes = _sessions(date(2026, 6, 1), px)
+    day = lambda i: closes[i][0]
+    reports = [
+        (datetime.combine(day(9), datetime.min.time()).replace(hour=16, minute=5), 1.0, 1.1),
+        (datetime.combine(day(40), datetime.min.time()).replace(hour=7), 1.0, 1.2),
+        (datetime.combine(day(len(px) - 3), datetime.min.time()).replace(hour=16, minute=5), 2.0, 2.2),
+        (datetime(2027, 2, 3, 16), 2.5, None),
+    ]
+    trend = {"0q": {"current": 2.55, "7daysAgo": 2.5}, "0y": {"current": 9.0, "7daysAgo": 9.0}}
+    analysts = [{"when": datetime.combine(day(len(px) - 1), datetime.min.time()), "Firm": "A", "Action": "main",
+                 "currentPriceTarget": 160, "priorPriceTarget": 150}]
+    now = datetime.combine(day(len(px) - 1), datetime.min.time()).replace(hour=15)
+    r = D.report_read(reports, closes, trend, analysts, "US", now)
+    assert r["date"] == day(len(px) - 3).isoformat() and r["timing"] == "amc"
+    assert (r["eps_actual"], r["eps_estimate"], r["surprise_pct"], r["result"]) == (2.2, 2.0, 10.0, "beat")
+    assert r["beats"] == 3 and r["reports_counted"] == 3
+    assert r["reaction"]["date"] == day(len(px) - 2).isoformat()
+    assert r["reaction"]["move_pct"] == 5.0
+    assert r["since_pct"] == round((142 / 134 - 1) * 100, 2)
+    assert r["estimates"] == {"window_days": 7, "0q": 2.0, "0y": 0.0} and r["revision_pct"] == 1.0
+    assert r["analysts"]["raises"] == 1
+    assert r["drift"] == {"sessions": 20, "followed": 2, "counted": 2}
+    assert r["next"] == {"date": "2027-02-03", "eps_estimate": 2.5}
+    assert r["lean"]["direction"] == "up" and len(r["lean"]["reasons"]) == 3
+    assert r["lean"]["history_agrees"] is None, "two past reports are too few to qualify the lean"
+
+
+def test_report_read_disagreement_is_mixed_and_an_old_report_is_none():
+    closes = _sessions(date(2026, 9, 1), [100.0] * 20 + [94.0])
+    when = datetime.combine(closes[-1][0], datetime.min.time()).replace(hour=7)
+    now = when.replace(hour=15)
+    r = D.report_read([(when, 1.0, 1.1)], closes, {}, [], "US", now)
+    assert r["result"] == "beat" and r["reaction"]["move_pct"] == -6.0
+    assert r["lean"]["direction"] == "mixed", "a beat the price sold is not a lean"
+    assert r["estimates"] is None and r["analysts"] is None and r["drift"] is None
+    late = now + timedelta(days=int(T.MARKET.REPORT_RECENT_DAYS) + 1)
+    assert D.report_read([(when, 1.0, 1.1)], closes, {}, [], "US", late) is None
+    assert D.report_read([(when, 1.0, None)], closes, {}, [], "US", now) is None, "nothing reported yet"
+
+
+def test_report_read_after_the_close_waits_for_the_next_session():
+    closes = _sessions(date(2026, 9, 1), [100.0] * 5)
+    when = datetime.combine(closes[-1][0], datetime.min.time()).replace(hour=16, minute=5)
+    r = D.report_read([(when, 1.0, 0.9)], closes, {}, [], "US", when + timedelta(hours=2))
+    assert r["reaction"] is None and r["since_pct"] is None
+    assert r["result"] == "miss" and r["lean"]["direction"] == "mixed"
+
+
 def test_implied_move_and_strike_iv():
     calls = [{"strike": 95, "bid": 7, "ask": 7.4, "impliedVolatility": 0.4}, {"strike": 100, "bid": 4, "ask": 4.2, "impliedVolatility": 0.38},
              {"strike": 130, "bid": 0.5, "ask": 0.6, "impliedVolatility": 0.45}]

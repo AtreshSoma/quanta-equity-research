@@ -319,6 +319,15 @@ class MARKET(_Group):
     # 52-week range while analysts cut more targets than they raise.
     TARGET_LAG_RANGE_SHARE = 0.2
     EARNINGS_HISTORY_REPORTS = 8    # past reports behind the average earnings move
+    # The last report, read in the weeks after it lands (Research tear sheet).
+    # The lean follows post-earnings drift: prices have tended to keep moving the
+    # way the EPS surprise, the report-day move and the estimate revisions agree.
+    REPORT_RECENT_DAYS = 45         # a report this recent gets its own read
+    REPORT_INLINE_SURPRISE_PCT = 1.0  # EPS within this share of the estimate is in line
+    REPORT_REACTION_MIN_PCT = 1.0   # a report-day move smaller than this takes no side
+    REPORT_REVISION_MIN_PCT = 0.5   # an estimate change smaller than this takes no side
+    REPORT_DRIFT_SESSIONS = 20      # sessions after past reports the follow-through is measured over
+    REPORT_DRIFT_MIN_REPORTS = 4    # past reports needed before this stock's record qualifies the lean
     # Movers: why a name is moving and how its session traded.
     MOVE_DEAL_MIN_GAP_PCT = 15.0    # gap up this large with a range this tight reads as a deal price
     MOVE_DEAL_MAX_RANGE_PCT = 1.5

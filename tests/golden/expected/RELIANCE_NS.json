@@ -965,6 +965,7 @@
       "dcf_method": "earnings_based",
       "dcf_status": "measured",
       "dcf_upside": -32.6261,
+      "fair_value_estimate": 856.4,
       "fair_value_sources": [
         "graham",
         "dcf"

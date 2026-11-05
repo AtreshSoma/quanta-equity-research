@@ -1047,14 +1047,12 @@ def compliance_check(
 
         # PDT Check
         lines.append("## Pattern Day Trader Check")
-        try:
-            pdt = compliance.check_pdt_status(account_value)
-            lines.append(f"- **Account Value:** ${account_value:,.2f}")
-            lines.append(f"- **PDT Status:** {'⚠️ AT RISK' if hasattr(pdt, 'at_risk') and pdt.at_risk else '✅ OK'}")
-            if hasattr(pdt, 'day_trades_remaining'):
-                lines.append(f"- **Day Trades Remaining:** {pdt.day_trades_remaining}")
-        except Exception:
-            lines.append(f"- Account value ${account_value:,.2f} — {'✅ Above PDT minimum' if account_value >= 25000 else '⚠️ Below $25K PDT threshold'}")
+        # QUANTA never sees your orders or fills, so it cannot count day trades;
+        # an "OK" here would be a guess presented as a check.
+        lines.append(f"- **Account Value:** ${account_value:,.2f} "
+                     f"({'at or above' if account_value >= 25000 else 'below'} the $25,000 PDT equity minimum)")
+        lines.append("- **Day trades:** not tracked — QUANTA does not read your orders. "
+                     "Check your broker's day-trade counter before trading intraday.")
         lines.append("")
 
         # Compliance summary

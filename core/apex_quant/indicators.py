@@ -16,12 +16,15 @@ def wilder_rsi(close: pd.Series, period: int = 14) -> pd.Series:
 
     delta_t      = close_t - close_{t-1}
     gain_t       = max(delta_t, 0),  loss_t = max(-delta_t, 0)
-    The first avg gain/loss is the simple mean of the first ``period`` values;
-    thereafter Wilder smoothing:
+    Wilder smoothing:
         avg_t = (avg_{t-1} * (period - 1) + value_t) / period
     RS  = avg_gain / avg_loss
     RSI = 100 - 100 / (1 + RS)
-    Implemented via EMA with alpha = 1/period (== Wilder smoothing).
+    Implemented via EMA with alpha = 1/period, which seeds from the FIRST value
+    rather than the textbook SMA of the first ``period`` values. The two agree
+    once the seed has decayed (identical to 6 d.p. after 252 daily bars; about
+    0.5 RSI points apart on a 63-bar series).
+    A perfectly flat series reads 100 here (engine.indicators.rsi returns NaN).
     """
     delta = close.diff()
     gain = delta.clip(lower=0.0)

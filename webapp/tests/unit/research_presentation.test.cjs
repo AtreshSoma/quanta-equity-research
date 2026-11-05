@@ -42,17 +42,17 @@ test('a funding clear price below the stop says so, with the re-set stop and tar
   const text = funding.textContent;
   assert.match(text, /reached at or below \$256\.93\./);
   assert.match(text, /That is below today’s stop \(\$260\.13\)/);
-  // stop = clear - (entry - stop) = 256.93 - 22.19 = 234.74
-  assert.match(text, /re-set the stop to about \$234\.74/);
+  // stop keeps the entry-to-stop percentage: 256.93 x 260.13 / 282.32 = 236.74
+  assert.match(text, /re-set the stop to about \$236\.74/);
   // target = clear + (63/126) * (300 - clear) = 256.93 + 21.535 = 278.465
-  assert.match(text, /re-set the stop to about \$234\.74 and the target to about \$278\.4/);
+  assert.match(text, /re-set the stop to about \$236\.74 and the target to about \$278\.4/);
 });
 
 test('without a valuation target the caveat names the stop only', () => {
   const levels = { rr_hurdles: { funding: { min: 1.8, passes: false, clear_entry: 256.93 } } };
   const el = frag(app.levelNotesHtml({ levels, entry: 282.32, stop: 260.13, target: 310, rr: 1.4, technical: {}, sym: '$' }));
   const text = el.querySelector('[data-hurdle="funding"]').textContent;
-  assert.match(text, /re-set the stop to about \$234\.74\./);
+  assert.match(text, /re-set the stop to about \$236\.74\./);
   assert.ok(!/target to about/.test(text));
 });
 
@@ -60,7 +60,7 @@ test('the buy-zone caveat is empty when the clear price sits above the stop', ()
   const levels = { rr_hurdles: { funding: { min: 1.8, passes: false, clear_entry: 270 } } };
   assert.equal(app.buyZoneCaveat(levels, 282.32, 260.13, '$'), '');
   const below = { rr_hurdles: { funding: { min: 1.8, passes: false, clear_entry: 256.93 } } };
-  assert.match(app.buyZoneCaveat(below, 282.32, 260.13, '$'), /^Below today’s stop \(\$260\.13\): at that price QUANTA would re-set the stop to about \$234\.74/);
+  assert.match(app.buyZoneCaveat(below, 282.32, 260.13, '$'), /^Below today’s stop \(\$260\.13\): at that price QUANTA would re-set the stop to about \$236\.74/);
 });
 
 test('the levels basis line names the set time, the reference price and the live price', () => {

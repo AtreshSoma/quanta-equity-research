@@ -44,6 +44,15 @@ test('a failing funding hurdle names the price that clears it, and the hit rate 
   assert.equal(app.buyZonePrice({ rr_hurdles: { funding: { min: 1.8, passes: true } } }), null);
 });
 
+test('no buy-zone alert below today’s stop, and the Research note says why (MU, 2026-11-04)', () => {
+  const levels = { rr_hurdles: { research: { min: 1.5, passes: false, clear_entry: 560.0 }, funding: { min: 1.8, passes: false, clear_entry: 508.39 } } };
+  assert.equal(app.buyZonePrice(levels, 659.38), null, 'the stop is hit before a price this low');
+  assert.equal(app.buyZonePrice(levels, 500), 560.0, 'above the stop it is still offered');
+  const el = frag(app.levelNotesHtml({ levels, entry: 795.82, stop: 659.38, target: 882.42, rr: 0.62, technical: {}, sym: '$' }));
+  const note = el.querySelector('[data-hurdle="research"]').textContent;
+  assert.match(note, /reached at or below \$560\.00\. That is below today’s stop \(\$659\.38\), so it is not a buy zone for this call/);
+});
+
 test('the benchmark table gains the peer fund columns once the Research read arrives', () => {
   const rel = { benchmark: 'SPY', basis: 'total return', rows: [{ window: '1M', stock_pct: -5.6, benchmark_pct: -0.8, excess_pct: -4.8 }, { window: '1Y', stock_pct: 17.9, benchmark_pct: 15.2, excess_pct: 2.7 }] };
   const plain = frag(app.relativeCardHtml(rel, 'NVDA', null));
@@ -78,12 +87,13 @@ test('call history marks the call that changed', () => {
   assert.equal(app.callHistoryHtml([], '$'), '');
 });
 
-test('a bullish score in the Accumulate band reads mild; a grade-F trim names the grade', () => {
+test('a bullish score in the Accumulate band reads mid-range; a grade-F trim names the grade', () => {
   const acc = Number(T.LADDER.SCORE_BANDS.find(([, n]) => n === 'ACCUMULATE')[0]);
   const buy = Number(T.LADDER.SCORE_BANDS.find(([, n]) => n === 'BUY')[0]);
   const base = { new_money: 'WATCH', model_stance: 'BULLISH', holder_action: 'TRIM', blocking_codes: ['RISK_GRADE_F'] };
   const mild = app.decisionContract({ ...base, score: (acc + buy) / 2 });
-  assert.equal(mild.stanceText, 'Bullish score (mild)');
+  assert.equal(mild.stanceText, `Mid-range score (${Math.round((acc + buy) / 2)}/100)`);
+  assert.equal(mild.stanceTone, '', 'a mid-range score is not coloured bullish');
   assert.equal(mild.holderText, 'Trim into strength (risk grade F)');
   assert.equal(app.decisionContract({ ...base, score: buy + 1 }).stanceText, 'Bullish score');
   assert.equal(app.decisionContract({ ...base, score: (acc + buy) / 2, blocking_codes: [] }).holderText, 'Trim into strength');
@@ -124,4 +134,14 @@ test('signals scored from the last completed bar say so; a settled bar adds noth
   assert.equal(app.indicatorBasisHtml({}), '');
   const card = frag(app.technicalSignalsHtml({ ...live, rsi: 55, macd_signal: 'BULLISH', trend_direction: 'UP' }, 100, '$'));
   assert.ok(card.querySelector('[data-indicator-basis]'), 'the Technical signals card carries the note');
+});
+
+test('the valuation score names its own fair value; the target names its analyst share (MU, 2026-11-04)', () => {
+  const v = { valuation_status: 'measured', fair_value_estimate: 600, fair_value_sources: ['graham', 'dcf'] };
+  assert.equal(app.valuationScoreNote(v, 796.04, '$'), 'own fair value $600.00 (Graham + DCF), 25% below price');
+  assert.equal(app.valuationScoreNote({ ...v, valuation_status: 'unavailable' }, 796.04, '$'), '');
+  assert.equal(app.valuationScoreNote({ ...v, fair_value_estimate: 0 }, 796.04, '$'), '');
+  const comps = [{ source: 'analyst_consensus', value: 1561.91, weight: 0.625 }, { source: 'dcf', value: 600, weight: 0.375 }];
+  assert.equal(app.valuationTargetNote(comps), '63% analysts’ mean, 37% QUANTA’s own value; context, not the R/R target');
+  assert.equal(app.valuationTargetNote([]), 'context, not the R/R target');
 });

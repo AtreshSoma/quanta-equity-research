@@ -227,6 +227,27 @@ def _position_size(shares: float, entry: float, account: Optional[float], cash: 
                   f"{_pct(cap, 0)} cap.{cash_note}")
 
 
+def _max_shares(entry: float, stop: float, account: Optional[float],
+                cash: Optional[float]) -> Optional[Dict[str, Any]]:
+    """The largest whole-share size inside every sizing limit, and which limit set it.
+
+    One number in place of three separate "reduce to" hints. None when neither
+    an account value nor cash is known.
+    """
+    per_share = entry - stop
+    limits: Dict[str, int] = {}
+    if account and account > 0:
+        if per_share > 0:
+            limits["risk target"] = math.floor(account * float(SIZING.TARGET_RISK_PER_TRADE) / per_share)
+        limits["position cap"] = math.floor(account * float(SIZING.MAX_POSITION_PCT) / entry)
+    if cash is not None and cash >= 0:
+        limits["cash"] = math.floor(cash / entry)
+    if not limits:
+        return None
+    binding = min(limits, key=limits.get)
+    return {"max_shares": max(0, limits[binding]), "binding": binding, "limits": limits}
+
+
 def _concentration_name(sym: str, value: float, account: Optional[float],
                         holdings: Optional[Dict[str, Any]]) -> Dict[str, str]:
     if holdings is None:
@@ -494,6 +515,7 @@ def check_plan(*, ticker: str, shares: float, entry: float, stop: float, target:
         "overall": overall,
         "summary": _summary(checks),
         "incomplete": incomplete,
+        "sizing": _max_shares(entry, stop, account, cash) if geometry_ok else None,
         "checks": checks,
         "notes": notes,
         "as_of": today.isoformat(),

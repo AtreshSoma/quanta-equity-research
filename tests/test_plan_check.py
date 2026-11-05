@@ -331,3 +331,23 @@ def test_sec_unavailable_is_skipped_never_a_pass():
     assert check["status"] == "SKIPPED"
     assert "unavailable" in check["message"]
     assert check["status"] != "PASS"
+
+
+# ---------------------------------------------------------------------------
+# suggested size: one number, and the limit that set it
+# ---------------------------------------------------------------------------
+def test_sizing_names_the_binding_limit():
+    # $50k account, $5 risk/share: risk target 0.6% -> 60 sh; 10% cap -> 50 sh; $10k cash -> 100 sh.
+    s = _run()["sizing"]
+    assert s["limits"] == {"risk target": 60, "position cap": 50, "cash": 100}
+    assert (s["max_shares"], s["binding"]) == (50, "position cap")
+
+
+def test_sizing_binds_on_cash_and_is_absent_without_account_or_cash():
+    s = _run(cash=1_000.0)["sizing"]
+    assert (s["max_shares"], s["binding"]) == (10, "cash")
+    assert _run(account_value=None, cash=None)["sizing"] is None
+
+
+def test_sizing_is_absent_when_the_geometry_is_invalid():
+    assert _run(stop=105.0)["sizing"] is None

@@ -213,13 +213,13 @@
         "reward_risk": 0.0,
         "rr_hurdles": {
           "funding": {
-            "clear_entry": 108.33,
+            "clear_entry": 188.55,
             "clear_entry_basis": "spot",
             "min": 1.8,
             "passes": false
           },
           "research": {
-            "clear_entry": 137.77,
+            "clear_entry": 199.91,
             "clear_entry_basis": "spot",
             "min": 1.5,
             "passes": false
@@ -989,7 +989,7 @@
       "target_conservative": 0.0,
       "time_horizon": "POSITION",
       "trailing_stop": 0.0,
-      "trailing_stop_pct": 3.7,
+      "trailing_stop_pct": 3.2,
       "vol_scenario": {},
       "vol_scenario_caveat": "",
       "win_probability": 0.0
@@ -999,6 +999,7 @@
       "dcf_method": "fcf_based",
       "dcf_status": "measured",
       "dcf_upside": -36.8986,
+      "fair_value_estimate": 219.11,
       "fair_value_sources": [
         "dcf"
       ],

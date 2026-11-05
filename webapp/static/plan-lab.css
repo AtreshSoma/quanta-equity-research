@@ -160,6 +160,10 @@
 
 .pl-actions { margin-top: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 
+.pl-size { margin: 8px 0 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+
+.pl-watch { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
+
 .pl-disclaimer { margin: 0; font-size: var(--fs-xs); color: var(--text-muted); }
 
 .pl-errors {

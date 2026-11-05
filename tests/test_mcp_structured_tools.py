@@ -178,3 +178,15 @@ def test_material_filings_india_is_not_covered_and_makes_no_sec_call(server):
     assert out["covered"] is False
     assert out["recent"] == []
     assert out["days"] == 30
+
+
+def test_compliance_check_never_claims_a_pdt_all_clear(server, monkeypatch, tmp_path):
+    """QUANTA never reads orders, so it cannot count day trades. The old text
+    read a missing attribute and printed "PDT Status: OK" for every account."""
+    monkeypatch.chdir(tmp_path)  # ComplianceManager writes its audit file to cwd
+    if not server.HAS_COMPLIANCE:
+        pytest.skip("compliance module unavailable")
+    out = server.compliance_check("AAPL", price=100.0, previous_close=99.0, account_value=10_000)
+    assert "PDT Status" not in out and "✅ OK" not in out
+    assert "not tracked" in out
+    assert "below the $25,000" in out

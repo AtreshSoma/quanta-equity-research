@@ -219,13 +219,13 @@
         "reward_risk": 0.0,
         "rr_hurdles": {
           "funding": {
-            "clear_entry": 642188.0,
+            "clear_entry": 671802.0,
             "clear_entry_basis": "spot",
             "min": 1.8,
             "passes": false
           },
           "research": {
-            "clear_entry": 670918.0,
+            "clear_entry": 692153.0,
             "clear_entry_basis": "spot",
             "min": 1.5,
             "passes": false
@@ -1001,7 +1001,7 @@
       "target_conservative": 817180.0,
       "time_horizon": "POSITION",
       "trailing_stop": 0.0,
-      "trailing_stop_pct": 2.1,
+      "trailing_stop_pct": 1.8,
       "vol_scenario": {
         "analyst_weight": 0.625,
         "daily_sigma": 0.01055,
@@ -1017,6 +1017,7 @@
       "dcf_method": "not_applicable_financial",
       "dcf_status": "not_applicable",
       "dcf_upside": 0.0,
+      "fair_value_estimate": 837098.0,
       "fair_value_sources": [
         "graham"
       ],

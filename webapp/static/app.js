@@ -577,8 +577,12 @@ function decisionContract(decision) {
   const [newMoneyText, newMoneyTone] = pick(NEW_MONEY_WORD, decision.new_money);
   let [holderText, holderTone] = pick(HOLDER_WORD, decision.holder_action);
   const score = Number(decision.score);
-  // A bullish score still in the Accumulate band is a mild one, not a buy band.
-  if (String(decision.model_stance).toUpperCase() === 'BULLISH' && Number.isFinite(score) && score < Number(thr('band:BUY'))) stanceText = 'Bullish score (mild)';
+  // A bullish score below the Buy band is mid-range, not a bullish read: "Bullish"
+  // beside a Watchlist call (and a Neutral row in Call history) read as a contradiction.
+  if (String(decision.model_stance).toUpperCase() === 'BULLISH' && Number.isFinite(score) && score < Number(thr('band:BUY'))) {
+    stanceText = `Mid-range score (${Math.round(score)}/100)`;
+    stanceTone = '';
+  }
   // A trim on a score above the Reduce band comes from the risk grade alone: say so.
   const codes = new Set([...(decision.blocking_codes || []), ...(decision.blockers || []).map((b) => b && b.code)]);
   if (String(decision.holder_action).toUpperCase() === 'TRIM' && codes.has('RISK_GRADE_F') && !(score < Number(thr('band:HOLD')))) holderText = 'Trim into strength (risk grade F)';
@@ -12068,7 +12072,7 @@ function scoreBar(label, value, notMeasured = '', opts = {}) {
 
 // One leg of the multi-factor scores. A leg the composite filled with a
 // neutral 50 says so, with its weight; Risk is sizing only, never in the composite.
-function scoreLeg(scores, label, value, notMeasured = '') {
+function scoreLeg(scores, label, value, notMeasured = '', note = '') {
   const key = label.toLowerCase();
   const filled = (Array.isArray(scores && scores.neutral_filled) ? scores.neutral_filled : []).map((x) => String(x).toLowerCase());
   const weights = (scores && scores.weights_used && typeof scores.weights_used === 'object') ? scores.weights_used : {};
@@ -12084,7 +12088,32 @@ function scoreLeg(scores, label, value, notMeasured = '') {
     notMeasured = notMeasured || 'No reliable reading: the composite counts a neutral 50 in its place';
   }
   if (key === 'risk') opts.note = 'sizing only, not in the composite';
+  if (note && !opts.note) opts.note = note;
   return scoreBar(label, value, notMeasured, opts);
+}
+
+// What the valuation SCORE measures: QUANTA's own fair value (DCF / Graham),
+// which can disagree with the analyst-weighted valuation target on the same
+// page. Naming it stops "20/100" and "+43% target" reading as a contradiction.
+function valuationScoreNote(valuation, price, sym) {
+  const fv = Number(valuation && valuation.fair_value_estimate);
+  const px = Number(price);
+  if (!valuation || valuation.valuation_status !== 'measured' || !(fv > 0) || !(px > 0)) return '';
+  const NAME = { dcf: 'DCF', graham: 'Graham' };
+  const src = (Array.isArray(valuation.fair_value_sources) ? valuation.fair_value_sources : []).map((x) => NAME[x] || x).join(' + ');
+  const gap = ((fv - px) / px) * 100;
+  const where = Math.abs(gap) < 0.5 ? 'at the price' : `${fmtNumber(Math.abs(gap), 0)}% ${gap < 0 ? 'below' : 'above'} price`;
+  return `own fair value ${fmtPrice(fv, sym)}${src ? ` (${src})` : ''}, ${where}`;
+}
+
+// The valuation target is a weighted blend; name the analysts' share in it.
+function valuationTargetNote(comps) {
+  const street = (Array.isArray(comps) ? comps : []).find((c) => c && c.source === 'analyst_consensus');
+  const w = Number(street && street.weight);
+  const a = Math.round(w * 100);   // the two shares always add to 100
+  return a > 0 && a < 100
+    ? `${a}% analysts’ mean, ${100 - a}% QUANTA’s own value; context, not the R/R target`
+    : 'context, not the R/R target';
 }
 
 // [DECISION-INTEGRITY] Legacy analyzer commentary sometimes names a verdict
@@ -13307,7 +13336,7 @@ function renderAnalysis(data) {
           ${scoreBar('Composite', scores.composite_score).replace('class="score-row', 'class="score-row is-lead')}
           ${scoreLeg(scores, 'Technical', scores.technical_score)}
           ${scoreLeg(scores, 'Fundamental', scores.fundamental_score)}
-          ${scoreLeg(scores, 'Valuation', scores.valuation_score, valuation.valuation_label === 'UNAVAILABLE' ? 'No DCF or valuation multiple was measured; the composite carries a neutral 50 in its place' : '')}
+          ${scoreLeg(scores, 'Valuation', scores.valuation_score, valuation.valuation_label === 'UNAVAILABLE' ? 'No DCF or valuation multiple was measured; the composite carries a neutral 50 in its place' : '', valuationScoreNote(valuation, currentPrice, sym))}
           ${scoreLeg(scores, 'Quality', scores.quality_score)}
           ${scoreLeg(scores, 'Sentiment', scores.sentiment_score)}
           ${scoreLeg(scores, 'Risk', scores.risk_score)}
@@ -13416,7 +13445,7 @@ function renderAnalysis(data) {
                  data-stop="${escapeHtml(String(isPositive(heroStop) ? heroStop : ''))}"
                  data-target="${escapeHtml(String(isPositive(heroTarget) ? heroTarget : ''))}"
                  data-target-label="${escapeHtml(isPositive(heroTarget) && targetMonths ? `${targetMonths}-month target` : 'Target')}"
-                 data-buy-zone="${escapeHtml(String(buyZonePrice(levels) || ''))}"
+                 data-buy-zone="${escapeHtml(String(buyZonePrice(levels, heroStop) || ''))}"
                  data-buy-zone-note="${escapeHtml(buyZoneCaveat(levels, heroEntry, heroStop, sym))}"></div>
           </div>
         </div>
@@ -13458,7 +13487,7 @@ function renderAnalysis(data) {
             ${level('Reward / risk', escapeHtml(sharedRRLabel), '', /^\d/.test(sharedRRLabel) ? `to the ${targetMonths ? `${targetMonths}-month ` : ''}target, after costs` : '')}
             ${whyItems.some((x) => /\d\/100\b/.test(plainReason(stripEmoji(String(x))))) ? '' : level('Composite', `${composite}${dqGate.failed ? ' (preliminary)' : ''}`, dqGate.failed ? 'muted' : '')}
             ${valuationTarget ? level(`${valuationMonths}-month ${streetOnlyTarget ? 'Street target' : 'valuation target'}`, fmtPrice(valuationTarget, sym), 'muted',
-              `<span class="${directionClass(upsidePct(valuationTarget, heroEntry))}">${fmtPct(upsidePct(valuationTarget, heroEntry), 1, false)}</span><span class="dlevel-note">${streetOnlyTarget ? `analysts’ mean${Number(mi.analyst_count) ? ` (${Number(mi.analyst_count)})` : ''}, no QUANTA valuation` : 'context, not the R/R target'}</span>`) : ''}
+              `<span class="${directionClass(upsidePct(valuationTarget, heroEntry))}">${fmtPct(upsidePct(valuationTarget, heroEntry), 1, false)}</span><span class="dlevel-note">${streetOnlyTarget ? `analysts’ mean${Number(mi.analyst_count) ? ` (${Number(mi.analyst_count)})` : ''}, no QUANTA valuation` : escapeHtml(valuationTargetNote(comps))}</span>`) : ''}
             </div>
             ${levelBasisHtml(data, levels, sym, currentPrice)}
             ${levelLadderHtml(heroStop, heroEntry, heroTarget, currentPrice, sym, dqGate.failed)}
@@ -13731,7 +13760,11 @@ function levelNotesHtml({ levels, entry, target, stop, rr, technical, sym }) {
     : '';
   if (research && !research.passes) {
     const rc = clearOf(research);
-    items.push(`<li class="warn" data-hurdle="research">The Research call needs ${fmtRR(research.min)}${rc ? `: reached at or below <b class="mono">${escapeHtml(fmtPrice(rc, sym))}</b>` : ''}.${twoGates}</li>`);
+    const rcBelowStop = rc != null && Number(stop) > 0 && rc < Number(stop);
+    const rcWhy = rcBelowStop
+      ? ` That is below today’s stop (${escapeHtml(fmtPrice(stop, sym))}), so it is not a buy zone for this call: the stop would be hit first, and QUANTA re-scores before any entry there.`
+      : '';
+    items.push(`<li class="warn" data-hurdle="research">The Research call needs ${fmtRR(research.min)}${rc ? `: reached at or below <b class="mono">${escapeHtml(fmtPrice(rc, sym))}</b>` : ''}.${rcWhy}${twoGates}</li>`);
   } else if (funding && !funding.passes) {
     const fc = clearOf(funding);
     const belowStop = fc != null && Number(stop) > 0 && fc < Number(stop);
@@ -13758,7 +13791,7 @@ const isoDay = (iso) => (/^\d{4}-\d{2}-\d{2}/.test(String(iso || ''))
 
 // The price at which the binding reward/risk hurdle clears, for the buy-zone alert.
 // The funding clear price sits below today's stop: at that price Picks would
-// re-set the stop (keeping the entry-to-stop distance) and the target (the
+// re-set the stop (keeping the entry-to-stop percentage) and the target (the
 // horizon's share of the way to the valuation target). Empty when it does not
 // sit below the stop. `sentenceOnly` drops the leading "Below today's stop" clause.
 function buyZoneCaveat(levels, entry, stop, sym, sentenceOnly = false) {
@@ -13766,7 +13799,7 @@ function buyZoneCaveat(levels, entry, stop, sym, sentenceOnly = false) {
   const z = funding && isPositive(funding.clear_entry) ? Number(funding.clear_entry) : null;
   const s = Number(stop); const e = Number(entry);
   if (!(z > 0) || !(s > 0) || !(e > 0) || !(z < s)) return '';
-  const newStop = z - (e - s);
+  const newStop = z * (s / e);
   const vt = Number(levels.valuation_target); const vh = Number(levels.valuation_target_horizon_days); const th = Number(levels.target_horizon_days);
   let out = `at that price QUANTA would re-set the stop to about ${fmtPrice(newStop, sym)}`;
   if (vt > 0 && vh > 0 && th > 0) {
@@ -13777,10 +13810,13 @@ function buyZoneCaveat(levels, entry, stop, sym, sentenceOnly = false) {
   return sentenceOnly ? out : `Below today’s stop (${fmtPrice(s, sym)}): ${out}`;
 }
 
-function buyZonePrice(levels) {
+// None below today's stop: the price falls through this call's stop first, so
+// the thesis has failed and QUANTA re-scores before any entry there.
+function buyZonePrice(levels, stop) {
   const h = (levels && levels.rr_hurdles) || {};
   const row = (h.research && !h.research.passes) ? h.research : ((h.funding && !h.funding.passes) ? h.funding : null);
-  return row && isPositive(row.clear_entry) ? Number(row.clear_entry) : null;
+  const z = row && isPositive(row.clear_entry) ? Number(row.clear_entry) : null;
+  return z != null && isPositive(stop) && z < Number(stop) ? null : z;
 }
 
 // The calls recorded for this ticker (tracking ledger), newest first.
@@ -14795,7 +14831,7 @@ if (typeof module !== 'undefined' && module.exports) {
     recentScansHtml, savedScanAge, savedScanDetail, savedScanNoteHtml, renderRecentScans, refreshRecentScans, openRecentScan, fillScanForm, applyScanFilters, restoreLastScan, onUserScanComplete,
     pkFiltersText, pickScanFilters, initScanFilters, scanTypeName, pkAnalysisHtml, pkSignedPct, pkDecision, setupSummaryText,
     thr, fmtThreshold, applyThresholds, fmtRR, bindingLevels,
-  buyZoneCaveat, levelBasisHtml, provisionalBannerHtml, livePreviewHtml, volumeNoteHtml, scoreLeg, scoreBar, shortDay, analysisStampText, floorDp,
+  buyZoneCaveat, valuationScoreNote, valuationTargetNote, levelBasisHtml, provisionalBannerHtml, livePreviewHtml, volumeNoteHtml, scoreLeg, scoreBar, shortDay, analysisStampText, floorDp,
     researchDiagnosticHtml,
     renderResearchDiagnostic,
     handleAnalyzeJobError,

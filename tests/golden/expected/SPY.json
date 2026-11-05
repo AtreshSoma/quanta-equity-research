@@ -1138,7 +1138,7 @@
       "target_conservative": 0.0,
       "time_horizon": "POSITION",
       "trailing_stop": 0.0,
-      "trailing_stop_pct": 1.9,
+      "trailing_stop_pct": 1.7,
       "vol_scenario": {},
       "vol_scenario_caveat": "",
       "win_probability": 0.0
@@ -1148,6 +1148,7 @@
       "dcf_method": "",
       "dcf_status": "not_applicable",
       "dcf_upside": 0.0,
+      "fair_value_estimate": 0.0,
       "fair_value_sources": [],
       "graham_number": 0.0,
       "graham_status": "unavailable",

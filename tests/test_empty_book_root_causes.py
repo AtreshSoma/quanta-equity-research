@@ -18,25 +18,19 @@ an ancestor of this one, so the file was copied and adapted:
   lives here, rather than re-exported from SP_ELITE_PRO.
 * Defect 2 tests use ``TradingConfig.effective_min_position_size`` and
   ``_fund_at_least_one_share``, added by audit A06 (formerly F11 strict xfails).
-* Defect 3 tests exercise ``_run_scan_workers``, the scan-worker loop rewritten
-  on that branch. It is outside the Picks audit and is not ported, so those tests
-  are strict xfails recorded as unresolved in IMPLEMENTATION_LOG.md.
+* Defect 3 (one cooldown abandoning the universe) is fixed on this line by a
+  different design: PROVIDER_STATE.reset() at scan start plus bounded
+  wait-and-resume in scan_market. Its regressions live in
+  test_elite_pro_review2_fixes.py (test_throttled_scan_resumes_instead_of_halting,
+  test_hour_long_retry_after_stops_the_scan_instead_of_sleeping).
 """
 
 from __future__ import annotations
-
-import threading
-import time
 
 import pytest
 
 import SP_ELITE_PRO as sp
 from engine.decision_engine import minimum_score_for_action
-
-BRANCH_ONLY_SCAN_WORKERS = pytest.mark.xfail(
-    strict=True, raises=TypeError,
-    reason="_run_scan_workers exists only on quanta-review-redesign; not in the Picks audit scope")
-
 
 # ── Defect 1: a stock at its 52-week high was given no target ───────────────
 #
@@ -71,7 +65,6 @@ def _targets(price, ind, analyst_target):
     )
 
 
-@pytest.mark.xfail(strict=True, reason="blue-sky target fix exists only on quanta-review-redesign; not in the Picks audit scope")
 def test_blue_sky_name_never_gets_a_target_below_its_entry():
     """VLO's exact shape: at an all-time high, analysts 15% below spot.
 
@@ -221,190 +214,6 @@ def test_one_share_is_refused_when_it_breaches_the_position_cap():
         sp.TradingConfig.FRACTIONAL_SHARES = fractional
 
     assert funded == 0.0, "a share costing more than the cap must not be forced in"
-
-
-# ── Defect 3: one 60-second cooldown abandoned 90% of the universe ──────────
-
-class _StubScan:
-    """The minimal surface `_run_scan_workers` touches, with no network."""
-
-    def __init__(self):
-        self.dispatched: list[str] = []
-        self._filter_stats, self._zero_alloc_reasons = {}, {}
-        self._incomplete_session_bars = {}
-        self._candidate_rejections, self._error_records = [], []
-        self._zero_alloc_tickers, self.chase_alerts, self.failed_tickers = [], [], []
-        self._provider_skipped = set()
-        self._provider_degraded = False
-        self._provider_circuit_open = False
-        self._scan_stop_reason = ""
-        self._filter_stats_lock = threading.Lock()
-        self._failed_tickers_lock = threading.Lock()
-        self._chase_alerts_lock = threading.Lock()
-        self.circuit_breaker = sp.CircuitBreaker()
-
-    TICKER_CORRECTIONS = sp.QuantaEliteTradingSystem.TICKER_CORRECTIONS
-    _sanitize_ticker = sp.QuantaEliteTradingSystem._sanitize_ticker
-    _record_failed_ticker = sp.QuantaEliteTradingSystem._record_failed_ticker
-    _record_scan_error = sp.QuantaEliteTradingSystem._record_scan_error
-    _record_filter = sp.QuantaEliteTradingSystem._record_filter
-    # Borrowed so a raising worker is classified exactly as production does --
-    # a 429 has to reach PROVIDER_STATE through the real path for the circuit
-    # tests below to be testing anything.
-    _classify_scan_error = staticmethod(sp.QuantaEliteTradingSystem._classify_scan_error)
-    # Absent on this line of history; see BRANCH_ONLY_SCAN_WORKERS below.
-    _run_scan_workers = getattr(sp.QuantaEliteTradingSystem, '_run_scan_workers', None)
-
-    def analyze_stock(self, ticker):
-        # `dispatched` survives the per-worker shallow copy because the list
-        # object is shared, unlike the diagnostic buffers that get replaced.
-        self.dispatched.append(ticker)
-        return None
-
-
-@BRANCH_ONLY_SCAN_WORKERS
-def test_transient_cooldown_pauses_dispatch_but_does_not_abandon_the_scan():
-    """A 60s cooldown inside a 30-minute budget is a pause, not an ending.
-
-    The observed run analysed 79 of 808 names and stopped with 27 of its 30
-    minutes unused, because the first cooldown latched `_provider_circuit_open`
-    permanently. Honouring a Retry-After and abandoning the universe are
-    different things, and only the first one was asked for.
-    """
-    stub = _StubScan()
-    names = [f"AA{i:02d}" for i in range(12)]
-    sp.PROVIDER_STATE.cooldown_until = time.time() + 0.4
-
-    stub._run_scan_workers(names, max_workers=2, deadline=time.monotonic() + 60.0)
-
-    assert len(stub.dispatched) == len(names), (
-        f"only {len(stub.dispatched)}/{len(names)} names were dispatched; a "
-        f"transient cooldown must not end the scan"
-    )
-    assert stub._provider_degraded, "the throttle must still be reported"
-
-
-class _ThrottledScan(_StubScan):
-    """A stub whose every analyze_stock call is rate-limited by the provider.
-
-    The 429 is raised from the worker, so `_record_scan_error` classifies it
-    and feeds PROVIDER_STATE exactly as production does. The throttle is
-    therefore generated BY the scan rather than pre-loaded into the singleton
-    before it starts -- see `test_a_previous_scans_throttle_does_not_abort_the_next_one`
-    for why that distinction is the whole point.
-    """
-
-    def analyze_stock(self, ticker):
-        self.dispatched.append(ticker)
-        raise Exception("HTTP 429 Too Many Requests")
-
-
-@BRANCH_ONLY_SCAN_WORKERS
-def test_persistent_throttling_trips_the_circuit_instead_of_waiting():
-    """Waiting out a cooldown is right; waiting out a dead provider is not.
-
-    Making a cooldown non-fatal (so one 60s pause stops abandoning the
-    universe) removed the only thing that stopped a scan retrying a provider
-    that is throttling every request. `PROVIDER_RATE_LIMIT_TRIP_COUNT` and
-    `_RATIO` existed for exactly this and were wired to nothing.
-
-    Consecutive hits are the right counter, not total: 14 rate limits across
-    480 healthy names is a scan worth finishing, 12 back-to-back is a provider
-    that is down.
-
-    The cooldown floor is shortened for the test only. It governs how long the
-    scan naps between attempts, not how many consecutive hits are needed to
-    trip, so the threshold under test is the real one.
-    """
-    stub = _ThrottledScan()
-    trip = sp.TradingConfig.PROVIDER_RATE_LIMIT_TRIP_COUNT
-    cooldown = sp.TradingConfig.RATE_LIMIT_COOLDOWN_SECONDS
-    sp.TradingConfig.RATE_LIMIT_COOLDOWN_SECONDS = 0.05
-    started = time.monotonic()
-    try:
-        stub._run_scan_workers(
-            [f"CC{i:02d}" for i in range(trip * 4)], max_workers=4,
-            deadline=started + 600.0,
-        )
-    finally:
-        sp.TradingConfig.RATE_LIMIT_COOLDOWN_SECONDS = cooldown
-    elapsed = time.monotonic() - started
-
-    assert stub._provider_circuit_open, "persistent throttling must stop the scan"
-    assert elapsed < 20.0, (
-        f"took {elapsed:.0f}s: a persistently throttling provider must not be "
-        f"waited out"
-    )
-    assert 'persistently' in stub._scan_stop_reason.lower(), stub._scan_stop_reason
-    assert len(stub.dispatched) < trip * 4, "the circuit must stop further dispatch"
-
-
-@BRANCH_ONLY_SCAN_WORKERS
-def test_a_previous_scans_throttle_does_not_abort_the_next_one():
-    """The reported defect: "rate-limited after 0 failures out of 250 tickers".
-
-    PROVIDER_STATE is a process-wide singleton and no production code resets
-    it, so a scan that ended throttled leaves `consecutive_rate_limits` parked
-    at the trip threshold. The next scan read that as its own evidence, tripped
-    the circuit on its first loop iteration and dispatched nothing -- which
-    also meant no request could ever succeed to clear the counter. The user saw
-    a rate-limit banner citing zero failures, because there had been zero.
-
-    A cooldown the previous run opened is still honoured (that is the point of
-    a Retry-After); what must not happen is abandoning the universe untouched.
-    """
-    stub = _StubScan()
-    for _ in range(sp.TradingConfig.PROVIDER_RATE_LIMIT_TRIP_COUNT + 6):
-        sp.PROVIDER_STATE.note_rate_limit()
-    # A short residual cooldown, as a previous scan would leave behind.
-    sp.PROVIDER_STATE.cooldown_until = time.time() + 0.3
-
-    names = [f"EE{i:02d}" for i in range(10)]
-    stub._run_scan_workers(names, max_workers=2, deadline=time.monotonic() + 60.0)
-
-    assert not stub._provider_circuit_open, (
-        "the previous scan's counters are not this scan's evidence"
-    )
-    assert len(stub.dispatched) == len(names), (
-        f"only {len(stub.dispatched)}/{len(names)} dispatched; a healthy scan "
-        f"must not be aborted by a stale counter it never contributed to"
-    )
-
-
-@BRANCH_ONLY_SCAN_WORKERS
-def test_isolated_rate_limits_do_not_trip_the_circuit():
-    """The user's real full-market run: 14 hits across 480 analysed names, with
-    successes in between. That scan is worth finishing."""
-    stub = _StubScan()
-    for _ in range(3):
-        sp.PROVIDER_STATE.note_rate_limit()
-        sp.PROVIDER_STATE.note_success()   # a success clears the consecutive run
-    sp.PROVIDER_STATE.cooldown_until = time.time() + 0.3
-
-    stub._run_scan_workers(
-        [f"DD{i:02d}" for i in range(6)], max_workers=2,
-        deadline=time.monotonic() + 60.0,
-    )
-    assert len(stub.dispatched) == 6, (
-        f"only {len(stub.dispatched)}/6 dispatched; isolated rate limits must "
-        f"not abandon the universe"
-    )
-
-
-@BRANCH_ONLY_SCAN_WORKERS
-def test_cooldown_longer_than_the_remaining_budget_stops_cleanly():
-    """Waiting is bounded by the scan budget -- never an unbounded stall."""
-    stub = _StubScan()
-    sp.PROVIDER_STATE.cooldown_until = time.time() + 3_600.0
-
-    stub._run_scan_workers(
-        [f"BB{i:02d}" for i in range(6)],
-        max_workers=2,
-        deadline=time.monotonic() + 1.0,
-    )
-
-    assert stub._scan_stop_reason, "an aborted scan must say why"
-    assert stub._provider_degraded
 
 
 # ── Defect 4: two different new-money floors, only one of them advertised ───

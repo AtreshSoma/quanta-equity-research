@@ -6733,7 +6733,11 @@ class PositionSizer:
         
         # Final risk percentage
         adjusted_risk = base_risk * confidence_adj * vol_adj * liq_adj
-        adjusted_risk = max(0.005, min(0.06, adjusted_risk))
+        # The ceiling is the central policy's, not a private 6%: the Picks
+        # scanner never risks more than SIZING.MAX_RISK_* on one trade.
+        risk_cap = (_T.SIZING.MAX_RISK_STRONG_BUY if signal == Signal.STRONG_BUY
+                    else _T.SIZING.MAX_RISK_PER_TRADE)
+        adjusted_risk = max(0.005, min(risk_cap, adjusted_risk))
         
         # Apply risk grade multiplier - reduce position size for risky stocks.
         # [F7] One table for both engines (SIZING.RISK_GRADE_SIZE_MULTIPLIERS):
@@ -6796,7 +6800,10 @@ class PositionSizer:
         min_shares = max(1, int(min_value / entry))
         
         # If calculating strictly by risk results in 0 shares, but we have capital, allow 1 share
-        if shares == 0 and account_size >= entry and max_position_value >= entry:
+        # ... but only while that one share's stop risk stays within the
+        # owner's one-share limit (SIZING.ONE_SHARE_MAX_RISK), as in Picks.
+        if (shares == 0 and account_size >= entry and max_position_value >= entry
+                and risk_per_share <= account_size * _T.SIZING.ONE_SHARE_MAX_RISK):
             shares = 1
         
         if shares < min_shares:
@@ -6842,7 +6849,9 @@ class TradeSetupGenerator:
 
     # [T7 FIX] The one trailing-stop definition in this file. A hardcoded 7%
     # appeared in one panel, 9% in another, and an ATR multiple in a third.
-    TRAILING_ATR_MULT = 2.0
+    # Same policy row as the Picks scanner (LEVELS.TRAILING_ATR_MULTIPLIER), so
+    # Research and Picks never give different trails for one name.
+    TRAILING_ATR_MULT = _T.alias(_T.LEVELS, "TRAILING_ATR_MULTIPLIER")
     # One stop rule for both engines (owner decision 2026-10-19): the Picks
     # scanner's ATR multiple from engine.thresholds, extended under support
     # when support sits within one ATR below it.
@@ -7921,7 +7930,7 @@ def _rr_hurdles(result: "AnalysisResult", setup: Any, valuation_target: Optional
                         ("funding", max(float(_T.RR.SCANNER_MIN), float(_T.RR.RESEARCH_MIN)))):
         row: Dict[str, Any] = {"min": floor, "passes": float(rr) >= floor}
         if not row["passes"]:
-            p = research_rr_clear_entry(valuation_target, frac, entry - stop, cost, floor)
+            p = research_rr_clear_entry(valuation_target, frac, (entry - stop) / entry, cost, floor)
             spot_p = entry_to_spot(p, entry, spot) if p else None
             # Floored to the cent: a spot at the printed price must clear the hurdle.
             row["clear_entry"] = math.floor(round(spot_p, 9) * 100) / 100 if spot_p else None
@@ -14246,6 +14255,9 @@ def _mcp_result_to_dict(result: AnalysisResult) -> Dict[str, Any]:
             'valuation_label': v.valuation_label,
             'valuation_status': getattr(v, 'valuation_status', 'unavailable'),
             'fair_value_sources': list(getattr(v, 'fair_value_sources', []) or []),
+            # The figure the valuation SCORE is measured against (QUANTA's own
+            # DCF/Graham), as distinct from the analyst-weighted target below.
+            'fair_value_estimate': _mcp_safe_serialize(getattr(v, 'fair_value_estimate', 0.0)),
             'target_components': [dict(c) for c in (getattr(v, 'target_components', []) or [])],
             'valuation_score': _mcp_safe_serialize(v.valuation_score),
             'target_conservative': _mcp_safe_serialize(v.target_conservative),

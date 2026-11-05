@@ -78,7 +78,7 @@ def breakout_entry(price: float, week_52_high: Optional[float], resistance_level
     return level if (level - price) <= LEVELS.BREAKOUT_MAX_ATR * atr else 0.0
 
 
-def research_rr_clear_entry(valuation_target: float, horizon_frac: float, stop_distance: float,
+def research_rr_clear_entry(valuation_target: float, horizon_frac: float, stop_frac: float,
                             cost_frac: float, min_rr: float) -> Optional[float]:
     """The highest ENTRY price at which a Research Decision's net R:R reaches ``min_rr``.
 
@@ -87,17 +87,19 @@ def research_rr_clear_entry(valuation_target: float, horizon_frac: float, stop_d
     spot price must convert it with :func:`entry_to_spot` first.
 
     Unlike :func:`rr_triggers`, the Research levels move with the entry: the
-    stop sits ``stop_distance`` (an ATR multiple) below it and the horizon
-    target is the entry plus ``horizon_frac`` of the gap to the valuation
-    target. Solving ``net_rr(p, p - d, p + f (V - p), k) = m`` for ``p`` gives
-    ``p = (f V - m d) / (f + k (1 + m))``. None when no positive price clears it.
+    stop sits ``stop_frac`` of the entry below it and the horizon target is the
+    entry plus ``horizon_frac`` of the gap to the valuation target. The stop is
+    a FRACTION, not a dollar distance: it is an ATR multiple clamped to
+    LEVELS.MIN/MAX_STOP_DISTANCE_PCT, and ATR scales with price. Holding the
+    dollar distance fixed put MU's answer 60% below spot, with a 43% stop the
+    engine can never set (2026-11-04). Solving ``net_rr(p, p (1 - s), p + f (V - p), k) = m`` for ``p`` gives
+    ``p = f V / (f + k (1 + m) + m s)``.
     """
-    f, k, m, d, v = float(horizon_frac), float(cost_frac), float(min_rr), float(stop_distance), float(valuation_target)
-    denom = f + k * (1.0 + m)
-    if f <= 0 or d <= 0 or v <= 0 or denom <= 0:
+    f, k, m, s, v = float(horizon_frac), float(cost_frac), float(min_rr), float(stop_frac), float(valuation_target)
+    denom = f + k * (1.0 + m) + m * s
+    if f <= 0 or not (0 < s < 1) or v <= 0 or denom <= 0:
         return None
-    p = (f * v - m * d) / denom
-    return p if p > 0 else None
+    return f * v / denom
 
 
 def publish_levels(source: str, entry: float, stop: float, target: float, rr: float,

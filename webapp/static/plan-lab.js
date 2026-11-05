@@ -142,6 +142,11 @@
           <ul class="pl-plain-list">${skipped.map((c) => `<li>${esc(titleOf(c))}${c.message ? ` <span class="pl-muted">${esc(c.message)}</span>` : ''}</li>`).join('')}</ul></details>`
       : '';
 
+    const sz = res.sizing && isNum(res.sizing.max_shares) ? res.sizing : null;
+    const BINDING = { 'risk target': 'the risk-per-trade target', 'position cap': 'the position cap', cash: 'your cash' };
+    const sizeLine = sz
+      ? `<p class="pl-size">Largest size within your limits: <strong>${esc(sz.max_shares)} ${sz.max_shares === 1 ? 'share' : 'shares'}</strong>, set by ${esc(BINDING[sz.binding] || sz.binding)}.</p>`
+      : '';
     const fp = res.fingerprint ? `<p class="pl-fp">Plan fingerprint <code>${esc(res.fingerprint)}</code></p>` : '';
     const notes = (Array.isArray(res.notes) ? res.notes : []).map((n) => `<li>${esc(n)}</li>`).join('');
     const calc = (fp || notes)
@@ -153,6 +158,7 @@
         <p class="pl-headline">${esc(checkHeadline(res, counts))}</p>
       </div>
       ${res.incomplete && !(res.summary && res.summary.headline) ? '<p class="pl-incomplete">Some checks could not run, so this is not a full pass.</p>' : ''}
+      ${sizeLine}
       ${problems.length ? `<ul class="pl-problems">${problemRows}</ul>` : '<p class="pl-clear">Nothing blocks or warns.</p>'}
       ${passLine}${skipLine}${calc}`;
   }
@@ -367,6 +373,24 @@
     return data;
   }
 
+  // Price alerts at the plan's own stop and target, in My list. The store
+  // dedupes the same level and caps active alerts, so a second click is harmless.
+  async function setPlanAlerts(form, fetchImpl) {
+    const symbol = form.ticker;
+    // Saving to the list is a convenience; the alerts do not depend on it (list may be full).
+    try { await postJson('/api/my-list', { symbol }, fetchImpl); } catch (_) { /* keep going */ }
+    await postJson('/api/alerts', { symbol, direction: 'below', level: form.stop, label: 'Plan stop', source: 'manual' }, fetchImpl);
+    await postJson('/api/alerts', { symbol, direction: 'above', level: form.target, label: 'Plan target', source: 'manual' }, fetchImpl);
+    if (root.QuantaMyList && typeof root.QuantaMyList.refresh === 'function') root.QuantaMyList.refresh();
+    return `Alerts set for ${symbol}: at or below ${money(form.stop)} (stop) and at or above ${money(form.target)} (target). `
+      + 'Checked every few minutes while the market is open.';
+  }
+
+  const WATCH_HTML = `<div class="pl-watch">
+      <button type="button" class="q-btn" id="pl-watch">Alert me at the stop and target</button>
+      <p class="pl-hint" id="pl-watch-status" role="status" aria-live="polite"></p>
+    </div>`;
+
   const FORM_HTML = `
     <form id="pl-form" class="pl-form" novalidate>
       <section class="pl-step" aria-labelledby="pl-plan-title">
@@ -536,9 +560,21 @@
       const [c, s] = await Promise.allSettled([checkTask, simTask]);
       if (current !== run) return;
       runBtn.disabled = false;
-      checksBox.innerHTML = c.status === 'fulfilled'
+      checksBox.innerHTML = (c.status === 'fulfilled'
         ? (c.value ? renderChecks(c.value) : emptyState('Enter the number of shares to run the checklist.'))
-        : errorState(c.reason && c.reason.message ? c.reason.message : 'The checklist is unavailable.');
+        : errorState(c.reason && c.reason.message ? c.reason.message : 'The checklist is unavailable.'))
+        + WATCH_HTML;
+      q('pl-watch').addEventListener('click', async () => {
+        const btn = q('pl-watch');
+        const status = q('pl-watch-status');
+        btn.disabled = true;
+        try {
+          status.textContent = await setPlanAlerts(form);
+        } catch (err) {
+          status.textContent = err && err.message ? err.message : 'The alerts could not be set.';
+          btn.disabled = false;
+        }
+      });
       simBox.innerHTML = s.status === 'fulfilled'
         ? renderSimulation(s.value)
         : errorState(s.reason && s.reason.message ? s.reason.message : 'The simulation is unavailable.');
@@ -580,7 +616,7 @@
   const api = {
     renderChecks, renderSimulation, levelsFromAnalysis, validatePlan, checkBody, simulateBody,
     planMath, planSummary, plainOf, leadSentence, historyLine, floor2,
-    postJson, esc, mount, CHECK_LABEL, STATUS_TONE, VERDICT_TONE, VERDICT_PLAIN,
+    postJson, esc, mount, setPlanAlerts, CHECK_LABEL, STATUS_TONE, VERDICT_TONE, VERDICT_PLAIN,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

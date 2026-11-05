@@ -159,6 +159,30 @@ def test_no_kelly_ceiling_is_published_and_size_is_risk_budgeted():
     assert wide.recommended_shares == thin.recommended_shares > 0
 
 
+def test_research_sizer_never_exceeds_the_policy_risk_ceiling():
+    """BASE_RISK x confidence x vol could reach 6% of the account; the policy
+    ceiling is SIZING.MAX_RISK_STRONG_BUY (2.5%) / MAX_RISK_PER_TRADE (2%)."""
+    from engine import thresholds as T
+    calm = _risk()
+    calm.annualized_volatility = 0.10            # vol_adj 1.5
+    calm.avg_volume = 0                          # no liquidity share cap
+    sizer = ta.PositionSizer()
+    strong = sizer.calculate(ta.Signal.STRONG_BUY, 100.0, 99.0, 100.0, calm, 1_000_000)
+    buy = sizer.calculate(ta.Signal.BUY, 100.0, 99.0, 100.0, calm, 1_000_000)
+    assert strong.risk_percent <= T.SIZING.MAX_RISK_STRONG_BUY + 1e-9
+    assert buy.risk_percent <= T.SIZING.MAX_RISK_PER_TRADE + 1e-9
+
+
+def test_one_share_is_not_forced_past_the_one_share_risk_limit():
+    """A $900 share fits the 10% cap of a $10,000 account, but its $300 stop
+    risks 3% -- three times SIZING.ONE_SHARE_MAX_RISK."""
+    r = _risk()
+    r.risk_grade = "A"
+    sizing = ta.PositionSizer().calculate(ta.Signal.BUY, 900.0, 600.0, 60.0, r, 10_000)
+    assert sizing.recommended_shares == 0
+    assert not sizing.is_viable
+
+
 # ---------------------------------------------------------------------------
 # Component score clamps
 # ---------------------------------------------------------------------------

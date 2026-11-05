@@ -64,14 +64,14 @@ def test_clear_entry_converted_to_spot_reproduces_the_hurdle_at_the_entry_the_en
     frac = 63 / 252
     cost = round_trip_cost_frac("GOOGL")
 
-    p = research_rr_clear_entry(valuation, frac, d, cost, 1.5)
+    p = research_rr_clear_entry(valuation, frac, d / entry, cost, 1.5)
     assert p is not None
     spot_p = entry_to_spot(p, entry, spot)
     # The spot quoted to a reader maps back to the solver's entry exactly.
     assert spot_p * entry / spot == pytest.approx(p, rel=1e-12)
     # A reader at that spot, using the engine's premium, meets the hurdle (to the cent).
     e_at = spot_p * 1.002
-    rr = net_rr(e_at, e_at - d, e_at + frac * (valuation - e_at), cost)
+    rr = net_rr(e_at, e_at * (1 - d / entry), e_at + frac * (valuation - e_at), cost)
     assert rr == pytest.approx(1.5, abs=0.02)
 
 
@@ -91,7 +91,7 @@ def test_rr_hurdles_publish_clear_entry_as_a_spot_below_the_entry_and_name_the_b
     assert row["clear_entry_basis"] == "spot"
     # Spot is entry / 1.002 (a little under the limit), so the printed price sits below the entry.
     assert row["clear_entry"] < entry
-    p = research_rr_clear_entry(330.0, 63 / 252, entry - stop, round_trip_cost_frac("GOOGL"), 1.5)
+    p = research_rr_clear_entry(330.0, 63 / 252, (entry - stop) / entry, round_trip_cost_frac("GOOGL"), 1.5)
     assert row["clear_entry"] == math.floor(entry_to_spot(p, entry, spot) * 100) / 100
     # Flooring to the cent keeps a spot at the printed price on the passing side.
     assert math.isclose(row["clear_entry"], math.floor(row["clear_entry"] * 100) / 100)

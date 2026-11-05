@@ -210,13 +210,13 @@
         "reward_risk": 0.09,
         "rr_hurdles": {
           "funding": {
-            "clear_entry": 63.78,
+            "clear_entry": 70.95,
             "clear_entry_basis": "spot",
             "min": 1.8,
             "passes": false
           },
           "research": {
-            "clear_entry": 68.9,
+            "clear_entry": 74.05,
             "clear_entry_basis": "spot",
             "min": 1.5,
             "passes": false
@@ -969,7 +969,7 @@
       "target_conservative": 93.58,
       "time_horizon": "POSITION",
       "trailing_stop": 0.0,
-      "trailing_stop_pct": 3.3,
+      "trailing_stop_pct": 2.9,
       "vol_scenario": {
         "analyst_weight": 1.0,
         "daily_sigma": 0.01147,
@@ -985,6 +985,7 @@
       "dcf_method": "fcf_based:sanity_rejected",
       "dcf_status": "unavailable",
       "dcf_upside": 0.0,
+      "fair_value_estimate": 0.0,
       "fair_value_sources": [],
       "graham_number": 0.0,
       "graham_status": "rejected",

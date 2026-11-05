@@ -12,6 +12,7 @@ import json
 import math
 import sys
 import threading
+import time
 import types
 from pathlib import Path
 
@@ -477,6 +478,39 @@ def test_throttled_scan_resumes_instead_of_halting(monkeypatch):
     out = sysm.scan_market(scan_type="custom", custom_tickers=tickers)
     assert {r.ticker for r in out} == set(tickers)
     assert sysm._scan_not_reached == []
+
+
+def test_hour_long_retry_after_stops_the_scan_instead_of_sleeping(monkeypatch):
+    """A Retry-After longer than the resume limit reports the names unscanned;
+    sleeping on it outlived the webapp's 30-minute job ceiling."""
+    monkeypatch.setattr(elite.TradingConfig, "RATE_LIMIT_COOLDOWN_SECONDS", 0.01)
+    sysm = _bare_system(25_000.0, regime="BULL")
+    sysm.failed_tickers = []
+    sysm._chase_alerts_lock = threading.Lock()
+    sysm._estimate_current_drawdown = lambda *a, **k: 0.0
+    calls = {"n": 0}
+    lock = threading.Lock()
+
+    def fake_analyze(ticker, research_mode=False):
+        with lock:
+            calls["n"] += 1
+            n = calls["n"]
+        if 20 <= n < 40:
+            elite.PROVIDER_STATE.note_rate_limit(3_600.0)
+            sysm._record_scan_error(ticker, Exception("YFRateLimitError: Too Many Requests"))
+            return None
+        a = elite.StockAnalysis(ticker=ticker, company=ticker, sector="S", industry="I")
+        a.overall_score, a.signal = 6.0, "BUY"
+        return a
+
+    sysm.analyze_stock = fake_analyze
+    started = time.monotonic()
+    try:
+        sysm.scan_market(scan_type="custom", custom_tickers=[f"U{i:03d}" for i in range(120)])
+    finally:
+        elite.PROVIDER_STATE.reset()
+    assert time.monotonic() - started < 30.0
+    assert sysm._scan_not_reached, "the names the provider refused must be reported"
 
 
 def test_deep_info_failure_is_not_an_invalid_ticker(monkeypatch):

@@ -6,6 +6,7 @@ a session or two after the 1Y window's start session.
 """
 import numpy as np
 import pandas as pd
+import pytest
 
 import TradingAnalysis_ELITE as ta
 from engine.relative_performance import relative_performance
@@ -92,10 +93,20 @@ def test_no_extra_blocker_when_the_reward_risk_passes_or_the_levels_are_invalid(
 
 def test_the_clear_entry_reproduces_the_engines_net_rr():
     from engine.levels import net_rr, research_rr_clear_entry
-    v, f, d, k = 328.95, 63 / 252, 16.66, 0.0011
-    p = research_rr_clear_entry(v, f, d, k, 1.8)
-    assert 200 < p < 211
-    assert abs(net_rr(p, p - d, p + f * (v - p), k) - 1.8) < 1e-9
+    # The stop is a fraction of the entry (an ATR multiple, clamped as a percent).
+    v, f, s, k = 328.95, 63 / 252, 0.08, 0.0011
+    p = research_rr_clear_entry(v, f, s, k, 1.8)
+    assert abs(net_rr(p, p * (1 - s), p + f * (v - p), k) - 1.8) < 1e-9
     # Above that spot the hurdle fails; below it, it passes.
-    assert net_rr(p + 1, p + 1 - d, p + 1 + f * (v - p - 1), k) < 1.8 < net_rr(p - 1, p - 1 - d, p - 1 + f * (v - p + 1), k)
-    assert research_rr_clear_entry(100.0, f, 50.0, k, 1.8) is None, "no positive price clears it"
+    rr_at = lambda x: net_rr(x, x * (1 - s), x + f * (v - x), k)  # noqa: E731
+    assert rr_at(p + 1) < 1.8 < rr_at(p - 1)
+    assert research_rr_clear_entry(100.0, f, 0.0, k, 1.8) is None, "a stop must sit below the entry"
+
+
+def test_the_clear_entry_scales_the_stop_with_price():
+    """MU 2026-11-04: a fixed $136 stop put the 1.5:1 price at $320, where that
+    stop is 43% of price -- past the 20% clamp the engine itself applies."""
+    from engine.levels import research_rr_clear_entry
+    entry, stop = 795.82, 659.38
+    p = research_rr_clear_entry(1142.21, 63 / 252, (entry - stop) / entry, 0.0011, 1.5)
+    assert p == pytest.approx(560.0, abs=0.5)

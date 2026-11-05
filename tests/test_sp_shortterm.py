@@ -1145,6 +1145,10 @@ class TestTradingCalendar(unittest.TestCase):
 
     # Published NYSE full-day closures.
     KNOWN = {
+        # Before Juneteenth (first observed 2022); New Year 2022 fell on a
+        # Saturday, so Fri Dec 31 2021 was a trading day.
+        2021: {(1, 1), (1, 18), (2, 15), (4, 2), (5, 31), (7, 5),
+               (9, 6), (11, 25), (12, 24)},
         2025: {(1, 1), (1, 20), (2, 17), (4, 18), (5, 26), (6, 19), (7, 4),
                (9, 1), (11, 27), (12, 25)},
         2026: {(1, 1), (1, 19), (2, 16), (4, 3), (5, 25), (6, 19), (7, 3),

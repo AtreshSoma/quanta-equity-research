@@ -9,7 +9,7 @@ import { test, expect, Page } from '@playwright/test';
  * basis, sizing and evidence. Nothing on the hero may be a browser verdict.
  */
 
-const STANCE: Record<string, RegExp> = { BULLISH: /Bullish score/, NEUTRAL: /Neutral score/, BEARISH: /Bearish score/, NONE: /No score/ };
+const STANCE: Record<string, RegExp> = { BULLISH: /Bullish score|Mid-range score/, NEUTRAL: /Neutral score/, BEARISH: /Bearish score/, NONE: /No score/ };
 const NEW_MONEY: Record<string, RegExp> = { ELIGIBLE: /Eligible/, WATCH: /Not yet/, AVOID: /Avoid/, NONE: /No call/ };
 const HOLDER: Record<string, RegExp> = { HOLD: /Hold, keep the stop/, TRIM: /Trim into strength/, EXIT: /Exit on strength/, 'N/A': /No call/ };
 

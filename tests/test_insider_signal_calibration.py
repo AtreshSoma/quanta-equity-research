@@ -12,14 +12,14 @@ veto fire on healthy mega-caps:
      0.017% of a $5T cap and was vetoing the highest-scoring name in the scan.
 """
 
-# Ported from ``quanta-review-redesign`` @ 064f747 (audit F15). That branch
-# rewrote insider-flow classification (blank or compensation text is
-# "unclassified", heavy-selling thresholds scale with market cap, notable selling
-# is a haircut rather than a veto). That logic is not on this line of history and
-# is outside the Picks audit, so the tests pinning it are strict xfails and are
-# listed as unresolved in IMPLEMENTATION_LOG.md. The tests that hold on HEAD
-# (explicit purchase/sale recognition, small-cap heavy flow, the committee hard
-# veto) run normally and guard the current behaviour.
+# Ported from ``quanta-review-redesign`` @ 064f747 (audit F15); that branch no
+# longer exists. Both defects above are fixed on this line: no `buys == 0` rule,
+# and heavy selling scales with market cap (INSIDER.HEAVY_SELL_MCAP_FRACTION).
+# Compensation and blank rows are counted apart from buys and sells.
+# The strict xfails below pin a further POLICY change -- routine sales read
+# NEUTRAL, a 0.05%-0.30% "notable" tier costs size instead of vetoing, and the
+# heavy line moves from 0.05% to 0.30% of cap. That loosens a hard veto, so it is
+# an owner decision (docs/OPEN_ITEMS.md), not a defect fix.
 
 from datetime import datetime, timedelta
 
@@ -29,7 +29,7 @@ import pytest
 import SP_ELITE_PRO as sp
 
 BRANCH_ONLY_INSIDER = pytest.mark.xfail(
-    strict=True, reason="insider calibration exists only on quanta-review-redesign; not in the Picks audit scope")
+    strict=True, reason="owner decision pending: notable-selling tier and 0.30% heavy line loosen the insider veto")
 
 
 def _txns(rows):
@@ -61,7 +61,6 @@ def _signal(rows, market_cap=0.0, price=100.0):
     'Conversion of Exercise of derivative security',
     'Stock Gift at price 0.00 per share.',
 ])
-@BRANCH_ONLY_INSIDER
 def test_compensation_is_not_insider_conviction(text):
     """A grant, an option exercise and a gift are pay and mechanics, not a view.
 
@@ -76,7 +75,6 @@ def test_compensation_is_not_insider_conviction(text):
     assert r['score_adjustment'] == 0.0
 
 
-@BRANCH_ONLY_INSIDER
 def test_blank_text_is_unclassified_not_a_buy():
     r = _signal([(30_104, 0, ''), (240, 0, '')], market_cap=1e12)
     assert r['buys_90d'] == 0 and r['sells_90d'] == 0

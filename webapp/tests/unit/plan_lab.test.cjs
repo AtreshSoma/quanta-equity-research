@@ -383,3 +383,31 @@ test('with a server headline, the old "not a full pass" line is not repeated', (
   delete res.summary;
   assert.ok(lab.renderChecks(res).includes('not a full pass'), 'old payloads keep the line');
 });
+
+test('setPlanAlerts saves the symbol and sets a below-stop and an above-target alert', async () => {
+  const calls = [];
+  const fake = async (url, opts) => {
+    calls.push({ url, body: JSON.parse(opts.body), headers: opts.headers });
+    if (url === '/api/my-list') return { ok: false, status: 400, json: async () => ({ error: 'list full' }) };
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  const msg = await lab.setPlanAlerts({ ticker: 'AAPL', stop: 95, target: 112 }, fake);
+  assert.deepEqual(calls.map((c) => c.url), ['/api/my-list', '/api/alerts', '/api/alerts']);
+  assert.deepEqual(calls[1].body, { symbol: 'AAPL', direction: 'below', level: 95, label: 'Plan stop', source: 'manual' });
+  assert.deepEqual(calls[2].body, { symbol: 'AAPL', direction: 'above', level: 112, label: 'Plan target', source: 'manual' });
+  assert.ok(calls.every((c) => c.headers['X-QUANTA-Request'] === '1'));
+  assert.match(msg, /at or below \$95\.00 \(stop\) and at or above \$112\.00 \(target\)/);
+});
+
+test('setPlanAlerts surfaces an alert failure instead of claiming success', async () => {
+  const fake = async (url) => (url === '/api/alerts'
+    ? { ok: false, status: 400, json: async () => ({ error: 'At most 100 alerts can be active.' }) }
+    : { ok: true, status: 200, json: async () => ({}) });
+  await assert.rejects(lab.setPlanAlerts({ ticker: 'AAPL', stop: 95, target: 112 }, fake), /At most 100 alerts/);
+});
+
+test('renderChecks names the largest size and the limit that set it', () => {
+  const html = lab.renderChecks({ overall: 'PASS', checks: [], sizing: { max_shares: 50, binding: 'position cap', limits: {} } });
+  assert.match(html, /Largest size within your limits: <strong>50 shares<\/strong>, set by the position cap\./);
+  assert.doesNotMatch(lab.renderChecks({ overall: 'PASS', checks: [], sizing: null }), /Largest size/);
+});

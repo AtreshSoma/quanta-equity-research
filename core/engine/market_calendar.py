@@ -83,7 +83,11 @@ def us_market_holidays(year: int) -> set:
     new_year = _date(year, 1, 1)
     if new_year.weekday() != 5:
         holidays.add(_observed(new_year))
-    for fixed in (_date(year, 6, 19), _date(year, 7, 4), _date(year, 12, 25)):
+    # NYSE first closed for Juneteenth in 2022; earlier years were trading days.
+    fixed_days = [_date(year, 7, 4), _date(year, 12, 25)]
+    if year >= 2022:
+        fixed_days.append(_date(year, 6, 19))
+    for fixed in fixed_days:
         observed = _observed(fixed)
         if observed is not None:
             holidays.add(observed)

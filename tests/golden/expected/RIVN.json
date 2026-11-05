@@ -948,6 +948,7 @@
       "dcf_method": "no_positive_cash_flow",
       "dcf_status": "unavailable",
       "dcf_upside": 0.0,
+      "fair_value_estimate": 0.0,
       "fair_value_sources": [],
       "graham_number": 0.0,
       "graham_status": "unavailable",

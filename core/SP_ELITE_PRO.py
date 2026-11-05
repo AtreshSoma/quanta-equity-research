@@ -9838,6 +9838,8 @@ class QuantaEliteTradingSystem:
             "sentiment": "UNKNOWN",
             "buys_90d": 0,
             "sells_90d": 0,
+            "compensation_90d": 0,   # awards, gifts, exercises: pay, not a view
+            "unclassified_90d": 0,   # blank or unrecognised text
             "net_shares_90d": 0.0,
             "net_value_90d": 0.0,
             "note": "",
@@ -9900,7 +9902,11 @@ class QuantaEliteTradingSystem:
                 elif txn_text.startswith('sale') or ' sale at' in txn_text:
                     direction = -1
                 else:
-                    continue  # award / gift / exercise / conversion / blank
+                    key = ("compensation_90d"
+                           if re.search(r"award|grant|gift|exercise|conversion", txn_text)
+                           else "unclassified_90d")
+                    result[key] += 1
+                    continue
 
                 shares = abs(_num(row.get(shares_col))) if shares_col else 0.0
                 value = abs(_num(row.get(value_col))) if value_col else 0.0
@@ -10629,6 +10635,10 @@ class QuantaEliteTradingSystem:
         _caps = _T.LEVELS.TARGET_SAFETY_CAP
         safety_cap = price * _caps.get(self.market_regime.regime_type, _caps["OTHER"])
         target = min(raw_target, safety_cap)
+        # A long's target under its own entry is not a trade (VLO: a lagging
+        # consensus 15% below a new high averaged to 388.65 vs entry 388.95).
+        # Floor at entry: R:R reads 0 and the gate rejects the name honestly.
+        target = max(target, entry)
 
         # [B6 FIX] The R:R floor is NOT enforced here. It used to be, by
         # rewriting the target to `entry + risk * RISK_REWARD_MIN`, which meant
@@ -11319,6 +11329,16 @@ class QuantaEliteTradingSystem:
                 float(TradingConfig.RATE_LIMIT_COOLDOWN_SECONDS) * (2 ** (resume_round - 1)),
                 float(PROVIDER_STATE.cooldown_remaining() or 0.0),
             )
+            # A server Retry-After is honoured unbounded by PROVIDER_STATE; an
+            # hour-long one would park this thread past the webapp's job ceiling.
+            max_wait = 4.0 * float(TradingConfig.RATE_LIMIT_COOLDOWN_SECONDS)
+            if cooldown > max_wait:
+                self._scan_not_reached = retry
+                logger.warning(
+                    f"Provider cooldown {cooldown:.0f}s exceeds the {max_wait:.0f}s resume limit; "
+                    f"{len(retry)} name(s) NOT scanned. Re-run later."
+                )
+                break
             logger.warning(
                 f"⏳ Waiting {cooldown:.0f}s for the provider cooldown, then resuming "
                 f"{len(retry)} name(s) at 1 worker (resume {resume_round}/{max_resumes})."

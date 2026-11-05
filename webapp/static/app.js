@@ -13387,7 +13387,7 @@ function renderAnalysis(data) {
         ${tearSheetCacheBannerHtml(data)}
         ${dataQualityFailBannerHtml(dqGate)}
         ${assetCaveatBannerHtml(data)}
-        ${priceReconNoteHtml(data)}
+        ${isPositive(levels.reference_price) ? '' : priceReconNoteHtml(data)}
       </div>
 
       <div class="ts-desk">

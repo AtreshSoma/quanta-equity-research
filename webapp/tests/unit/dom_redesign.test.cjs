@@ -202,8 +202,20 @@ test('Deep-Dive fast preview no longer fails data quality on optional gaps', () 
   assert.match(document.querySelector('#an-results .confidence-card').textContent, /Critical Checks\s*PASS/);
 });
 
-test('Deep-Dive surfaces the backend price reconciliation note when prices diverge', () => {
-  app.renderAnalysis(analysisFixture({ price_reconciliation: { discrepancy: true, note: 'Analysis was priced at 320.00; the session quote shows 329.93 (+3.10%).' } }));
+test('a price gap is told by the live levels line, not a frozen banner; the banner stays when there is no such line', () => {
+  // LRCX, 2026-11-05: the banner froze a session quote (207.09) the live header had already left (208.60).
+  const recon = { discrepancy: true, note: 'Analysis was priced at 320.00; the session quote shows 329.93 (+3.10%).' };
+  const decision = {
+    action: 'WATCHLIST', label: 'WATCHLIST', caveat: '', stance: 'NEUTRAL',
+    horizon: { key: 'position', label: 'Position (~3 months)', trading_days: 63 },
+    freshness: { status: 'fresh', last_bar: '2026-09-24', lag_sessions: 0 },
+    levels: { reference_price: 320, entry: 320, stop: 300, target: 360, reward_risk: 2 },
+    reasons: [], blocking: [], conflicts: [], scenarios: [],
+  };
+  app.renderAnalysis(analysisFixture({ price_reconciliation: recon, decision }));
+  assert.equal(document.querySelector('#an-results .ds-recon'), null);
+  assert.ok(document.querySelector('#an-results [data-levels-live]'), 'the live levels line carries the gap');
+  app.renderAnalysis(analysisFixture({ price_reconciliation: recon }));
   assert.match(document.querySelector('#an-results .ds-recon').textContent, /priced at 320\.00/);
 });
 

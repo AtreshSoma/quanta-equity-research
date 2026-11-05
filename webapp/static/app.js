@@ -13478,6 +13478,7 @@ function renderAnalysis(data) {
         ${scoresCard}
         ${relativeCard}
         ${streetStripHtml(data, undefined)}
+        ${earningsReportHtml(null)}
       </div>
       <nav class="ts-nav" aria-label="Tear sheet sections">
         <a class="ts-nav-id" href="#ts-snapshot" data-ts-jump="snapshot"><span class="ts-nav-tk">${escapeHtml(data.ticker || '')}</span><span class="ts-nav-call ${heroTone}">${escapeHtml(preciseLabel)}</span><span class="ts-nav-px">${escapeHtml(fmtPrice(currentPrice, sym))}</span><span class="sr-only"> Decision summary</span></a>
@@ -13636,6 +13637,58 @@ function streetStripHtml(data, read) {
       </article>`;
 }
 
+// The report just behind (discover_enrich.report_read): the result, how the
+// price took it, what the Street changed since, the next date, and the lean
+// post-earnings drift gives. Empty until the Research read brings a report
+// from the last MARKET.REPORT_RECENT_DAYS.
+function earningsReportHtml(lr) {
+  if (!lr || !lr.date) return '<article class="section-card ts-report" data-earnings-report hidden></article>';
+  const na = (t = 'Not reported') => `<span class="q-na">${t}</span>`;
+  const pct = (v, d = 1) => `<span class="${directionClass(v)}">${fmtPct(v, d, false)}</span>`;
+  const cell = (k, v, sub = '', title = '') => `<div class="st-cell"${title ? ` title="${escapeHtml(title)}"` : ''}><span class="st-k">${escapeHtml(k)}</span><span class="st-v">${v}</span>${sub ? `<span class="st-s">${sub}</span>` : ''}</div>`;
+  const eps = (v) => (v == null ? '--' : fmtNumber(v, 2));
+  const word = { beat: ['Beat', 'bull'], miss: ['Missed', 'bear'], 'in line': ['In line', ''] }[lr.result];
+  const r = lr.reaction;
+  const e = lr.estimates;
+  const a = lr.analysts;
+  const estParts = e ? [['0q', 'next qtr'], ['0y', 'this FY']].filter(([p]) => e[p] != null) : [];
+  const cells = [
+    cell('EPS vs estimate', lr.eps_actual != null ? `${eps(lr.eps_actual)} <span class="muted">vs ${eps(lr.eps_estimate)}</span>` : na(),
+      word ? `<span class="${word[1]}">${word[0]}${lr.surprise_pct != null && lr.result !== 'in line' ? ` ${fmtNumber(Math.abs(lr.surprise_pct), 1)}%` : ''}</span>${lr.reports_counted > 1 ? `, beat ${lr.beats} of last ${lr.reports_counted}` : ''}` : ''),
+    cell('Report-day move', r ? pct(r.move_pct) : na('Next session'),
+      r ? `${escapeHtml(shortDay(r.date))}${r.typical_abs_pct != null ? `, typical ±${fmtNumber(r.typical_abs_pct, 1)}%` : ''}` : 'not traded yet'),
+    cell('Since the report', lr.since_pct != null ? pct(lr.since_pct) : na('--'), 'from the close before it'),
+    cell('Estimates since', estParts.length ? estParts.map(([p, l]) => `${pct(e[p])} <span class="st-s">${l}</span>`).join('<br>') : na(),
+      e ? `vs ${e.window_days} days ago` : '', 'Change in the consensus EPS estimate since the report: how analysts read the guidance'),
+    cell('Analysts since', a ? `<span class="bull">${a.raises} up</span> / <span class="${a.cuts > a.raises ? 'warn' : ''}">${a.cuts} down</span>` : na('No actions'),
+      a && (a.upgrades || a.downgrades) ? `${a.upgrades} upgraded, ${a.downgrades} downgraded` : 'price-target changes', 'Price-target raises against cuts since the report, each firm counted once'),
+    cell('Next report', lr.next ? escapeHtml(shortDay(lr.next.date)) : na(), lr.next && lr.next.eps_estimate != null ? `EPS est. ${eps(lr.next.eps_estimate)}` : ''),
+  ];
+  const ln = lr.lean || {};
+  const dir = ln.direction;
+  const head = dir === 'up' ? ['Leans up', 'bull'] : dir === 'down' ? ['Leans down', 'bear'] : ['No clear lean', ''];
+  const reasons = ln.reasons || [];
+  const why = reasons.length
+    ? `${dir === 'mixed' ? 'The signals disagree: ' : ''}${reasons.join(dir === 'mixed' ? '; ' : ', ')}.`
+    : (r ? 'Results came in line, the price barely moved and estimates held.' : 'Results came in line and the price has not traded on the report yet.');
+  const notes = [];
+  const d = lr.drift;
+  if (d && d.counted) {
+    notes.push(`After past reports this stock kept the report-day direction over the next ${d.sessions} sessions ${d.followed} of ${d.counted} times${ln.history_agrees === false && dir !== 'mixed' ? ', so the lean is weak here' : ''}.`);
+  }
+  const against = dir !== 'mixed' && lr.since_pct != null && Math.abs(lr.since_pct) >= Number(thr('MARKET.REPORT_REACTION_MIN_PCT'))
+    && (lr.since_pct > 0) !== (dir === 'up');
+  if (against) notes.push(`So far the price has gone the other way (${fmtPct(lr.since_pct, 1, false)} since).`);
+  const when = `${shortDay(lr.date)} ${lr.timing === 'bmo' ? 'before the open' : 'after the close'}, ${lr.days_since === 0 ? 'today' : `${lr.days_since} day${lr.days_since === 1 ? '' : 's'} ago`}`;
+  return `
+      <article class="section-card ts-report" data-earnings-report aria-labelledby="ts-report-h">
+        <h3 class="section-kicker" id="ts-report-h">Earnings report <span class="section-kicker-tail">reported ${escapeHtml(when)}</span></h3>
+        <p class="er-lean" data-er-lean><b class="er-dir ${head[1]}">${head[0]}</b> ${escapeHtml(why)}${notes.length ? ` <span class="muted">${escapeHtml(notes.join(' '))}</span>` : ''}</p>
+        <div class="st-cells">${cells.join('')}</div>
+        <p class="er-foot muted">The lean is post-earnings drift: prices have tended to keep moving the way the surprise, the report-day move and estimate changes agree. A tendency that often fails, not a forecast.</p>
+      </article>`;
+}
+
 // Notes under the risk/reward ladder that turn the levels into a plan: the
 // reward/risk hurdles and where they clear, the hit rate the levels need, and
 // resistance in the way. Each figure comes from the Decision or the payload.
@@ -13784,6 +13837,8 @@ function applyResearchRead(container, data, read, ctx) {
   const street = container.querySelector('[data-street]');
   if (street) street.outerHTML = streetStripHtml(data, read || null);
   if (!read) return;
+  const report = container.querySelector('[data-earnings-report]');
+  if (report && read.last_report) report.outerHTML = earningsReportHtml(read.last_report);
   if (read.peer && read.peer.rows && read.peer.rows.length) {
     const rel = container.querySelector('[data-relative-performance]');
     const html = relativeCardHtml(data.relative_performance, data.ticker, read.peer);
@@ -14849,6 +14904,7 @@ if (typeof module !== 'undefined' && module.exports) {
     relativeCardHtml,
     levelNotesHtml,
     streetStripHtml,
+    earningsReportHtml,
     callHistoryHtml,
     buyZonePrice,
     decisionContract,

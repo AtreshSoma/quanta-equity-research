@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 
 from .thresholds import BOOK, SIZING
 
-from .types import DecisionResult, FinalAction
+from .types import DecisionResult
 
 
 def check_allocation_eligible(

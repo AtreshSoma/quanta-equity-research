@@ -1,6 +1,5 @@
 import unittest
 import threading
-import time
 import sys
 import os
 from collections import OrderedDict

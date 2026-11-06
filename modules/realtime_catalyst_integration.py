@@ -15,7 +15,7 @@ This demonstrates how to:
 
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Dict
 
 # Import new modules
@@ -25,7 +25,7 @@ from entry_optimizer import EntryOptimizer, EntryWindow, EntryStatus
 
 # Optional: Import existing catalyst engines if available
 try:
-    from catalyst_intelligence_engine import InstitutionalCatalystEngine, InstitutionalCatalystSignal
+    from catalyst_intelligence_engine import InstitutionalCatalystEngine, InstitutionalCatalystSignal  # noqa: F401 - availability check
     HAS_INSTITUTIONAL = True
 except ImportError:
     HAS_INSTITUTIONAL = False

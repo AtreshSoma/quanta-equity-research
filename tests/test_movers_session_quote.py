@@ -14,7 +14,6 @@ No network. Covers the backend half of the exchange-style quote line:
 """
 from __future__ import annotations
 
-import math
 import sys
 import unittest
 from pathlib import Path

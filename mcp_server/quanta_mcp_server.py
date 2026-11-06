@@ -32,10 +32,10 @@ import time
 import logging
 import warnings
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 
 # MCP SDK
 from mcp.server.fastmcp import FastMCP
@@ -67,16 +67,13 @@ for noisy in ("yfinance", "urllib3", "requests", "httpx", "polygon_provider",
 
 # ─── Import QUANTA System ───────────────────────────────────────────────────
 from TradingAnalysis_ELITE import (
-    QuantaEliteAnalyzer, AnalysisResult, Config, Signal, MarketRegime,
-    ConfidenceLevel, APIClient, fetch_market_environment,
-    format_currency, format_percent, safe_divide, safe_get,
-    get_composite_grade, get_currency_symbol,
-    _mcp_result_to_dict, _mcp_format_analysis_text, decision_for_analysis,
+    QuantaEliteAnalyzer, AnalysisResult, Config, APIClient, fetch_market_environment,
+    format_currency, get_composite_grade, _mcp_result_to_dict, _mcp_format_analysis_text, decision_for_analysis,
 )
 
 # Optional modules
 try:
-    from compliance_manager import ComplianceManager, Market
+    from compliance_manager import ComplianceManager, Market  # noqa: F401 - availability check
     HAS_COMPLIANCE = True
 except ImportError:
     HAS_COMPLIANCE = False

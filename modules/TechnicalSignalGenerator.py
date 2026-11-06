@@ -20,15 +20,14 @@ Features:
 import yfinance as yf
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, List, Tuple
 from dataclasses import dataclass
 import warnings
 warnings.filterwarnings('ignore')
 
 # Statistical/ML imports
 try:
-    from scipy import stats
+    from scipy import stats  # noqa: F401 - availability check
     from scipy.signal import argrelextrema
     HAS_SCIPY = True
 except ImportError:
@@ -37,7 +36,7 @@ except ImportError:
 # Technical Analysis imports
 try:
     from ta.momentum import RSIIndicator, StochasticOscillator
-    from ta.trend import MACD, ADXIndicator, EMAIndicator, SMAIndicator
+    from ta.trend import MACD, ADXIndicator, EMAIndicator, SMAIndicator  # noqa: F401 - availability check
     from ta.volatility import BollingerBands, AverageTrueRange
     HAS_TA = True
 except ImportError:

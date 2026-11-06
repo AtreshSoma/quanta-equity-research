@@ -21,7 +21,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, date, timezone
-from typing import Dict, List, Tuple, Optional, Any, Set, Union, Callable
+from typing import Dict, List, Tuple, Optional, Any, Set, Callable
 import requests
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import warnings
@@ -29,7 +29,7 @@ import logging
 import math
 import re
 from dataclasses import dataclass, field
-from enum import Enum, auto
+from enum import Enum
 from concurrent.futures import (ThreadPoolExecutor, as_completed,
                                 TimeoutError as FuturesTimeoutError)
 import time
@@ -37,9 +37,7 @@ from collections import defaultdict, OrderedDict
 import threading
 import os
 import json
-from functools import lru_cache
 import hashlib
-from abc import ABC, abstractmethod
 import textwrap
 import sys
 import importlib
@@ -66,8 +64,8 @@ try:
         dividend_yield_from_info,
         validate_dividend_yield,
         validate_consistency,
-        BACKTEST_DIAGNOSTIC_BANNER,
-        backtest_disclaimer,
+        BACKTEST_DIAGNOSTIC_BANNER,  # noqa: F401 - availability check
+        backtest_disclaimer,  # noqa: F401 - availability check
     )
     from engine.data_status import DataStatus
     from engine.consistency_validator import TickerView
@@ -156,10 +154,9 @@ else:
 
 # Technical Analysis imports
 from ta.momentum import RSIIndicator, StochasticOscillator, WilliamsRIndicator
-from ta.trend import MACD, ADXIndicator, IchimokuIndicator, AroonIndicator, CCIIndicator, EMAIndicator, SMAIndicator
+from ta.trend import MACD, ADXIndicator, IchimokuIndicator, AroonIndicator, CCIIndicator, EMAIndicator
 from ta.volatility import BollingerBands, AverageTrueRange, KeltnerChannel
 from ta.volume import VolumeWeightedAveragePrice, OnBalanceVolumeIndicator, MFIIndicator
-from ta.others import DailyReturnIndicator
 
 # Suppress noisy warnings
 warnings.filterwarnings('ignore')
@@ -10432,8 +10429,6 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 from rich.columns import Columns
-from rich.layout import Layout
-from rich.align import Align
 from rich import box
 from typing import Dict, Any
 
@@ -10442,8 +10437,6 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 from rich.columns import Columns
-from rich.layout import Layout
-from rich.align import Align
 from rich import box
 from typing import Dict, Any
 
@@ -11645,8 +11638,6 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 from rich.columns import Columns
-from rich.layout import Layout
-from rich.align import Align
 from rich.console import Group
 from rich import box
 import textwrap

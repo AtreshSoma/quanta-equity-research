@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import os
 import sys
-import types
 import unittest
 from unittest.mock import MagicMock
 

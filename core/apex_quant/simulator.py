@@ -16,10 +16,9 @@ Realism features (Phase 3 / Phase 6):
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-import numpy as np
 import pandas as pd
 
 from .costs import CostModel

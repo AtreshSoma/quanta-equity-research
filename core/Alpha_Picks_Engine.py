@@ -20,7 +20,7 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import json
 import logging
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 import time
 from dataclasses import dataclass, asdict
 import os

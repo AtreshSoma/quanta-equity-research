@@ -5,7 +5,6 @@ QUANTA Elite v6.0 - Quantitative Trading Intelligence
 
 
 import sys
-import asyncio
 import warnings
 import importlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -15,11 +14,10 @@ from enum import Enum
 from functools import wraps
 import threading
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 import json
 import logging
 from logging.handlers import RotatingFileHandler
-import textwrap
 import csv
 import os
 import time
@@ -110,13 +108,13 @@ try:
         DecisionInputs,
         resolve_final_action,
         signal_to_final_action,
-        validate_ticker_data,
+        validate_ticker_data,  # noqa: F401 - availability check
         dividend_yield_from_info,
-        validate_dividend_yield,
+        validate_dividend_yield,  # noqa: F401 - availability check
         BACKTEST_DIAGNOSTIC_BANNER,
         backtest_disclaimer,
     )
-    from engine.data_status import DataStatus, is_data_failure, is_true_invalid
+    from engine.data_status import DataStatus, is_data_failure, is_true_invalid  # noqa: F401 - availability check
     from engine import indicators as _shared_indicators
     HAS_DECISION_CORE = True
 except ImportError as _core_exc:
@@ -283,10 +281,10 @@ except ImportError:
 try:
     from rich.console import Console
     from rich.panel import Panel
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
+    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn  # noqa: F401 - availability check
     from rich.table import Table
-    from rich.markdown import Markdown
-    from rich.layout import Layout
+    from rich.markdown import Markdown  # noqa: F401 - availability check
+    from rich.layout import Layout  # noqa: F401 - availability check
     from rich.align import Align
     from rich import box
     from rich.text import Text
@@ -304,7 +302,6 @@ except ImportError:
     questionary = None
     QUESTIONARY_AVAILABLE = False
 
-from contextlib import contextmanager
 
 # Disable yfinance logging to prevent error spam
 logging.getLogger('yfinance').setLevel(logging.CRITICAL)

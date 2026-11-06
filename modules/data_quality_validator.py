@@ -20,11 +20,10 @@ FEATURES:
 """
 
 import pandas as pd
-import numpy as np
 import yfinance as yf
 from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 import logging
 import json

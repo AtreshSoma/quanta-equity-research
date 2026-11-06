@@ -30,7 +30,7 @@ from . import analytics as an
 from . import guidance as gd
 from . import profit_plan as pp
 from .fund_events import FUND_INSTRUMENT_TYPES
-from .models import ConnectionState, DataIssue, Portfolio, finite
+from .models import DataIssue, Portfolio, finite
 from .provider import AuthExpired, PortfolioProvider, ProviderError
 
 log = logging.getLogger("QUANTA-PORTFOLIO")

@@ -23,11 +23,11 @@ FEATURES:
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
 import logging
-from scipy.signal import find_peaks, argrelextrema
+from scipy.signal import find_peaks
 import warnings
 warnings.filterwarnings('ignore')
 

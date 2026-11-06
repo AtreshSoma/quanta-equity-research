@@ -132,7 +132,7 @@ def test_the_diagnostic_changes_nothing_in_the_book(monkeypatch):
 
 
 def test_the_worker_publishes_the_diagnostic(monkeypatch):
-    from test_scan_accounting import _run_worker, _fake_engine_module
+    from test_scan_accounting import _fake_engine_module
     sysm, out = _book(monkeypatch, _five())
     diag = sysm.event_held_diagnostics()
     mod = _fake_engine_module(out)

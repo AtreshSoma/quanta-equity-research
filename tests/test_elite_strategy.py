@@ -18,7 +18,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pytest
 
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:

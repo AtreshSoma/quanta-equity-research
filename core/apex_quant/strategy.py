@@ -15,7 +15,7 @@ use only bars <= t, so there is no look-ahead in signal generation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 
 import pandas as pd
 

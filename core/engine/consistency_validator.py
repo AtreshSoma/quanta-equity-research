@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Iterable, List, Optional
+from typing import Iterable, List
 
 from .dividend import SUPPRESS_THRESHOLD
 from .thresholds import floor_rr

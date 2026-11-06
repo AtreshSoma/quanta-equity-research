@@ -27,7 +27,7 @@ from engine import plan_simulator as ps  # noqa: E402
 from engine import relative_performance as rp  # noqa: E402
 from engine.costs import round_trip_cost_frac  # noqa: E402
 from engine.levels import breakout_entry, entry_to_spot, net_rr, publish_levels, research_rr_clear_entry  # noqa: E402
-from engine.thresholds import LEVELS, RR, UI, fmt_rr, floor_rr  # noqa: E402
+from engine.thresholds import LEVELS, fmt_rr, floor_rr  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

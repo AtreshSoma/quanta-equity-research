@@ -18,6 +18,10 @@ for unadjusted prices, only for US listings, and a frame with a split-sized
 jump is refused (yfinance adjusts splits even with ``auto_adjust=False``, so an
 unadjusted split would not be the same series). After repeated failures Stooq
 is switched off for the rest of the process, as the short-term scanner does.
+
+Checked live on 2026-11-06: Stooq now answers scripted requests with a
+JavaScript browser-check page, so the fallback cannot serve data at present.
+The gateway reports that page as a refusal and stops asking after three.
 """
 from __future__ import annotations
 
@@ -118,6 +122,12 @@ def _stooq_bars(q: BarsQuery) -> pd.DataFrame:
            f"&d1={start:%Y%m%d}&d2={end:%Y%m%d}")
     try:
         text = STOOQ_GET(url)
+        if text.lstrip()[:15].lower().startswith(("<!doctype", "<html")):
+            # Since late 2026 Stooq answers scripted clients with a JavaScript
+            # browser check instead of CSV. That is a refusal, not missing data;
+            # QUANTA does not try to get past it.
+            raise LookupError("Stooq answered with a browser-check page, not data "
+                              "(it no longer serves automated clients)")
     except Exception:
         with _stooq_lock:
             _stooq_failures += 1

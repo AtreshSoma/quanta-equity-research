@@ -57,7 +57,7 @@ model and the limits of its evidence. All other design notes, audits and logs ar
 ```mermaid
 flowchart LR
     subgraph Sources["Data sources"]
-        YF["Yahoo Finance<br/>(yfinance, Stooq fallback)"]
+        YF["Yahoo Finance<br/>(yfinance)"]
         SEC["SEC EDGAR<br/>corporate events"]
         RH["Broker holdings<br/>(read-only, in memory)"]
     end
@@ -908,8 +908,13 @@ If it's `below_min_position_size`, raise `--capital` or enable `--fractional`.
 <summary><strong>Provider failures / "Invalid Crumb"</strong></summary>
 
 Yahoo intermittently returns 401/429 under concurrent load. The scanner retries with backoff,
-falls back to Stooq, then reports the failure honestly rather than counting it as "no data". A
-handful per scan is normal; dozens means you are being rate-limited; wait and re-run.
+tries Stooq, then reports the failure honestly rather than counting it as "no data". A handful per
+scan is normal; dozens means you are being rate-limited; wait and re-run.
+
+Since November 2026 Stooq answers scripted requests with a browser-check page instead of data, so
+in practice there is no working fallback: when Yahoo fails, the name is reported unavailable.
+The market-data gateway (`core/marketdata/gateway.py`) names this in its attempt log and stops
+asking Stooq after three refusals.
 
 </details>
 

@@ -116,6 +116,16 @@ def test_stooq_refuses_a_series_unadjusted_across_a_split(monkeypatch):
         gw._stooq_bars(gw.BarsQuery("AAPL"))
 
 
+def test_a_browser_check_page_is_a_refusal_not_missing_data(monkeypatch):
+    page = '<!DOCTYPE html><html><body><noscript>This site requires JavaScript</noscript></body></html>'
+    monkeypatch.setattr(gw, "STOOQ_GET", lambda url: page)
+    for _ in range(gw.STOOQ_FAILURE_LIMIT):
+        with pytest.raises(LookupError, match="browser-check"):
+            gw._stooq_bars(gw.BarsQuery("AAPL"))
+    with pytest.raises(LookupError, match="switched off"):
+        gw._stooq_bars(gw.BarsQuery("AAPL"))
+
+
 def test_stooq_switches_off_after_repeated_failures(monkeypatch):
     attempts = []
 

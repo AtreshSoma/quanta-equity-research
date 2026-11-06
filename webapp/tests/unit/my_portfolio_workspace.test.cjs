@@ -411,7 +411,11 @@ test('with enough completed outcomes, the gauge pairs the rate with its sample, 
   assert.match(words(d), /It is not the probability that the next trade works/);
 });
 
-test('lessons are tied to records; the no-call line says reconnecting does not fix analysis', () => {
+test('lessons are tied to records; the no-call line says reconnecting does not fix analysis', (t) => {
+  // The Review lists call changes from the last JOURNAL_RECENT_DAYS (45) days. The
+  // fixture's XOM change is dated 2026-09-22, so read it from a fixed day inside
+  // that window; with the real clock this test expired on 2026-11-06.
+  t.mock.method(Date, 'now', () => new Date('2026-10-01T12:00:00').getTime());
   loaded();
   const L = X.lessons(pf);
   assert.match(X.plain(L.helped[0].text), /^NVDA added \+\$9,354 \(\+19\.8 pts\) over 6 months\.$/);

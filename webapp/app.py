@@ -6251,6 +6251,7 @@ def _track_record_payload(engine: Optional[str] = None) -> Dict[str, Any]:
     from tracking.fingerprint import code_fingerprint, model_fingerprint
     from tracking.ledger import BENCHMARK, MIN_SAMPLE, SignalLedger, pending_schedule
     from tracking.prospective_ic import evidence_clock
+    from tracking.freeze import status_for as freeze_status
 
     ledger = SignalLedger()
     rows = ledger.rows(engine=engine)
@@ -6300,7 +6301,9 @@ def _track_record_payload(engine: Optional[str] = None) -> Dict[str, Any]:
                                                         if r.get("code_fingerprint") == current),
                         "model_fingerprint": current_model,
                         # How far this model version is from the pre-registered sample.
-                        "evidence_clock": evidence_clock(mine, current_model)})
+                        "evidence_clock": evidence_clock(mine, current_model),
+                        # Whether its scoring code is held still for the test (tracking.freeze).
+                        "freeze": freeze_status(key)})
     return {
         "as_of": _now_iso(),
         # The single benchmark when every call shares one; None when the ledger

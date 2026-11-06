@@ -2451,7 +2451,17 @@ function trackFreezeNote(e) {
   if (!fp) return '';
   const current = Number(e.recorded_on_current_code) || 0;
   const changed = total > current ? ` · <b>${total - current}</b> on earlier code` : '';
-  return `<small class="muted track-freeze" title="Fingerprint of the engine code running now: ${escapeHtml(fp)}"><br>code <span class="mono">${escapeHtml(fp.slice(0, 8))}</span>${total ? ` · ${current} on it${changed}` : ''}</small>${trackClockNote(e.evidence_clock)}`;
+  return `<small class="muted track-freeze" title="Fingerprint of the engine code running now: ${escapeHtml(fp)}"><br>code <span class="mono">${escapeHtml(fp.slice(0, 8))}</span>${total ? ` · ${current} on it${changed}` : ''}</small>${trackClockNote(e.evidence_clock)}${trackModelFreezeNote(e.freeze)}`;
+}
+
+// [PURE] Model freeze (tracking/freeze.py): whether this engine's scoring code is
+// held still until its test can finish, and whether it has stayed that way.
+function trackModelFreezeNote(f) {
+  if (!f || !f.until) return '';
+  if (!f.active) return `<small class="muted track-model-freeze"><br>freeze ended ${escapeHtml(isoDay(f.until))}</small>`;
+  return f.intact
+    ? `<small class="muted track-model-freeze"><br>scoring code frozen until ${escapeHtml(isoDay(f.until))}</small>`
+    : `<small class="track-model-freeze is-warn"><br>scoring code changed during its freeze (until ${escapeHtml(isoDay(f.until))}); calls since then belong to a different version</small>`;
 }
 
 // [PURE] Evidence clock: how far the model version running now is from the
@@ -14868,7 +14878,7 @@ if (typeof module !== 'undefined' && module.exports) {
     // Research v3 shadow (2026-10-29): the shadow model's one muted line.
     shadowModelLineHtml,
     // Evidence clock (2026-11-06): progress of the current model version to its test.
-    trackClockNote, trackFreezeNote,
+    trackClockNote, trackFreezeNote, trackModelFreezeNote,
     // AI brief (2026-11-06): the checked explanation panel.
     aiBriefHtml,
     // Completed-bar scoring (2026-10-29): the "scored through" note.

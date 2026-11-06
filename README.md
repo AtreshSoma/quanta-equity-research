@@ -372,6 +372,13 @@ flowchart LR
   appends a hash-chained line to `track_record/chain.jsonl`. Set `QUANTA_PUBLISH_COMMIT=1` to
   commit it daily, so git timestamps every link. `python -m tracking verify` (from `core/`) detects
   any forecast or link edited after publication.
+- **Model freeze (opt-in).** A prospective test needs 30 resolved calls on 10 independent dates
+  from one model fingerprint, which never happens while the scoring code changes every few days.
+  `python -m tracking.freeze set elite --days 91 --reason "..."` (from `core/`) records the
+  engine's model fingerprint in `track_record/model_freeze.json`; until the end date, a test
+  fails if that code changes. Put such a change into a new shadow version instead, or end the
+  freeze on purpose with `release` (also recorded, with its reason). The Evidence page shows each
+  freeze. Nothing is enforced until a freeze is set.
 - The daily job also posts a notification for any stop or target an open call touched, and logs
   the benchmarked report to `logs/daily/`. The **Resolve outcomes** button on the Evidence page
   does the resolving step for unscheduled use.

@@ -49,3 +49,10 @@ test('the per-engine freeze note carries the clock', () => {
   assert.match(t, /code deadbeef/);
   assert.match(t, /this model version: 12 resolved calls/);
 });
+
+test('a model freeze is stated, and a broken one is flagged', () => {
+  assert.equal(app.trackModelFreezeNote(null), '');
+  assert.match(text(app.trackModelFreezeNote({ until: '2027-02-05', active: true, intact: true })), /scoring code frozen until Feb 5, 2027/);
+  assert.match(text(app.trackModelFreezeNote({ until: '2027-02-05', active: true, intact: false })), /changed during its freeze/);
+  assert.match(text(app.trackModelFreezeNote({ until: '2026-10-01', active: false, intact: true })), /freeze ended/);
+});

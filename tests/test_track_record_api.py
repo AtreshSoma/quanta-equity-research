@@ -57,6 +57,7 @@ def test_recorded_call_appears_pending_with_its_published_label(ledger):
     assert clock["model_fingerprint"] == elite["model_fingerprint"]
     assert clock["recorded"] == 1 and clock["resolved"] == 0 and clock["ready"] is False
     assert clock["min_calls"] == body["min_sample"]
+    assert "freeze" in elite      # None until an engine is frozen (tracking.freeze)
     assert body["recent"][0]["ticker"] == "AAPL"
     assert body["recent"][0]["label"] == "BUY"   # the call as published; evidence is reported beside it
     group = body["groups"][0]

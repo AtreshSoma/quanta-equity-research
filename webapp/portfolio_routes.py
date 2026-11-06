@@ -65,11 +65,15 @@ def init_portfolio(app, analyze: Callable, market_returns: Optional[Callable] = 
                    sources: Optional[MarketSources] = None) -> PortfolioService:
     """Create the service and register the routes. Idempotent per app."""
     global _service
+    live = provider is None   # the real broker: tests pass their own provider
     if provider is None:
         from brokers.robinhood import RobinhoodProvider
         provider = RobinhoodProvider()
     _service = PortfolioService(provider, analyze, market_returns)
     _service.insights = Insights(_service, sources or MarketSources())
+    if live:
+        from portfolio.factor_attribution import load_factors
+        _service.factor_loader = load_factors
     if "my_portfolio" not in app.blueprints:
         app.register_blueprint(bp)
     # The request log prints full URLs, including the OAuth callback's code and state.

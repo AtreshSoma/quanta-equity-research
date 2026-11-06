@@ -809,6 +809,10 @@ class RESEARCH(_Group):
 
 class PORTFOLIO(_Group):
     MAX_SINGLE_POSITION = 0.10      # no new money at or above this weight
+    # Fama-French factor exposure of the book (portfolio/factor_attribution.py):
+    # the regression window, and the fewest shared days before loadings are shown.
+    FACTOR_WINDOW_DAYS = 252
+    FACTOR_MIN_DAYS = 126
     TRIM_REVIEW_POSITION = 0.20     # a HOLD this large is sent to trim review
     # Where a concentration trim is sized to: halfway between the limit and the review
     # level, so the position does not sit on the trigger and re-fire on the next rally,

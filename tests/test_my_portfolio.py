@@ -1351,6 +1351,27 @@ class TestService:
         assert pf["reconciliation"]["status"] == "ok"
         assert json.dumps(v).find(ACCOUNT_NUMBER) == -1
 
+    def test_factor_exposure_is_in_the_view_only_with_a_loader(self):
+        """P1-4: the factors load in the background job; the view only runs the regression."""
+        prov, _ = connected_provider()
+        days = pd.bdate_range("2025-01-02", periods=300)
+        rng = np.random.default_rng(0)
+        factors = pd.DataFrame(rng.normal(0, 0.01, (len(days), 6)), index=days,
+                               columns=["Mkt-RF", "SMB", "HML", "RMW", "CMA", "Mom"]).assign(RF=0.0001)
+        returns = pd.DataFrame({sym: 1.1 * factors["Mkt-RF"] + rng.normal(0, 0.002, len(days))
+                                for sym in ("AAPL", "MSFT")}, index=days)
+        svc = PortfolioService(prov, fake_analyze({}), market_returns=lambda syms: returns[[s for s in syms if s in returns]])
+        handle = svc.accounts()[0]["handle"]
+        assert "factor_exposure" not in svc.refresh(handle, start_thread=False)["portfolio"]
+        calls = []
+        svc.factor_loader = lambda: calls.append(1) or {"factors": factors, "as_of": "2026-03-04"}
+        exposure = svc.refresh(handle, start_thread=False)["portfolio"]["factor_exposure"]
+        assert calls == [1] and exposure["available"] is True
+        mkt = next(r for r in exposure["factors"] if r["factor"] == "Mkt-RF")
+        assert mkt["beta"] == pytest.approx(1.1, abs=0.1)
+        svc.view()
+        assert calls == [1], "a read never loads factors"
+
     def test_auth_expiry_during_refresh_clears_holdings(self):
         prov, fake = connected_provider()
         svc = PortfolioService(prov, fake_analyze({}))

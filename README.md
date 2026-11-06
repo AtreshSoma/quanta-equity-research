@@ -984,8 +984,8 @@ modify, merge, publish, distribute, sublicense and sell the code, provided the c
 licence text are kept. The software is provided "as is", without warranty of any kind.
 
 The licence covers this repository's source code and documentation only. It does not cover market
-data you download with it. Yahoo Finance, SEC EDGAR, the news feeds it reads (MarketWatch, the FT,
-CNBC and others), Robinhood and any other provider keep their own terms, which generally allow
+data you download with it. Yahoo Finance, SEC EDGAR, the Kenneth R. French data library (factor
+returns for My Portfolio), the news feeds it reads (MarketWatch, the FT, CNBC and others), Robinhood and any other provider keep their own terms, which generally allow
 personal use only; you are responsible for complying with them. This project is not affiliated with or
 endorsed by any of them. Third-party dependencies keep their own licences (see `pyproject.toml`).
 

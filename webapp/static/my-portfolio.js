@@ -646,6 +646,30 @@
   }
   const partsLine = (items) => `<p class="hp-rk-parts">${items.join('<span aria-hidden="true"> · </span>')}</p>`;
 
+  // [PURE] Fama-French five factors + momentum: what the book has moved with
+  // (portfolio/factor_attribution.py). Loadings with 95% intervals; a loading whose
+  // interval spans zero is shown muted. Empty when the server sent nothing.
+  function factorExposureHtml(fe) {
+    if (!fe) return '';
+    const head = `<h3 class="hp-h3">Factor exposure <span>Fama-French 5 + momentum${fe.available && fe.days ? ` · ${esc(fe.days)} days to ${esc(dayText(fe.end))}` : ''}</span></h3>`;
+    if (!fe.available) {
+      return `<div class="hp-factors" data-hp="factor-exposure">${head}<p class="hp-empty">${esc(fe.reason || 'Not measured.')}</p></div>`;
+    }
+    const rows = (fe.factors || []).filter((r) => num(r.beta) !== null).map((r) => {
+      const ci = Array.isArray(r.ci95) ? r.ci95.map(Number) : [];
+      const clear = ci.length === 2 && (ci[0] > 0 || ci[1] < 0);
+      const ciText = ci.length === 2 ? `95% interval ${ci[0].toFixed(2)} to ${ci[1].toFixed(2)}` : '';
+      return `<li class="hp-correlation${clear ? '' : ' is-muted'}" data-factor="${esc(r.factor)}"><span class="hp-pair">${esc(r.label || r.factor)}</span><span class="hp-num">${Number(r.beta) > 0 ? '+' : ''}${Number(r.beta).toFixed(2)}</span><span class="hp-muted">${esc(ciText)}${clear ? '' : ' · not distinguishable from zero'}</span></li>`;
+    });
+    const notes = [];
+    if (num(fe.r2) !== null) notes.push(`The factors explain ${pct(fe.r2, 0)} of the daily moves.`);
+    if ((fe.excluded_non_us || []).length) notes.push(`US factors: ${esc(fe.excluded_non_us.join(', '))} left out.`);
+    if (num(fe.coverage) !== null && fe.coverage < 0.9995) notes.push(`Covers ${pct(fe.coverage, 0)} of invested value.`);
+    if (fe.factors_stale) notes.push('Factor data could not be refreshed; the last good copy is used.');
+    return `<div class="hp-factors" data-hp="factor-exposure">${head}<ul class="hp-rows">${rows.join('')}</ul>
+      <p class="hp-fine">Today’s weights over past daily returns, regressed on the ${esc(fe.source || 'Fama-French factors')}${fe.factors_as_of ? ` (published through ${esc(dayText(fe.factors_as_of))})` : ''}. A loading of 1.0 on the US market means the book moved with it one for one. A description of the past, not a forecast. ${notes.join(' ')}</p></div>`;
+  }
+
   function exposureHtml(pf) {
     const m = pf.metrics || {};
     const pol = pf.policy || {};
@@ -770,6 +794,7 @@
       <div class="q-body">
         <dl class="hp-measures">${kpis.join('')}</dl>
         ${tailBlock}
+        ${factorExposureHtml(pf.factor_exposure)}
         ${returnsIssue ? `<p class="hp-note is-warn">${esc(returnsIssue.message)}</p>` : ''}
         <div class="hp-risk-lists">
           <div><h3 class="hp-h3">Move together <span>${threshold !== null ? threshold.toFixed(2) : '0.70'}+ correlation${v.days ? ` · ${v.days} days` : ''}</span></h3>${together}</div>
@@ -2019,7 +2044,7 @@
   const api_ = {
     open, sortRows, setHidden, headActionsHtml, stateCardHtml, portfolioHtml, tableHtml, detailHtml,
     overviewHtml, assessmentHtml, prioritiesHtml, drawerHtml, tabsHtml,
-    todayHtml, exposureHtml, guidanceHtml, heroHtml, holdTableHtml, reasonTag, updatedHtml, ext: null,
+    todayHtml, exposureHtml, factorExposureHtml, guidanceHtml, heroHtml, holdTableHtml, reasonTag, updatedHtml, ext: null,
     // Shared vocabulary for the mp-*.js modules: the same formatters, masks and
     // calls, so a figure reads the same on every tab and in the export.
     _h: {

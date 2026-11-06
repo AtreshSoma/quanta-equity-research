@@ -27,6 +27,7 @@ from engine.market_calendar import is_trading_day, last_completed_session, now_n
 from engine.thresholds import PORTFOLIO as _PF
 
 from . import analytics as an
+from . import factor_attribution as fa
 from . import guidance as gd
 from . import profit_plan as pp
 from .fund_events import FUND_INSTRUMENT_TYPES
@@ -172,6 +173,11 @@ class PortfolioService:
         # Set by the web layer: Portfolio Review, exposure, events and plan logic, which
         # read this service's own view. None in tests that only exercise the core.
         self.insights: Any = None
+        # Set by the web layer: loads the Fama-French factors (network, disk-cached).
+        # Called in the background job, never on a read; None leaves the view without
+        # a factor exposure.
+        self.factor_loader: Optional[Callable[[], Dict[str, Any]]] = None
+        self._factors: Optional[Dict[str, Any]] = None
 
     # -- connection ---------------------------------------------------------
 
@@ -265,6 +271,13 @@ class PortfolioService:
                     self._returns, self._returns_note = rets, note
                     self._returns_at = time.time() if rets is not None else 0.0
                     self._returns_symbols = all_symbols
+        if self.factor_loader is not None:
+            try:
+                loaded = self.factor_loader()
+            except Exception as exc:  # noqa: BLE001 - attribution is optional, never fatal
+                loaded = {"factors": None, "error": f"factor data unavailable ({type(exc).__name__})"}
+            with self._lock:
+                self._factors = loaded
         size = self._account_size(pf)
         for sym in symbols:
             with self._lock:
@@ -345,6 +358,7 @@ class PortfolioService:
             pf = self._portfolio
             analysis = {k: dict(v) for k, v in self._analysis.items()}
             returns, returns_note = self._returns, self._returns_note
+            factors = self._factors
         if pf is None:
             return {"status": status, "portfolio": None, "source_tags": SOURCE_TAGS}
         last_calls = self.insights.last_calls() if self.insights is not None else {}
@@ -352,6 +366,9 @@ class PortfolioService:
                           last_calls=last_calls)
         if self.insights is not None:
             view["portfolio"]["journal"] = self.insights.journal_info()
+        if self.factor_loader is not None:
+            view["portfolio"]["factor_exposure"] = fa.exposure_view(
+                fa.weights_from_positions(pf.positions), returns, factors)
         return view
 
     def _record_journal(self) -> None:

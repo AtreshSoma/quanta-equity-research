@@ -6250,8 +6250,9 @@ def _track_record_payload(engine: Optional[str] = None) -> Dict[str, Any]:
     """
     from engine import evidence as ev  # noqa: WPS433 - engine lives on sys.path
     from tracking.alerts import recent_alerts
-    from tracking.fingerprint import code_fingerprint
+    from tracking.fingerprint import code_fingerprint, model_fingerprint
     from tracking.ledger import BENCHMARK, MIN_SAMPLE, SignalLedger, pending_schedule
+    from tracking.prospective_ic import evidence_clock
 
     ledger = SignalLedger()
     rows = ledger.rows(engine=engine)
@@ -6293,11 +6294,15 @@ def _track_record_payload(engine: Optional[str] = None) -> Dict[str, Any]:
         evidence = ev.get_evidence(getattr(ev, strategy_attr)).to_dict()
         # Model freeze: calls made by the code running now, versus earlier code.
         current = code_fingerprint(key)
+        current_model = model_fingerprint(key)
         mine = [r for r in rows if r.get("engine") == key]
         engines.append({"engine": key, "label": label, "evidence": evidence,
                         "recorded": len(mine), "code_fingerprint": current,
                         "recorded_on_current_code": sum(1 for r in mine
-                                                        if r.get("code_fingerprint") == current)})
+                                                        if r.get("code_fingerprint") == current),
+                        "model_fingerprint": current_model,
+                        # How far this model version is from the pre-registered sample.
+                        "evidence_clock": evidence_clock(mine, current_model)})
     return {
         "as_of": _now_iso(),
         # The single benchmark when every call shares one; None when the ledger

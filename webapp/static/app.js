@@ -2415,7 +2415,21 @@ function trackFreezeNote(e) {
   if (!fp) return '';
   const current = Number(e.recorded_on_current_code) || 0;
   const changed = total > current ? ` · <b>${total - current}</b> on earlier code` : '';
-  return `<small class="muted track-freeze" title="Fingerprint of the engine code running now: ${escapeHtml(fp)}"><br>code <span class="mono">${escapeHtml(fp.slice(0, 8))}</span>${total ? ` · ${current} on it${changed}` : ''}</small>`;
+  return `<small class="muted track-freeze" title="Fingerprint of the engine code running now: ${escapeHtml(fp)}"><br>code <span class="mono">${escapeHtml(fp.slice(0, 8))}</span>${total ? ` · ${current} on it${changed}` : ''}</small>${trackClockNote(e.evidence_clock)}`;
+}
+
+// [PURE] Evidence clock: how far the model version running now is from the
+// pre-registered sample (resolved calls on non-overlapping dates). It says when
+// a verdict becomes possible, never what the verdict is.
+function trackClockNote(c) {
+  if (!c || !c.model_fingerprint) return '';
+  const n = Number(c.resolved) || 0;
+  const d = Number(c.independent_dates) || 0;
+  const needN = Number(c.min_calls) || 0;
+  const needD = Number(c.min_independent_dates) || 0;
+  const horizon = Number(c.horizon_days) ? ` at ${Number(c.horizon_days)} sessions` : '';
+  const state = c.ready ? 'enough for a verdict' : `needs ${needN} on ${needD}`;
+  return `<small class="muted track-clock" title="Model fingerprint (comments, logging and CLI display ignored): ${escapeHtml(String(c.model_fingerprint))}"><br>this model version: <b>${n}</b> resolved call${n === 1 ? '' : 's'} on <b>${d}</b> independent date${d === 1 ? '' : 's'}${horizon} · ${state}</small>`;
 }
 
 // [PURE] One plain sentence ahead of the statistics ("IC -0.003 (t -0.26)"),
@@ -14816,6 +14830,8 @@ if (typeof module !== 'undefined' && module.exports) {
     pkRunStamp, pkPriceWhen, pkAlignRowPrice,
     // Research v3 shadow (2026-10-29): the shadow model's one muted line.
     shadowModelLineHtml,
+    // Evidence clock (2026-11-06): progress of the current model version to its test.
+    trackClockNote, trackFreezeNote,
     // Completed-bar scoring (2026-10-29): the "scored through" note.
     indicatorBasisHtml,
     // Discover (2026-10-20): odds, revisions, causes, the read and the status line.

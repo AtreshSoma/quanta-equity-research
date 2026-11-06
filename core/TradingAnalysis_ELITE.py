@@ -8278,6 +8278,7 @@ def record_authoritative_signal(result: "AnalysisResult", ledger=None) -> int:
     outcome resolution to the ledger CLI, which fetches each exact exit bar.
     """
     from engine.market_calendar import last_completed_session
+    from tracking.inputs import capture as capture_inputs
     from tracking.ledger import default_ledger, record_decisions, record_shadow_calls
 
     if os.environ.get("QUANTA_TRACKING_DISABLED") == "1":
@@ -8309,7 +8310,10 @@ def record_authoritative_signal(result: "AnalysisResult", ledger=None) -> int:
             decision,
             horizon=Horizon(f"{days}d", days, f"{days} trading sessions"),
         ) for days in (5, 10, 30, 63)]
-        recorded = record_decisions(decisions, context=context, ledger=ledger)
+        # What the call read that has no point-in-time history anywhere else
+        # (analyst targets, valuation method, revisions, sentiment, insider flow).
+        inputs = capture_inputs(decision, result)
+        recorded = record_decisions(decisions, context=context, ledger=ledger, inputs=inputs)
         # The other model version's call, at the same horizons, under its own
         # engine: its record accumulates from today and is never pooled with
         # the live engine's. The return value stays the live count.
@@ -8317,7 +8321,7 @@ def record_authoritative_signal(result: "AnalysisResult", ledger=None) -> int:
             if shadow:
                 record_shadow_calls(decision, shadow,
                                     horizons=[d.horizon.trading_days for d in decisions],
-                                    context=context, ledger=ledger)
+                                    context=context, ledger=ledger, inputs=inputs)
         return recorded
     except Exception as exc:
         logger.warning("Signal ledger could not record %s: %s", result.ticker, exc)

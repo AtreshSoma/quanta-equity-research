@@ -45,7 +45,9 @@ from zoneinfo import ZoneInfo
 from engine.market_calendar import add_trading_days, last_completed_session
 from engine.thresholds import EVIDENCE as _EVIDENCE
 
-from .fingerprint import code_fingerprint, git_commit
+from .fingerprint import code_fingerprint, git_commit, model_fingerprint, provenance
+from .inputs import capture as capture_inputs
+from .inputs import inputs_hash
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +216,13 @@ class SignalLedger:
             columns = {r["name"] for r in con.execute("PRAGMA table_info(signals)")}
             for name, kind in (("entry_date", "TEXT"), ("entry_price", "REAL"),
                                ("benchmark_entry_price", "REAL"), ("entry_basis", "TEXT"),
-                               ("code_fingerprint", "TEXT"), ("git_commit", "TEXT")):
+                               ("code_fingerprint", "TEXT"), ("git_commit", "TEXT"),
+                               # Model-only fingerprint (comments, docstrings, logging and
+                               # CLI display ignored), the code's provenance (which modules,
+                               # which optional imports were missing) and the inputs the call
+                               # read that have no point-in-time history elsewhere.
+                               ("model_fingerprint", "TEXT"), ("provenance_json", "TEXT"),
+                               ("inputs_json", "TEXT"), ("inputs_hash", "TEXT")):
                 if name not in columns:
                     con.execute(f"ALTER TABLE signals ADD COLUMN {name} {kind}")
             con.execute("UPDATE signals SET entry_basis='as_of_close_legacy' "
@@ -246,6 +254,7 @@ class SignalLedger:
         stop_price: Optional[float] = None,
         benchmark: str = BENCHMARK,
         snapshot: Optional[Dict[str, Any]] = None,
+        inputs: Optional[Dict[str, Any]] = None,
     ) -> Optional[int]:
         """Record one call. Returns its row id, None if rejected.
 
@@ -255,8 +264,10 @@ class SignalLedger:
         call for the same engine/ticker/horizon/session returns the first row;
         repeated scans cannot revise a forecast after seeing later data.
 
-        Each row is stamped with the fingerprint of the code that produced it;
+        Each row is stamped with the fingerprints of the code that produced it;
         ``snapshot`` (the full Decision) is stored only with the first record.
+        ``inputs`` (see ``tracking.inputs``) is stored with every row and hashed
+        into ``inputs_hash``, which the published record fixes with the forecast.
         """
         as_of_d = _as_date(as_of)
         ticker = (ticker or "").strip().upper()
@@ -299,6 +310,10 @@ class SignalLedger:
             "benchmark": benchmark,
             "code_fingerprint": code_fingerprint(engine),
             "git_commit": git_commit(),
+            "model_fingerprint": model_fingerprint(engine),
+            "provenance_json": json.dumps(provenance(engine), sort_keys=True),
+            "inputs_json": json.dumps(inputs, sort_keys=True, default=str) if inputs else None,
+            "inputs_hash": inputs_hash(inputs) or None,
         }
         blob = None
         if snapshot is not None:
@@ -323,7 +338,8 @@ class SignalLedger:
                               (int(signal_id),)).fetchone()
         return json.loads(gzip.decompress(got["decision_gz"])) if got else None
 
-    def record_decision(self, decision: Any, context: Optional[Dict[str, Any]] = None) -> Optional[int]:
+    def record_decision(self, decision: Any, context: Optional[Dict[str, Any]] = None,
+                        inputs: Optional[Dict[str, Any]] = None) -> Optional[int]:
         """Record an ``engine.decision.Decision``.
 
         The model version (evidence strategy key) is stored with every call so
@@ -351,6 +367,7 @@ class SignalLedger:
             stop_price=decision.stop,
             benchmark=benchmark_for(decision.ticker),
             snapshot=decision.to_dict() if callable(getattr(decision, "to_dict", None)) else None,
+            inputs=inputs if inputs is not None else capture_inputs(decision),
         )
 
     # ----------------------------------------------------------------- resolve
@@ -812,7 +829,8 @@ def default_ledger() -> SignalLedger:
 
 
 def record_decisions(decisions: Iterable[Any], context: Optional[Dict[str, Any]] = None,
-                     ledger: Optional[SignalLedger] = None) -> int:
+                     ledger: Optional[SignalLedger] = None,
+                     inputs: Optional[Dict[str, Any]] = None) -> int:
     """Record published decisions only from completed, fresh market bars.
 
     A recommendation may be displayed with an intraday or stale quote, but it
@@ -832,7 +850,7 @@ def record_decisions(decisions: Iterable[Any], context: Optional[Dict[str, Any]]
             if (day is None or day > last_completed_session()
                     or getattr(getattr(d, "freshness", None), "status", None) != "fresh"):
                 continue
-            if ledger.record_decision(d, context=context) is not None:
+            if ledger.record_decision(d, context=context, inputs=inputs) is not None:
                 n += 1
         except Exception as exc:  # noqa: BLE001
             logger.warning("ledger: failed to record %s: %s", getattr(d, "ticker", "?"), exc)
@@ -846,7 +864,8 @@ def shadow_engine(version: str) -> str:
 
 def record_shadow_calls(decision: Any, shadow: Dict[str, Any], horizons: Sequence[int],
                         context: Optional[Dict[str, Any]] = None,
-                        ledger: Optional[SignalLedger] = None) -> int:
+                        ledger: Optional[SignalLedger] = None,
+                        inputs: Optional[Dict[str, Any]] = None) -> int:
     """Record a shadow model's call beside the live one, under its own engine.
 
     The shadow call takes the live call's ticker, session, factor scores and
@@ -875,6 +894,7 @@ def record_shadow_calls(decision: Any, shadow: Dict[str, Any], horizons: Sequenc
                 action=band, label=band, evidence_status=str(shadow.get("status") or ""),
                 score=shadow.get("score"), factors=decision.factor_scores, context=ctx,
                 reference_price=decision.reference_price, benchmark=benchmark_for(decision.ticker),
+                inputs=inputs,
             )
             n += row is not None
         except Exception as exc:  # noqa: BLE001 - a shadow must not cost the live call

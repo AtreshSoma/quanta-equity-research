@@ -889,7 +889,8 @@ def record_shadow_calls(decision: Any, shadow: Dict[str, Any], horizons: Sequenc
     for days in horizons:
         try:
             row = ledger.record(
-                engine=shadow_engine(version), ticker=decision.ticker, as_of=decision.as_of,
+                engine=shadow.get("engine") or shadow_engine(version), ticker=decision.ticker,
+                as_of=decision.as_of,
                 horizon_days=int(days), horizon_key=f"{int(days)}d", stance=band_stance(band),
                 action=band, label=band, evidence_status=str(shadow.get("status") or ""),
                 score=shadow.get("score"), factors=decision.factor_scores, context=ctx,

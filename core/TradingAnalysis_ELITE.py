@@ -1423,6 +1423,9 @@ class AnalysisResult:
     # The range the bars came from: "2y/1d", or "6mo/1d" when the long request
     # failed and the provider fallback answered (too short for the risk window).
     history_range: str = ""
+    # 12-1 momentum from the same bars, for the free-factor control model scored
+    # in shadow (engine/factor_baseline). Ledger only: no gate or level reads it.
+    factor_baseline_momentum: Optional[float] = None
     data_freshness: str = ""
     
     def __post_init__(self):
@@ -7968,6 +7971,37 @@ SHADOW_V4_NOTE = ("Pre-registered shadow model v4 (docs/preregistration/elite_re
                   "revisions leg, sector-aware valuation and an expected-value gate. Not used for this call.")
 
 
+def _baseline_momentum(data: Any) -> Optional[float]:
+    """12-1 momentum from the analysis's own daily bars; None when it cannot be read."""
+    try:
+        from engine import factor_baseline
+        if data is None or "Close" not in getattr(data, "columns", ()):
+            return None
+        return factor_baseline.momentum_12_1(data["Close"])
+    except Exception as exc:  # noqa: BLE001 - the live call must not depend on the control
+        logger.warning("factor baseline momentum not read: %s", exc)
+        return None
+
+
+def factor_baseline_payload(result: "AnalysisResult") -> Optional[Dict[str, Any]]:
+    """The free-factor control call (12-1 momentum + quality leg); None when unscored."""
+    try:
+        from engine import factor_baseline
+        from engine.evidence import get_evidence
+        sc, fd = result.scores, result.fundamental
+        if sc is None or not getattr(sc, "weights_used", None):
+            return None
+        out = factor_baseline.assess(getattr(result, "factor_baseline_momentum", None),
+                                     getattr(sc, "quality_score", None),
+                                     is_fund=bool(getattr(fd, "is_etf", False)))
+        if out is None:
+            return None
+        return dict(out, status=get_evidence(factor_baseline.KEY).status.value)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("factor baseline not scored for %s: %s", getattr(result, "ticker", "?"), exc)
+        return None
+
+
 def shadow_v4_payload(result: "AnalysisResult") -> Optional[Dict[str, Any]]:
     """The v4 shadow call, from the finished analysis; None when it cannot be scored.
 
@@ -8314,7 +8348,8 @@ def record_authoritative_signal(result: "AnalysisResult", ledger=None) -> int:
         # The other model version's call, at the same horizons, under its own
         # engine: its record accumulates from today and is never pooled with
         # the live engine's. The return value stays the live count.
-        for shadow in (decision.shadow_model, getattr(decision, "shadow_v4", None)):
+        for shadow in (decision.shadow_model, getattr(decision, "shadow_v4", None),
+                       factor_baseline_payload(result)):
             if shadow:
                 record_shadow_calls(decision, shadow,
                                     horizons=[d.horizon.trading_days for d in decisions],
@@ -8697,6 +8732,7 @@ class QuantaEliteAnalyzer:
             _stage("price_history", _t, cached=bool(fetch_meta.get("from_cache")),
                    provider="yfinance",
                    status="ok" if data_status == DataStatus.OK else data_status)
+            result.factor_baseline_momentum = _baseline_momentum(data)
 
             # [DATA-RELIABILITY] Log a structured diagnostic for every fetch so
             # C / FFBC-style mislabels can be traced (provider, range, rows,

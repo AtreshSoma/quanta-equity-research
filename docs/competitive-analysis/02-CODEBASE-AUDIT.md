@@ -116,7 +116,7 @@ This is a grounding and guard-rail layer for an external LLM, not an agent syste
   closed); optional Finnhub (multi-key rotation), Polygon, FMP, Alpha Vantage.
 - Pacing: process-wide token bucket (8 burst, 1 per 0.35 s), single-flight per symbol, 6-hour
   stale grace, disk cache (info 1 h, history 15 min).
-- **No provider abstraction.** Measured: 83 direct `yf.Ticker(`/`yf.download(` call sites across
+- **No provider abstraction.** Measured: 86 direct `yf.Ticker(`/`yf.download(` call sites across
   24 files (25 in `TradingAnalysis_ELITE.py`, 8 each in `SP_ELITE_PRO.py` and
   `Alpha_Picks_Engine.py`, 7 in `webapp/app.py`, 7 in `SP_ShortTerm.py`). Throttling works because
   it is installed at the HTTP layer, not because calls go through one gateway.
@@ -128,7 +128,7 @@ This is a grounding and guard-rail layer for an external LLM, not an agent syste
 | Measure | Value | Source |
 |---|---|---|
 | Largest files | `SP_ELITE_PRO.py` 15,362; `app.js` 15,022; `TradingAnalysis_ELITE.py` 14,989; `app.py` 9,553; `quanta.css` 8,820 | `wc -l` |
-| Duplicate implementations | RSI ×3 (`SP_ELITE_PRO.py:4642`, `apex_quant/indicators.py:14`, `engine/indicators.py:35`); ATR ×3; `MarketRegime` ×3 + `MarketRegimeDetector` | grep; parity is pinned by `tests/test_indicator_parity.py` |
+| Duplicate implementations | RSI ×3 (`SP_ELITE_PRO.py:4642`, `apex_quant/indicators.py:14`, `engine/indicators.py:35`); ATR ×2 (`plan_simulator.py` delegates to the shared one); `MarketRegime` ×3 + `MarketRegimeDetector`. The remaining copies differ on purpose (apex_quant's are frozen for reproducible validation; Picks' RSI differs only on flat series) | grep; parity is pinned by `tests/test_indicator_parity.py` *(Corrected 2026-11-06 after implementation: see [11](11-IMPLEMENTATION-STATUS.md).)* |
 | Packaging | Not a package; `sys.path` inserts and `pyproject` `pythonpath` | `pyproject.toml` header |
 | Lint gate | `ruff check .` passes (errors-only rule set) | run 2026-11-06 |
 | Unused imports | **123** F401 (README and `pyproject.toml` say 107: the count has drifted) | `ruff --select F401` |
@@ -162,7 +162,7 @@ Measured on this machine (macOS, Python 3.12.4, isolated venv with `webapp/const
 |---|---|---|
 | F-1 | **The v4 shadow model's code fingerprint does not cover the code that computes its inputs.** `ENGINE_SOURCES` ([core/tracking/fingerprint.py:28](../../core/tracking/fingerprint.py#L28)) has no `elite_v4_shadow` key, so its fingerprint hashes only `core/engine/*.py` + the evidence registry (43 files) and omits `TradingAnalysis_ELITE.py`. `elite` and `elite_v3_shadow` hash 44 files including it. A change to how components are scored would not start a new v4 period. | Ran `_sources()` for each engine key |
 | F-2 | **No fingerprint covers `modules/`.** `earnings_revision_scoring` (the v4 revisions leg), `catalyst_scanner`, `portfolio_risk_manager`, `compliance_manager`, `sec_edgar_parser`, `polygon_provider` all feed engine output via `_import_optional`, and none is hashed. Whether an optional module imported at all is also not recorded. | `fingerprint.py:28-45`, `TradingAnalysis_ELITE.py:110-149` |
-| F-3 | **The fingerprint is so broad that the evidence clock rarely runs.** It hashes all 15K lines of `TradingAnalysis_ELITE.py` including report wording. The published record has 435 rows over 12 publication dates (2026-10-16 to 2026-11-04) split across **23 distinct fingerprints**; no fingerprint can approach the pre-registered minimum (30 resolved calls on 10 non-overlapping dates). | `track_record/ledger.csv` |
+| F-3 | **The evidence clock rarely runs.** The published record has 435 rows over 12 publication dates (2026-10-16 to 2026-11-04) split across **23 distinct fingerprints**; no fingerprint can approach the pre-registered minimum (30 resolved calls on 10 non-overlapping dates). **Correction:** this audit blamed the fingerprint for hashing report wording. Replaying all 67 commits since 2026-10-15 showed the Research model's syntax tree changed in 19 to 21 periods even with docstrings, logging and every string literal ignored: the engine logic itself changed that often. The cause is development pace, not the hash. *(Corrected 2026-11-06 after implementation: see [11](11-IMPLEMENTATION-STATUS.md).)* | `track_record/ledger.csv`; history replay |
 | F-4 | Two pinned dependencies have published advisories (above). | `pip-audit` |
 | F-5 | Documentation drift: JS test count (746 vs 882), F401 count (107 vs 123). | measured |
 

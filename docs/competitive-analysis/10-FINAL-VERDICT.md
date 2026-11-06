@@ -35,8 +35,10 @@ pre-registration, shadow models and a tamper-evident ledger. None of the competi
 Its main risk is that the discipline cannot pay off as built. Three of its own mechanisms work
 against each other today:
 
-1. The fingerprint is too broad (any wording edit resets the clock), so 12 publication dates
-   produced 23 fingerprints and no model is near its pre-registered sample.
+1. The scoring code changes faster than a test can finish: 12 publication dates produced 23
+   fingerprints, and no model is near its pre-registered sample. (This audit first blamed the
+   fingerprint for hashing wording; a replay of the commit history showed the logic itself
+   changed that often. See [11](11-IMPLEMENTATION-STATUS.md).)
 2. The fingerprint is also too narrow in places (v4 shadow; all `modules/`), so a period can
    silently mix code.
 3. Call inputs other than prices and SEC facts are not recorded, so the live decision path can
@@ -76,7 +78,7 @@ competitors.
 | Engine keys with complete fingerprint coverage | 2 of 3 Research keys; 0 cover `modules/` | all |
 | Ledger rows with recorded valuation/analyst inputs | 0% | 100% of new rows |
 | Shadow models recorded | v3, v4 | v3, v4, factor baseline |
-| Direct `yf.` call sites outside adapters | 83 | ≤ 40 (phase 1) |
+| Direct `yf.` call sites outside adapters | 86 | ≤ 40 (phase 1) |
 | Known dependency advisories | 2 | 0 |
 | F401 findings | 123 | 0 and gated |
 | Generated research text shown without passing the grounding check | n/a | 0 |

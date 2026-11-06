@@ -38,7 +38,7 @@ Do not rebuild any of these.
 |---|---|---|---|
 | B-1 | v4 shadow fingerprint omits `TradingAnalysis_ELITE.py` | `fingerprint.py:28` has no `elite_v4_shadow` key; measured 43 vs 44 files | A v4 period can span changed component code; the v4 pre-registered test could pool two models |
 | B-2 | `modules/` dependencies are outside every fingerprint | `_import_optional` loads 7 services; none hashed | Same, for v2/v3/v4 and Picks; a missing optional module changes output under the same fingerprint |
-| B-3 | Fingerprint hashes presentation text with model code | 23 fingerprints over 12 publication dates | No model version accumulates the 30 calls on 10 dates the pre-registration needs |
+| B-3 | The scoring code changes faster than a test can finish | 23 fingerprints over 12 publication dates; the syntax-tree replay shows real logic changes, not wording *(Corrected 2026-11-06 after implementation: see [11](11-IMPLEMENTATION-STATUS.md).)* | No model version accumulates the 30 calls on 10 dates the pre-registration needs. Needs a freeze policy (owner decision), not only a narrower hash |
 | B-4 | Two pinned dependencies with advisories | `requests 2.32.5` (PYSEC-2026-2275), `curl-cffi 0.13.0` (PYSEC-2026-2431) | Security hygiene |
 | B-5 | Documentation counts drifted | README: 746 JS tests (actual 882), 107 F401 (actual 123) | Trust in the docs |
 
@@ -54,7 +54,7 @@ Euler risk shares, beta scenarios, IC sampling). See 09 for what was and was not
 | W-3 | Live decision path never replayed historically | README Known limitations | Replay harness over `Decision` construction |
 | W-4 | EV model drift derived from the same target it tests | `expected_value.drift_from_valuation` | Calibration curve from the ledger; fit `shrink` only on pre-registered data |
 | W-5 | Valuation and analyst targets not recorded point-in-time | OPEN_ITEMS #6 | Store target, its inputs and source in each ledger row now |
-| W-6 | 83 direct yfinance call sites | grep | Provider gateway, migrated one engine at a time |
+| W-6 | 86 direct yfinance call sites | grep | Provider gateway, migrated one engine at a time |
 | W-7 | Monolithic engines, duplicated indicators/regimes | 15K-line files; RSI×3, ATR×3, regime×3 | Extract to `core/engine/indicators.py` and one regime module |
 | W-8 | Silent optional imports | `_import_optional` | Record which optional modules loaded in each Decision's provenance |
 | W-9 | Sample covariance for risk shares | `analytics.py:139` | Ledoit-Wolf shrinkage |

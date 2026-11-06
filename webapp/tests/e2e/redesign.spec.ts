@@ -163,10 +163,13 @@ test('BRAND product identity stays in the top bar and the maker is credited once
   await expect(page.getByText('Atresh Somayajula', { exact: true })).toHaveCount(1);
 });
 
-test('CSS the shell loads exactly one design-system stylesheet plus the two component sheets', async ({ page }) => {
+// Plan Lab (plan-lab.css) and News & Events (events.css) added their own sheets
+// in October 2026; the list below is the page's full set, so a new sheet still
+// has to be added here on purpose.
+test('CSS the shell loads exactly one design-system stylesheet plus its component sheets', async ({ page }) => {
   await page.goto(NOCACHE(), { waitUntil: 'domcontentloaded' });
   const sheets = await page.evaluate(() => Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
     .map((l) => (l as HTMLLinkElement).href.split('/').pop()!.split('?')[0])
     .filter((n) => n.endsWith('.css')));
-  expect(sheets).toEqual(['quanta.css', 'quote-board.css', 'signature.css']);
+  expect(sheets).toEqual(['quanta.css', 'quote-board.css', 'signature.css', 'plan-lab.css', 'events.css']);
 });

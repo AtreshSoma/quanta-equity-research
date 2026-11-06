@@ -94,7 +94,7 @@ test('a bullish stock the portfolio is overweight in reads "Hold" with the limit
 test('the table shows risk share and a muted score, with the evidence status stated once', () => {
   hp._state.filter = null; hp._state.sort = 'action'; hp._state.dir = null;
   const d = frag(hp.tableHtml(fixture.portfolio));
-  assert.match(words(d.querySelector('[data-hp-row="AAPL"] .hp-col-risk')), /^B 17\.2% of risk$/);
+  assert.match(words(d.querySelector('[data-hp-row="AAPL"] .hp-col-risk')), /^B 17\.0% of risk$/);  // shrunk covariance (P1-3)
   // A holding that offsets the rest (negative risk share) says so in words.
   const pf2 = clone(fixture.portfolio);
   pf2.positions.find((p) => p.symbol === 'KO').risk_share = -0.003;

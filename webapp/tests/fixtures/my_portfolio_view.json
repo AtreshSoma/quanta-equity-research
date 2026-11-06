@@ -220,19 +220,24 @@
      {
       "a": "AAPL",
       "b": "MSFT",
-      "correlation": 0.9818143733567796
+      "correlation": 0.9818143733567798
      }
     ],
     "avg_correlation": 0.3614183372643444,
     "risk_share": {
-     "AAPL": 0.17198948042343776,
-     "NVDA": 0.5652845551626814,
-     "MSFT": 0.10211585148755188,
-     "KO": 0.03562529878879333,
-     "XOM": 0.03540414655088955,
-     "RIVN": 0.04439856156545408,
-     "BRK.B": 0.037935430667056645,
-     "JNJ": 0.00724667535413535
+     "AAPL": 0.17000367116652385,
+     "NVDA": 0.5671255261782024,
+     "MSFT": 0.10036167242747646,
+     "KO": 0.03653144495563239,
+     "XOM": 0.036221708811942845,
+     "RIVN": 0.04376660249566885,
+     "BRK.B": 0.038233320307523806,
+     "JNJ": 0.007756053657029086
+    },
+    "covariance": {
+     "method": "ledoit_wolf_constant_correlation",
+     "shrinkage": 0.08055923674387118,
+     "avg_correlation": 0.3614183372643443
     }
    },
    "stops": {
@@ -664,7 +669,7 @@
     },
     "no_call": null,
     "is_fund": false,
-    "risk_share": 0.04439856156545408
+    "risk_share": 0.04376660249566885
    },
    {
     "symbol": "NVDA",
@@ -858,7 +863,7 @@
       "basis": "QUANTA default trim target, halfway between the 10% limit and the 20% review level; not a personal target"
      },
      "why": [
-      "At 35.0% of the account, NVDA is past the 20% review level. Trimming is about single-name risk (it carries 56.5% of the portfolio's risk).",
+      "At 35.0% of the account, NVDA is past the 20% review level. Trimming is about single-name risk (it carries 56.7% of the portfolio's risk).",
       "You are up 188.1% on a cost of $61.20 a share. QUANTA's view does not depend on your entry price."
      ],
      "supports": [
@@ -987,7 +992,7 @@
     },
     "no_call": null,
     "is_fund": false,
-    "risk_share": 0.5652845551626814
+    "risk_share": 0.5671255261782024
    },
    {
     "symbol": "XOM",
@@ -1255,7 +1260,7 @@
     },
     "no_call": null,
     "is_fund": false,
-    "risk_share": 0.03540414655088955
+    "risk_share": 0.036221708811942845
    },
    {
     "symbol": "AAPL",
@@ -1551,7 +1556,7 @@
     },
     "no_call": null,
     "is_fund": false,
-    "risk_share": 0.17198948042343776
+    "risk_share": 0.17000367116652385
    },
    {
     "symbol": "MSFT",
@@ -1820,7 +1825,7 @@
     },
     "no_call": null,
     "is_fund": false,
-    "risk_share": 0.10211585148755188
+    "risk_share": 0.10036167242747646
    },
    {
     "symbol": "KO",
@@ -2081,7 +2086,7 @@
     },
     "no_call": null,
     "is_fund": false,
-    "risk_share": 0.03562529878879333
+    "risk_share": 0.03653144495563239
    },
    {
     "symbol": "JNJ",
@@ -2347,7 +2352,7 @@
     },
     "no_call": null,
     "is_fund": false,
-    "risk_share": 0.00724667535413535
+    "risk_share": 0.007756053657029086
    },
    {
     "symbol": "BRK.B",
@@ -2454,7 +2459,7 @@
      "detail": "Retry in a few minutes."
     },
     "is_fund": false,
-    "risk_share": 0.037935430667056645
+    "risk_share": 0.038233320307523806
    }
   ],
   "issues": [

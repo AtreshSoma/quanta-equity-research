@@ -133,7 +133,7 @@ vendors QUANTA uses. Copy the pattern (Apache-2.0 permits reuse of code with not
 | Sample covariance | `frame.cov()` on daily returns over the shared window | Noisy risk shares for books with many names and short histories |
 | Regime weights | v2 switches weight tables by regime; the 2026-10-22 test shows fixed weights give almost the same IC | Complexity without measured benefit |
 | Three indicator stacks | RSI/ATR in `SP_ELITE_PRO.py`, `apex_quant/indicators.py`, `engine/indicators.py` | Parity is tested, but each new indicator must be written three times |
-| Evidence clock resets | 23 fingerprints in 12 publication dates (02, F-3) | The pre-registered prospective test cannot reach its minimum sample |
+| Evidence clock resets | 23 fingerprints in 12 publication dates (02, F-3), driven by real logic changes | The pre-registered prospective test cannot reach its minimum sample until scoring code is frozen |
 
 ### 4.3 What simpler baselines say
 

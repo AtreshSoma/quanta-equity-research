@@ -1,7 +1,8 @@
 # 01 — Executive summary
 
-**Audit of QUANTA against TradingAgents, OpenBB and Microsoft Qlib.** 2026-11-06. Audit and
-planning only; no code was changed.
+**Audit of QUANTA against TradingAgents, OpenBB and Microsoft Qlib.** 2026-11-06. Written as an
+audit and plan; the P0 and P1 work it recommends was then implemented on branch
+`audit/roadmap-p0-p1` (status in [11](11-IMPLEMENTATION-STATUS.md)).
 
 Commits: QUANTA `ce1e9b4` · TradingAgents `9fa1196` · OpenBB `2a392e8` · Qlib `5435523`.
 Licences: QUANTA MIT · TradingAgents Apache-2.0 · OpenBB Apache-2.0 · Qlib MIT. All permit reuse
@@ -14,9 +15,11 @@ with notice; the recommendation is to reuse patterns, not dependencies.
   recorded decision. Each competitor beats it in its own specialty.
 - **QUANTA's tests are green here:** 2,976 Python and 882 JavaScript tests pass.
 - **New defects found:** the v4 shadow model's code fingerprint misses the engine that computes
-  its inputs; no fingerprint covers `modules/`. Separately, the fingerprint is broad enough that
-  12 publication dates produced 23 fingerprints, so no model version can reach its pre-registered
-  test. Two pinned dependencies (requests, curl-cffi) have published advisories.
+  its inputs; no fingerprint covers `modules/`. Separately, 12 publication dates produced 23
+  fingerprints, so no model version can reach its pre-registered test (a later replay of the
+  commit history showed this is real logic churn, not wording; see
+  [11](11-IMPLEMENTATION-STATUS.md)). Two pinned dependencies (requests, curl-cffi) have
+  published advisories.
 - **No financial calculation error** was found in the paths checked. The exact barrier-probability
   model matches Monte Carlo to within 0.2 percentage points after continuity correction.
 - **Top recommendation:** fix how evidence accumulates (about two weeks of P0 work) before adding
@@ -137,7 +140,7 @@ LLMs explain; the engine decides. Details: [07](07-TARGET-ARCHITECTURE.md).
 **6.28 today.** Completing P0 and P1 would plausibly move data 5→7, AI 4→6, architecture 4→5 and
 quant 6→7, about **6.9** (a judgment, not a measurement). Measurable targets: fingerprints per 10
 publication dates from ~19 to ≤ 2; 100% of new ledger rows with recorded inputs; direct yfinance
-call sites from 83 to ≤ 40; dependency advisories from 2 to 0; unused imports from 123 to 0 and
+call sites from 86 to ≤ 40; dependency advisories from 2 to 0; unused imports from 123 to 0 and
 gated; zero generated text shown without passing the grounding check. See
 [08](08-IMPLEMENTATION-ROADMAP.md) and [10](10-FINAL-VERDICT.md).
 

@@ -18,7 +18,7 @@ Legend: **✔** implemented and read in source · **◐** partial · **✎** doc
 | Corporate events / 8-K | ✔ fails closed; item-level severity | ◐ SEC statements | ✔ filings, full-text search | ✘ |
 | Macro | ◐ FOMC calendar, VIX, SPY trend | ✔ FRED | ✔ FRED, BLS, ECB, IMF, OECD, Fed | ✘ |
 | News / social | ◐ headlines + VADER, RSS health | ✔ Yahoo, Alpha Vantage, Reddit, StockTwits, date-windowed | ✔ news extension | ✘ |
-| Unified provider interface | ✘ 83 direct `yf` call sites | ◐ vendor router per tool category | ✔ typed `Fetcher` + standard models | ✔ `D.features` expression API |
+| Unified provider interface | ✘ 86 direct `yf` call sites | ◐ vendor router per tool category | ✔ typed `Fetcher` + standard models | ✔ `D.features` expression API |
 | Provider failover | ◐ Stooq fallback, Finnhub key rotation, stale-grace cache | ◐ optional categories degrade | ✘ (caller picks provider) | ✘ |
 | Rate limiting / single-flight | ✔ token bucket, single-flight, killable bulk child | ◐ retries | ✔ per provider (SEC limiter) | n/a (local) |
 | Data freshness on output | ✔ `Freshness`, `SourceRef` on every Decision | ◐ coverage-gap notes | ◐ `warnings` | ✘ |
@@ -115,7 +115,7 @@ Each row: score rationale · strongest/weakest implementation · confidence.
 the only real provider abstraction; it has no failover and its consumer price vendors are not in
 this monorepo. QUANTA's pacing, single-flight and stale-grace are production-grade, and its PIT
 SEC rebuild is rarer than anything here except Qlib's China PIT; but it rests on one free vendor
-reached from 83 call sites. Weakest: QUANTA's lack of PIT universe and TradingAgents' reliance on
+reached from 86 call sites. Weakest: QUANTA's lack of PIT universe and TradingAgents' reliance on
 scraped social data. Confidence: high (QUANTA), medium (OpenBB, sampled).
 
 **Research (QUANTA 8).** Deterministic valuation with a sector-aware v4, peers, scenarios, earnings

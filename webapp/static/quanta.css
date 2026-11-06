@@ -8823,3 +8823,12 @@ html.lc-locked { overflow: hidden; }
 .score-note { display: block; font-size: var(--fs-2xs); font-weight: 400; color: var(--text-muted); }
 .rp-since { font-size: var(--fs-2xs); font-weight: 400; color: var(--text-muted); white-space: nowrap; }
 .rp-since::before { content: "\00b7\00a0"; }
+
+/* AI brief on the Research Decision panel (core/ai/brief.py): off unless enabled. */
+.ai-brief .ai-brief-list { margin: var(--sp-2) 0; padding-left: 1.1em; }
+.ai-brief .ai-brief-list li { margin-bottom: var(--sp-1); }
+.ai-brief .ai-cites { font-size: var(--fs-2xs); }
+.ai-brief .ai-brief-cases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-4); }
+.ai-brief .ai-brief-cases h4 { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); }
+.ai-brief .ai-brief-foot { font-size: var(--fs-2xs); }
+@media (max-width: 560px) { .ai-brief .ai-brief-cases { grid-template-columns: minmax(0, 1fr); } }

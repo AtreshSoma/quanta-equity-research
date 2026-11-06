@@ -2407,6 +2407,42 @@ function trackStateHtml({ title, body, actions = '', tone = '' }) {
   </div>`;
 }
 
+// [PURE] The checked AI brief (core/ai/brief.py): three short lists, each sentence
+// with the Decision fields it was written from. The server shows nothing that
+// failed its checks; this renders what it returns, or why there is nothing.
+function aiBriefHtml(res) {
+  const head = '<h3 class="section-kicker">AI brief <span class="muted">explains the Decision above; it does not make a call</span></h3>';
+  if (!res) return `${head}<p class="muted">Writes a plain-English summary and the case for and against, from this Decision only. Every number is checked against it before it is shown.</p><button type="button" class="q-btn" data-ai-brief-go>Write an AI brief</button>`;
+  if (res.pending) return `${head}<p class="muted" role="status">Writing and checking the brief…</p>`;
+  if (res.status !== 'ok') {
+    const why = res.status === 'rejected'
+      ? `Withheld: ${(res.findings || []).length} statement${(res.findings || []).length === 1 ? '' : 's'} could not be traced to this Decision.`
+      : res.status === 'refused' ? 'The model declined to write this brief.' : (res.reason || 'Unavailable.');
+    return `${head}<p class="muted" role="status">${escapeHtml(why)} The interpretation above stands on its own.</p>`;
+  }
+  const list = (items) => `<ul class="ai-brief-list">${(items || []).map((it) => `<li><span>${escapeHtml(it.text)}</span> <small class="muted ai-cites" title="Written from these Decision fields">${escapeHtml((it.cites || []).join(', '))}</small></li>`).join('')}</ul>`;
+  return `${head}${list(res.brief)}
+    <div class="ai-brief-cases"><div><h4>The case for</h4>${list(res.bull)}</div><div><h4>The case against</h4>${list(res.bear)}</div></div>
+    <p class="muted ai-brief-foot">Written by ${escapeHtml(res.model || 'a language model')}${res.from_cache ? ' (saved earlier for this Decision)' : ''}; every number was checked against the Decision. Research output, not investment advice.</p>`;
+}
+
+// Shown only when the server says the brief is on; writes only when asked.
+function mountAiBrief(container, decision) {
+  const card = container && container.querySelector('[data-ai-brief]');
+  if (!card || !decision || typeof fetch !== 'function') return;
+  fetch('/api/research/brief/status').then((r) => r.json()).then((st) => {
+    if (!st || !st.available || !card.isConnected) return;
+    card.innerHTML = aiBriefHtml(null);
+    card.hidden = false;
+    card.querySelector('[data-ai-brief-go]')?.addEventListener('click', () => {
+      card.innerHTML = aiBriefHtml({ pending: true });
+      fetch('/api/research/brief', { method: 'POST', headers: { ...QUANTA_POST_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ decision }) })
+        .then((r) => r.json()).then((res) => { card.innerHTML = aiBriefHtml(res); })
+        .catch(() => { card.innerHTML = aiBriefHtml({ status: 'unavailable', reason: 'The request failed.' }); });
+    });
+  }).catch(() => {});
+}
+
 // Model freeze: how many of an engine's calls the code running now produced.
 // A record only counts as evidence for code that did not change during it.
 function trackFreezeNote(e) {
@@ -13529,7 +13565,7 @@ function renderAnalysis(data) {
       </nav>
 
       <div class="ts-panels">
-      ${panel('decision', TS_SECTIONS.decision, chapter('decision', 'Decision', 'Authoritative', '<article class="section-card ts-span" data-call-history hidden></article>' + (engineBlockers ? '' : whyNotBuyHtml(finalActionInfo, validationSummary, { omitHeadline: primaryBlocker ? primaryBlocker.text : '', primaryCode: primaryBlocker ? primaryBlocker.code || '' : '' }))
+      ${panel('decision', TS_SECTIONS.decision, chapter('decision', 'Decision', 'Authoritative', '<article class="section-card ts-span" data-call-history hidden></article><article class="section-card ts-span ai-brief" data-ai-brief hidden></article>' + (engineBlockers ? '' : whyNotBuyHtml(finalActionInfo, validationSummary, { omitHeadline: primaryBlocker ? primaryBlocker.text : '', primaryCode: primaryBlocker ? primaryBlocker.code || '' : '' }))
         + invalidationCard
         + renderActionOrHolderPlan(data, { sym, currentPrice, baseTgt, bearTgt, bullTgt, stopL, entryP, sharedRRLabel, railEntry: heroEntry, railStop: heroStop, sizingHtml, held: !!data.has_existing_position })
         + guidance))}
@@ -13559,6 +13595,7 @@ function renderAnalysis(data) {
   `;
   container.innerHTML = html;
   buildTearSheetNav(container);
+  mountAiBrief(container, decision);
   wirePriceChart(container);
   // The live chart draws the Decision's own stop and target, named as the
   // Decision names them; levels far outside the range are listed under it.
@@ -14832,6 +14869,8 @@ if (typeof module !== 'undefined' && module.exports) {
     shadowModelLineHtml,
     // Evidence clock (2026-11-06): progress of the current model version to its test.
     trackClockNote, trackFreezeNote,
+    // AI brief (2026-11-06): the checked explanation panel.
+    aiBriefHtml,
     // Completed-bar scoring (2026-10-29): the "scored through" note.
     indicatorBasisHtml,
     // Discover (2026-10-20): odds, revisions, causes, the read and the status line.

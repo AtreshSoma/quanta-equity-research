@@ -677,6 +677,8 @@ Set these in your shell or in `.env` (copy `.env.example`). Every one is optiona
 | `QUANTA_PYTHON` | first Python with pandas | Interpreter for the Windows daily job (`scripts/quanta_daily.ps1`) |
 | `QUANTA_VERSION` | git commit | The build label in the footer |
 | `POLYGON_API_KEY`, `FINNHUB_API_KEY`, `FMP_API_KEY`, `ALPHA_VANTAGE_KEY` | none | Optional providers; the default path needs none |
+| `QUANTA_AI_BRIEF` | unset | `1` offers an AI brief on the Research Decision panel (`core/ai/brief.py`, needs `pip install -e ".[ai]"` and Anthropic credentials such as `ANTHROPIC_API_KEY`). It explains the Decision, never changes it, runs only when you press the button, and is withheld unless every sentence's citations and numbers check out against the Decision. Each brief is one paid API call, saved and reused for the same Decision |
+| `QUANTA_AI_MODEL`, `QUANTA_AI_EFFORT` | `claude-opus-5-5`, `medium` | Model and effort for the AI brief |
 
 ### Engine knobs
 

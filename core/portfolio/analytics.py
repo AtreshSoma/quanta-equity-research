@@ -15,7 +15,11 @@ from dataclasses import asdict, dataclass, field
 from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
 
+import numpy as np
+
 from engine.thresholds import PORTFOLIO as _PF
+
+from .covariance import ledoit_wolf
 
 TRADING_DAYS = 252
 MIN_RETURN_DAYS = 60          # below this, volatility/correlation are not reported
@@ -164,11 +168,17 @@ def volatility_and_correlation(holdings: Sequence[Holding], returns: Any,
                coverage=cov_value / invested if invested else 0.0, days=int(len(frame)))
     # Each holding's share of the covered book's variance (Euler contribution
     # w_i * (Cov w)_i / w'Cov w). Shares sum to 1; a diversifier can be negative.
-    cov = frame.cov()
-    var = float(sum(w[i] * w[j] * cov.iloc[i, j] for i in range(len(cols)) for j in range(len(cols))))
+    # The covariance is Ledoit-Wolf shrunk towards constant correlation, so the
+    # shares do not swing with the noise in single pairwise covariances.
+    shrunk = ledoit_wolf(frame.to_numpy(dtype=float))
+    cov = shrunk["cov"]
+    wv = np.asarray(w, dtype=float)
+    var = float(wv @ cov @ wv)
     if var > 0 and math.isfinite(var):
-        out["risk_share"] = {c: float(w[i] * sum(cov.iloc[i, j] * w[j] for j in range(len(cols))) / var)
-                             for i, c in enumerate(cols)}
+        contrib = wv * (cov @ wv) / var
+        out["risk_share"] = {c: float(contrib[i]) for i, c in enumerate(cols)}
+    out["covariance"] = {"method": shrunk["method"], "shrinkage": shrunk["shrinkage"],
+                         "avg_correlation": shrunk["avg_correlation"]}
     if len(cols) >= 2:
         corr = frame.corr()
         pairs, vals = [], []

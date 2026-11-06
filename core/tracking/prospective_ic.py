@@ -122,9 +122,23 @@ def _fingerprint_report(rows: List[Dict[str, Any]], horizon_days: int) -> Dict[s
     }
 
 
+def fingerprint_of(row: Dict[str, Any]) -> str:
+    """The fingerprint a row is grouped by: its model fingerprint when it has one.
+
+    Rows recorded before the model fingerprint existed carry only the raw-byte
+    code fingerprint; they are grouped under it (prefixed ``code:``), never merged
+    with model-fingerprint groups.
+    """
+    model = row.get("model_fingerprint")
+    if model:
+        return str(model)
+    code = row.get("code_fingerprint")
+    return f"code:{code}" if code else "unknown"
+
+
 def prospective_ic(ledger: SignalLedger, engine: str, horizon_days: int = 63,
                    since: str = REGISTERED_ON, strategy: Optional[str] = None) -> Dict[str, Any]:
-    """The primary test for ``engine`` (e.g. "elite_v3_shadow"), per code fingerprint.
+    """The primary test for ``engine`` (e.g. "elite_v3_shadow"), per model fingerprint.
 
     ``verdict`` reads the fingerprint with the most resolved calls; every
     fingerprint is reported so a reader can see nothing was pooled.
@@ -132,7 +146,7 @@ def prospective_ic(ledger: SignalLedger, engine: str, horizon_days: int = 63,
     rows = _eligible(ledger.rows(engine=engine, resolved=True), horizon_days, since, strategy)
     by_fp: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for r in rows:
-        by_fp[str(r.get("code_fingerprint") or "unknown")].append(r)
+        by_fp[fingerprint_of(r)].append(r)
     reports = {fp: _fingerprint_report(rs, horizon_days) for fp, rs in by_fp.items()}
     primary_fp = max(reports, key=lambda fp: reports[fp]["n_resolved_calls"]) if reports else None
     primary = reports.get(primary_fp) if primary_fp else None
@@ -184,3 +198,33 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(main())
+
+
+def evidence_clock(rows: Sequence[Dict[str, Any]], model_fp: str,
+                   horizon_days: Optional[int] = None) -> Dict[str, Any]:
+    """How far the current model version is from the pre-registered minimum sample.
+
+    Counts the rows recorded under ``model_fp`` and, of those resolved at
+    ``horizon_days`` (the engine's most-recorded horizon when not given), the
+    resolved calls and the publication dates whose horizons do not overlap.
+    Descriptive only: it says when a verdict becomes possible, not what it is.
+    """
+    mine = [r for r in rows if fingerprint_of(r) == model_fp]
+    if horizon_days is None:
+        counts: Dict[int, int] = defaultdict(int)
+        for r in mine:
+            counts[int(r.get("horizon_days") or 0)] += 1
+        horizon_days = max(counts, key=lambda h: (counts[h], h)) if counts else None
+    resolved = [r for r in mine if r.get("outcome")
+                and (horizon_days is None or int(r.get("horizon_days") or 0) == horizon_days)]
+    dates = _independent_dates(sorted({str(r.get("as_of_date")) for r in resolved}), horizon_days)
+    return {
+        "model_fingerprint": model_fp,
+        "horizon_days": horizon_days,
+        "recorded": len(mine),
+        "resolved": len(resolved),
+        "independent_dates": len(dates),
+        "min_calls": MIN_SAMPLE,
+        "min_independent_dates": _EVIDENCE.MIN_DATES,
+        "ready": len(resolved) >= MIN_SAMPLE and len(dates) >= _EVIDENCE.MIN_DATES,
+    }

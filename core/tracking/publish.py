@@ -43,12 +43,16 @@ CALL_FIELDS = (
     "stance", "action", "label", "evidence_status", "score", "reference_price",
     "target_price", "stop_price", "benchmark", "code_fingerprint", "git_commit",
 )
+# Rows recorded with a model fingerprint or captured inputs also fix those two.
+# Rows published before they existed keep their original hash (both cells empty),
+# so the existing record still verifies.
+CALL_FIELDS_V2 = CALL_FIELDS + ("model_fingerprint", "inputs_hash")
 # Filled in when the horizon resolves; fixed from then on.
 OUTCOME_FIELDS = (
     "entry_date", "entry_price", "exit_date", "exit_close", "return_pct",
     "benchmark_return_pct", "excess_return_pct", "first_touch", "outcome", "resolved_at",
 )
-COLUMNS = ("id",) + CALL_FIELDS + ("call_hash",) + OUTCOME_FIELDS + ("outcome_hash",)
+COLUMNS = ("id",) + CALL_FIELDS_V2 + ("call_hash",) + OUTCOME_FIELDS + ("outcome_hash",)
 
 
 def _cell(value: Any) -> str:
@@ -65,7 +69,8 @@ def _digest(row: Dict[str, Any], fields) -> str:
 
 
 def call_hash(row: Dict[str, Any]) -> str:
-    return _digest(row, CALL_FIELDS)
+    v2 = _cell(row.get("model_fingerprint")) or _cell(row.get("inputs_hash"))
+    return _digest(row, CALL_FIELDS_V2 if v2 else CALL_FIELDS)
 
 
 def outcome_hash(row: Dict[str, Any]) -> str:

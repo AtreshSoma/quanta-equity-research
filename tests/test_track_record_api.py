@@ -52,6 +52,11 @@ def test_recorded_call_appears_pending_with_its_published_label(ledger):
     assert body["totals"]["pending"] == 1
     elite = next(e for e in body["engines"] if e["engine"] == "elite")
     assert len(elite["code_fingerprint"]) == 64 and elite["recorded_on_current_code"] == 1
+    # Evidence clock (P1-6): the current model version's progress to its test sample.
+    clock = elite["evidence_clock"]
+    assert clock["model_fingerprint"] == elite["model_fingerprint"]
+    assert clock["recorded"] == 1 and clock["resolved"] == 0 and clock["ready"] is False
+    assert clock["min_calls"] == body["min_sample"]
     assert body["recent"][0]["ticker"] == "AAPL"
     assert body["recent"][0]["label"] == "BUY"   # the call as published; evidence is reported beside it
     group = body["groups"][0]

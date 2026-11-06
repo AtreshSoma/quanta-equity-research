@@ -92,10 +92,46 @@ def test_fingerprints_are_never_pooled(ledger):
     _fill(ledger, "elite_v3_shadow", n_dates=4, skill=-3.0, fp="fpB", seed=9,
           start=date(2026, 11, 2))
     out = pic.prospective_ic(ledger, "elite_v3_shadow")
-    assert set(out["by_fingerprint"]) == {"fpA", "fpB"}
-    assert out["primary_fingerprint"] == "fpA"
-    assert out["by_fingerprint"]["fpA"]["n_resolved_calls"] == 12 * len(TICKERS)
+    # Rows with no model fingerprint (recorded before it existed) group under
+    # their raw-byte code fingerprint, marked as such.
+    assert set(out["by_fingerprint"]) == {"code:fpA", "code:fpB"}
+    assert out["primary_fingerprint"] == "code:fpA"
+    assert out["by_fingerprint"]["code:fpA"]["n_resolved_calls"] == 12 * len(TICKERS)
     assert out["verdict"] == "pass"
+
+
+def test_rows_group_by_model_fingerprint_across_code_edits(ledger):
+    """Two raw-byte fingerprints with one model fingerprint are one model version."""
+    _fill(ledger, "elite_v3_shadow", n_dates=6, skill=1.5, fp="fpA")
+    _fill(ledger, "elite_v3_shadow", n_dates=6, skill=1.5, fp="fpB", seed=3,
+          start=date(2028, 6, 1))
+    with ledger._connect() as con:
+        con.execute("UPDATE signals SET model_fingerprint='mfp1'")
+    out = pic.prospective_ic(ledger, "elite_v3_shadow")
+    assert set(out["by_fingerprint"]) == {"mfp1"}
+    assert out["by_fingerprint"]["mfp1"]["n_resolved_calls"] == 12 * len(TICKERS)
+
+
+def test_a_model_fingerprint_is_never_pooled_with_legacy_rows(ledger):
+    _fill(ledger, "elite_v3_shadow", n_dates=4, skill=1.5, fp="fpA")
+    with ledger._connect() as con:
+        con.execute("UPDATE signals SET model_fingerprint='fpA' WHERE ticker IN ('T00', 'T01')")
+    out = pic.prospective_ic(ledger, "elite_v3_shadow")
+    assert set(out["by_fingerprint"]) == {"fpA", "code:fpA"}
+
+
+def test_evidence_clock_counts_one_model_version(ledger):
+    _fill(ledger, "elite", n_dates=12, skill=0.0, fp="fpA")
+    with ledger._connect() as con:
+        con.execute("UPDATE signals SET model_fingerprint='m1'")
+    rows = ledger.rows(engine="elite")
+    clock = pic.evidence_clock(rows, "m1")
+    assert clock["horizon_days"] == 63 and clock["recorded"] == 12 * len(TICKERS)
+    assert clock["resolved"] == 12 * len(TICKERS)
+    assert clock["independent_dates"] == 12 and clock["ready"] is True
+    assert pic.evidence_clock(rows, "other")["recorded"] == 0
+    thin = pic.evidence_clock(rows[:len(TICKERS)], "m1")
+    assert thin["independent_dates"] == 1 and thin["ready"] is False
 
 
 def test_rows_before_registration_and_other_horizons_are_ignored(ledger):

@@ -8167,6 +8167,29 @@ def research_enrich_api():
     return jsonify(_safe_serialize({"symbol": sym, "read": done.get("r"), "pending": len(pending), "as_of": _now_iso()}))
 
 
+@app.route("/api/research/brief/status")
+def research_brief_status_api():
+    """Whether the grounded AI brief can run here (core/ai/brief.py). Makes no request."""
+    from ai import brief as _brief
+    return jsonify(_brief.status())
+
+
+@app.route("/api/research/brief", methods=["POST"])
+def research_brief_api():
+    """One checked AI brief for the Decision the tear sheet already shows.
+
+    The browser sends back the ``decision`` object it received from the analysis
+    job; the brief explains that object and is checked against it field by field
+    (ai.brief.verify). Off unless QUANTA_AI_BRIEF=1; runs only when the reader asks.
+    """
+    from ai import brief as _brief
+    body = request.get_json(silent=True) or {}
+    decision = body.get("decision")
+    if not isinstance(decision, dict) or not decision.get("ticker"):
+        return jsonify({"status": "unavailable", "reason": "decision is required"}), 400
+    return jsonify(_safe_serialize(_brief.write_brief(decision)))
+
+
 @app.route("/api/research/history")
 def research_history_api():
     """The Research calls recorded for one ticker (tracking.ledger), newest first."""

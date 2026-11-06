@@ -80,6 +80,10 @@ ui = [
 mcp = [
     "mcp[cli]>=1.0",
 ]
+# Grounded AI research brief (core/ai/brief.py), off unless QUANTA_AI_BRIEF=1.
+ai = [
+    "anthropic>=2.6",
+]
 # Optional data providers and analyzers, all import-guarded.
 providers = [
     "polygon-api-client>=1.14",

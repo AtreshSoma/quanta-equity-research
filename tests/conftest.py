@@ -170,6 +170,21 @@ def _no_news_network(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_stooq_network(monkeypatch):
+    """Keep unit tests off Stooq: when a fake Yahoo returns nothing, the market-data
+    gateway (core/marketdata/gateway.py) would otherwise fall back to a live
+    Stooq request. Tests of the fallback install their own fetcher."""
+    from marketdata import gateway
+
+    def _offline(url):
+        raise ConnectionError("Stooq is not reachable from unit tests")
+
+    monkeypatch.setattr(gateway, "STOOQ_GET", _offline)
+    monkeypatch.setattr(gateway, "_stooq_failures", 0)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _fresh_market_trend_cache(monkeypatch):
     """Give every test an empty market-read trend cache (webapp ``app``).
 

@@ -773,18 +773,21 @@ def _group_stats(key: Dict[str, Any], members: List[Dict[str, Any]]) -> GroupSta
 
 
 def yfinance_loader(ticker: str, start: _date, end: _date):
-    """Default price loader: adjusted daily bars from yfinance."""
-    import pandas as pd
-    import yfinance as yf
+    """Default price loader: adjusted daily bars from yfinance, through the gateway.
 
-    frame = yf.download(ticker, start=start.isoformat(),
-                        end=(pd.Timestamp(end) + pd.Timedelta(days=1)).date().isoformat(),
-                        auto_adjust=True, progress=False, threads=False)
-    if frame is None or frame.empty:
-        return frame
-    if isinstance(frame.columns, pd.MultiIndex):
-        frame.columns = frame.columns.get_level_values(0)
-    return frame
+    Yahoo only: a call and its benchmark must be measured on one source, so no
+    fallback provider is tried here. An empty answer returns an empty frame,
+    as before, and the call stays pending.
+    """
+    import pandas as pd
+    from marketdata.gateway import DataUnavailable, price_bars
+
+    try:
+        return price_bars(ticker, start=start, end=end, adjusted=True, providers=("yfinance",)).data
+    except DataUnavailable as exc:
+        if all(a["result"] == "no rows" for a in exc.attempts):
+            return pd.DataFrame()
+        raise RuntimeError(exc.attempts[0]["result"]) from exc
 
 
 def call_history(rows: Iterable[Dict[str, Any]], horizon_days: int, limit: int = 8) -> List[Dict[str, Any]]:

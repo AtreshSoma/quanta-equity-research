@@ -13,9 +13,9 @@ Branch `audit/roadmap-p0-p1`, from `main` at `ce1e9b4`. 2026-11-06. Not pushed, 
 | `pip-audit` on `webapp/constraints.txt` | 2 advisories | **no known vulnerabilities** |
 | `python -m tracking verify` on the committed `track_record/` | ok | ok (tested) |
 
-Not verified on the branch: Playwright e2e and accessibility, live-network runs (cold dashboard,
-scans, live yfinance 1.4.1 data), and a live Claude API call (no credentials on this machine; no
-money was spent).
+Verified in the second round (below): live yfinance 1.4.1 analyses and the full browser suite.
+Still not verified: a full live Picks scan (needs `QUANTA_SEC_CONTACT`, not set on this machine) and
+a live Claude API call (no credentials here; no money was spent).
 
 ## Done
 
@@ -35,6 +35,16 @@ money was spent).
 | P1-4 Factor attribution (+E3) | `b6fca72` | Fama-French 5 + momentum loadings of the book with Newey-West intervals, from the Ken French library (downloaded in the background job, cached a week, last good copy on failure); card in Risk exposure | Real data: SPY market beta 0.99 (R² 0.99), IWM size +0.87, QQQ market 1.14 |
 | P1-5 AI brief (+P2-1, E2) | `9a25d07` | Optional one-call Claude brief (`claude-opus-5-5`, server-side fallbacks, structured output) with summary, case for and case against; shown only if every citation resolves and `check_narrative` passes; off unless `QUANTA_AI_BRIEF=1`; written only on a button press; cached per Decision | Stub-tested (13 Python, 3 JS tests); not live-tested |
 | P1-2 Gateway, phase 1 | `031853c` | `core/marketdata/gateway.py`: `price_bars()` with ordered fallback (Yahoo, then Stooq for unadjusted US requests, split-cliff refused, circuit breaker) and a provenance envelope; Plan Lab, two MCP tools and the ledger loader migrated | Direct yfinance call sites 86 → 82 |
+
+## Second round (2026-11-06, after review)
+
+| Step | Commit | Result |
+|---|---|---|
+| Live check on yfinance 1.4.1 | `9f9d1c5` | AAPL, JPM, XOM, SPY and RELIANCE.NS analysed live in 2-4 s each with labels, levels, v4 shadow and the control model. RELIANCE.NS (a completed session) was recorded into a scratch ledger with its inputs, model fingerprint and provenance; the four US names were correctly not recorded (today's bar was still trading). Factor download live: 15,918 days through 2026-09-30 |
+| Stooq | `9f9d1c5` | **Stooq now answers scripted requests with a JavaScript browser-check page**, so the fallback cannot serve data. The gateway now names that page as a refusal and switches Stooq off after three; README updated. QUANTA does not try to get past the check. The short-term scanner's older Stooq path reads the page as "no data" and keeps trying per ticker (small cost; left as is because it is engine code) |
+| Model freeze | `f98eea3` | `python -m tracking.freeze set/release/status`, enforced by `tests/test_model_freeze.py` once a freeze exists, shown on the Evidence page. Opt-in: nothing is frozen yet |
+| Browser suite, CI set | — | 66 / 66 passed (desktop dark and phone; includes WCAG 2.1 AA checks on Research and Evidence) |
+| Browser suite, full (528 tests, 4 device profiles, live Yahoo) | this commit | 516 passed, 4 skipped, 8 failed. Four desktop failures (Discover and Guide accessibility, Discover links, Guide progress bar) were timeouts under load and pass when re-run alone. The other four were one test failing on every profile, already on `main`: it expected three stylesheets after Plan Lab and News & Events added two more. Updated; its spec now passes 24 / 24 |
 
 ## Changed from the plan
 

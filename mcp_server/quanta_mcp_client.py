@@ -12,7 +12,6 @@ This is useful for testing the MCP server without VS Code.
 """
 
 import asyncio
-import json
 import re
 import sys
 import os

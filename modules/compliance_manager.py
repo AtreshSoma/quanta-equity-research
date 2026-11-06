@@ -13,8 +13,8 @@ import json
 import os
 import sys
 from datetime import datetime, timedelta
-from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Optional, Set
+from dataclasses import dataclass, asdict
+from typing import List, Dict, Optional
 from enum import Enum
 import logging
 

@@ -24,7 +24,7 @@ from _paths import ensure_paths  # noqa: E402
 
 ensure_paths(webapp=True)
 
-from brokers import mcp_http, oauth, security  # noqa: E402
+from brokers import oauth, security  # noqa: E402
 from brokers.mcp_http import McpHttpClient, ToolNotPermitted, is_write_tool  # noqa: E402
 from brokers.redact import RedactingFilter, redact, register_sensitive  # noqa: E402
 from brokers.robinhood import READ_TOOLS, RobinhoodProvider  # noqa: E402

@@ -9,7 +9,6 @@ import time
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from urllib.parse import urlsplit
-import pandas as pd
 from config import API_KEYS, RATE_LIMITER
 
 logger = logging.getLogger(__name__)

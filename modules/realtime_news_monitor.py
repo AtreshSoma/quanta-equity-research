@@ -16,7 +16,6 @@ import threading
 from datetime import datetime, timedelta
 from typing import List, Dict, Callable, Optional, Set
 from dataclasses import dataclass
-from collections import defaultdict
 import hashlib
 
 logger = logging.getLogger("QUANTA.RealtimeMonitor")

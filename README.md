@@ -590,8 +590,8 @@ roughly 9 to 11 s floor; widening the pool would trade it for rate-limit failure
 
 **Where the next gains are.** `app.js` (820 KB) and `quanta.css` (624 KB) are served unminified,
 and the My Portfolio scripts (about 440 KB raw) load on every page. Splitting those out, or
-minifying, would cut parse time on a first visit; both change the load order the 746-test
-JavaScript suite relies on, so they are left as a deliberate follow-up.
+minifying, would cut parse time on a first visit; both change the load order the JavaScript unit
+suite relies on, so they are left as a deliberate follow-up.
 
 ---
 
@@ -801,12 +801,10 @@ must be acknowledged by re-freezing the snapshot in the same commit.
 ruff check .          # the CI gate
 ```
 
-Line length 100, target `py311`. The lint gate is **errors only** (`E9`, `F63`, `F7`, `F82`):
-syntax errors, broken comparisons, misplaced control flow, undefined names. Things that are always
-wrong.
-
-Known debt, deliberately not gated yet: ~107 `F401` unused-import findings across `core/`,
-`modules/` and `mcp_server/`. See them with `ruff check . --select F401`.
+Line length 100, target `py311`. The lint gate is **errors and unused imports**: syntax errors,
+broken comparisons, misplaced control flow, undefined names (`E9`, `F63`, `F7`, `F82` and a few
+more listed in `pyproject.toml`), and unused imports (`F401`). An import kept only to test whether
+an optional package is installed carries `# noqa: F401`.
 
 ### CI
 

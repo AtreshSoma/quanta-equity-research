@@ -11,7 +11,6 @@ The engine runs for real on synthetic providers: no network, no account data.
 from __future__ import annotations
 
 import sys
-import threading
 import time
 import types
 from pathlib import Path
@@ -229,7 +228,6 @@ def test_the_sizing_count_is_the_first_pass_not_overwritten_by_backfill(monkeypa
 # ── the worker: classification and independent row caps ────────────────────
 
 def _fake_engine_module(recs, universe=8):
-    from test_elite_pro_review2_fixes import _bare_system
 
     class _Eng:
         def __init__(self, capital, market):

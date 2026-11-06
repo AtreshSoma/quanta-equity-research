@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import pytest
 
-import SP_ELITE_PRO as sp
 from engine import levels as L
 from engine import thresholds as T
 

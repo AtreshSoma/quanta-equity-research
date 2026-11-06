@@ -7,7 +7,6 @@ bug was invisible there; India falls through to `_ticker_intel`.
 Run: python -m pytest tests/test_ticker_intel_fastinfo.py -q
 """
 import importlib.util
-import math
 import os
 import sys
 

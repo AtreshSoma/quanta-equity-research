@@ -24,14 +24,11 @@ FEATURES:
 
 import pandas as pd
 import numpy as np
-import yfinance as yf
-from typing import Dict, List, Tuple, Optional, Any, Callable
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any, Callable
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 import logging
-from scipy import stats
-from concurrent.futures import ProcessPoolExecutor, as_completed
 import warnings
 warnings.filterwarnings('ignore')
 

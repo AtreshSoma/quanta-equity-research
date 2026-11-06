@@ -17,7 +17,6 @@ import importlib
 import sys
 from pathlib import Path
 
-import pytest
 import requests
 
 MODULES = Path(__file__).resolve().parents[1] / "modules"

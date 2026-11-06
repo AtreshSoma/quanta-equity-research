@@ -10,7 +10,6 @@ from __future__ import annotations
 import ssl
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
 import app as webapp
 

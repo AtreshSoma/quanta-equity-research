@@ -1,9 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # Add project root
-import types
 import pandas as pd
-import numpy as np
 from data_validator import DataValidator
 
 # Create bad data

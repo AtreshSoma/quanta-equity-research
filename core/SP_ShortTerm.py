@@ -314,7 +314,6 @@ from engine.decision import (  # noqa: E402
     SWING,
     Decision,
     Horizon,
-    Scenario,
     SourceRef,
     assess_price_freshness,
 )

@@ -147,17 +147,13 @@ extend-exclude = [
 # The CI gate is errors only: syntax errors, broken comparisons, misplaced
 # control flow, and undefined names. These are things that are always wrong.
 #
-# KNOWN DEBT, deliberately not gated yet: 107 F401 (unused import) findings
-# across core/ (49), modules/ (39), mcp_server/ (13) and tests/ (6). They are
-# real cruft, but removing 107 imports is a reviewable change of its own and
-# some are re-exports or imported for side effects. Phase 1 clears them as part
-# of the decomposition, with the golden master to prove nothing moved. Until
-# then, see the current list with:
-#     ruff check . --select F401
+# Unused imports (F401) are gated since 2026-11-06, when the last 110 were
+# removed. The 17 kept imports sit inside ``try:`` blocks that only test whether
+# an optional package is available; each carries ``# noqa: F401``.
 # Also gated (no findings when added, 2026-10-22, so they only block regressions):
 # comparisons to None/True/False with ==, type() equality, repeated dict keys,
 # and pylint's error class.
-select = ["E9", "F63", "F7", "F82", "E711", "E712", "E721", "F601", "PLE"]
+select = ["E9", "F63", "F7", "F82", "E711", "E712", "E721", "F601", "PLE", "F401"]
 
 [tool.ruff.lint.per-file-ignores]
 # Test modules must bootstrap sys.path before importing engine code, so their

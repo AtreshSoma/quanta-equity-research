@@ -10,7 +10,7 @@ reason and action. Synthetic filings only.
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 from _paths import ensure_paths
 

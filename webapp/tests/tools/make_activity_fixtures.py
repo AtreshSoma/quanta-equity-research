@@ -15,7 +15,6 @@ no_figure_bucket (a Robinhood bucket with closing trades but no figure), short_w
 """
 import json
 import sys
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 _ENGINE = Path(__file__).resolve().parents[3]

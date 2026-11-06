@@ -56,7 +56,7 @@ else:
     ADVANCED_TARGETS_AVAILABLE = False
 
 try:
-    from textblob import TextBlob
+    from textblob import TextBlob  # noqa: F401 - availability check
     TEXTBLOB_AVAILABLE = True
 except ImportError:
     TEXTBLOB_AVAILABLE = False

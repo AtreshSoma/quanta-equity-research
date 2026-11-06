@@ -1,7 +1,6 @@
 import pandas as pd
-import numpy as np
 import logging
-from typing import Tuple, List, Optional
+from typing import List
 from dataclasses import dataclass
 
 logger = logging.getLogger("DataValidator")

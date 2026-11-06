@@ -8,7 +8,6 @@ from datetime import date, datetime, timezone
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from engine import bars
 from engine.market_calendar import early_close_time

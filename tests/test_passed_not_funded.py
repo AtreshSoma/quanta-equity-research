@@ -7,7 +7,6 @@ rule and then appeared nowhere: selection only logged why. Synthetic names.
 """
 from __future__ import annotations
 
-import pytest
 
 from _paths import ensure_paths
 

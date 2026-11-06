@@ -134,16 +134,18 @@ def load_bars(symbol: str) -> pd.DataFrame:
     ``_cached_history``), so this call shares the cache the Research page uses.
     Empty responses are not cached upstream, so a retry reaches the provider.
     """
-    import yfinance as yf
+    from marketdata.gateway import DataUnavailable, price_bars
 
     try:
-        frame = yf.Ticker(symbol).history(period="5y", interval="1d", auto_adjust=False)
-    except Exception as exc:  # noqa: BLE001 - the provider error is not shown
-        log.info("Daily bars for %s unavailable: %s", symbol, type(exc).__name__)
+        env = price_bars(symbol, "5y", adjusted=False)
+    except DataUnavailable as exc:
+        log.info("Daily bars for %s unavailable: %s", symbol, exc.attempts)
+        if all(a["result"] == "no rows" for a in exc.attempts[:1]):
+            raise PlanDataError("No daily price bars were returned for this symbol.") from exc
         raise PlanDataError("Price bars could not be fetched right now.") from exc
-    if frame is None or getattr(frame, "empty", True):
-        raise PlanDataError("No daily price bars were returned for this symbol.")
-    return frame
+    for note in env.warnings:
+        log.info("Daily bars for %s: %s", symbol, note)
+    return env.data
 
 
 # The web app's tear-sheet cache reader, registered by init_plan(app, ...).

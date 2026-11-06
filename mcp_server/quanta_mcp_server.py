@@ -1777,13 +1777,14 @@ def plan_simulate(ticker: str, entry: float, stop: float, target: float,
         return _json({"error": "invalid ticker"})
     if drift not in ("zero", "historical"):
         return _json({"error": "drift must be 'zero' or 'historical'"})
+    from marketdata.gateway import DataUnavailable, price_bars
     try:
-        import yfinance as yf
-        bars = yf.Ticker(sym).history(period="5y", interval="1d", auto_adjust=False)
-    except Exception as exc:  # noqa: BLE001
-        return _json({"error": f"price bars unavailable: {type(exc).__name__}", "ticker": sym})
-    if bars is None or bars.empty:
-        return _json({"error": "no daily bars returned", "ticker": sym})
+        bars = price_bars(sym, "5y", adjusted=False).data
+    except DataUnavailable as exc:
+        if all(a["result"] == "no rows" for a in exc.attempts):
+            return _json({"error": "no daily bars returned", "ticker": sym})
+        return _json({"error": f"price bars unavailable: {exc.attempts[0]['result'].split(':')[0]}",
+                      "ticker": sym})
     try:
         out = _plan_sim.simulate_plan(bars, entry=entry, stop=stop, target=target,
                                       horizon_sessions=int(horizon_sessions), paths=int(paths),
@@ -1826,8 +1827,11 @@ def material_filings(ticker: str, days: int = 90) -> str:
     from engine import sec_events as _se_mod
 
     def _bars(symbol: str):
-        import yfinance as yf
-        return yf.Ticker(symbol).history(period="5y", interval="1d", auto_adjust=False)
+        from marketdata.gateway import DataUnavailable, price_bars
+        try:
+            return price_bars(symbol, "5y", adjusted=False).data
+        except DataUnavailable:
+            return None
 
     try:
         today = _date.today()

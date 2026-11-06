@@ -38,10 +38,10 @@ dependencies = [
     "pandas>=2.1",
     # Live index constituents and sector metadata use pandas.read_html.
     "lxml>=4.9",
-    "requests>=2.31",
+    "requests>=2.33.0",  # PYSEC-2026-2275 fixed in 2.33.0
     "rich>=13.0",
     "ta>=0.11",
-    "yfinance>=0.2.40",
+    "yfinance>=1.4.1",  # older releases cap curl_cffi below 0.14 (PYSEC-2026-2431)
     # Guarded at the import site but exercised on the default path.
     "vaderSentiment>=3.3",
     "python-dateutil>=2.8",

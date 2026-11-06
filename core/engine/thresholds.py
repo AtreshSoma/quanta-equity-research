@@ -744,6 +744,17 @@ class RESEARCH_V4(_Group):
     PLAUSIBLE_RATIO = 3.0
 
 
+# Free-factor control model (engine/factor_baseline.py), pre-registered
+# 2026-11-06 in docs/preregistration/factor_baseline_v1.md. It is scored in
+# shadow beside every Research call so the prospective record compares the
+# composite with the free factor it has not beaten in backtests.
+class FACTOR_BASELINE(_Group):
+    WEIGHTS = {"momentum": 0.5, "quality": 0.5}
+    MOMENTUM_SATURATION = 0.50      # a 12-1 return of +/-50% maps to a 100 / 0 momentum leg
+    LOOKBACK_DAYS = 365             # calendar days: the same 12-1 definition as apex_quant
+    SKIP_DAYS = 30                  # ... skipping the most recent month
+
+
 # ── Research engine overrides (TradingAnalysis_ELITE) ────────────────────────
 
 class RESEARCH(_Group):
@@ -1083,7 +1094,7 @@ class SHORTTERM(_Group):
 
 
 GROUPS = (CAPITAL, UNIVERSE, SHORTTERM, CHASE, SCORE, RR, INSIDER, COMMITTEE, REGIME, MARKET, BOOK, SIZING, COSTS, LEVELS,
-          RISK_GRADE, LADDER, RESEARCH, RESEARCH_V4, PORTFOLIO, EVENTS, EVIDENCE, UI, CHECKLIST, STYLE, ETF, WHY,
+          RISK_GRADE, LADDER, RESEARCH, RESEARCH_V4, FACTOR_BASELINE, PORTFOLIO, EVENTS, EVIDENCE, UI, CHECKLIST, STYLE, ETF, WHY,
           SAVED_SCANS)
 
 

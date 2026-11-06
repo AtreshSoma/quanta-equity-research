@@ -133,6 +133,15 @@
   "MIN_DATES": 10,
   "MIN_SAMPLE": 30
  },
+ "FACTOR_BASELINE": {
+  "LOOKBACK_DAYS": 365,
+  "MOMENTUM_SATURATION": 0.5,
+  "SKIP_DAYS": 30,
+  "WEIGHTS": {
+   "momentum": 0.5,
+   "quality": 0.5
+  }
+ },
  "INSIDER": {
   "HEAVY_SELL_FLOOR_USD": 25000000.0,
   "HEAVY_SELL_MCAP_FRACTION": 0.0005,

@@ -1,6 +1,6 @@
 # 11 — Implementation status
 
-Branch `audit/roadmap-p0-p1`, from `main` at `ce1e9b4`. 2026-11-06. Not pushed, not merged.
+Branch `audit/roadmap-p0-p1`, from `main` at `ce1e9b4`. Implemented 2026-11-06, validated and merged into `main` 2026-11-07.
 
 ## Verification at the branch head
 
@@ -45,6 +45,24 @@ a live Claude API call (no credentials here; no money was spent).
 | Model freeze | `f98eea3` | `python -m tracking.freeze set/release/status`, enforced by `tests/test_model_freeze.py` once a freeze exists, shown on the Evidence page. Opt-in: nothing is frozen yet |
 | Browser suite, CI set | — | 66 / 66 passed (desktop dark and phone; includes WCAG 2.1 AA checks on Research and Evidence) |
 | Browser suite, full (528 tests, 4 device profiles, live Yahoo) | this commit | 516 passed, 4 skipped, 8 failed. Four desktop failures (Discover and Guide accessibility, Discover links, Guide progress bar) were timeouts under load and pass when re-run alone. The other four were one test failing on every profile, already on `main`: it expected three stylesheets after Plan Lab and News & Events added two more. Updated; its spec now passes 24 / 24 |
+
+## Final validation before merge (2026-11-07, at `1c721d4`)
+
+| Check | Result |
+|---|---|
+| Python unit suite | 3,057 passed, 18 skipped, 4 xfailed (owner-pending insider calibration) |
+| Golden master (pinned environment) | 27 / 27 passed: engine output unchanged |
+| JavaScript unit suite | 893 / 893 passed |
+| Browser suite, full (528 tests, 4 device profiles, live Yahoo), run alone | **524 passed, 0 failed**, 4 skipped |
+| `ruff check .` (F401 gated) | clean |
+| `pip-audit` / `npm audit` | no known vulnerabilities / 0 vulnerabilities |
+| Live short-term quick scan (75 names, yfinance 1.4.1) | 73 analysed; 0 setups, each name filtered for a stated reason (Strong Bear regime); the one Yahoo failure reported as a provider failure |
+| Live web Picks scan through `/api/stock-picks` (12 names) | complete in 40-65 s; 12 / 12 analysed, 0 failures; every name carries its blocking rule; the SEC check fails closed and names the missing `QUANTA_SEC_CONTACT` |
+| Scanner Stooq path | `1c721d4`: the browser-check page now trips the scanner's circuit breaker |
+
+Known and not fixable in code: Stooq refuses automated clients, so there is no working price
+fallback when Yahoo fails. Not verified: a funded Picks scan (needs `QUANTA_SEC_CONTACT`) and a
+live Claude API call (needs a key).
 
 ## Changed from the plan
 

@@ -1697,6 +1697,12 @@ class EnhancedMarketData:
                 headers={'User-Agent': 'Mozilla/5.0'},
             )
             response.raise_for_status()
+            # Since late 2026 Stooq answers scripted clients with a JavaScript
+            # browser-check page instead of CSV. That is a refusal, not missing
+            # data: count it as a failure so the circuit breaker switches Stooq
+            # off for the run instead of asking again for every ticker.
+            if response.text.lstrip()[:15].lower().startswith(("<!doctype", "<html")):
+                raise ConnectionError("Stooq answered with a browser-check page, not data")
 
             hist = pd.read_csv(StringIO(response.text))
             if hist.empty or 'Date' not in hist.columns:

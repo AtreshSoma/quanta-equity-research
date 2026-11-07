@@ -650,6 +650,30 @@ class TestStooqFallbackIntegrity(unittest.TestCase):
         self.assertEqual(status, sp_shortterm.Outcome.NO_PRICE_DATA)
 
 
+class TestStooqBrowserCheck(unittest.TestCase):
+    """Stooq's browser-check page is a refusal: it trips the breaker, not 'no data'."""
+
+    def test_a_browser_check_page_counts_towards_switching_stooq_off(self):
+        cls = sp_shortterm.EnhancedMarketData
+        market_data = cls()
+        page = Mock()
+        page.text = "<!DOCTYPE html><html><body><noscript>This site requires JavaScript</noscript>"
+        page.raise_for_status = Mock()
+        old = (cls._stooq_disabled, cls._stooq_failures)
+        cls._stooq_disabled, cls._stooq_failures = False, 0
+        try:
+            with patch.object(sp_shortterm.requests, "get", return_value=page) as get:
+                for _ in range(sp_shortterm.Config.STOOQ_FAILURE_LIMIT):
+                    hist, status = market_data._get_stooq_history("TEST")
+                    self.assertTrue(hist.empty)
+                    self.assertEqual(status, sp_shortterm.Outcome.PROVIDER_TIMEOUT)
+                self.assertTrue(cls._stooq_disabled)
+                market_data._get_stooq_history("TEST")
+                self.assertEqual(get.call_count, sp_shortterm.Config.STOOQ_FAILURE_LIMIT)
+        finally:
+            cls._stooq_disabled, cls._stooq_failures = old
+
+
 class TestSignalThresholdsHaveOneSourceOfTruth(unittest.TestCase):
     def test_enum_min_scores_match_the_decision_logic(self):
         self.assertEqual(sp_shortterm.TradingSignal.STRONG_BUY.min_score, 80)

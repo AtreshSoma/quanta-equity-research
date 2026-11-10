@@ -524,6 +524,10 @@ python -m core.apex_quant.run elite-walkforward
 # Does the composite beat free factors (12-1 momentum, 1-month reversal, low vol, random)?
 python -m core.apex_quant.run baselines
 
+# What did the top-ranked names return after costs, are the score bands
+# calibrated, and do regime weights beat one fixed table? (run from core/)
+python -m apex_quant.run portfolio --panel research_v2_pit_oos
+
 # Replay the short-term scanner's price core against SPY and random entries
 python core/sp_shortterm_backtest.py --universe liquid --start 2016-01-01 --end 2026-09-30
 

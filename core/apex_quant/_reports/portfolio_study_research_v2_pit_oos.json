@@ -1,0 +1,253 @@
+{
+  "generated_at": "2026-11-10T01:00:30+00:00",
+  "panel": "research_v2_pit_oos",
+  "panel_rows": 33161,
+  "tickers": 42,
+  "start": "2010-12-30",
+  "end": "2026-10-21",
+  "step_panel_dates": 4,
+  "entry_lag_panel_dates": 1,
+  "quantile": 0.2,
+  "names_held": 8,
+  "regime_weights_differ": true,
+  "portfolios": [
+    {
+      "name": "composite_top",
+      "description": "Top fifth by composite score",
+      "cost_per_side_bps": 5.5,
+      "periods": 198,
+      "years": 15.75085557837098,
+      "cagr": 0.16550271419891804,
+      "volatility": 0.16597451131898489,
+      "sharpe": 1.0107008500967865,
+      "sortino": 1.7018374296396976,
+      "max_drawdown": -0.2858465894839347,
+      "turnover_per_year": 6.809153919694072,
+      "cost_drag_per_year": 0.00749006931166348,
+      "benchmark_cagr": 0.16107642130003774,
+      "active_return_per_year": 0.009142285180209491,
+      "active_t": 0.4220634822348457,
+      "active_ci95_per_period": [
+        -0.002758659181445839,
+        0.003965061336618842
+      ],
+      "information_ratio": 0.10187211422223208,
+      "alpha_per_year": -0.0038873175302549636,
+      "beta": 1.0821495669642438,
+      "hit_rate": 0.4898989898989899,
+      "hit_rate_ci95": [
+        0.42112543921662726,
+        0.5590570405100495
+      ]
+    },
+    {
+      "name": "composite_top_stress",
+      "description": "Top fifth by composite score, 25 bps a side",
+      "cost_per_side_bps": 25.0,
+      "periods": 198,
+      "years": 15.75085557837098,
+      "cagr": 0.13522696184772398,
+      "volatility": 0.1661617431151002,
+      "sharpe": 0.8497436097542872,
+      "sortino": 1.3842477503994817,
+      "max_drawdown": -0.30085133376996565,
+      "turnover_per_year": 6.809153919694072,
+      "cost_drag_per_year": 0.03404576959847035,
+      "benchmark_cagr": 0.16107642130003774,
+      "active_return_per_year": -0.01741341510659741,
+      "active_t": -0.8029930448072349,
+      "active_ci95_per_period": [
+        -0.004887540436504983,
+        0.001863936386774029
+      ],
+      "information_ratio": -0.19411619837712876,
+      "alpha_per_year": -0.0307686977732985,
+      "beta": 1.0842029271447724,
+      "hit_rate": 0.46464646464646464,
+      "hit_rate_ci95": [
+        0.3965090868515115,
+        0.5341295921918572
+      ]
+    },
+    {
+      "name": "composite_bottom",
+      "description": "Bottom fifth by composite score",
+      "cost_per_side_bps": 5.5,
+      "periods": 198,
+      "years": 15.75085557837098,
+      "cagr": 0.12562825686682588,
+      "volatility": 0.1581579134332334,
+      "sharpe": 0.8307886028522882,
+      "sortino": 1.3415187954047216,
+      "max_drawdown": -0.3308173739064528,
+      "turnover_per_year": 6.15839561967669,
+      "cost_drag_per_year": 0.006774235181644359,
+      "benchmark_cagr": 0.16107642130003774,
+      "active_return_per_year": -0.02721250257305808,
+      "active_t": -1.2128608027191772,
+      "active_ci95_per_period": [
+        -0.00573993164054557,
+        0.0012771909761157786
+      ],
+      "information_ratio": -0.31280302317646985,
+      "alpha_per_year": -0.03054116009789475,
+      "beta": 1.0209866547978463,
+      "hit_rate": 0.42424242424242425,
+      "hit_rate_ci95": [
+        0.35748581888874453,
+        0.49388277906133116
+      ]
+    },
+    {
+      "name": "momentum_top",
+      "description": "Top fifth by 12-1 momentum (free control)",
+      "cost_per_side_bps": 5.5,
+      "periods": 185,
+      "years": 14.715947980835045,
+      "cagr": 0.24717197124761991,
+      "volatility": 0.17705788008946424,
+      "sharpe": 1.345270556455279,
+      "sortino": 2.5570181022733647,
+      "max_drawdown": -0.19413267828582847,
+      "turnover_per_year": 2.8880232558139536,
+      "cost_drag_per_year": 0.003176825581395349,
+      "benchmark_cagr": 0.16427757053264025,
+      "active_return_per_year": 0.07716562650830112,
+      "active_t": 2.915790746798745,
+      "active_ci95_per_period": [
+        0.0022450122568449154,
+        0.010011865943555067
+      ],
+      "information_ratio": 0.6611185793386717,
+      "alpha_per_year": 0.0683461609058509,
+      "beta": 1.0547707416946177,
+      "hit_rate": 0.5351351351351351,
+      "hit_rate_ci95": [
+        0.46327868010393497,
+        0.6055620837955447
+      ]
+    }
+  ],
+  "bands": [
+    {
+      "band": "STRONG_BUY",
+      "floor": 75.0,
+      "rows": 19,
+      "dates": 0,
+      "mean_excess": null,
+      "t_stat": null,
+      "ci95": null
+    },
+    {
+      "band": "BUY",
+      "floor": 65.0,
+      "rows": 2456,
+      "dates": 59,
+      "mean_excess": 0.014737059438288805,
+      "t_stat": 1.0590207898010462,
+      "ci95": [
+        -0.007804873588152522,
+        0.039351214911151525
+      ]
+    },
+    {
+      "band": "ACCUMULATE",
+      "floor": 55.0,
+      "rows": 14939,
+      "dates": 61,
+      "mean_excess": -0.0017564757741816272,
+      "t_stat": -0.7026345858430353,
+      "ci95": [
+        -0.00690353692853738,
+        0.0034260937535247117
+      ]
+    },
+    {
+      "band": "HOLD",
+      "floor": 45.0,
+      "rows": 11778,
+      "dates": 61,
+      "mean_excess": 0.0033469115468302405,
+      "t_stat": 0.8503766150550027,
+      "ci95": [
+        -0.005536160572681628,
+        0.012449736585866577
+      ]
+    },
+    {
+      "band": "REDUCE",
+      "floor": 35.0,
+      "rows": 1959,
+      "dates": 47,
+      "mean_excess": -0.008304877292093974,
+      "t_stat": -0.5230823340621981,
+      "ci95": [
+        -0.03899718334403253,
+        0.023624309727983142
+      ]
+    },
+    {
+      "band": "SELL",
+      "floor": 25.0,
+      "rows": 169,
+      "dates": 14,
+      "mean_excess": 0.04008129529611732,
+      "t_stat": 1.087763421233384,
+      "ci95": [
+        -0.017576332405202604,
+        0.08473724522118782
+      ]
+    },
+    {
+      "band": "STRONG_SELL",
+      "floor": null,
+      "rows": 0,
+      "dates": 0,
+      "mean_excess": null,
+      "t_stat": null,
+      "ci95": null
+    }
+  ],
+  "band_monotonicity": -0.09999999999999999,
+  "regime_weights": {
+    "21d": {
+      "dates": 792,
+      "ic_live_weights": 0.02023139470222952,
+      "ic_fixed_weights": 0.022360624266565488,
+      "difference": {
+        "n": 792,
+        "mean": -0.0021292295643359706,
+        "t_newey_west": -1.4033209690161579,
+        "p_value": 0.16052114800933737,
+        "ci95_bootstrap": [
+          -0.005201704009052916,
+          0.0008608945056204691
+        ]
+      }
+    },
+    "63d": {
+      "dates": 783,
+      "ic_live_weights": 0.04088822034807652,
+      "ic_fixed_weights": 0.03996666764248195,
+      "difference": {
+        "n": 783,
+        "mean": 0.0009215527055945738,
+        "t_newey_west": 0.5057748397713875,
+        "p_value": 0.6130147231288983,
+        "ci95_bootstrap": [
+          -0.0026917183985687657,
+          0.004532654970237635
+        ]
+      }
+    }
+  },
+  "caveats": [
+    "Static list of present-day large caps: absolute returns carry survivorship and selection bias. Read each portfolio against the equal-weight benchmark of the same names.",
+    "The live engine's gates, stops, sizes and corporate-event checks are not simulated. This measures the ranking, not the calls.",
+    "Sentiment and analyst inputs are neutral in the panel (no point-in-time source).",
+    "Drawdown is measured at rebalance dates and understates the worst fall inside a period.",
+    "With sentiment neutral at 50 the panel's scores sit closer to 50 than live scores do, so the band table tests the live cut-offs on a compressed scale (few rows reach 75).",
+    "A portfolio that needs a year of history (12-1 momentum) starts later, so its benchmark figure covers a slightly shorter period than the others.",
+    "One fixed configuration was run. Its result is a description of this sample, not a validated strategy, and it does not change any evidence status."
+  ]
+}

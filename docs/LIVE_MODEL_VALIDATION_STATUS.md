@@ -1,4 +1,54 @@
-# Live model validation status — 22 October 2026
+# Live model validation status — 9 November 2026
+
+## Update, 9 November 2026: what the ranking returned as a portfolio
+
+The tests below measure rank correlation. `core/apex_quant/panel_portfolio.py`
+asks the next question of the same point-in-time panel (`research_v2_pit_oos`,
+42 names, 2010-12-30..2026-10-21): what did holding the top-ranked names
+return after costs, against simply holding all of them? One configuration,
+fixed before any result was read: top and bottom fifth by score (about 8
+names), equal weight, rebalanced every 4 weekly panel dates, traded at the
+next panel date's close after the signal, 5.5 bps a side (half the Research
+round-trip cost), 198 periods.
+
+| Portfolio | CAGR | Equal-weight benchmark | Active per year | t | Sharpe | Max drawdown | Turnover |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Top fifth by composite | +16.6% | +16.1% | +0.9% | +0.42 | 1.01 | -28.6% | 6.8x a year |
+| Same, 25 bps a side | +13.5% | +16.1% | -1.7% | -0.80 | 0.85 | -30.1% | 6.8x a year |
+| Bottom fifth by composite | +12.6% | +16.1% | -2.7% | -1.21 | 0.83 | -33.1% | 6.2x a year |
+| Top fifth by 12-1 momentum (free control) | +24.7% | +16.4% | +7.7% | +2.92 | 1.35 | -19.4% | 2.9x a year |
+
+Reading:
+
+- **The composite's top fifth did not beat holding every name.** +0.9% a year
+  is inside its noise (t +0.42) and turns negative at 25 bps a side. The
+  ordering is in the right direction (top ahead of bottom) and not
+  significant. This agrees with the NO_EDGE status; it does not change it.
+- **Free 12-1 momentum beat it on this sample**, with less than half the
+  turnover. The universe is 42 present-day large caps, so momentum's figure is
+  flattered by survivorship and is not a tradable estimate; the comparison is
+  the point. `engine/factor_baseline.py` already records this control in
+  shadow beside every Research call.
+- **The decision bands are not calibrated.** Mean 63-session return against
+  the same date's average name: Buy +1.47% (t +1.06), Accumulate -0.18%,
+  Hold +0.33%, Reduce -0.83%, Sell +4.01% (14 dates). No band is
+  distinguishable from zero and the order is not monotone (Spearman -0.10).
+  With sentiment neutral the panel's scores sit closer to 50 than live ones,
+  so this tests the cut-offs on a compressed scale; 19 rows reach 75.
+- **Regime-adaptive weights add nothing measurable.** Per-date IC of the live
+  regime tables minus one fixed table, paired: -0.002 at 21 sessions (95% CI
+  -0.005 to +0.001), +0.001 at 63 (CI -0.003 to +0.005). The evidence does not
+  support adaptive weighting; v3's single fixed table is the simpler model.
+  The live default is unchanged: replacing it is a model change that needs its
+  own pre-registration.
+
+Absolute returns here carry survivorship bias; drawdown is measured at
+rebalance dates; the live gates, stops and sizes are not simulated. Timing,
+cost and no-look-ahead properties are pinned by
+`core/apex_quant/tests/test_panel_portfolio.py`.
+
+    cd core
+    python -m apex_quant.run portfolio --panel research_v2_pit_oos
 
 ## Update, 22 October 2026: the fundamental legs are now tested
 

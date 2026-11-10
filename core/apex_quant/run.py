@@ -114,6 +114,20 @@ def cmd_baselines(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_portfolio(args: argparse.Namespace) -> int:
+    """Portfolio returns, band calibration and the regime-weight test on a saved panel."""
+    from .elite_oos import REPORT_DIR, load_panel
+    from .panel_portfolio import format_report, run_portfolio_report, save_report
+
+    panel = load_panel(REPORT_DIR / f"{args.panel}_panel.parquet") if args.panel else None
+    report = run_portfolio_report(panel, panel_name=args.panel or "elite", seed=args.seed)
+    print(format_report(report))
+    path = save_report(report, name=f"portfolio_study_{args.panel}" if args.panel else "portfolio_study")
+    print(f"\nwritten: {path}")
+    print(f"         {path.with_suffix('.txt')}")
+    return 0
+
+
 def cmd_elite_walkforward(args: argparse.Namespace) -> int:
     """Walk-forward trade simulation of the ELITE composite entry rule.
 
@@ -269,6 +283,15 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument("--seed", type=int, default=0, help="seed for the random baseline and bootstrap")
     b.add_argument("--panel", help="named elite-oos run to read (default: the elite_oos panel)")
     b.set_defaults(func=cmd_baselines)
+
+    pf = sub.add_parser(
+        "portfolio",
+        help="what the top-ranked names returned after costs, band calibration, regime-weight test "
+             "(needs elite-oos)",
+    )
+    pf.add_argument("--seed", type=int, default=0, help="seed for the bootstrap")
+    pf.add_argument("--panel", help="named elite-oos run to read (default: the elite_oos panel)")
+    pf.set_defaults(func=cmd_portfolio)
 
     s = sub.add_parser("status", help="print the sizing gate verdict")
     s.set_defaults(func=cmd_status)

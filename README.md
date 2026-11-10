@@ -362,6 +362,11 @@ flowchart LR
     CH --> VER["python -m tracking verify<br/>detects any edit after publication"]
 ```
 
+- **Calls that reveal holdings are never published.** A call made while the account's holdings
+  were known (`HOLD (owned)`, or any call from My Portfolio or a holdings-aware scan) stays in the
+  local ledger and its statistics but is left out of `track_record/`. The record was re-published
+  on 9 November 2026 on that basis, starting a new hash chain; every call it kept reproduces the
+  hash it was first published with.
 - Every call stores the **fingerprint of the engine code** that produced it and a snapshot of the
   full Decision behind it, so a period can be shown to have run on frozen code and any call can be
   replayed. The Evidence page shows how many calls the current code made.

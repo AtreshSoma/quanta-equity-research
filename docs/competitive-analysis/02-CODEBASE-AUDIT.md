@@ -5,7 +5,7 @@ Audit date: 2026-11-06. Every claim below was read in source at these commits un
 
 | Repository | Commit | Commit date | Licence | Size inspected |
 |---|---|---|---|---|
-| QUANTA (`AtreshSoma/quanta-equity-research`) | `ce1e9b42ab55` | 2026-11-04 (track-record publish) | MIT | ~177K lines (Python + JS + HTML/CSS, incl. tests) |
+| QUANTA (`AtreshSoma/quanta-equity-research`) | `db71ed2701b5` | 2026-11-04 (track-record publish) | MIT | ~177K lines (Python + JS + HTML/CSS, incl. tests) |
 | TradingAgents (`TauricResearch/TradingAgents`) | `9fa1196fffbc` | 2026-11-04 | Apache-2.0 | ~13.4K lines non-test Python, 90 test files |
 | OpenBB (`OpenBB-finance/OpenBB`) | `2a392e890f6e` | 2026-11-02 | Apache-2.0 (whole repo, per `LICENSE`) | 2,967 `.py` files, ~867K lines; read the core provider layer, SEC/Fama-French providers, quantitative extension |
 | Qlib (`microsoft/qlib`) | `543552324638` | 2026-10-08 | MIT | ~57K lines in `qlib/`; read data handlers, backtest exchange, strategies, risk models, evaluate, benchmarks |

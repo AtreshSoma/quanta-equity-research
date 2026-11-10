@@ -57,3 +57,10 @@ def test_calls_without_holdings_keep_their_context_unchanged(ledger):
     ledger.record_decision(_decision("PUB"))
     assert "holdings_known" not in json.loads(ledger.rows()[0]["context_json"])
 
+
+def test_the_committed_record_holds_no_owned_call():
+    from pathlib import Path
+    path = Path(__file__).resolve().parent.parent / "track_record" / "ledger.csv"
+    rows = list(csv.DictReader(path.open())) if path.exists() else []
+    assert rows, "the published record is present"
+    assert not [r["signal_key"] for r in rows if r.get("action") == "HOLD_EXISTING"]

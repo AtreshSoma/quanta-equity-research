@@ -95,7 +95,7 @@ provider requests (README: cold dashboard ~9-11 s by deliberate 350 ms pacing).
 
 No key hashes any `modules/` file.
 
-**Published record** (`track_record/ledger.csv` at `ce1e9b4`):
+**Published record** (`track_record/ledger.csv` at `db71ed2`):
 
 | Measure | Value |
 |---|---|

@@ -1,6 +1,6 @@
 # 11 — Implementation status
 
-Branch `audit/roadmap-p0-p1`, from `main` at `ce1e9b4`. Implemented 2026-11-06, validated and merged into `main` 2026-11-07.
+Branch `audit/roadmap-p0-p1`, from `main` at `db71ed2`. Implemented 2026-11-06, validated and merged into `main` 2026-11-07.
 
 ## Verification at the branch head
 
@@ -21,32 +21,32 @@ a live Claude API call (no credentials here; no money was spent).
 
 | Task | Commit | What changed | Measured result |
 |---|---|---|---|
-| — | `5e0ecb9` | `my_portfolio_workspace.test.cjs` read today's date against a 45-day window and a fixture dated 2026-09-22; it began failing on 2026-11-06 on every branch. The clock is now pinned | JS suite green again |
-| P0-1 Fingerprint coverage | `dea9af5` | Every `elite_<version>_shadow` key (v2, v3, v4 and any later one) hashes `TradingAnalysis_ELITE.py` | v4 shadow: 43 files before, 51 now |
-| P0-2 Optional-module provenance | `dea9af5` | Fingerprints follow imports into `core/` and `modules/`, including `_import_optional` ones, skipping `__main__`-only imports; a missing optional module changes the fingerprint and is listed in the row's `provenance_json` | `elite` now covers 8 `modules/` files, none before |
-| P0-3 Model fingerprint | `dea9af5` | New `model_fingerprint` column: the same files as syntax trees without docstrings, logging, `print` or CLI display functions (a test proves nothing else calls the excluded ones). Prospective IC and the new evidence clock group by it; legacy rows group as `code:<fingerprint>` | See "Changed from the plan" |
-| P0-4 Input recording | `dea9af5` | Each ledger row stores `inputs_json` (analyst targets and counts, valuation method and targets, revisions, sentiment, insider flow, levels, source ids) and `inputs_hash`; publish fixes `model_fingerprint` and `inputs_hash` in `call_hash` for new rows only | The committed record still verifies |
-| P0-5 Advisories | `11123d2` | requests 2.34.2, curl_cffi 0.17.0, yfinance 1.4.1 (1.2.0 capped curl_cffi below the fix); floors raised in `pyproject.toml` and `requirements.txt` | 0 advisories; all suites pass |
-| P0-6 Doc drift | `d22f5d1` | README and OPEN_ITEMS no longer quote stale counts | — |
-| P1-8 Unused imports | `d22f5d1` | 110 removed by ruff's safe fix; 17 availability checks inside `try:` kept with `# noqa: F401`; F401 gated in CI | Golden unchanged |
-| P1-1 Free-factor control | `9f3f988` | `factor.baseline.v1` (12-1 momentum + quality leg) scored beside every Research call under ledger engine `factor_baseline_shadow`; pre-registered in `docs/preregistration/factor_baseline_v1.md`; 12-1 matches `apex_quant` exactly (test) | Starts recording on the next Research call |
-| P1-6 Evidence clock | `dea9af5` | `/api/track-record` and the Evidence page show, per engine, resolved calls and independent dates on the current model version against the pre-registered 30 and 10 | — |
-| P1-3 Shrinkage covariance | `1788890` | Risk shares use Ledoit-Wolf (constant correlation); method and intensity reported. Volatility, VaR/CVaR and correlated pairs unchanged | UI fixture: 8% shrinkage, shares move under 0.2 points |
-| P1-4 Factor attribution (+E3) | `b6fca72` | Fama-French 5 + momentum loadings of the book with Newey-West intervals, from the Ken French library (downloaded in the background job, cached a week, last good copy on failure); card in Risk exposure | Real data: SPY market beta 0.99 (R² 0.99), IWM size +0.87, QQQ market 1.14 |
-| P1-5 AI brief (+P2-1, E2) | `9a25d07` | Optional one-call Claude brief (`claude-opus-5-5`, server-side fallbacks, structured output) with summary, case for and case against; shown only if every citation resolves and `check_narrative` passes; off unless `QUANTA_AI_BRIEF=1`; written only on a button press; cached per Decision | Stub-tested (13 Python, 3 JS tests); not live-tested |
-| P1-2 Gateway, phase 1 | `031853c` | `core/marketdata/gateway.py`: `price_bars()` with ordered fallback (Yahoo, then Stooq for unadjusted US requests, split-cliff refused, circuit breaker) and a provenance envelope; Plan Lab, two MCP tools and the ledger loader migrated | Direct yfinance call sites 86 → 82 |
+| — | `14f7bd3` | `my_portfolio_workspace.test.cjs` read today's date against a 45-day window and a fixture dated 2026-09-22; it began failing on 2026-11-06 on every branch. The clock is now pinned | JS suite green again |
+| P0-1 Fingerprint coverage | `e0fb128` | Every `elite_<version>_shadow` key (v2, v3, v4 and any later one) hashes `TradingAnalysis_ELITE.py` | v4 shadow: 43 files before, 51 now |
+| P0-2 Optional-module provenance | `e0fb128` | Fingerprints follow imports into `core/` and `modules/`, including `_import_optional` ones, skipping `__main__`-only imports; a missing optional module changes the fingerprint and is listed in the row's `provenance_json` | `elite` now covers 8 `modules/` files, none before |
+| P0-3 Model fingerprint | `e0fb128` | New `model_fingerprint` column: the same files as syntax trees without docstrings, logging, `print` or CLI display functions (a test proves nothing else calls the excluded ones). Prospective IC and the new evidence clock group by it; legacy rows group as `code:<fingerprint>` | See "Changed from the plan" |
+| P0-4 Input recording | `e0fb128` | Each ledger row stores `inputs_json` (analyst targets and counts, valuation method and targets, revisions, sentiment, insider flow, levels, source ids) and `inputs_hash`; publish fixes `model_fingerprint` and `inputs_hash` in `call_hash` for new rows only | The committed record still verifies |
+| P0-5 Advisories | `bacd482` | requests 2.34.2, curl_cffi 0.17.0, yfinance 1.4.1 (1.2.0 capped curl_cffi below the fix); floors raised in `pyproject.toml` and `requirements.txt` | 0 advisories; all suites pass |
+| P0-6 Doc drift | `8700a85` | README and OPEN_ITEMS no longer quote stale counts | — |
+| P1-8 Unused imports | `8700a85` | 110 removed by ruff's safe fix; 17 availability checks inside `try:` kept with `# noqa: F401`; F401 gated in CI | Golden unchanged |
+| P1-1 Free-factor control | `997496b` | `factor.baseline.v1` (12-1 momentum + quality leg) scored beside every Research call under ledger engine `factor_baseline_shadow`; pre-registered in `docs/preregistration/factor_baseline_v1.md`; 12-1 matches `apex_quant` exactly (test) | Starts recording on the next Research call |
+| P1-6 Evidence clock | `e0fb128` | `/api/track-record` and the Evidence page show, per engine, resolved calls and independent dates on the current model version against the pre-registered 30 and 10 | — |
+| P1-3 Shrinkage covariance | `0442e13` | Risk shares use Ledoit-Wolf (constant correlation); method and intensity reported. Volatility, VaR/CVaR and correlated pairs unchanged | UI fixture: 8% shrinkage, shares move under 0.2 points |
+| P1-4 Factor attribution (+E3) | `c6e1c58` | Fama-French 5 + momentum loadings of the book with Newey-West intervals, from the Ken French library (downloaded in the background job, cached a week, last good copy on failure); card in Risk exposure | Real data: SPY market beta 0.99 (R² 0.99), IWM size +0.87, QQQ market 1.14 |
+| P1-5 AI brief (+P2-1, E2) | `7aed960` | Optional one-call Claude brief (`claude-opus-5-5`, server-side fallbacks, structured output) with summary, case for and case against; shown only if every citation resolves and `check_narrative` passes; off unless `QUANTA_AI_BRIEF=1`; written only on a button press; cached per Decision | Stub-tested (13 Python, 3 JS tests); not live-tested |
+| P1-2 Gateway, phase 1 | `01b96a9` | `core/marketdata/gateway.py`: `price_bars()` with ordered fallback (Yahoo, then Stooq for unadjusted US requests, split-cliff refused, circuit breaker) and a provenance envelope; Plan Lab, two MCP tools and the ledger loader migrated | Direct yfinance call sites 86 → 82 |
 
 ## Second round (2026-11-06, after review)
 
 | Step | Commit | Result |
 |---|---|---|
-| Live check on yfinance 1.4.1 | `9f9d1c5` | AAPL, JPM, XOM, SPY and RELIANCE.NS analysed live in 2-4 s each with labels, levels, v4 shadow and the control model. RELIANCE.NS (a completed session) was recorded into a scratch ledger with its inputs, model fingerprint and provenance; the four US names were correctly not recorded (today's bar was still trading). Factor download live: 15,918 days through 2026-09-30 |
-| Stooq | `9f9d1c5` | **Stooq now answers scripted requests with a JavaScript browser-check page**, so the fallback cannot serve data. The gateway now names that page as a refusal and switches Stooq off after three; README updated. QUANTA does not try to get past the check. The short-term scanner's older Stooq path reads the page as "no data" and keeps trying per ticker (small cost; left as is because it is engine code) |
-| Model freeze | `f98eea3` | `python -m tracking.freeze set/release/status`, enforced by `tests/test_model_freeze.py` once a freeze exists, shown on the Evidence page. Opt-in: nothing is frozen yet |
+| Live check on yfinance 1.4.1 | `5a1cf89` | AAPL, JPM, XOM, SPY and RELIANCE.NS analysed live in 2-4 s each with labels, levels, v4 shadow and the control model. RELIANCE.NS (a completed session) was recorded into a scratch ledger with its inputs, model fingerprint and provenance; the four US names were correctly not recorded (today's bar was still trading). Factor download live: 15,918 days through 2026-09-30 |
+| Stooq | `5a1cf89` | **Stooq now answers scripted requests with a JavaScript browser-check page**, so the fallback cannot serve data. The gateway now names that page as a refusal and switches Stooq off after three; README updated. QUANTA does not try to get past the check. The short-term scanner's older Stooq path reads the page as "no data" and keeps trying per ticker (small cost; left as is because it is engine code) |
+| Model freeze | `9b24824` | `python -m tracking.freeze set/release/status`, enforced by `tests/test_model_freeze.py` once a freeze exists, shown on the Evidence page. Opt-in: nothing is frozen yet |
 | Browser suite, CI set | — | 66 / 66 passed (desktop dark and phone; includes WCAG 2.1 AA checks on Research and Evidence) |
 | Browser suite, full (528 tests, 4 device profiles, live Yahoo) | this commit | 516 passed, 4 skipped, 8 failed. Four desktop failures (Discover and Guide accessibility, Discover links, Guide progress bar) were timeouts under load and pass when re-run alone. The other four were one test failing on every profile, already on `main`: it expected three stylesheets after Plan Lab and News & Events added two more. Updated; its spec now passes 24 / 24 |
 
-## Final validation before merge (2026-11-07, at `1c721d4`)
+## Final validation before merge (2026-11-07, at `a3517f4`)
 
 | Check | Result |
 |---|---|
@@ -58,11 +58,24 @@ a live Claude API call (no credentials here; no money was spent).
 | `pip-audit` / `npm audit` | no known vulnerabilities / 0 vulnerabilities |
 | Live short-term quick scan (75 names, yfinance 1.4.1) | 73 analysed; 0 setups, each name filtered for a stated reason (Strong Bear regime); the one Yahoo failure reported as a provider failure |
 | Live web Picks scan through `/api/stock-picks` (12 names) | complete in 40-65 s; 12 / 12 analysed, 0 failures; every name carries its blocking rule; the SEC check fails closed and names the missing `QUANTA_SEC_CONTACT` |
-| Scanner Stooq path | `1c721d4`: the browser-check page now trips the scanner's circuit breaker |
+| Scanner Stooq path | `a3517f4`: the browser-check page now trips the scanner's circuit breaker |
 
 Known and not fixable in code: Stooq refuses automated clients, so there is no working price
 fallback when Yahoo fails. Not verified: a funded Picks scan (needs `QUANTA_SEC_CONTACT`) and a
 live Claude API call (needs a key).
+
+## Public-repository safety (2026-11-09)
+
+| Issue | Fix |
+|---|---|
+| 16 commits made on 6-7 Nov carried a personal email (the repo's local git identity) | History rewritten with a mailmap: every commit now uses the GitHub noreply address; the repo's local identity is set to it |
+| The published track record named held positions (184 `HOLD (owned)` rows over 17 tickers) | `tracking.publish.is_private`: calls made with holdings known stay in the local ledger and are never exported. `track_record/` removed from all history and re-published: 251 calls, each reproducing its original hash; a new chain |
+| The first public commit held a My Portfolio fixture modelled on a real account | Those two blob versions replaced with their fictional successors throughout history; the figures quoted in `OPEN_ITEMS.md` removed |
+| A test account number of unknown origin; a local Windows path | Replaced throughout history |
+| Repository basics | Read-only `GITHUB_TOKEN` in both workflows, Dependabot (pip, npm, actions), `SECURITY.md` |
+
+All commit IDs before 2026-11-09 changed; this file cites the new ones. A full bundle of the
+pre-rewrite history was kept outside the repository until the push was confirmed.
 
 ## Changed from the plan
 

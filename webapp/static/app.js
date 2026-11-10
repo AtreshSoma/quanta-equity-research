@@ -9357,6 +9357,14 @@ function secContactNotice(health) {
   return { text: `Buy calls blocked: ${c.label || ''}`, moreLabel: 'Fix',
     more: `The corporate-event check cannot run, so no US name can get a Buy call. ${c.fix || ''}.` };
 }
+/* Before a scan: the server cannot rank a universe by liquidity (shown first:
+   it changes which names every scan reads). */
+function universeRankingNotice(health) {
+  const u = health && health.universe_ranking;
+  if (!u || u.ok !== false) return null;
+  return { text: `Scans cannot rank by liquidity: ${u.label || 'a package is missing'}`, moreLabel: 'Fix',
+    more: `A "most liquid" scan would read an even spread of the whole list instead. ${u.fix || ''}.` };
+}
 function secContactNoticeText(health) {
   const c = health && health.sec_contact;
   if (!c || (c.state !== 'missing' && c.state !== 'malformed')) return '';
@@ -9368,7 +9376,18 @@ async function refreshSecContactNotice() {
   if (!el) return;
   try {
     const health = await fetchJSON('/api/health?probe=0', { retries: 0, timeoutMs: 8000 });
-    setNotice(el, ($('#sp-market')?.value || 'US') === 'US' ? secContactNotice(health) : null);
+    state.serverHealth = health;
+    // A saved scan on screen re-reads its alerts against the server as it is now.
+    const view = document.querySelector('#picks-results [data-picks-v2]');
+    const head = view && view.querySelector(':scope > .pk-report-head');
+    if (head && view.pkData) {
+      view.querySelectorAll(':scope > [data-pk-alert]').forEach((el) => el.remove());
+      head.insertAdjacentHTML('beforebegin', pkAlertHtml(view.pkData));
+      const verdict = head.querySelector('[data-pk-empty]');
+      if (verdict) verdict.outerHTML = pkEmptyHtml(view.pkData, (view.pkData.stock_picks || []).filter(pkGroupOf));
+    }
+    setNotice(el, universeRankingNotice(health)
+      || (($('#sp-market')?.value || 'US') === 'US' ? secContactNotice(health) : null));
   } catch (_) { el.hidden = true; }
 }
 
@@ -9938,7 +9957,9 @@ function selectionText(sel) {
       ? `; ${pf} passed the price and volume floors and ${ps} the ${screenFirst} screen${ps > n ? `, ${ps - n} of them not analysed` : ''}`
       : `; ${pf} passed the price and volume floors${pf > n ? `, ${pf - n} of them not analysed` : ''}`;
   const sampled = Number(sel.prefilter_sampled) > 0
-    ? `; the liquidity download read an even spread of ${Number(sel.prefilter_sampled)} of them` : '';
+    ? (Number(sel.prefilter_priority) > 0
+      ? `; the liquidity download read all ${Number(sel.prefilter_priority)} large-cap index names and an even spread of the rest (${Number(sel.prefilter_sampled)} names in all)`
+      : `; the liquidity download read an even spread of ${Number(sel.prefilter_sampled)} of them`) : '';
   let line;
   switch (sel.method) {
     case 'liquidity_ranked': line = `top ${n} of ${pool}, ranked by ${sel.rank_by || 'average daily traded value'}${floors}${sampled}`
@@ -10139,19 +10160,67 @@ function pkStatusLineHtml(data) {
   return `<p class="pk-alert" role="status" data-pk-status><strong>${escapeHtml(msg.title)}.</strong> ${escapeHtml(msg.body || '')}${retry}</p>`;
 }
 
-/* One line above the table only when something blocks funding: a missing or
-   malformed SEC contact, or names in the book the event check could not read. */
-function pkAlertHtml(data) {
-  const ev = data.event_check || {};
+/* [PURE] The SEC contact problem that stopped the corporate-event check for the
+   whole scan, or null. With no contact no name can be read, so no Buy call was
+   possible: that is a setup problem, not a market result, and the page says so. */
+function pkContactBlock(data) {
+  const ev = (data && data.event_check) || {};
   const contact = ev.contact || {};
-  const names = (ev.reasons || []).flatMap((r) => r.book_tickers || []);
-  if (!names.length && contact.state !== 'missing' && contact.state !== 'malformed') return '';
-  const shown = Math.max(1, Number(thr('UI.NAME_LIST_SHOWN')) || 5);
-  const list = ` (${names.slice(0, shown).join(', ')}${names.length > shown ? `, +${names.length - shown} more` : ''})`;
-  const text = names.length
-    ? `Corporate-event check could not read ${names.length} name${names.length === 1 ? '' : 's'} in the book${list}; they stay on the Watchlist. Cause and fix under How this scan decided.`
-    : `Corporate-event check unavailable: ${contact.label || 'no SEC contact configured'}. No US name can get a Buy call until it is fixed.`;
-  return `<p class="pk-alert" role="status" data-pk-alert>${escapeHtml(text)}</p>`;
+  const row = (ev.reasons || []).find((r) => (r.reason === 'contact_missing' || r.reason === 'contact_malformed') && Number(r.count) > 0);
+  if (!row && contact.state !== 'missing' && contact.state !== 'malformed') return null;
+  return { label: (row && row.label) || contact.label || 'no SEC contact configured',
+    fix: (row && row.fix) || contact.fix || '' };
+}
+
+/* [PURE] The scan asked for a liquidity-ranked universe and did not get one: the
+   ranking failed and the scan read an even spread of the whole list instead. */
+function pkUniverseFallback(data) {
+  const sel = (data && data.universe_selection) || {};
+  if (sel.method !== 'even_spread' || !sel.cause) return null;
+  const cause = String(sel.cause);
+  const missingEngine = /pyarrow|fastparquet|parquet/i.test(cause);
+  return { selected: Number(sel.selected) || 0, candidates: Number(sel.candidates) || 0, missingEngine,
+    cause: missingEngine ? 'a required package (pyarrow) is not installed on the server' : cause.split('\n')[0] };
+}
+
+const PK_FIXED_UNIVERSE = 'the server can rank scans by liquidity again';
+const PK_FIXED_CONTACT = 'the SEC contact is now configured';
+
+/* [PURE] Setup problems a SAVED scan was run with that the server no longer has. */
+function pkFixedSince(data, health, saved) {
+  if (!saved || !health) return [];
+  const out = [];
+  const fb = pkUniverseFallback(data);
+  if (fb && fb.missingEngine && health.universe_ranking && health.universe_ranking.ok === true) out.push(PK_FIXED_UNIVERSE);
+  if (pkContactBlock(data) && health.sec_contact && health.sec_contact.state === 'configured') out.push(PK_FIXED_CONTACT);
+  return out;
+}
+
+/* Lines above the table only when something makes the result unreliable or blocks
+   funding: a universe that was not the one asked for, a missing or malformed SEC
+   contact, or names in the book the event check could not read. */
+function pkAlertHtml(data, health = (typeof state !== 'undefined' ? state.serverHealth : null), saved = (typeof state !== 'undefined' && Boolean(state.picksSavedAt))) {
+  const out = [];
+  const fb = pkUniverseFallback(data);
+  const fixedNow = pkFixedSince(data, health, saved);
+  // A saved scan carries the problems it was run with. Once the server no
+  // longer has one, its warning is dropped rather than repeated.
+  if (fb && !fixedNow.includes(PK_FIXED_UNIVERSE)) {
+    const of = fb.candidates > fb.selected ? ` of ${fb.candidates.toLocaleString('en-US')}` : '';
+    out.push(`<p class="pk-alert" role="status" data-pk-alert="universe"><strong>This scan did not read the most liquid names.</strong> ${escapeHtml(`The liquidity ranking failed (${fb.cause}), so it read an even spread of ${fb.selected}${of} names instead. Many are small or thinly traded and were screened out. Treat this result as incomplete${fb.missingEngine ? ': restart QUANTA with ./start.sh --reinstall, then run the scan again' : ' and run the scan again'}.`)}</p>`);
+  }
+  const ev = data.event_check || {};
+  const block = fixedNow.includes(PK_FIXED_CONTACT) ? null : pkContactBlock(data);
+  const names = fixedNow.includes(PK_FIXED_CONTACT) ? [] : (ev.reasons || []).flatMap((r) => r.book_tickers || []);
+  if (block) {
+    out.push(`<p class="pk-alert" role="status" data-pk-alert="contact"><strong>No Buy call was possible in this scan.</strong> ${escapeHtml(`The corporate-event check could not run on any name: ${block.label}. Every candidate stays on the Watchlist until it is fixed.${block.fix ? ` Fix: ${block.fix}.` : ''}`)}</p>`);
+  } else if (names.length) {
+    const shown = Math.max(1, Number(thr('UI.NAME_LIST_SHOWN')) || 5);
+    const list = ` (${names.slice(0, shown).join(', ')}${names.length > shown ? `, +${names.length - shown} more` : ''})`;
+    const one = names.length === 1;
+    out.push(`<p class="pk-alert" role="status" data-pk-alert="event">${escapeHtml(`Corporate-event check could not read ${names.length} name${one ? '' : 's'} in the book${list}; ${one ? 'it stays' : 'they stay'} on the Watchlist. Cause and fix are on the Method tab.`)}</p>`);
+  }
+  return out.join('');
 }
 
 function pkEmptyHtml(data, rows) {
@@ -10170,8 +10239,20 @@ function pkEmptyHtml(data, rows) {
   // ("Hold signal, no buy setup"), so commas made the list ambiguous.
   const why = [wl ? `${wl} name${wl === 1 ? ' is' : 's are'} on the Watchlist.` : '',
     reasons.length ? `${reached === 0 ? 'No name passed the per-name rules. ' : ''}Top reasons across the scan: ${reasons.join('; ')}.` : ''].filter(Boolean).join(' ');
+  // A scan that could not make a Buy call (no SEC contact) or did not read the
+  // universe it was asked for is a setup problem. "No picks right now" would
+  // read as a verdict on the market.
+  const fixedNow = pkFixedSince(data, typeof state !== 'undefined' ? state.serverHealth : null,
+    typeof state !== 'undefined' && Boolean(state.picksSavedAt));
+  const block = fixedNow.includes(PK_FIXED_CONTACT) ? null : pkContactBlock(data);
+  const fallback = fixedNow.includes(PK_FIXED_UNIVERSE) ? null : pkUniverseFallback(data);
+  const blocked = Boolean(block || fallback);
+  const blockedWhy = [block ? 'The corporate-event check is switched off until an SEC contact is set, so every candidate stops at Watchlist.' : '',
+    fallback ? 'The universe was not the one asked for, so the counts below describe a different set of names.' : '',
+    'This is a setup problem, not a read on the market: fix it and run the scan again.'].filter(Boolean).join(' ');
   return `<div class="pk-verdict pk-empty" data-pk-empty>
-      <h3 class="pk-verdict-h" data-result-heading tabindex="-1">No Buy or Accumulate picks right now.</h3>
+      <h3 class="pk-verdict-h" data-result-heading tabindex="-1">${blocked ? 'No picks: this scan could not make a Buy call.' : 'No Buy or Accumulate picks right now.'}</h3>
+      ${blocked ? `<p class="pk-verdict-why" data-pk-blocked>${escapeHtml(blockedWhy)}</p>` : ''}
       ${why ? `<p class="pk-verdict-why">${escapeHtml(why)}</p>` : ''}
       ${uncovered ? `<p class="pk-verdict-why" data-pk-uncovered>${escapeHtml(`${exchanges.length ? exchanges.join(' and ') : 'These'} listings get no Buy or Accumulate call: no corporate-event source covers them yet, so the best call a name can reach is Watchlist.`)}</p>` : ''}
     </div>`;
@@ -10457,7 +10538,15 @@ function pkHeadHtml(data, rows, sym) {
   const barsDay = bars[0] ? new Date(bars[0], bars[1] - 1, bars[2]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
   const meta = [run ? { cls: 'pk-run', title: `Scan completed ${run.local} (your time)`, text: `Run ${run.text}` } : '',
     pkProvenance(),
-    barsDay ? { cls: 'pk-bars', title: 'Scores read completed daily bars only; prices on a Research-checked row may be newer (see its Price cell)', text: `Daily bars to ${barsDay}` } : '',
+    barsDay ? (() => {
+      // The provider sometimes serves the newest session without a close; the
+      // scan then scores the one before it, and the header says so.
+      const lag = Number((data.data_dates || {}).bar_lag_sessions);
+      const behind = Number.isFinite(lag) && lag > 0 ? ` (${lag} session${lag === 1 ? '' : 's'} behind)` : '';
+      return { cls: `pk-bars${behind ? ' is-behind' : ''}`, title: behind
+        ? `The price provider has not published a complete bar for the latest ${lag === 1 ? 'session' : `${lag} sessions`}, so scores read the session before. Run the scan again later for current scores.`
+        : 'Scores read completed daily bars only; prices on a Research-checked row may be newer (see its Price cell)', text: `Daily bars to ${barsDay}${behind}` };
+    })() : '',
     india ? 'India' : 'US',
     (data.risk_profile || {}).profile ? `${titleLabel(data.risk_profile.profile)} mandate` : '',
     data.max_positions ? `Up to ${Number(data.max_positions)} positions` : '',
@@ -10654,10 +10743,44 @@ function pkRowHtml(r, i, sym, showCap = true) {
    verdict, the scan figures and the model flag sit above the tabs (they describe
    the whole scan); the broker-holdings note lives under Risk and execution. */
 function pkOverviewHtml(data, rows, sym, foot) {
-  if (!rows.length) return `<p class="pk-panel-empty">No Buy, Accumulate or Watchlist call in this scan. Method lists every name and the rule it stopped at.</p>${foot}`;
+  if (!rows.length) return `<p class="pk-panel-empty">No Buy, Accumulate or Watchlist call in this scan. Method lists every name and the rule it stopped at.</p>${pkNearMissHtml(data, sym)}${foot}`;
   return `<div class="pk-ov-tools">${pkStatusChipsHtml(rows)}${pkResultFiltersHtml(rows)}</div>
       ${pkTableHtml(rows, sym)}<p class="pk-nomatch" data-pk-nomatch hidden>No call matches these filters.</p>${pkWarningsHtml(data, rows)}
-    ${foot}`;
+    ${pkNearMissHtml(data, sym)}${foot}`;
+}
+
+/* [PURE] What would clear one near miss, in plain words. */
+function pkNearMissRule(n, sym) {
+  if (n.reason === 'risk_reward_low' && pkNum(n.rr) !== null && pkNum(n.needed) !== null) {
+    const bits = [`Reward/risk ${fmtRR(n.rr)}, needs ${fmtRR(n.needed)}`];
+    if (pkNum(n.entry_needed)) bits.push(`clears at ${fmtPrice(n.entry_needed, sym)} or below`);
+    if (pkNum(n.target_needed)) bits.push(`or with a target of ${fmtPrice(n.target_needed, sym)}`);
+    return bits.join(', ');
+  }
+  const d = String(n.detail || '');
+  if (/RSI/i.test(d)) return d.replace(/^(HOLD|AVOID):\s*/i, '');
+  return d.replace(/^(HOLD|AVOID):\s*/i, '') || filterWords(n.reason);
+}
+
+/* The highest-scored names one per-name rule kept out of the book. A scan can
+   end with one row while names scored 80 or more were stopped only by the
+   reward/risk hurdle; listing them shows what the scan ranked highest and what
+   would have to change. Not picks. */
+function pkNearMissHtml(data, sym) {
+  const all = (data && data.near_misses) || [];
+  if (!all.length) return '';
+  const shown = Math.max(1, Number(thr('UI.NEAR_MISS_SHOWN')) || 5);
+  const item = (n, hidden) => `<li class="pk-nm-row"${hidden ? ' data-pk-nm-more hidden' : ''} data-pk-nm="${escapeHtml(n.ticker)}">
+      <button type="button" class="pk-nm-t pk-open" data-ticker="${escapeHtml(n.ticker)}" title="Open ${escapeHtml(n.ticker)} in Research">${escapeHtml(n.ticker)}</button>
+      <span class="pk-nm-s" title="Scanner score out of 100">${escapeHtml(fmtScore100(n.score))}</span>
+      <span class="pk-nm-r">${escapeHtml(pkNearMissRule(n, sym))}</span></li>`;
+  const more = all.length > shown
+    ? `<button type="button" class="btn-mini pk-nm-toggle" data-pk-nm-toggle aria-expanded="false">Show all ${all.length}</button>` : '';
+  return `<section class="pk-nm" data-pk-near-miss aria-labelledby="pk-nm-h">
+      <header class="pk-nm-head"><h4 id="pk-nm-h">Ranked high, stopped by one rule <span class="pk-nm-n">${all.length}</span></h4>
+      <p class="pk-nm-note">Not picks. Each scored at least the Accumulate floor and failed one rule that keeps new money out. Highest score first.</p></header>
+      <ul class="pk-nm-list">${all.map((n, i) => item(n, i >= shown)).join('')}</ul>${more}
+    </section>`;
 }
 
 /* ── Analysis ──────────────────────────────────────────────────────────── */
@@ -11041,11 +11164,14 @@ function pkLevelsCellHtml(r, sym) {
   const lo = Math.min(...vals); const hi = Math.max(...vals);
   const at = (v) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo || 1)) * 100));
   const up = pkNum(r.upside_pct);
+  // Levels the Research check never replaced are the scanner's own; say so on the row.
+  const unchecked = /^Scanner levels/i.test(String(r.levels_label || '')) && /not run|not confirmed/i.test(String(r.levels_label));
   const zone = zl && zh ? `<span class="pk-lv-zone" style="left:${at(Math.min(zl, zh)).toFixed(1)}%;width:${Math.max(1.5, Math.abs(at(zh) - at(zl))).toFixed(1)}%"></span>` : '';
   return `<div class="pk-lv">
       <div class="pk-lv-bar" aria-hidden="true"><span class="pk-lv-track"></span>${zone}<span class="pk-lv-stop" style="left:${at(stop).toFixed(1)}%"></span><span class="pk-lv-target" style="left:${at(target).toFixed(1)}%"></span>${price ? `<span class="pk-lv-price" style="left:${at(price).toFixed(1)}%"></span>` : ''}</div>
       <div class="pk-lv-labels"><span class="pk-px-stop">Stop ${escapeHtml(fmtPrice(stop, sym))}</span><span class="pk-px-target">Target ${escapeHtml(fmtPrice(target, sym))}${up !== null ? ` <span class="pk-lv-up${up < 0 ? ' is-neg' : ''}">${escapeHtml(pkSignedPct(up))}</span>` : ''}</span></div>
       <div class="pk-lv-entry">Entry ${escapeHtml(pkEntryText(r, sym)).split('\u0000').map((x) => `<span class="pk-zone">${x}</span>`).join('')}</div>
+      ${unchecked ? '<div class="pk-lv-src" data-levels-unchecked title="The Research check did not run on this name, so these are the scan\u2019s own levels: a 12-month analyst target against a multi-week stop. Research levels replace them once the check runs.">Scanner levels, not Research-checked</div>' : ''}
     </div>`;
 }
 
@@ -11180,6 +11306,12 @@ function wirePicksTable(container, data) {
   const view = container.querySelector('[data-picks-v2]');
   if (!view || view.dataset.wired === '1') return;
   view.dataset.wired = '1';
+  view.querySelectorAll('[data-pk-nm-toggle]').forEach((btn) => btn.addEventListener('click', () => {
+    const open = btn.getAttribute('aria-expanded') !== 'true';
+    view.querySelectorAll('[data-pk-nm-more]').forEach((li) => { li.hidden = !open; });
+    btn.setAttribute('aria-expanded', String(open));
+    btn.textContent = open ? 'Show fewer' : `Show all ${view.querySelectorAll('[data-pk-nm]').length}`;
+  }));
   data = data || view.pkData || {};
   const table = container.querySelector('table.pk-table');
   const showTab = (key) => {
@@ -14245,15 +14377,32 @@ function measureRail(container) {
   if (getComputedStyle(desk).display === 'grid') desk.style.setProperty('--ts-rail-h', `${Math.ceil(rail.getBoundingClientRect().height)}px`);
 }
 
+// [PURE] The close a live quote's day change is measured from. Daily bars carry
+// no previous close. When the last bar is the quote's own session it is the bar
+// before it; when the daily bars stop a session short of the quote (today's bar
+// not served yet) it is the last bar itself. Taking the bar before the last in
+// that case printed "+1.73% today" for a +2.75% session (MSFT, 2026-11-09).
+function livePreviousClose(d) {
+  const given = Number(d && d.previous_close);
+  if (given > 0) return given;
+  const pts = d && Array.isArray(d.points) ? d.points : [];
+  if (!d || d.interval !== '1d' || !pts.length) return NaN;
+  const last = pts[pts.length - 1];
+  const quoteTime = Number(d.regular_time);
+  // A daily bar is stamped at its session's midnight, so a quote a day or more
+  // after that stamp belongs to a later session.
+  const lastIsEarlierSession = quoteTime > 0 && quoteTime - Number(last[0]) >= 86400000;
+  if (lastIsEarlierSession) return Number(last[1]);
+  return pts.length > 1 ? Number(pts[pts.length - 2][1]) : NaN;
+}
+
 // One price on the page: once the live chart has a quote newer than the
 // analysis, the rail and the section bar show it. The Decision's levels stay
 // measured from the analysis price, which the price's tooltip names.
 function syncLivePrice(container, d, { ticker, analysisPrice, sym }) {
   if (!d || String(d.symbol || '').toUpperCase() !== String(ticker || '').toUpperCase()) return;
   const px = Number(d.regular_price);
-  // Daily bars carry no previous close: it is the session before the last bar.
-  const pts = Array.isArray(d.points) ? d.points : [];
-  const prev = Number(d.previous_close) || (d.interval === '1d' && pts.length > 1 ? Number(pts[pts.length - 2][1]) : NaN);
+  const prev = livePreviousClose(d);
   if (!(px > 0) || !(prev > 0)) return;
   const pct = ((px - prev) / prev) * 100;
   const val = container.querySelector('.decision-price-value');
@@ -15003,7 +15152,7 @@ if (typeof module !== 'undefined' && module.exports) {
     evidenceValidated,
     modelFlagHtml,
     relativeCardHtml,
-    levelNotesHtml,
+    levelNotesHtml, livePreviousClose, pkContactBlock, pkUniverseFallback, universeRankingNotice, pkAlertHtml, pkEmptyHtml, pkLevelsCellHtml, pkFixedSince, pkNearMissHtml, pkNearMissRule, pkHeadHtml,
     streetStripHtml,
     earningsReportHtml,
     callHistoryHtml,

@@ -67,6 +67,27 @@ class Bounded:
     reaped: bool = True          # the child is gone when run() returns
 
 
+def frame_transport_status() -> Dict[str, Any]:
+    """Can a DataFrame come back from the child process?
+
+    The transport is Parquet, which needs pyarrow (or fastparquet). Without one
+    the bulk price download fails after it has finished, so every scan that
+    ranks its universe by liquidity falls back to an even spread. The server
+    reports this at start and on /api/health instead of at scan time.
+    """
+    import importlib.util
+    for engine in ("pyarrow", "fastparquet"):
+        try:
+            if importlib.util.find_spec(engine) is not None:
+                return {"ok": True, "engine": engine}
+        except (ImportError, ValueError):
+            continue
+    return {"ok": False, "engine": None,
+            "label": "the pyarrow package is not installed",
+            "fix": "Run ./start.sh --reinstall (Windows: .\\start.ps1 -Reinstall), or "
+                   "pip install -c webapp/constraints.txt pyarrow, then restart the server"}
+
+
 def bulk_target() -> str:
     override = (os.environ.get("QUANTA_BULK_TARGET") or "").strip()
     if not override or override == DEFAULT_BULK_TARGET:

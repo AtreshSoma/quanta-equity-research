@@ -770,6 +770,10 @@ class RESEARCH(_Group):
     RSI_EXHAUSTION = 85.0               # with a bearish MACD -> no fresh BUY
     RSI_CAPITULATION = 15.0             # with a bullish MACD -> no fresh SELL
     STRONG_CONFIRMATIONS = 3            # STRONG_BUY / STRONG_SELL need this many
+    # A call the decision rules held back from new money never shows a conviction
+    # above this (0-100): the same cap the signal generator applies when one of its
+    # own overrides forces a Hold. Display and labels only; no gate reads conviction.
+    BLOCKED_CALL_CONVICTION_CAP = 60.0
     MODE = "full"                       # F7: one research mode for deep confirmation and My Portfolio
     TARGET_AGREEMENT_STRONG_PCT = 70.0  # target sources agree this closely or better: strong
     TARGET_AGREEMENT_WEAK_PCT = 40.0    # at or below: weak agreement

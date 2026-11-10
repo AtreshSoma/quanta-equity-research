@@ -89,6 +89,32 @@ def test_past_the_download_limit_an_even_spread_is_read_not_a_prefix(system, mon
     assert not set(out) <= set(tickers[:50]), "an alphabetical prefix would hold every name"
 
 
+def test_large_cap_index_names_are_always_in_the_liquidity_download(system, monkeypatch):
+    """A "most liquid" scan of 1,517 names read an even spread of 1,000, so one
+    name in three was never ranked whatever its size (2026-11-09)."""
+    obj, tickers = system
+    monkeypatch.setattr(T.UNIVERSE, "PREFILTER_MAX_TICKERS", 50)
+    priority = set(tickers[1::9])                      # 34 names the plain spread mostly steps over
+    assert not priority <= set(obj._even_sample(tickers, 50)), "the fixture must show the old gap"
+    names, n = obj._prefilter_download_list(tickers, 50, priority)
+    assert n == len(priority) and priority <= set(names)
+    assert len(names) == 50 and len(set(names)) == 50
+    assert not set(names) - priority <= set(tickers[:50]), "the rest is still a spread, not a prefix"
+    out = obj.smart_prefilter(tickers, max_candidates=10, priority=priority)
+    sel = obj._universe_selection
+    assert sel["prefilter_sampled"] == 50 and sel["prefilter_priority"] == len(priority)
+    assert set(out) <= set(names)
+
+
+def test_the_download_list_is_unchanged_when_everything_fits_or_no_priority_is_given(system):
+    obj, tickers = system
+    assert obj._prefilter_download_list(tickers, 1000, {"T001"}) == (tickers, 0)
+    assert obj._prefilter_download_list(tickers, 50, None) == (obj._even_sample(tickers, 50), 0)
+    # More priority names than the download holds: the first ones, never over the cap.
+    names, n = obj._prefilter_download_list(tickers, 50, set(tickers))
+    assert len(names) == 50 and n == 50
+
+
 def test_the_engine_reports_the_kept_universe_before_analysis(monkeypatch):
     import test_scan_accounting as acc
     acc._install(monkeypatch)

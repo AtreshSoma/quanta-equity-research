@@ -6129,6 +6129,24 @@ def _sec_contact_status() -> Dict[str, Any]:
                 "error": type(exc).__name__}
 
 
+def _universe_ranking_status() -> Dict[str, Any]:
+    """Whether a scan can rank its universe by liquidity (engine.bounded's frame transport)."""
+    try:
+        from engine.bounded import frame_transport_status
+        return frame_transport_status()
+    except Exception as exc:  # noqa: BLE001 - health must answer even if the engine cannot load
+        return {"ok": None, "engine": None, "error": type(exc).__name__}
+
+
+def _universe_ranking_startup_check() -> Dict[str, Any]:
+    """Say at start, not at scan time, that scans cannot rank their universe."""
+    status = _universe_ranking_status()
+    if status.get("ok") is False:
+        logger.warning("Scan universe: %s. Scans cannot rank names by liquidity and will read an even "
+                       "spread of the whole list instead. %s.", status.get("label"), status.get("fix"))
+    return status
+
+
 def _sec_contact_startup_check() -> Dict[str, Any]:
     """[I1] Server start: adopt the user-scope or .env contact when the launching
     terminal's environment predates it, and warn when there is none. The corporate-
@@ -6214,6 +6232,7 @@ def _backend_health(probe: bool = True) -> Dict[str, Any]:
         "last_scan": scan_meta,
         "server_instance": dict(_SERVER_INSTANCE),
         "sec_contact": _sec_contact_status(),
+        "universe_ranking": _universe_ranking_status(),
         # Offset-aware like every other stamp that crosses to the browser;
         # a naive isoformat() is parsed by new Date() as browser-local time.
         "timestamp": _now_iso(),
@@ -7247,7 +7266,7 @@ def _terminal_stage(outcome: str, stage_log: Dict[str, Dict[str, int]],
             "stages": rows, "elapsed_s": elapsed_s}
 
 
-def _data_dates(rows: List[Any], completed: str) -> Dict[str, Any]:
+def _data_dates(rows: List[Any], completed: str, market: str = "US") -> Dict[str, Any]:
     """[A13] The three clocks of a scan, kept apart: the daily-bar session
     each analysed name was read on, the provider's quote time, and when the
     scan finished."""
@@ -7261,12 +7280,30 @@ def _data_dates(rows: List[Any], completed: str) -> Dict[str, Any]:
         q = str(getattr(r, "quote_time", "") or "")
         if q:
             quotes.append(q)
+    bar = max(sessions) if sessions else None
     return {
-        "bar_session": max(sessions) if sessions else None,
+        "bar_session": bar,
         "bar_sessions": dict(sorted(sessions.items(), reverse=True)),
+        # Completed sessions the newest scored bar trails the last close by: the
+        # provider sometimes serves the latest session without a close (Yahoo,
+        # 2026-11-09), and the scan then scores the session before it.
+        "bar_lag_sessions": _bar_lag_sessions(bar, market),
         "quote_time": max(quotes) if quotes else None,
         "scan_completed": completed,
     }
+
+
+def _bar_lag_sessions(bar: Optional[str], market: str = "US") -> Optional[int]:
+    if not bar:
+        return None
+    try:
+        from engine import market_calendar as mc
+        day = datetime.fromisoformat(str(bar)[:10]).date()
+        if str(market).upper() in ("IN", "INDIA"):
+            return max(0, mc.india_trading_days_between(day, mc.last_completed_india_session()))
+        return max(0, mc.trading_days_between(day, mc.last_completed_session()))
+    except Exception:  # noqa: BLE001 - a label, never a reason to fail the scan
+        return None
 
 
 def _run_stock_picks(job_id: str, params: dict):
@@ -7381,6 +7418,11 @@ def _run_stock_picks(job_id: str, params: dict):
         for rec in recs:
             ticker = str(getattr(rec, "ticker", "") or "")
             record = dc_by_ticker.get(ticker, {})
+            # A name the corporate-event gate held never reaches the Research
+            # check, so it has no record. It used to be published as "Confirmed"
+            # and listed under "Analyzer disagrees", for a check that never ran.
+            not_checked = dc_enabled and ticker not in dc_by_ticker
+            _held_why = str(((getattr(rec, "event_check", None) or {}).get("text")) or "").strip()
             final_action = str(
                 getattr(rec, "final_action", "") or getattr(rec, "signal", "") or "HOLD"
             ).upper().replace(" ", "_")
@@ -7445,13 +7487,16 @@ def _run_stock_picks(job_id: str, params: dict):
                 "final_action": final_action,
                 "downgrade_flag": downgraded,
                 # [P5] The table shows one plain reason, as the card does.
-                "reason": _plain_why(reason, getattr(rec, "decision", None) or {}, float(alloc_after or 0) > 0),
+                "reason": (_held_why or "Held before the Research check") if not_checked else
+                          _plain_why(reason, getattr(rec, "decision", None) or {}, float(alloc_after or 0) > 0),
                 "reason_codes": reason_codes,
                 "allocation_before": alloc_before,
                 "allocation_after": alloc_after,
                 "not_independently_confirmed": not_confirmed,
+                "research_checked": not not_checked,
                 "data_status": data_status or "ok",
-                "validation_status_label": _validation_status_label(data_status or "ok"),
+                "validation_status_label": ("Research check not run" if not_checked
+                                            else _validation_status_label(data_status or "ok")),
                 "deep_mode": record.get("deep_mode", "unknown"),
                 "scanner_risk_grade": record.get("scanner_risk_grade", ""),
                 "deep_risk_grade": record.get("deep_risk_grade", ""),
@@ -7478,6 +7523,12 @@ def _run_stock_picks(job_id: str, params: dict):
                     analyzer_display = "INVALID"
                     validation_status = _validation_status_label("invalid_ticker")
                     score_reason = "Ticker failed data-validation gate"
+                elif not_checked:
+                    row_kind = "not_checked"
+                    analyzer_display = None
+                    validation_status = "Research check not run"
+                    score_reason = "Held before the Research check, so there is no Research verdict"
+                    reason = _held_why or "Held before the Research check"
                 else:
                     row_kind = "disagreement"
                     analyzer_display = deep_action or None
@@ -7774,6 +7825,10 @@ def _run_stock_picks(job_id: str, params: dict):
             "candidate_rejections": _safe_serialize(
                 quanta.candidate_rejections()
                 if callable(getattr(quanta, "candidate_rejections", None)) else []),
+            # The highest-scored names a single per-name rule kept out (not picks).
+            "near_misses": _safe_serialize(
+                quanta.near_misses()
+                if callable(getattr(quanta, "near_misses", None)) else []),
             # [Picks table] One ranked row per name that reached the book.
             "stock_picks": _safe_serialize(_stock_picks_table(quanta, picks, _final_recs,
                                                               int(params["max_positions"]))),
@@ -7854,7 +7909,8 @@ def _run_stock_picks(job_id: str, params: dict):
             "market": params["market"],
             "filters": dict(params.get("filters") or {}),
         }
-        result["data_dates"] = _data_dates(list(scan_results or []) or list(recs), result["timestamp"])
+        result["data_dates"] = _data_dates(list(scan_results or []) or list(recs), result["timestamp"],
+                                           params["market"])
         # [Calls] The page shows QUANTA's calls; names that are not picks go to Method.
         _view = _picks_view(result.get("stock_picks") or [], quanta)
         result.update(stock_picks=_view["picks"], screened_out=_view["screened_out"],
@@ -9563,6 +9619,7 @@ def main():
 
     logger.info(f"QUANTA Web starting on http://{host}:{port}")
     _sec_contact_startup_check()
+    _universe_ranking_startup_check()
 
     if os.getenv("QUANTA_NO_WARMUP") != "1":
         threading.Thread(target=_warm_dashboard, name="dashboard-warmup", daemon=True).start()

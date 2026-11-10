@@ -49,7 +49,7 @@ fi
 # Same contract as start.ps1: the cache marker is a hash of requirements.txt and
 # pyproject.toml, and the fast path also probes that every critical module
 # imports, so a half-finished install is never remembered as success.
-CRITICAL=(flask numpy pandas requests rich ta yfinance vaderSentiment dateutil scipy)
+CRITICAL=(flask numpy pandas requests rich ta yfinance vaderSentiment dateutil scipy pyarrow)
 PROBE='import importlib.util as u,sys; m=[n for n in sys.argv[1:] if u.find_spec(n) is None]; print(", ".join(m)); sys.exit(len(m))'
 MARKER="$VENV/.quanta_reqs_hash"
 

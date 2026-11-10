@@ -18,3 +18,4 @@ curl_cffi==0.17.0
 vaderSentiment==3.3.2
 python-dateutil==2.9.0.post0
 scipy==1.17.1
+pyarrow==26.0.1

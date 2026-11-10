@@ -4985,6 +4985,7 @@ td.pk-c-rank { color: var(--text-muted); }
 .pk-lv-up { color: var(--text-secondary); }
 .pk-lv-up.is-neg { color: var(--bear); }
 .pk-lv-entry { font-size: var(--fs-2xs); color: var(--text-secondary); font-family: var(--pk-num); }
+.pk-lv-src { grid-column: 1 / -1; font-size: var(--fs-2xs); color: var(--text-secondary); font-family: var(--font-sans); cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; white-space: normal; }
 .pk-zone { display: inline-block; }
 .pk-px-stop { color: var(--bear); }
 .pk-px-target { color: var(--bull); }
@@ -8832,3 +8833,23 @@ html.lc-locked { overflow: hidden; }
 .ai-brief .ai-brief-cases h4 { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); }
 .ai-brief .ai-brief-foot { font-size: var(--fs-2xs); }
 @media (max-width: 560px) { .ai-brief .ai-brief-cases { grid-template-columns: minmax(0, 1fr); } }
+
+/* Picks: highest-scored names one rule kept out (not picks). */
+.pk-nm { margin-top: 16px; border: 1px solid var(--border-soft); border-radius: 10px; padding: 12px 14px; }
+.pk-nm-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 8px; }
+.pk-nm-head h4 { margin: 0; font-size: var(--fs-sm, 0.875rem); font-weight: 600; }
+.pk-nm-n { color: var(--text-secondary); font-weight: 500; margin-left: 4px; }
+.pk-nm-note { margin: 0; color: var(--text-secondary); font-size: var(--fs-2xs, 0.75rem); }
+.pk-nm-list { list-style: none; margin: 0; padding: 0; }
+.pk-nm-row { display: grid; grid-template-columns: 72px 44px 1fr; align-items: baseline; gap: 12px; padding: 7px 0; border-top: 1px solid var(--border-soft); }
+.pk-nm-row:first-child { border-top: 0; }
+.pk-nm-t { all: unset; cursor: pointer; font-weight: 600; font-family: var(--pk-num, var(--font-mono, monospace)); }
+.pk-nm-t:hover { text-decoration: underline; }
+.pk-nm-t:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; border-radius: 3px; }
+.pk-nm-s { font-family: var(--pk-num, var(--font-mono, monospace)); color: var(--text-secondary); text-align: right; }
+.pk-nm-r { color: var(--text-secondary); font-size: var(--fs-2xs, 0.8125rem); }
+.pk-nm-toggle { margin-top: 8px; }
+.pk-bars.is-behind { color: var(--warn); }
+@media (max-width: 560px) {
+  .pk-nm-row { grid-template-columns: 64px 40px 1fr; gap: 8px; }
+}

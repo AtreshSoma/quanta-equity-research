@@ -20,7 +20,7 @@
       "breakout_entry": 94.1,
       "buy_now": "NO",
       "candlestick_timing": "WAIT",
-      "confidence": 64.2119,
+      "confidence": 60.0,
       "data_quality": "PASS",
       "entry_quality": "Poor",
       "existing_holder": "Hold",
@@ -60,7 +60,7 @@
     },
     "company_name": "Coca-Cola Company (The)",
     "confidence_level": "MEDIUM",
-    "confidence_score": 64.2119,
+    "confidence_score": 60.0,
     "conviction_label": "MODERATE-CONVICTION",
     "country": "United States",
     "currency": "USD",
@@ -537,7 +537,7 @@
     "is_high_volatility": false,
     "is_invalid": false,
     "key_insights": [
-      "\u23f8\ufe0f HOLD signal with 64% confidence",
+      "\u23f8\ufe0f HOLD signal with 60% confidence",
       "\ud83d\udd34 Candlestick: Bearish Marubozu (Bearish, high reliability)",
       "\ud83d\udcaa Strong ROE of 42.1% - excellent profitability",
       "\u2b50 High Piotroski F-Score (7/9) - strong fundamentals",
@@ -627,7 +627,7 @@
     "recommendation_caveat": "",
     "recommendation_label": "WATCHLIST",
     "recommendation_qualifier": "",
-    "recommendation_text": "WATCHLIST - No new position | Confidence: 64% | Score: 64/100 | Risk: A",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 60% | Score: 64/100 | Risk: A",
     "relative_performance": {
       "basis": "total return, dividend-adjusted closes",
       "benchmark": "SPY",
@@ -952,7 +952,7 @@
       "risks": [
         "\ud83d\udcc5 EARNINGS IMMINENT: 4 days away"
       ],
-      "summary": "Coca-Cola Company (The) (KO) should be held at current levels with a 64% confidence score. Composite score of 64/100."
+      "summary": "Coca-Cola Company (The) (KO) should be held at current levels with a 60% confidence score. Composite score of 64/100."
     },
     "ticker": "KO",
     "trade_setup": {

@@ -350,8 +350,11 @@ def test_the_rss_feed_parses_title_publisher_time_and_link():
         return SimpleNamespace(content=_FEED, raise_for_status=lambda: None)
     items = _REAL_RSS("SYNA", get=get)
     assert "s=SYNA" in seen[0]
-    assert items[0] == {"title": "Synthetic wins $2B defense contract", "publisher": "Investing.com",
-                        "published": "2026-10-05T18:58:42+00:00", "url": "https://finance.yahoo.com/x.html"}
+    # The shared parser (engine.news_feed) also carries the item's description.
+    assert {k: v for k, v in items[0].items() if k != "summary"} == {
+        "title": "Synthetic wins $2B defense contract", "publisher": "Investing.com",
+        "published": "2026-10-05T18:58:42+00:00", "url": "https://finance.yahoo.com/x.html"}
+    assert items[0]["summary"].startswith("Investing.com --")
     assert items[1]["publisher"] == "Yahoo Finance" and items[1]["url"] == "" and items[1]["published"] == ""
 
 

@@ -53,6 +53,13 @@ dependencies = [
     # promise this import does not keep. CI installs [dev,webapp,ui] and not
     # providers, so both Python jobs failed at collection.
     "tabulate>=0.9",
+    # core/engine/bounded.py hands the scan's bulk price download back from its
+    # child process as Parquet. This was listed under `dev` only, so an install
+    # made by start.sh had no Parquet engine: the liquidity ranking failed on
+    # every scan and each "most liquid" universe fell back to an even spread of
+    # the whole list (seen 2026-11-09: 32 names under the market-cap floor in a
+    # "250 most liquid" scan). CI installs `dev`, so no test saw it.
+    "pyarrow>=15.0",
 ]
 
 [project.optional-dependencies]
@@ -60,10 +67,6 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
-    # `tests/test_recommendation_trace.py` replays the cached Parquet panel in
-    # core/apex_quant/_cache. Without an engine that test used to fail as if
-    # the trace were broken, rather than reporting a missing dependency.
-    "pyarrow>=15.0",
     # tests/test_evidence_decision.py freezes the clock.
     "freezegun>=1.4",
 ]

@@ -48,3 +48,14 @@ def test_older_bad_bar_is_never_hidden():
         bars, now=pd.Timestamp("2026-09-08 10:00:00-04:00")
     )
     assert not DataValidator.validate_history(completed).is_valid
+
+
+def test_an_invalid_bar_is_named_with_its_prices_and_size():
+    bars = _bars()
+    bars.loc[bars.index[-3], ["Open", "High", "Low", "Close"]] = [100.0, 100.0, 99.0, 100.5]
+    result = DataValidator.validate_history(bars, "X")
+    assert not result.is_valid
+    text = result.errors[0]
+    assert text.startswith("X: 1 rows with invalid OHLC relationships")
+    assert bars.index[-3].date().isoformat() in text
+    assert "H 100.0000" in text and "C 100.5000" in text and "off by 0.4975%" in text

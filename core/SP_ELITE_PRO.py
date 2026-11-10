@@ -14,7 +14,7 @@ from enum import Enum
 from functools import wraps
 import threading
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, TYPE_CHECKING
 import json
 import logging
 from logging.handlers import RotatingFileHandler
@@ -660,36 +660,14 @@ YAHOO_TICKER_RSS = "https://feeds.finance.yahoo.com/rss/2.0/headline?s={symbol}&
 
 def _rss_news_items(ticker: str, get: Optional[Callable[[str], Any]] = None,
                     limit: int = 20) -> List[Dict[str, Any]]:
-    """A ticker's headlines from Yahoo Finance's per-symbol RSS feed.
+    """A ticker's headlines from Yahoo Finance's per-symbol RSS feed (engine.news_feed).
 
-    yfinance 1.7's news call posts to an endpoint Yahoo now answers with 404,
-    so ``Ticker.news`` is empty for every name and the scan read no company
-    news (and no headline catalysts) at all. The RSS feed still serves dated,
-    linked headlines; same shape as :func:`_extract_news_items`.
+    yfinance's news call fails for whole days at a time, so ``Ticker.news`` is
+    empty or raises and the scan would read no company news at all. The RSS feed
+    still serves dated, linked headlines; same shape as :func:`_extract_news_items`.
     """
-    import xml.etree.ElementTree as ET
-    from email.utils import parsedate_to_datetime
-    from urllib.parse import quote
-    resp = (get or NetworkSession.rate_limited_get)(YAHOO_TICKER_RSS.format(symbol=quote(ticker)))
-    resp.raise_for_status()
-    out: List[Dict[str, Any]] = []
-    for item in ET.fromstring(resp.content).iter('item'):
-        title = (item.findtext('title') or '').strip()
-        if not title:
-            continue
-        when = ''
-        try:
-            when = parsedate_to_datetime(item.findtext('pubDate') or '').astimezone(timezone.utc).isoformat()
-        except (TypeError, ValueError):
-            when = ''
-        desc = (item.findtext('description') or '').strip()
-        publisher = desc.split(' -- ', 1)[0].strip() if ' -- ' in desc[:60] else 'Yahoo Finance'
-        link = (item.findtext('link') or '').strip()
-        out.append({"title": title[:160], "publisher": publisher[:60], "published": when,
-                    "url": link if link.startswith('http') else ''})
-        if len(out) >= limit:
-            break
-    return out
+    from engine.news_feed import rss_news_items
+    return rss_news_items(ticker, get=get or NetworkSession.rate_limited_get, limit=limit)
 
 
 def _news_about(ticker: str, info: Optional[Dict[str, Any]],
@@ -1022,6 +1000,14 @@ class DataValidator:
     # 3:2, 4:3 and 5:4 bonus issues that are common on NSE.
     SPLIT_RATIOS = (2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 20.0, 1.5, 4.0 / 3.0, 1.25)
     SPLIT_SCREEN_MOVE = 0.19   # a 5:4 bonus is a -20% day
+    # A split-like day at least this many sessions old, on a name whose provider
+    # lists no split near it, is a real price move: providers list a split within
+    # days, so only the newest bars can still be an unlisted one.
+    SPLIT_UNLISTED_MIN_AGE_SESSIONS = 3
+    SPLIT_LISTING_WINDOW_DAYS = 3      # a listed split this close to the bar explains it
+    # Only moves this size or smaller can be cleared as real: a 5:4, 4:3 or 3:2 sized
+    # day is common news, while a 2:1-sized day in one session is far likelier a split.
+    SPLIT_REAL_MOVE_MAX = 0.40
 
     @classmethod
     def split_like_days(cls, close: pd.Series, volume: Optional[pd.Series],
@@ -1077,15 +1063,72 @@ class DataValidator:
         return out
 
     @classmethod
+    def real_moves_among(cls, split_days: Iterable[int], close: pd.Series, index: Any,
+                         listed_split_dates: Iterable[Any]) -> Set[int]:
+        """Which split-like days the provider's own split list shows are real moves.
+
+        The price-and-volume signature cannot tell a 5:4 split from a -20% earnings
+        day: FTNT 174.08 -> 139.10 on 2026-10-29 lands on 1.25 with volume up 1.56x,
+        and volume within 35% of 1.25 describes most ordinary days. A day stays
+        "probable split" if its move is SPLIT_REAL_MOVE_MAX or more, it is too recent
+        for a listing to be expected, or a listed split sits near it.
+        """
+        listed = []
+        for when in listed_split_dates:
+            stamp = pd.Timestamp(when)
+            listed.append(stamp.date())
+        returns = pd.to_numeric(close, errors='coerce').pct_change(fill_method=None)
+        window = timedelta(days=cls.SPLIT_LISTING_WINDOW_DAYS)
+        last = len(close) - 1
+        real: Set[int] = set()
+        for idx in split_days:
+            if abs(float(returns.iloc[idx])) >= cls.SPLIT_REAL_MOVE_MAX:
+                continue
+            if last - idx < cls.SPLIT_UNLISTED_MIN_AGE_SESSIONS:
+                continue
+            day = pd.Timestamp(index[idx]).date()
+            if any(abs(day - d) <= window for d in listed):
+                continue
+            real.add(int(idx))
+        return real
+
+    @staticmethod
+    def drop_inconsistent_newest_bar(hist: pd.DataFrame) -> Tuple[pd.DataFrame, Optional[str]]:
+        """Remove the newest bar when its open, high, low and close disagree.
+
+        Scores read settled bars only (engine.bars). A newest bar whose close sits
+        outside its own range is not settled, whatever the clock says: on
+        2026-11-09 nine names each failed on one such row and were clean within the
+        hour. Scoring on the previous session excludes the bar instead of the name.
+        An older bad bar is untouched, and still fails validation. Returns the frame
+        and a description of what was dropped (None when nothing was).
+        """
+        cols = ['Open', 'High', 'Low', 'Close']
+        if hist is None or len(hist) < 2 or any(c not in hist.columns for c in cols):
+            return hist, None
+        row = pd.to_numeric(hist[cols].iloc[-1], errors='coerce')
+        if row.isna().any():
+            return hist, None
+        o, h, l, c = (float(row[k]) for k in cols)      # noqa: E741 - OHLC
+        if not (h < l or h < o or h < c or l > o or l > c):
+            return hist, None
+        when = pd.Timestamp(hist.index[-1]).date().isoformat()
+        return hist.iloc[:-1], f"{when}: O {o:.4f} H {h:.4f} L {l:.4f} C {c:.4f}"
+
+    @classmethod
     def validate_history(cls, hist: pd.DataFrame, ticker: str = "",
                          max_age_days: Optional[int] = None,
                          max_age_sessions: Optional[int] = None,
-                         market: str = "US") -> ValidationResult:
+                         market: str = "US",
+                         listed_split_dates: Optional[Iterable[Any]] = None) -> ValidationResult:
         """Validate historical price data quality.
 
         ``max_age_sessions`` (the live scanner) bounds how many completed
         sessions the latest bar may trail; ``max_age_days`` is the older
         calendar-day form, kept for callers that pass it.
+        ``listed_split_dates`` is the provider's own split list. None (not read)
+        leaves every split-like day an error; a list, even empty, lets
+        :meth:`real_moves_among` clear the days it shows are real moves.
         """
         errors = []
         warnings = []
@@ -1137,15 +1180,31 @@ class DataValidator:
             errors.append(f"{ticker}: Volume has {invalid_volume} negative/non-finite values")
         
         # Check OHLC relationship
-        invalid_ohlc = (
+        bad_ohlc = (
             (numeric_hist['High'] < numeric_hist['Low']) |
             (numeric_hist['High'] < numeric_hist['Open']) |
             (numeric_hist['High'] < numeric_hist['Close']) |
             (numeric_hist['Low'] > numeric_hist['Open']) |
             (numeric_hist['Low'] > numeric_hist['Close'])
-        ).sum()
+        )
+        invalid_ohlc = bad_ohlc.sum()
         if invalid_ohlc > 0:
-            errors.append(f"{ticker}: {invalid_ohlc} rows with invalid OHLC relationships")
+            # Name the bar and how far it is off: a provider's transient bad bar
+            # and a rounding artefact look the same in a bare count, and the bar
+            # is often corrected before anyone can look (9 names, 2026-11-09).
+            detail = ""
+            try:
+                row = numeric_hist[bad_ohlc].iloc[-1]
+                gap = max(row['Low'] - row['High'], row['Open'] - row['High'], row['Close'] - row['High'],
+                          row['Low'] - row['Open'], row['Low'] - row['Close'])
+                when = pd.Timestamp(numeric_hist[bad_ohlc].index[-1]).date().isoformat()
+                ref = float(row['Close']) if float(row['Close']) > 0 else float(row['High'])
+                size = f", off by {gap / ref * 100:.4f}%" if ref > 0 else ""
+                detail = (f" (latest {when}: O {row['Open']:.4f} H {row['High']:.4f} "
+                          f"L {row['Low']:.4f} C {row['Close']:.4f}{size})")
+            except Exception:  # noqa: BLE001 - the detail is diagnostic only
+                detail = ""
+            errors.append(f"{ticker}: {invalid_ohlc} rows with invalid OHLC relationships{detail}")
         
         # [M8 FIX] Any single day above MAX_SINGLE_DAY_MOVE used to be an
         # ERROR, disqualifying the whole ticker. But yfinance is already split-
@@ -1165,6 +1224,14 @@ class DataValidator:
             volume = numeric_hist['Volume']
             returns = close.pct_change(fill_method=None)
             split_idx = set(cls.split_like_days(close, volume))
+            if listed_split_dates is not None and split_idx:
+                cleared = cls.real_moves_among(split_idx, close, numeric_hist.index, listed_split_dates)
+                split_idx -= cleared
+                if cleared:
+                    warnings.append(
+                        f"{ticker}: {len(cleared)} day(s) with a split-sized move; the provider lists no "
+                        "split near them, so they are real price moves (event risk, not a data fault)"
+                    )
             big = returns.abs() > cls.MAX_SINGLE_DAY_MOVE
             split_days = len(split_idx)
             news_days = int(sum(
@@ -1970,7 +2037,7 @@ SCAN_DATA_GAP_REASONS = frozenset({
     "insufficient_data", "data_validation_failed", "info_unavailable",
     "tech_indicators_failed", "no_market_cap", "provider_circuit_open", "circuit_breaker_open",
 })
-SCAN_WARNING_REASONS = frozenset({"earnings_calendar_missing"})
+SCAN_WARNING_REASONS = frozenset({"earnings_calendar_missing", "newest_bar_inconsistent", "news_feeds_unavailable"})
 SCAN_BOOK_STAGES = ("actionable", "event", "risk_grade", "score", "risk_reward",
                     "conviction", "cost", "selection", "final_review")
 
@@ -6887,15 +6954,51 @@ class QuantaEliteTradingSystem:
                     for ticker, fields in sorted(self._provider_reads.items())]
 
     def _record_candidate_rejection(self, ticker: str, reason: str,
-                                    score: float, detail: str) -> None:
-        """Explain the first rejecting rule without incrementing outcome counts."""
+                                    score: float, detail: str, **extra: Any) -> None:
+        """Explain the first rejecting rule without incrementing outcome counts.
+
+        ``extra`` carries the measured values behind the rule (for reward/risk:
+        the levels and the cost), so the page can say what would clear it."""
         lock = getattr(self, '_diagnostics_lock', None)
         if lock is None:
             return
         with lock:
             self._candidate_rejections.setdefault(ticker, {
                 "ticker": ticker, "reason": reason, "score": round(float(score), 4), "detail": detail,
+                **{k: v for k, v in extra.items() if v is not None},
             })
+
+    # Rules a high-scoring name can miss by a measurable amount, or by waiting.
+    _NEAR_MISS_REASONS = ("risk_reward_low", "signal_not_actionable", "signal_avoid", "committee_hold")
+
+    def near_misses(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """The highest-scored names a single per-name rule kept out of the book.
+
+        A scan in a range-bound tape can end with one row while names scored
+        8.1 (ETSY, EOG, REGN) were stopped only by the reward/risk hurdle, and
+        the page showed nothing of them. These are not picks: each failed a rule
+        that keeps new money out. Listed by score, at or above the Accumulate
+        floor, with the prices that would clear a reward/risk miss.
+        """
+        from engine.levels import rr_triggers
+        floor = float(_T.SCORE.ACCUMULATE)
+        rows = [r for r in self.candidate_rejections()
+                if r.get("reason") in self._NEAR_MISS_REASONS and float(r.get("score") or 0) >= floor]
+        rows.sort(key=lambda r: (-float(r.get("score") or 0), r["ticker"]))
+        out: List[Dict[str, Any]] = []
+        for r in rows[:int(limit if limit is not None else _T.UI.NEAR_MISS_N)]:
+            item = {"ticker": r["ticker"], "reason": r["reason"], "score": float(r["score"]),
+                    "detail": r.get("detail", "")}
+            e, st, tg = (float(r.get(k) or 0) for k in ("entry", "stop", "target"))
+            if r["reason"] == "risk_reward_low" and e > 0 and 0 < st < e and tg > 0:
+                cost = float(r.get("cost_frac") or 0.0)
+                trig = rr_triggers(e, st, tg, cost, float(_T.RR.SCANNER_MIN))
+                item.update(entry=round(e, 2), stop=round(st, 2), target=round(tg, 2),
+                            rr=float(r.get("rr") or 0.0), needed=float(_T.RR.SCANNER_MIN),
+                            entry_needed=round(trig["entry_needed"], 2),
+                            target_needed=round(trig["target_needed"], 2))
+            out.append(item)
+        return out
 
     def candidate_rejections(self) -> List[Dict[str, Any]]:
         """Stable per-name explanations for scans, exports and empty-book output."""
@@ -8175,7 +8278,10 @@ class QuantaEliteTradingSystem:
             # function of the alphabet. Rank on liquidity instead — the same
             # eligibility gates analyze_stock enforces anyway — so the
             # reduction costs no selection breadth.
-            final_universe = self._select_broad_universe(universe_list, limit)
+            # The large-cap index members are always in the liquidity download;
+            # when the universe is larger than one download, only the rest is sampled.
+            final_universe = self._select_broad_universe(
+                universe_list, limit, priority=set(sp500) | set(nasdaq) | set(dow))
             if len(final_universe) == len(universe_list):
                 # Whole universe: scan the index constituents first. The list
                 # is symbol-sorted, so a scan cut short by provider throttling
@@ -8247,7 +8353,8 @@ class QuantaEliteTradingSystem:
         return res
 
     def _select_broad_universe(self, universe_list: List[str], limit: int,
-                               screen_style: Optional[str] = None) -> List[str]:
+                               screen_style: Optional[str] = None,
+                               priority: Optional[Any] = None) -> List[str]:
         """Reduce a broad universe to `limit` names without alphabet bias.
 
         Ranks by average daily dollar volume, which is how a desk defines an
@@ -8261,7 +8368,8 @@ class QuantaEliteTradingSystem:
         if limit <= 0 or len(universe_list) <= limit:
             return list(universe_list)
 
-        ranked = self.smart_prefilter(universe_list, max_candidates=limit, screen_style=screen_style)
+        ranked = self.smart_prefilter(universe_list, max_candidates=limit, screen_style=screen_style,
+                                      priority=priority)
         if not ranked and (getattr(self, '_universe_selection', None) or {}).get("passed_screen") == 0:
             return []          # nothing passed the screen: an empty scan, not a fallback
         # smart_prefilter already falls back to _even_sample on failure, but
@@ -8486,6 +8594,12 @@ class QuantaEliteTradingSystem:
                             continue
                     raise  # Re-raise if not rate limit or max retries reached
 
+            # A newest bar that contradicts itself is not settled: score to the session before.
+            hist, _bad_newest = DataValidator.drop_inconsistent_newest_bar(hist)
+            if _bad_newest:
+                logger.warning(f"{ticker}: newest bar is inconsistent ({_bad_newest}); scored on the session before it")
+                self._record_filter('newest_bar_inconsistent')
+
             # [F3] Two years for the risk grade; the indicators keep one year.
             hist_full = hist
             hist = indicator_window(hist_full)
@@ -8499,6 +8613,16 @@ class QuantaEliteTradingSystem:
                 hist, ticker, max_age_sessions=TradingConfig.MAX_LIVE_DATA_AGE_SESSIONS,
                 market="IN" if self.market == "INDIA" else "US",
             )
+            if (not validation.is_valid and validation.errors
+                    and all("near-integer price ratio" in e for e in validation.errors)):
+                # Ask the provider before calling a split-sized move a split. No
+                # answer leaves the name out, as before.
+                _listed = self._listed_split_dates(stock, ticker)
+                if _listed is not None:
+                    validation = DataValidator.validate_history(
+                        hist, ticker, max_age_sessions=TradingConfig.MAX_LIVE_DATA_AGE_SESSIONS,
+                        market="IN" if self.market == "INDIA" else "US", listed_split_dates=_listed,
+                    )
             if not validation.is_valid:
                 # [I8] The page names this ticker under "could not be analysed".
                 logger.warning(f"{ticker}: data validation failed - {validation.errors}")
@@ -9150,7 +9274,9 @@ class QuantaEliteTradingSystem:
 
             if risk_reward < TradingConfig.RISK_REWARD_MIN:
                 self._record_candidate_rejection(ticker, 'risk_reward_low', overall_score,
-                    f"After-cost R:R {_T.fmt_rr(risk_reward)} below {_T.fmt_rr(TradingConfig.RISK_REWARD_MIN)}")
+                    f"After-cost R:R {_T.fmt_rr(risk_reward)} below {_T.fmt_rr(TradingConfig.RISK_REWARD_MIN)}",
+                    entry=float(entry), stop=float(stop), target=float(target),
+                    rr=_T.floor_rr(risk_reward), cost_frac=float(execution_cost_pct))
                 logger.debug(f"{ticker}: R/R {risk_reward:.2f} below minimum (after costs)")
                 self._record_filter('risk_reward_low')
                 if not research_mode:
@@ -9977,19 +10103,55 @@ class QuantaEliteTradingSystem:
             logger.debug(f"{ticker}: insider fetch failed - {e}")
         return result
 
+    def _listed_split_dates(self, stock: Any, ticker: str) -> Optional[List[Any]]:
+        """The splits the provider lists for this name, or None when it could not be read."""
+        try:
+            PROVIDER_PACER.wait()
+            frame = stock.history(period=_T.RISK_GRADE.FETCH_PERIOD, auto_adjust=True, actions=True)
+            if frame is None or frame.empty or 'Stock Splits' not in frame.columns:
+                return None
+            ratios = pd.to_numeric(frame['Stock Splits'], errors='coerce')
+            return list(frame.index[(ratios > 0) & (ratios != 1.0)])
+        except Exception as exc:  # noqa: BLE001 - unanswered: the name stays out
+            logger.debug(f"{ticker}: provider split list unavailable - {exc}")
+            return None
+
+    # After this many failures in one scan, go straight to the RSS feed: Yahoo's
+    # news endpoint failed on 144 of 144 names on 2026-11-09, a wasted call each.
+    NEWS_PRIMARY_MAX_FAILURES = 5
+
     def _company_news(self, ticker: str, stock: Any) -> List[Dict[str, Any]]:
         """[Why picked] The name's news items: yfinance's, or the Yahoo RSS feed
-        when yfinance returns none. Read once per name per scan."""
+        when yfinance returns none or fails. Read once per name per scan.
+
+        ``getattr(stock, 'news', None)`` only guards a missing attribute. yfinance
+        RAISES when its endpoint is down, so the feed below was never reached and
+        each catalyst tier retried the same failing call.
+        """
         cache = self.__dict__.setdefault('_news_cache', {})
         if ticker in cache:
             return cache[ticker]
-        items = _extract_news_items(getattr(stock, 'news', None) or [])
+        raw: Any = []
+        primary_failed = False
+        if int(self.__dict__.get('_news_primary_failures', 0)) < self.NEWS_PRIMARY_MAX_FAILURES:
+            try:
+                raw = getattr(stock, 'news', None) or []
+            except Exception as exc:  # noqa: BLE001 - the feed below is the fallback
+                primary_failed = True
+                self._news_primary_failures = int(self.__dict__.get('_news_primary_failures', 0)) + 1
+                logger.debug(f"{ticker}: yfinance news unavailable - {exc}")
+        else:
+            primary_failed = True
+        items = _extract_news_items(raw)
         if not items:
             try:
                 items = _rss_news_items(ticker)
             except Exception as exc:  # noqa: BLE001 - news is optional evidence
                 logger.debug(f"{ticker}: RSS news unavailable - {exc}")
                 items = []
+                if primary_failed:
+                    # Both feeds failed: "no news" here means "not read".
+                    self._record_filter('news_feeds_unavailable')
         cache[ticker] = items
         return items
 
@@ -10842,8 +11004,31 @@ class QuantaEliteTradingSystem:
         )
         return len(self._bulk_history)
 
+    def _prefilter_download_list(self, tickers: List[str], cap: int,
+                                 priority: Optional[Any] = None) -> Tuple[List[str], int]:
+        """The names the liquidity download reads when the universe exceeds ``cap``.
+
+        An even spread alone skipped about one name in three of a 1,517-name
+        universe whatever its size, so a "most liquid" scan could never rank
+        the large caps the spread happened to step over. ``priority`` names
+        (the large-cap index members, where the most traded stocks are) are
+        always read; the even spread fills the rest of ``cap`` from the other
+        names. Returns ``(names, priority names read)``.
+        """
+        if cap <= 0 or len(tickers) <= cap:
+            return list(tickers), 0
+        wanted = set(priority or ())
+        first = [t for t in tickers if t in wanted][:cap]
+        if not first:
+            return self._even_sample(tickers, cap), 0
+        kept = set(first)
+        rest = [t for t in tickers if t not in kept]
+        fill = self._even_sample(rest, cap - len(first)) if cap > len(first) else []
+        return sorted(first + fill), len(first)
+
     def smart_prefilter(self, tickers: List[str], max_candidates: int = 200,
-                        screen_style: Optional[str] = None) -> List[str]:
+                        screen_style: Optional[str] = None,
+                        priority: Optional[Any] = None) -> List[str]:
         """
         LIQUIDITY PRE-FILTER: one bulk yfinance download screens the universe
         before expensive per-ticker analysis, reducing ~700 calls to
@@ -10869,14 +11054,18 @@ class QuantaEliteTradingSystem:
             # The bulk download takes at most PREFILTER_MAX_TICKERS names; past
             # that an even spread, never an alphabetical prefix, is downloaded.
             _cap = int(_T.UNIVERSE.PREFILTER_MAX_TICKERS)
-            ticker_str = list(tickers) if len(tickers) <= _cap else self._even_sample(tickers, _cap)
+            ticker_str, _n_priority = self._prefilter_download_list(list(tickers), _cap, priority)
             if len(ticker_str) < len(tickers):
                 self._note_selection(prefilter_sampled=len(ticker_str))
+                if _n_priority:
+                    self._note_selection(prefilter_priority=_n_priority)
             budget = TradingConfig.PREFILTER_TIMEOUT_SECONDS
             logger.info(
                 "  Downloading bulk data for pre-screening "
                 f"({len(ticker_str)} names"
-                + (f", an even sample of {len(tickers)}" if len(ticker_str) < len(tickers) else "")
+                + ((f", {_n_priority} large-cap index names and an even sample of the rest of {len(tickers)}"
+                    if _n_priority else f", an even sample of {len(tickers)}")
+                   if len(ticker_str) < len(tickers) else "")
                 + f", budget {budget:.0f}s)..."
             )
             # [B8][A01] Bound the wall clock in an owned child process: past the
@@ -12305,12 +12494,25 @@ class QuantaEliteTradingSystem:
         self._gate_stats['event_watch'] = len(self._event_watch)
         return kept
 
+    def _label_event_held_levels(self, held: List["StockAnalysis"]) -> None:
+        """A name the event gate held never reaches the Research check, so the
+        levels on its row are the scanner's own (a 12-month consensus target
+        against a multi-week stop). They were published with no label, beside
+        rows whose levels are Research's; the row now says which they are."""
+        for rec in held:
+            if not getattr(rec, 'binding_levels', None):
+                try:
+                    self._bind_scanner_levels(rec, "Scanner levels (Research check not run)")
+                except Exception as exc:  # noqa: BLE001 - a label must never drop a row
+                    logger.debug(f"{getattr(rec, 'ticker', '?')}: scanner levels not labelled: {exc}")
+
     def _publish_event_held(self) -> List["StockAnalysis"]:
         """[I2] The book exits before selection with nothing funded: the names the
         event gate held at Watch are still the published rows, at $0, with their
         decision frozen exactly as on the normal exit. They used to be appended
         only at the end of the book, so an empty book dropped them."""
         held = list(getattr(self, '_event_watch', []) or [])
+        self._label_event_held_levels(held)
         n = len(self.scan_results or [])
         self._report_progress("book", n, n)                 # [P1] the book is finished
         decisions = [decision_for_scan_result(rec) for rec in held]
@@ -13149,6 +13351,47 @@ class QuantaEliteTradingSystem:
         self._report_progress("book", len(self.scan_results or []), len(self.scan_results or []))
         final = self._deep_confirm_final_picks(final)
 
+        def _enforce_book_caps(book: List[StockAnalysis]) -> None:
+            """Hold the book's capital and sector limits after the Research re-size.
+
+            The Research check re-sizes a funded pick on the Research stop
+            (_bind_research_levels): a tighter stop buys more, up to the
+            position cap. Selection checked the capital the regime allows and
+            the sector cap against the sizes it admitted, and nothing checked
+            them again, so a book could publish 120% of its allowed capital or
+            a sector at 43% against a 25% cap. Each pick, in rank order, is cut
+            back to the room left; one that no longer makes a minimum position
+            is not funded and says why.
+            """
+            running, by_sector = 0.0, {}
+            for rec in book:
+                alloc = float(getattr(rec, 'allocation', 0.0) or 0.0)
+                if alloc <= 0:
+                    continue
+                capital_room = max(0.0, available_capital - running)
+                sector_left = max(0.0, MAX_SECTOR_PCT * sector_cap_base - by_sector.get(rec.sector, 0.0))
+                room = min(capital_room, sector_left)
+                if alloc > room + 1e-6:
+                    by_capital = capital_room <= sector_left
+                    limit = (f"the {self.currency_symbol}{available_capital:,.0f} this market read allows"
+                             if by_capital else f"the {MAX_SECTOR_PCT:.0%} {rec.sector} sector cap")
+                    trimmed = apply_allocation(rec, room, self.capital)
+                    logger.info(f"{rec.ticker}: size cut from {self.currency_symbol}{alloc:,.0f} to "
+                                f"{self.currency_symbol}{trimmed:,.0f} to stay inside {limit}")
+                    if trimmed > 0:
+                        rec.final_action_reasons = list(getattr(rec, 'final_action_reasons', []) or []) + [
+                            f"Size cut to stay inside {limit}"]
+                    else:
+                        self._note_selection_skip(
+                            rec.ticker, "capital_used" if by_capital else "sector_cap",
+                            f"After the Research check re-sized the book, no minimum position fits inside {limit}")
+                        self._record_zero_allocation(rec.ticker, 'risk_budget' if by_capital else 'sector_cap')
+                    alloc = trimmed
+                running += alloc
+                by_sector[rec.sector] = by_sector.get(rec.sector, 0.0) + alloc
+
+        _enforce_book_caps(final)
+
         # [S5-3] Capital withdrawn by deep-confirm used to sit idle while the
         # log said "Cash position is appropriate given the opportunity set" —
         # and names skipped only because a now-withdrawn pick occupied their
@@ -13207,6 +13450,9 @@ class QuantaEliteTradingSystem:
                 f"confirmation: {', '.join(a.ticker for a in added)}"
             )
             added = self._deep_confirm_final_picks(added)
+            # The backfilled names were re-sized too: the whole book is held
+            # to its limits again, the earlier funded picks first.
+            _enforce_book_caps(funded + added)
             all_records.extend(getattr(self, '_deep_confirm_records', []) or [])
             # Withdrawn picks stay published (at $0, as watchlist context).
             final = funded + added + withdrawn
@@ -13234,6 +13480,7 @@ class QuantaEliteTradingSystem:
                 self._deep_confirm_records = all_records
         # [F1] Names held out of funding by the event gate are published at $0
         # with the reason, after the funded and withdrawn rows.
+        self._label_event_held_levels(list(getattr(self, '_event_watch', []) or []))
         final = final + [r for r in getattr(self, '_event_watch', []) if r not in final]
 
         # Freeze the published verdict before counting deployed capital. This

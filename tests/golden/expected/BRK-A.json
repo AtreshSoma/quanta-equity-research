@@ -19,7 +19,7 @@
       "breakout_entry": 824765.0,
       "buy_now": "NO",
       "candlestick_timing": "WAIT",
-      "confidence": 63.784,
+      "confidence": 60.0,
       "data_quality": "WARN",
       "entry_quality": "Poor",
       "existing_holder": "Hold",
@@ -61,7 +61,7 @@
     },
     "company_name": "Berkshire Hathaway Inc.",
     "confidence_level": "MEDIUM",
-    "confidence_score": 63.784,
+    "confidence_score": 60.0,
     "conviction_label": "MODERATE-CONVICTION",
     "country": "United States",
     "currency": "USD",
@@ -571,7 +571,7 @@
     "is_high_volatility": false,
     "is_invalid": false,
     "key_insights": [
-      "\u23f8\ufe0f HOLD signal with 64% confidence",
+      "\u23f8\ufe0f HOLD signal with 60% confidence",
       "\ud83d\udcc8 RSI at 77 - overbought, watch for pullback",
       "\ud83d\udd34 Candlestick: Shooting Star (Bearish, high reliability)",
       "\u2b50 High Piotroski F-Score (8/9) - strong fundamentals",
@@ -661,7 +661,7 @@
     "recommendation_caveat": "",
     "recommendation_label": "WATCHLIST",
     "recommendation_qualifier": "",
-    "recommendation_text": "WATCHLIST - No new position | Confidence: 64% | Score: 64/100 | Risk: A",
+    "recommendation_text": "WATCHLIST - No new position | Confidence: 60% | Score: 64/100 | Risk: A",
     "relative_performance": {
       "basis": "total return, dividend-adjusted closes",
       "benchmark": "SPY",
@@ -984,7 +984,7 @@
       ],
       "catalysts": [],
       "risks": [],
-      "summary": "Berkshire Hathaway Inc. (BRK-A) should be held at current levels with a 64% confidence score. Composite score of 64/100."
+      "summary": "Berkshire Hathaway Inc. (BRK-A) should be held at current levels with a 60% confidence score. Composite score of 64/100."
     },
     "ticker": "BRK-A",
     "trade_setup": {

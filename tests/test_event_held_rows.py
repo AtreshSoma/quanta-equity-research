@@ -152,3 +152,32 @@ def test_the_worker_publishes_the_diagnostic(monkeypatch):
         webapp._jobs.pop(job, None)
     assert res["funded_count"] == 0
     assert [d["ticker"] for d in res["event_held_diagnostics"]] == HELD
+
+
+# ── 2026-11-09: a held name's row says what was and was not checked ──────────
+
+def test_held_rows_label_their_levels_as_the_scanners_own(monkeypatch):
+    _sysm, out = _book(monkeypatch, _five())
+    for r in out:
+        assert r.binding_levels["source"] == "scanner"
+        assert r.binding_levels["label"] == "Scanner levels (Research check not run)"
+
+
+def test_a_held_name_is_not_reported_as_confirmed_or_as_a_disagreement(monkeypatch):
+    """The Research check never ran on a held name. It was published as
+    "Confirmed" and listed under "Analyzer disagrees"."""
+    from test_scan_accounting import _run_worker
+    _sysm, out = _book(monkeypatch, _five())
+    res = _run_worker(monkeypatch, out, max_positions=5)
+    records = res["deep_confirmation"]["records"]
+    assert {r["ticker"] for r in records} == set(HELD)
+    for r in records:
+        assert r["research_checked"] is False
+        assert r["validation_status_label"] == "Research check not run"
+        assert "Corporate-event check unavailable" in r["reason"]
+    rows = res["analyzer_disagreement_watchlist"]
+    assert rows and all(x["row_kind"] == "not_checked" for x in rows)
+    assert all(x["validation_status"] == "Research check not run" for x in rows)
+    assert not any("disagree" in str(x["validation_status"]).lower() for x in rows)
+    # The table row carries the label the page reads.
+    assert all(p["levels_label"] == "Scanner levels (Research check not run)" for p in res["stock_picks"])

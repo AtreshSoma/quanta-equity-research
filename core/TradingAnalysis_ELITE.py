@@ -4168,7 +4168,8 @@ class SentimentAnalyzer:
     def _fetch_yahoo(self, ticker: str, seen: Set[str]) -> List[Dict]:
         """Fetch from Yahoo Finance (fallback)"""
         articles = []
-        
+        primary_error: Optional[Exception] = None
+
         try:
             stock = yf.Ticker(ticker)
             news = getattr(stock, 'news', []) or []
@@ -4191,8 +4192,32 @@ class SentimentAnalyzer:
                         'url': article.get('link', '')
                     })
         except Exception as e:
-            raise RuntimeError("Yahoo news unavailable") from e
-        
+            primary_error = e
+
+        if articles or primary_error is None:
+            return articles
+        # yfinance's news endpoint fails for whole days at a time ("YAHOO! FINANCE
+        # IS CURRENTLY DOWN") while Yahoo's per-symbol RSS feed keeps serving, and
+        # the Picks scanner already reads it. Without this the sentiment leg sat at
+        # a neutral 50 on every call. Only a failure falls back: an empty answer is
+        # an answer, and the recorded golden fixtures replay it unchanged.
+        try:
+            from engine.news_feed import rss_news_items
+            for item in rss_news_items(ticker):
+                title = item.get('title', '')
+                if title and title not in seen:
+                    seen.add(title)
+                    articles.append({
+                        'title': title,
+                        'summary': item.get('summary', ''),
+                        'published': parse_datetime(item.get('published')),
+                        'source': item.get('publisher', 'Yahoo Finance'),
+                        'url': item.get('url', ''),
+                    })
+        except Exception as e:  # noqa: BLE001 - reported below only if yfinance failed too
+            logger.debug("Yahoo RSS unavailable for %s (%s)", ticker, type(e).__name__)
+            if primary_error is not None:
+                raise RuntimeError("Yahoo news unavailable") from primary_error
         return articles
     
     def _analyze_articles(self, articles: List[Dict], result: SentimentData) -> SentimentData:
@@ -7820,6 +7845,19 @@ def _fail_closed_decision(result: "AnalysisResult", why: str) -> None:
         result.signal = new_sig
 
 
+def _confidence_level(confidence: float) -> "ConfidenceLevel":
+    """The label for a 0-100 conviction score (one table for every caller)."""
+    if confidence >= 80:
+        return ConfidenceLevel.VERY_HIGH
+    if confidence >= 65:
+        return ConfidenceLevel.HIGH
+    if confidence >= 50:
+        return ConfidenceLevel.MEDIUM
+    if confidence >= 35:
+        return ConfidenceLevel.LOW
+    return ConfidenceLevel.VERY_LOW
+
+
 def enforce_final_decision_contract(result: "AnalysisResult") -> "AnalysisResult":
     """Make legacy executable fields obey the resolved FinalAction.
 
@@ -7848,6 +7886,20 @@ def enforce_final_decision_contract(result: "AnalysisResult") -> "AnalysisResult
         result.trade_setup.is_actionable_entry = False
         if result.trade_setup.entry_type != "REFERENCE":
             result.trade_setup.entry_type = "REFERENCE"
+    # Conviction describes the published call. The signal generator sets it
+    # from the score before the decision rules run, so a Buy-range score the
+    # rules then held back (reward/risk, risk grade, a red flag) still read
+    # "79/100, High" beside WATCHLIST. The generator's own overrides already
+    # cap a held-back call below High; a call the decision core held back
+    # takes the same cap.
+    cap = float(_T.RESEARCH.BLOCKED_CALL_CONVICTION_CAP)
+    try:
+        confidence = float(result.confidence_score)
+    except (TypeError, ValueError):
+        return result
+    if confidence > cap:
+        result.confidence_score = cap
+        result.confidence_level = _confidence_level(cap)
     return result
 
 
@@ -9049,16 +9101,7 @@ class QuantaEliteAnalyzer:
             result.signal_explanation = signal_explanation
             
             # 6.5. Set confidence level
-            if confidence >= 80:
-                result.confidence_level = ConfidenceLevel.VERY_HIGH
-            elif confidence >= 65:
-                result.confidence_level = ConfidenceLevel.HIGH
-            elif confidence >= 50:
-                result.confidence_level = ConfidenceLevel.MEDIUM
-            elif confidence >= 35:
-                result.confidence_level = ConfidenceLevel.LOW
-            else:
-                result.confidence_level = ConfidenceLevel.VERY_LOW
+            result.confidence_level = _confidence_level(confidence)
             
             # 7. Generate trade setup
             _t = time.time()

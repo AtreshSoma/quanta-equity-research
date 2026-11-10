@@ -98,7 +98,7 @@ if (-not $NoInstall) {
     # only reliable readiness check (a partial venv can have Flask but not ta).
     $CriticalModules = @(
         "flask", "numpy", "pandas", "requests", "rich",
-        "ta", "yfinance", "vaderSentiment", "dateutil", "scipy"
+        "ta", "yfinance", "vaderSentiment", "dateutil", "scipy", "pyarrow"
     )
 
     # Cache marker lives next to the environment that's actually active, so a

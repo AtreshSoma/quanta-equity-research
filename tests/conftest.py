@@ -46,6 +46,8 @@ if not _qlog.handlers:
         os.path.join(os.environ["QUANTA_CACHE_DIR"], "quanta_trading.log"), encoding="utf-8"))
 # The same for the Overview's day-over-day regime history (app.py upserts it).
 os.environ["QUANTA_REGIME_HISTORY_PATH"] = os.path.join(os.environ["QUANTA_CACHE_DIR"], "regime_history.json")
+# Picks score snapshots (tracking.score_snapshots) are durable data: never written by a test run.
+os.environ["QUANTA_SNAPSHOT_DIR"] = os.path.join(os.environ["QUANTA_CACHE_DIR"], "score_snapshots")
 # The suite never calls Yahoo's earnings calendar; tests that need it stub it.
 os.environ.setdefault("QUANTA_EARNINGS_CALENDAR", "0")
 # The provider pacer spaces live requests; fakes need no spacing. The bulk

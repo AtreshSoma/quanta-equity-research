@@ -121,11 +121,31 @@ if ($NoScan) {
     Step "scan skipped: session $session was already scanned"
 }
 
+# The Picks scan the web page runs (webapp\picks_cli.py), once per completed
+# session with its own marker. QUANTA_DAILY_PICKS=0 skips it.
+$picksMarker = Join-Path $logDir ".last_picks_session"
+$lastPicks = if (Test-Path $picksMarker) { (Get-Content $picksMarker -Raw).Trim() } else { "" }
+if ($NoScan -or $env:QUANTA_DAILY_PICKS -eq "0") {
+    Step "picks skipped"
+} elseif ($session -and $session -ne $lastPicks) {
+    Step "picks (session $session)"
+    if ((Invoke-Py @((Join-Path $Root "webapp\picks_cli.py"))) -eq 0) {
+        Set-Content -Path $picksMarker -Value $session -NoNewline -Encoding ASCII
+    } else {
+        $status = 1
+    }
+} elseif ($session) {
+    Step "picks skipped: session $session was already scanned"
+}
+
 Step "alerts"
 if ((Invoke-Py @("-m", "tracking", "alerts", "--notify")) -ne 0) { $status = 1 }
 
 Step "report"
 if ((Invoke-Py @("-m", "tracking", "report")) -ne 0) { $status = 1 }
+
+Step "score snapshots"
+if ((Invoke-Py @("-m", "tracking.score_snapshots")) -ne 0) { $status = 1 }
 
 # My list briefing: saved to logs/daily/briefing-<date>.md, emailed when SMTP is set.
 Step "briefing"

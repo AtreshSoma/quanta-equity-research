@@ -30,3 +30,12 @@ def test_every_file_the_bash_job_runs_exists():
     assert "webapp/briefing.py" in scripts
     for rel in scripts:
         assert (ROOT / rel).is_file(), rel
+
+
+def test_both_jobs_run_the_picks_scan_once_per_session():
+    """Picks calls reached the track record only from the browser before."""
+    sh = SH.read_text(encoding="utf-8")
+    ps1 = PS1.read_text(encoding="utf-8")
+    assert '"$PY" webapp/picks_cli.py' in sh and ".last_picks_session" in sh
+    assert 'webapp\\picks_cli.py' in ps1 and ".last_picks_session" in ps1
+    assert (ROOT / "webapp" / "picks_cli.py").is_file()

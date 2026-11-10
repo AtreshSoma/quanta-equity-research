@@ -7911,6 +7911,17 @@ def _run_stock_picks(job_id: str, params: dict):
         }
         result["data_dates"] = _data_dates(list(scan_results or []) or list(recs), result["timestamp"],
                                            params["market"])
+        # Every name this scan scored, kept once per session for the prospective
+        # score-versus-momentum test (tracking.score_snapshots). A custom list is
+        # not a universe and is not kept.
+        if params.get("scan_type") != "custom" and callable(getattr(quanta, "score_snapshot", None)):
+            try:
+                from tracking.score_snapshots import record_snapshot
+                record_snapshot("IN" if params["market"] == "INDIA" else "US",
+                                result["data_dates"].get("bar_session"), str(params["scan_type"]),
+                                quanta.score_snapshot())
+            except Exception as exc:  # noqa: BLE001 - the record must never fail a scan
+                logger.warning("Score snapshot not recorded: %s", exc)
         # [Calls] The page shows QUANTA's calls; names that are not picks go to Method.
         _view = _picks_view(result.get("stock_picks") or [], quanta)
         result.update(stock_picks=_view["picks"], screened_out=_view["screened_out"],

@@ -6968,6 +6968,16 @@ class QuantaEliteTradingSystem:
                 **{k: v for k, v in extra.items() if v is not None},
             })
 
+    def score_snapshot(self) -> List[Dict[str, Any]]:
+        """Every name this scan scored, for tracking.score_snapshots: the names that
+        reached the book and the ones a per-name rule stopped (with that rule)."""
+        rows = [{"ticker": r.ticker, "score": float(r.overall_score or 0.0), "outcome": "reached_book"}
+                for r in (self.scan_results or []) if not getattr(r, 'is_invalid', False)]
+        seen = {r["ticker"] for r in rows}
+        rows += [{"ticker": r["ticker"], "score": float(r.get("score") or 0.0), "outcome": r.get("reason", "")}
+                 for r in self.candidate_rejections() if r["ticker"] not in seen]
+        return rows
+
     # Rules a high-scoring name can miss by a measurable amount, or by waiting.
     _NEAR_MISS_REASONS = ("risk_reward_low", "signal_not_actionable", "signal_avoid", "committee_hold")
 

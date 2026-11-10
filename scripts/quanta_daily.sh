@@ -3,6 +3,8 @@
 #
 #   1. resolve   score every call whose horizon has elapsed (excess return vs SPY / Nifty)
 #   2. scan      run the short-term scanner; its calls enter the ledger, immutably
+#   2b. picks    run the Picks scan the web page runs (webapp/picks_cli.py): its calls
+#                enter the ledger too, and the Picks page opens on that day's result
 #   3. alerts    report stops / targets touched by open calls (macOS notification)
 #   4. report    write the benchmarked track record to the log
 #   5. briefing  the My list briefing (logs/daily/briefing-<date>.md; emailed when SMTP is set)
@@ -10,7 +12,8 @@
 #
 # Run it by hand, or schedule it after the US close with scripts/schedule_daily.sh.
 # Settings (environment or .env): QUANTA_DAILY_CAPITAL (2500), QUANTA_DAILY_SCAN
-# (standard), QUANTA_DAILY_POSITIONS (5). Logs: logs/daily/<date>.log
+# (standard), QUANTA_DAILY_PICKS_SCAN (standard), QUANTA_DAILY_POSITIONS (5),
+# QUANTA_DAILY_PICKS=0 to skip the Picks scan. Logs: logs/daily/<date>.log
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -51,11 +54,32 @@ elif [[ -n "$SESSION" ]]; then
     step "scan skipped: session $SESSION was already scanned"
 fi
 
+# The Picks scan, once per completed session like the scan above, with its own
+# marker so a failure in one never skips or repeats the other.
+PICKS_MARKER="logs/daily/.last_picks_session"
+if [[ "${QUANTA_DAILY_PICKS:-1}" == "1" && -n "$SESSION" \
+      && "$SESSION" != "$(cat "$PICKS_MARKER" 2>/dev/null || true)" ]]; then
+    step "picks (session $SESSION)"
+    if "$PY" webapp/picks_cli.py; then
+        printf '%s' "$SESSION" > "$PICKS_MARKER"
+    else
+        status=1
+    fi
+elif [[ "${QUANTA_DAILY_PICKS:-1}" == "1" && -n "$SESSION" ]]; then
+    step "picks skipped: session $SESSION was already scanned"
+fi
+
 step "alerts"
 "$PY" -m tracking alerts --notify || status=1
 
 step "report"
 "$PY" -m tracking report || status=1
+
+# The prospective test of the Picks score against 12-1 momentum, from the scored
+# lists the Picks scan keeps (tracking.score_snapshots). No verdict before the
+# minimum number of independent dates.
+step "score snapshots"
+"$PY" -m tracking.score_snapshots || status=1
 
 # My list briefing: saved to logs/daily/briefing-<date>.md, emailed when SMTP is set.
 step "briefing"

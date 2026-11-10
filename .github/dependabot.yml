@@ -1,0 +1,19 @@
+# Weekly update checks. CI runs on every Dependabot pull request; nothing merges
+# without it passing. webapp/constraints.txt pins the tested set, so review a
+# Python bump there with the suites (README, "Install").
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "npm"
+    directory: "/webapp"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

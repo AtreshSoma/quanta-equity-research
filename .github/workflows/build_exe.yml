@@ -22,6 +22,11 @@ on:
       - ".github/workflows/build_exe.yml"
   workflow_dispatch:
 
+# Read-only token: no job here writes to the repository, so a compromised step
+# or dependency cannot push, tag or open releases with it.
+permissions:
+  contents: read
+
 jobs:
   build-windows:
     runs-on: windows-latest

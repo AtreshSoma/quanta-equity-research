@@ -347,6 +347,11 @@ class SignalLedger:
         """
         strategy = getattr(getattr(decision, "evidence", None), "strategy", None)
         context = dict(context or {})
+        if getattr(decision, "holdings_known", False):
+            # Made knowing the account's holdings: kept in this ledger, never
+            # published (tracking.publish.is_private), so the public record
+            # cannot reveal what the account holds.
+            context["holdings_known"] = True
         if strategy:
             context.setdefault("strategy", strategy)
         return self.record(
@@ -888,6 +893,8 @@ def record_shadow_calls(decision: Any, shadow: Dict[str, Any], horizons: Sequenc
         return 0
     ledger = ledger or default_ledger()
     ctx = dict(context or {}, strategy=key, role="shadow")
+    if getattr(decision, "holdings_known", False):
+        ctx["holdings_known"] = True      # private, like the live call (tracking.publish)
     n = 0
     for days in horizons:
         try:

@@ -13,6 +13,12 @@ meant to be committed every day:
   previous line and recording how many ``calls.jsonl`` lines existed and the
   hash of exactly those lines.
 
+Calls made while the account's holdings were known (``HOLD_EXISTING``, or any
+call recorded with ``holdings_known`` in its context) are private: they stay in
+the local ledger and its statistics but are never exported, because a public
+row saying "HOLD (owned)" for a ticker is a statement about what the owner holds
+(:func:`is_private`).
+
 ``verify`` therefore detects a forecast edited after publication, a call deleted
 from the record, an outcome changed after it was first published, and any
 rewritten link. What it cannot detect on its own is someone regenerating every
@@ -78,10 +84,23 @@ def outcome_hash(row: Dict[str, Any]) -> str:
     return _digest(row, OUTCOME_FIELDS) if _cell(row.get("outcome")) else ""
 
 
+def is_private(row: Dict[str, Any]) -> bool:
+    """A call that reveals the account's holdings: kept local, never published."""
+    if str(row.get("action") or "").upper() == "HOLD_EXISTING":
+        return True
+    try:
+        context = json.loads(row.get("context_json") or "{}")
+    except (TypeError, ValueError):
+        return False
+    return bool(isinstance(context, dict) and context.get("holdings_known"))
+
+
 def _public_rows(ledger: SignalLedger) -> List[Dict[str, str]]:
     out = []
     for r in ledger.rows():
         r = dict(r)
+        if is_private(r):
+            continue
         r["strategy"] = json.loads(r.get("context_json") or "{}").get("strategy")
         r["call_hash"] = call_hash(r)
         r["outcome_hash"] = outcome_hash(r)

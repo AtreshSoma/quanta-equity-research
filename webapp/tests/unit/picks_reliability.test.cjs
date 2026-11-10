@@ -117,20 +117,33 @@ const nearMisses = [
   ...['A', 'B', 'C', 'D'].map((t) => ({ ticker: t, reason: 'signal_not_actionable', score: 6, detail: 'HOLD: score 6.0 below the entry floor 6.5' })),
 ];
 
-test('names ranked high but stopped by one rule are listed with what clears them, never as picks', () => {
+test('names ranked high but stopped by one rule are a table with what clears them, never picks', () => {
   const el = frag(app.pkNearMissHtml({ near_misses: nearMisses }, '$'));
   const sec = el.querySelector('[data-pk-near-miss]');
   assert.ok(sec);
-  assert.match(sec.textContent, /Not picks/);
-  const rows = [...sec.querySelectorAll('[data-pk-nm]')];
+  assert.match(sec.querySelector('.pk-nm-note').textContent, /Not picks/);
+  assert.deepEqual([...sec.querySelectorAll('thead th')].map((th) => th.textContent.replace(/\s+/g, ' ').trim()),
+    ['Stock', 'Score', 'Price', 'Reward/risk vs 1.80:1', 'Buy at or below', 'Or a target of']);
+  const rows = [...sec.querySelectorAll('tbody tr')];
   assert.deepEqual(rows.map((r) => r.getAttribute('data-pk-nm')), ['ETSY', 'EOG', 'SN', 'A', 'B', 'C', 'D']);
   const shown = Number(globalThis.__QUANTA_THRESHOLDS__.UI.NEAR_MISS_SHOWN);
   assert.equal(rows.filter((r) => !r.hidden).length, shown, 'the rest fold behind Show all');
   assert.match(sec.querySelector('[data-pk-nm-toggle]').textContent, /Show all 7/);
-  assert.match(rows[0].textContent, /0\.52:1, needs 1\.80:1, clears at \$56\.90 or below, or with a target of \$69\.10/);
-  assert.match(rows[2].textContent, /RSI 74\.6 exceeds the entry limit 70; wait for a pullback/);
-  assert.doesNotMatch(rows[2].textContent, /HOLD:/, 'no engine prefix reaches the page');
+  const etsy = [...rows[0].querySelectorAll('td')].map((td) => td.textContent.replace(/\s+/g, ' ').trim());
+  assert.equal(etsy[0], 'ETSY');
+  assert.equal(etsy[1], '81');
+  assert.equal(etsy[2], '$60.00');
+  assert.equal(etsy[3], '0.52:1');
+  assert.equal(etsy[4], '$56.90-5.2%');
+  assert.equal(etsy[5], '$69.10+8.0% vs $64.00');
+  assert.match(rows[0].querySelector('.pk-nm-meter').getAttribute('aria-label'), /0\.52:1 of the 1\.80:1 needed/);
+  // Another rule spans the price columns, without the engine's prefix.
+  const sn = rows[2].querySelectorAll('td');
+  assert.equal(sn.length, 3);
+  assert.equal(sn[2].getAttribute('colspan'), '4');
+  assert.match(sn[2].textContent, /^RSI 74\.6 exceeds the entry limit 70; wait for a pullback$/);
   assert.ok(rows[0].querySelector('.pk-open[data-ticker="ETSY"]'), 'each opens Research');
+  assert.ok(sec.querySelector('[role="region"][tabindex="0"]'), 'a wide table scrolls inside a labelled region');
   assert.equal(app.pkNearMissHtml({ near_misses: [] }, '$'), '');
   assert.equal(app.pkNearMissHtml({}, '$'), '');
 });

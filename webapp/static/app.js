@@ -10762,24 +10762,45 @@ function pkNearMissRule(n, sym) {
   return d.replace(/^(HOLD|AVOID):\s*/i, '') || filterWords(n.reason);
 }
 
-/* The highest-scored names one per-name rule kept out of the book. A scan can
-   end with one row while names scored 80 or more were stopped only by the
-   reward/risk hurdle; listing them shows what the scan ranked highest and what
-   would have to change. Not picks. */
+/* The highest-scored names one per-name rule kept out of the book, as a table:
+   what each scored, how far its reward/risk is from the hurdle, and the two
+   prices that would clear it (a lower entry with the same stop and target, or a
+   higher target at today's entry). A name stopped by another rule says which,
+   across those columns. Not picks; highest score first. */
 function pkNearMissHtml(data, sym) {
   const all = (data && data.near_misses) || [];
   if (!all.length) return '';
   const shown = Math.max(1, Number(thr('UI.NEAR_MISS_SHOWN')) || 5);
-  const item = (n, hidden) => `<li class="pk-nm-row"${hidden ? ' data-pk-nm-more hidden' : ''} data-pk-nm="${escapeHtml(n.ticker)}">
-      <button type="button" class="pk-nm-t pk-open" data-ticker="${escapeHtml(n.ticker)}" title="Open ${escapeHtml(n.ticker)} in Research">${escapeHtml(n.ticker)}</button>
-      <span class="pk-nm-s" title="Scanner score out of 100">${escapeHtml(fmtScore100(n.score))}</span>
-      <span class="pk-nm-r">${escapeHtml(pkNearMissRule(n, sym))}</span></li>`;
+  const hurdle = all.map((n) => pkNum(n.needed)).find((v) => v) || Number(thr('RR.SCANNER_MIN'));
+  const pct = (a, b) => (pkNum(a) && pkNum(b) ? (Number(a) / Number(b) - 1) * 100 : null);
+  const row = (n, i) => {
+    const rr = n.reason === 'risk_reward_low' && pkNum(n.rr) !== null && pkNum(n.needed);
+    const stock = `<td class="pk-nm-stock"><button type="button" class="pk-nm-t pk-open" data-ticker="${escapeHtml(n.ticker)}" title="Open ${escapeHtml(n.ticker)} in Research">${escapeHtml(n.ticker)}</button>${n.company ? `<span class="pk-nm-co">${escapeHtml(n.company)}</span>` : ''}</td>`;
+    const score = `<td class="num pk-nm-score">${escapeHtml(fmtScore100(n.score))}</td>`;
+    let rest;
+    if (rr) {
+      const fill = Math.max(4, Math.min(100, (Number(n.rr) / Number(n.needed)) * 100));
+      const entryGap = pct(n.entry_needed, n.entry);
+      const targetGap = pct(n.target_needed, n.target);
+      rest = `<td class="num" data-label="Price"><span class="pk-nm-v">${pkNum(n.entry) ? escapeHtml(fmtPrice(n.entry, sym)) : '-'}</span></td>
+        <td class="pk-nm-rr" data-label="Reward/risk"><span class="pk-nm-v"><span class="pk-nm-rrv">${escapeHtml(fmtRR(n.rr))}</span><span class="pk-nm-meter" role="img" aria-label="${escapeHtml(`${fmtRR(n.rr)} of the ${fmtRR(n.needed)} needed`)}"><i style="width:${fill.toFixed(0)}%"></i></span></span></td>
+        <td class="num" data-label="Buy at or below"><span class="pk-nm-v">${pkNum(n.entry_needed) ? `${escapeHtml(fmtPrice(n.entry_needed, sym))}${entryGap !== null ? `<span class="pk-nm-gap">${escapeHtml(pkSignedPct(entryGap))}</span>` : ''}` : '-'}</span></td>
+        <td class="num" data-label="Or a target of"><span class="pk-nm-v">${pkNum(n.target_needed) ? `${escapeHtml(fmtPrice(n.target_needed, sym))}${targetGap !== null ? `<span class="pk-nm-gap">${escapeHtml(pkSignedPct(targetGap))} vs ${escapeHtml(fmtPrice(n.target, sym))}</span>` : ''}` : '-'}</span></td>`;
+    } else {
+      rest = `<td colspan="4" class="pk-nm-other" data-label="Stopped by">${escapeHtml(pkNearMissRule(n, sym))}</td>`;
+    }
+    return `<tr class="pk-nm-row" data-pk-nm="${escapeHtml(n.ticker)}"${i >= shown ? ' data-pk-nm-more hidden' : ''}>${stock}${score}${rest}</tr>`;
+  };
   const more = all.length > shown
     ? `<button type="button" class="btn-mini pk-nm-toggle" data-pk-nm-toggle aria-expanded="false">Show all ${all.length}</button>` : '';
   return `<section class="pk-nm" data-pk-near-miss aria-labelledby="pk-nm-h">
       <header class="pk-nm-head"><h4 id="pk-nm-h">Ranked high, stopped by one rule <span class="pk-nm-n">${all.length}</span></h4>
-      <p class="pk-nm-note">Not picks. Each scored at least the Accumulate floor and failed one rule that keeps new money out. Highest score first.</p></header>
-      <ul class="pk-nm-list">${all.map((n, i) => item(n, i >= shown)).join('')}</ul>${more}
+      <p class="pk-nm-note">Not picks. Each scored at or above the Accumulate floor and missed one rule that keeps new money out. Every Buy needs reward/risk of ${escapeHtml(fmtRR(hurdle))} after costs; the last two columns are the prices that would reach it.</p></header>
+      <div class="pk-nm-wrap" role="region" aria-labelledby="pk-nm-h" tabindex="0">
+      <table class="pk-nm-table">
+        <thead><tr><th scope="col">Stock</th><th scope="col" class="num">Score</th><th scope="col" class="num">Price</th><th scope="col">Reward/risk <span class="pk-nm-hint">vs ${escapeHtml(fmtRR(hurdle))}</span></th><th scope="col" class="num">Buy at or below</th><th scope="col" class="num">Or a target of</th></tr></thead>
+        <tbody>${all.map(row).join('')}</tbody>
+      </table></div>${more}
     </section>`;
 }
 

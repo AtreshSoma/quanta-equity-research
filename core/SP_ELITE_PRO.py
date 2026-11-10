@@ -6988,7 +6988,7 @@ class QuantaEliteTradingSystem:
         out: List[Dict[str, Any]] = []
         for r in rows[:int(limit if limit is not None else _T.UI.NEAR_MISS_N)]:
             item = {"ticker": r["ticker"], "reason": r["reason"], "score": float(r["score"]),
-                    "detail": r.get("detail", "")}
+                    "detail": r.get("detail", ""), "company": r.get("company", "")}
             e, st, tg = (float(r.get(k) or 0) for k in ("entry", "stop", "target"))
             if r["reason"] == "risk_reward_low" and e > 0 and 0 < st < e and tg > 0:
                 cost = float(r.get("cost_frac") or 0.0)
@@ -9276,7 +9276,8 @@ class QuantaEliteTradingSystem:
                 self._record_candidate_rejection(ticker, 'risk_reward_low', overall_score,
                     f"After-cost R:R {_T.fmt_rr(risk_reward)} below {_T.fmt_rr(TradingConfig.RISK_REWARD_MIN)}",
                     entry=float(entry), stop=float(stop), target=float(target),
-                    rr=_T.floor_rr(risk_reward), cost_frac=float(execution_cost_pct))
+                    rr=_T.floor_rr(risk_reward), cost_frac=float(execution_cost_pct),
+                    company=str(info.get('longName') or info.get('shortName') or '')[:60])
                 logger.debug(f"{ticker}: R/R {risk_reward:.2f} below minimum (after costs)")
                 self._record_filter('risk_reward_low')
                 if not research_mode:

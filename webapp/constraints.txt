@@ -16,5 +16,5 @@ ta==0.11.0
 yfinance==1.4.1
 curl_cffi==0.17.0
 vaderSentiment==3.3.2
-python-dateutil==2.9.0.post0
+python-dateutil==4.0.0
 scipy==1.17.1
